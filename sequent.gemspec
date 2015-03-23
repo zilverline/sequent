@@ -18,7 +18,6 @@ Gem::Specification.new do |s|
   s.add_dependency              'activemodel', '~> 4.0.10'
   s.add_dependency              'pg', '~> 0.18.1'
   s.add_dependency              'oj', '~> 2.10.3'
-  s.add_development_dependency  'rake', '~> 10.4.2'
   s.add_development_dependency  'rspec', '~> 3.2.0'
   s.add_development_dependency  'rspec-mocks', '~> 3.2.0'
 end
