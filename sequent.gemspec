@@ -7,8 +7,8 @@ Gem::Specification.new do |s|
   s.date        = '2014-03-15'
   s.summary     = "Event sourcing framework for Ruby"
   s.description = "Sequent is an event sourcing framework for Ruby. It supports multitentant Sinatra backed applications by default."
-  s.author      = "Lars Vonk"
-  s.email       = 'lars.vonk@gmail.com'
+  s.authors     = ["Lars Vonk", "Bob Forma"]
+  s.email       = ["lars.vonk@gmail.com", "bforma@zilverline.com"]
   s.files       = ["lib/sequent/sequent.rb"]
   s.homepage    =
     'https://github.com/zilverline/sequent'
