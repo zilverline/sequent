@@ -2,9 +2,22 @@ require_relative 'transactions/no_transactions'
 
 module Sequent
   module Core
-
+    #
+    # Single point in the application where subclasses of Sequent::Core::BaseCommand
+    # are executed. This will initiate the entire flow of:
+    #
+    # * Validate command
+    # * Call correct Sequent::Core::BaseCommandHandler
+    # * CommandHandler decides which Sequent::Core::AggregateRoot (s) to call
+    # * Events are stored in the Sequent::Core::EventStore
+    # * Unit of Work is cleared
+    #
     class CommandService
 
+      # +event_store+ The Sequent::Core::EventStore
+      # +command_handler_classes+ Array of BaseCommandHandler classes that need to handle commands
+      # +transaction_provider+ How to do transaction management. Defaults to Sequent::Core::Transactions::NoTransactions
+      # +filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
       def initialize(event_store, command_handler_classes, transaction_provider = Sequent::Core::Transactions::NoTransactions.new, filters=[])
         @event_store = event_store
         @repository = AggregateRepository.new(event_store)
@@ -13,6 +26,13 @@ module Sequent
         @command_handlers = command_handler_classes.map { |handler| handler.new(@repository) }
       end
 
+      # Executes the given commands in a single transactional block as implemented by the +transaction_provider+
+      #
+      # For each command:
+      #
+      # * All filters are executed. Any exception raised will rollback the transaction and propagate up
+      # * If the command is valid all +command_handlers+ that +handles_message?+ is invoked
+      # * The +repository+ commits the command and all uncommitted_events resulting from the command
       def execute_commands(*commands)
         begin
           @transaction_provider.transactional do
@@ -41,6 +61,7 @@ module Sequent
 
     end
 
+    # Raised when BaseCommand.valid? returns false
     class CommandNotValid < ArgumentError
 
       def initialize(command)

@@ -2,13 +2,17 @@ require_relative 'helpers/self_applier'
 
 module Sequent
   module Core
+    # Base class for all your domain classes.
+    #
+    # +load_from_history+ functionality to be loaded_from_history, meaning a stream of events.
+    #
     class AggregateRoot
       include Helpers::SelfApplier
 
       attr_reader :id, :uncommitted_events, :sequence_number
 
       def self.load_from_history(events)
-        aggregate_root = allocate()
+        aggregate_root = allocate() # allocate without calling new
         aggregate_root.load_from_history(events)
         aggregate_root
       end
@@ -42,6 +46,12 @@ module Sequent
         event.new({aggregate_id: @id, sequence_number: @sequence_number}.merge(params))
       end
 
+      # Provide subclasses nice DSL to 'apply' events via:
+      #
+      #   def send_invoice
+      #     apply InvoiceSentEvent, send_date: DateTime.now
+      #   end
+      #
       def apply(event, params={})
         event = build_event(event, params) if event.is_a?(Class)
         handle_message(event)
@@ -50,6 +60,9 @@ module Sequent
       end
     end
 
+    # You can use this class when running in a multi tenant environment
+    # It basically makes sure that the +organization_id+ (the tenant_id for historic reasons)
+    # is available for the subclasses
     class TenantAggregateRoot < AggregateRoot
       attr_reader :organization_id
 

@@ -1,6 +1,7 @@
 require 'active_record'
 module Sequent
   module Core
+    # For storing Sequent::Core::Command in the database using active_record
     class CommandRecord < ActiveRecord::Base
 
       self.table_name = "command_records"

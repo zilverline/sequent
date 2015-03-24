@@ -7,6 +7,7 @@ require_relative 'helpers/mergable'
 
 module Sequent
   module Core
+    # Base command
     class BaseCommand
       include ActiveModel::Validations,
               ActiveModel::Serializers::JSON,
@@ -37,6 +38,16 @@ module Sequent
       end
     end
 
+    # Most commonly used command
+    # Command can be instantiated just by using:
+    #
+    #   Command.new(aggregate_id: "1", user_id: "joe")
+    #
+    # But the Sequent::Core::Helpers::ParamSupport also enables Commands
+    # to be created from a params hash (like the one from Sinatra) as follows:
+    #
+    #   command = Command.from_params(params)
+    #
     class Command < BaseCommand
       attrs aggregate_id: String, user_id: String
 
