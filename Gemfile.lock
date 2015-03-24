@@ -6,6 +6,7 @@ PATH
       activerecord (~> 4.0.10)
       oj (~> 2.10.3)
       pg (~> 0.18.1)
+      rack_csrf (~> 2.5.0)
 
 GEM
   remote: https://rubygems.org/
@@ -31,8 +32,11 @@ GEM
     i18n (0.7.0)
     minitest (4.7.5)
     multi_json (1.11.0)
-    oj (2.10.3)
+    oj (2.10.4)
     pg (0.18.1)
+    rack (1.6.0)
+    rack_csrf (2.5.0)
+      rack (>= 1.1.0)
     rspec (3.2.0)
       rspec-core (~> 3.2.0)
       rspec-expectations (~> 3.2.0)
