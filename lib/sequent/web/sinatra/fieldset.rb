@@ -26,6 +26,10 @@ module Sequent
           @parent.send(method, *args)
         end
 
+        def path_for(field_name)
+          css_id @path, field_name
+        end
+
       end
 
     end
