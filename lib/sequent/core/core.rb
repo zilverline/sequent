@@ -1,5 +1,6 @@
 require_relative 'helpers/helpers'
 require_relative 'record_sessions/record_sessions'
+require_relative 'transactions/transactions'
 require_relative 'aggregate_repository'
 require_relative 'aggregate_root'
 require_relative 'base_command_handler'
