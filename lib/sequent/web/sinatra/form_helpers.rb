@@ -1,4 +1,5 @@
 require_relative 'form'
+require 'rack/csrf'
 
 module Sequent
   module Web
