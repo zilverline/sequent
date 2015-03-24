@@ -1,15 +1,11 @@
+require_relative 'transactions/no_transactions'
+
 module Sequent
   module Core
 
-    class NoTransaction
-      def transactional
-        yield
-      end
-    end
-
     class CommandService
 
-      def initialize(event_store, command_handler_classes, transaction_provider = NoTransaction.new, filters=[])
+      def initialize(event_store, command_handler_classes, transaction_provider = Sequent::Core::Transactions::NoTransactions.new, filters=[])
         @event_store = event_store
         @repository = AggregateRepository.new(event_store)
         @filters = filters
