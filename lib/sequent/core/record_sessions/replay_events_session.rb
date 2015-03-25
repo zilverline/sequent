@@ -4,6 +4,36 @@ require 'active_record'
 module Sequent
   module Core
     module RecordSessions
+      #
+      # Session objects are used to update view state
+      #
+      # The ReplayEventsSession is optimized for bulk loading records in a Postgres database using CSV import.
+      #
+      # After lot of experimenting this turned out to be the fastest way to to bulk inserts in the database.
+      # You can tweak the amount of records in the CSV via +insert_with_csv_size+ before
+      # it flushes to the database to gain (or loose) speed.
+      #
+      # It is highly recommended to create +indices+ on the in memory +record_store+ to speed up the processing.
+      # By default all records are indexed by +aggregate_id+ if they have such a property.
+      #
+      # Example:
+      #
+      #   class InvoiceEventHandler < Sequent::Core::BaseEventHandler
+      #     on RecipientMovedEvent do |event|
+      #       update_all_records InvoiceRecord, recipient_id: event.recipient.aggregate_id do |record|
+      #         record.recipient_street = record.recipient.street
+      #       end
+      #     end
+      #   end
+      #
+      # In this case it is wise to create an index on InvoiceRecord on the recipient_id like you would in the database.
+      #
+      # Example:
+      #
+      #   ReplayEventsSession.new(
+      #     50,
+      #     {InvoiceRecord => [[:recipient_id]]}
+      #   )
       class ReplayEventsSession
 
         attr_reader :record_store
@@ -22,6 +52,11 @@ module Sequent
           end
         end
 
+        # +insert_with_csv_size+ number of records to insert in a single batch
+        #
+        # +indices+ Hash of indices to create in memory. Greatly speeds up the replaying.
+        #   Key corresponds to the name of the 'Record'
+        #   Values contains list of lists on which columns to index. E.g. [[:first_index_column], [:another_index, :with_to_columns]]
         def initialize(insert_with_csv_size = 50, indices = {})
           @insert_with_csv_size = insert_with_csv_size
           @record_store = Hash.new { |h, k| h[k] = Set.new }
