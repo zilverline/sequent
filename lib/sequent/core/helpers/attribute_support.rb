@@ -1,5 +1,6 @@
 require 'active_support'
-
+# TODO: Move this into a separate core_ext folder like for instance Rails does.
+# WARNING: Monkey patches below...
 class Symbol
   def self.deserialize_from_json(value)
     value.try(:to_sym)
@@ -45,6 +46,16 @@ end
 module Sequent
   module Core
     module Helpers
+      # Provides functionality for defining attributes with their types
+      #
+      # Since our Commands and ValueObjects are not backed by a database like e.g. rails
+      # we can not infer their types. We need the types to be able to parse from and to json.
+      # We could have stored te type information in the json, but we didn't.
+      #
+      # You typically do not need to include this module in your classes. If you extend from
+      # Sequent::Core::ValueObject, Sequent::Core::Event or Sequent::Core::BaseCommand you will
+      # get this functionality for free.
+      #
       module AttributeSupport
         # module containing class methods to be added
         module ClassMethods
@@ -90,6 +101,12 @@ EOS
 EOS
           end
 
+          #
+          # Allows you to define something is an array of a type
+          # Example:
+          #
+          #   attrs trainees: array(Person)
+          #
           def array(type)
             ArrayWithType.new(type)
           end
@@ -131,6 +148,19 @@ EOS
           prefix ? HashWithIndifferentAccess[result.map { |k, v| ["#{prefix}_#{k}", v] }] : result
         end
 
+        # If you have a Date object validate it with this method when the unparsed input is a String
+        # This scenario is typically when a date is posted from the web.
+        #
+        # Example
+        #
+        #   class Person < Sequent::Core::ValueObject
+        #     attrs date_of_birth: Date
+        #
+        #     validate :valid_date
+        #   end
+        #
+        # If the date_of_birth is a valid date it will be parsed into a proper Date object.
+        # This implementation currently only support dd-mm-yyyy format.
         def valid_date
           self.class.types.each do |name, clazz|
             if clazz == Date

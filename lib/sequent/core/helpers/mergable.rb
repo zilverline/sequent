@@ -1,7 +1,10 @@
 module Sequent
   module Core
     module Helpers
-
+      # Looks like Copyable but changes this instance
+      #
+      #   ben = Person.new(name: 'Ben').merge!(name: 'Ben Vonk')
+      #
       module Mergable
 
         def merge!(attrs = {})
@@ -12,7 +15,6 @@ module Sequent
         end
 
       end
-
     end
   end
 end

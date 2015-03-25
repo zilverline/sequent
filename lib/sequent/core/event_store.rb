@@ -27,7 +27,7 @@ module Sequent
       end
 
       ##
-      # Returns all events for the aggregate ordered by sequence_number.
+      # Returns all events for the aggregate ordered by sequence_number
       #
       def load_events(aggregate_id)
         event_types = {}

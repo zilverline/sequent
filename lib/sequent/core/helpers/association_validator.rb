@@ -2,6 +2,19 @@ require 'active_model'
 module Sequent
   module Core
     module Helpers
+      #
+      # Validator for associations. Typically used in Sequent::Core::Command,
+      # Sequent::Core::Event and Sequent::Core::ValueObjects.
+      #
+      # Example:
+      #
+      #   class RegisterForTrainingCommand < UpdateCommand
+      #     attrs trainee: Person
+      #
+      #     validates_presence_of :trainee
+      #     validates_with Sequent::Core::Helpers::AssociationValidator, associations: [:trainee]
+      #
+      #   end
       class Sequent::Core::Helpers::AssociationValidator < ActiveModel::Validator
 
         def validate(record)

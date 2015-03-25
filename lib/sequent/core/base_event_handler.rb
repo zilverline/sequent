@@ -22,9 +22,18 @@ module Sequent
     #   end
     #
     # Please note that the actual storage is abstracted away in the +record_session+. Reason
-    # is when replaying the entire event_store our default choice, active_record, is to slow.
+    # is when replaying the entire event_store our default choice, active_record, is too slow.
     # Also we want to give the opportunity to use other storage mechanisms for the view state.
     # See the +def_delegators+ which method to implement.
+    # Due to this abstraction you can not traverse into child objects when using ActiveRecord
+    # like you are used to:
+    #
+    #   invoice_record.line_item_records << create_record(LineItemRecord, ...)
+    #
+    # In this case you should simply do:
+    #
+    #   create_record(LineItemRecord, invoice_id: invoice_record.aggregate_id)
+    #
     class BaseEventHandler
       extend Forwardable
       include Helpers::SelfApplier

@@ -1,17 +1,21 @@
 module Sequent
   module Core
     module Helpers
+      ##
+      # Creates ability to use DSL like:
+      # class MyEventHandler < Sequent::Core::BaseEventHandler
+      #
+      #   on MyEvent do |event|
+      #     do_some_logic
+      #   end
+      # end
+      #
+      # You typically do not need to include this module in your classes. If you extend from
+      # Sequent::Core::AggregateRoot, Sequent::Core::BaseEventHandler or Sequent::Core::BaseCommandHandler
+      # you will get this functionality for free.
+      #
       module SelfApplier
 
-        ##
-        # Creates ability to use DSL like:
-        # class MyEventHandler
-        #   include Sequent::Core::Helpers::SelfApplier
-        #
-        #   on MyEvent do |event|
-        #     do_some_logic
-        #   end
-        # end
         module ClassMethods
 
           def on(*message_classes, &block)

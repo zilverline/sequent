@@ -1,8 +1,12 @@
 module Sequent
   module Core
     module Helpers
+      #
+      # You typically do not need to include this module in your classes. If you extend from
+      # Sequent::Core::ValueObject, Sequent::Core::Event or Sequent::Core::BaseCommand you will
+      # get this functionality for free.
+      #
       module EqualSupport
-
         def ==(other)
           return false if other == nil
           return false if self.class != other.class

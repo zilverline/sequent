@@ -1,7 +1,17 @@
 module Sequent
   module Core
     module Helpers
-
+      #
+      # Parses the strings "true", "false" and nil to true, false, false
+      #
+      # You need to include this module explicitly when working with booleans.
+      #
+      # Example:
+      #
+      #   class Registration < Sequent::Core::ValueObject
+      #     include Sequent::Core::Helpers::BooleanSupport
+      #     attrs accepted_terms: Boolean
+      #   end
       module BooleanSupport
 
         def self.included(base)

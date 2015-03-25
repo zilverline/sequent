@@ -3,6 +3,12 @@ require 'active_support'
 module Sequent
   module Core
     module Helpers
+      # Class to support binding from a params hash like the one from Sinatra
+      #
+      # You typically do not need to include this module in your classes. If you extend from
+      # Sequent::Core::ValueObject, Sequent::Core::Event or Sequent::Core::BaseCommand you will
+      # get this functionality for free.
+      #
       module ParamSupport
         module ClassMethods
           def from_params(params = {})

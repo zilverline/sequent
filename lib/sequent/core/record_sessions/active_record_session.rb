@@ -3,6 +3,11 @@ require 'active_record'
 module Sequent
   module Core
     module RecordSessions
+      #
+      # Session objects are used to update view state
+      #
+      # The ActiveRecordSession object can be used when you use ActiveRecord as view state store.
+      #
       class ActiveRecordSession
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
