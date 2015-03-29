@@ -1,20 +1,32 @@
 require 'oj'
+require_relative 'event_record'
 
 module Sequent
   module Core
+    class EventStoreConfiguration
+      attr_accessor :record_class, :event_handlers
+
+      def initialize
+        @record_class = Sequent::Core::EventRecord
+        @event_handlers = []
+      end
+    end
+
     class EventStore
 
-      def initialize(record_class = EventRecord, event_handlers = [])
-        @record_class = record_class
-        @event_handlers = event_handlers
+      class << self
+        attr_accessor :configuration
       end
 
-      def add_event_handler(event_handler)
-        @event_handlers << event_handler
+      def self.configure
+        self.configuration ||= EventStoreConfiguration.new
+        yield(configuration) if block_given?
+        EventStore.new(configuration)
       end
 
-      def remove_event_handler(clazz)
-        @event_handlers.delete_if { |event_handler| event_handler.class == clazz }
+      def initialize(configuration = EventStoreConfiguration.new)
+        @record_class = configuration.record_class
+        @event_handlers = configuration.event_handlers
       end
 
       ##

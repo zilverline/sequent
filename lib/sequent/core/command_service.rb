@@ -2,6 +2,21 @@ require_relative 'transactions/no_transactions'
 
 module Sequent
   module Core
+
+    class CommandServiceConfiguration
+      attr_accessor :event_store,
+                    :command_handler_classes,
+                    :transaction_provider,
+                    :filters
+
+      def initialize
+        @command_handler_classes = []
+        @transaction_provider = Sequent::Core::Transactions::NoTransactions.new
+        @filters = []
+      end
+
+    end
+
     #
     # Single point in the application where subclasses of Sequent::Core::BaseCommand
     # are executed. This will initiate the entire flow of:
@@ -14,16 +29,28 @@ module Sequent
     #
     class CommandService
 
-      # +event_store+ The Sequent::Core::EventStore
-      # +command_handler_classes+ Array of BaseCommandHandler classes that need to handle commands
-      # +transaction_provider+ How to do transaction management. Defaults to Sequent::Core::Transactions::NoTransactions
-      # +filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
-      def initialize(event_store, command_handler_classes, transaction_provider = Sequent::Core::Transactions::NoTransactions.new, filters=[])
-        @event_store = event_store
-        @repository = AggregateRepository.new(event_store)
-        @filters = filters
-        @transaction_provider = transaction_provider
-        @command_handlers = command_handler_classes.map { |handler| handler.new(@repository) }
+      class << self
+        attr_accessor :configuration
+      end
+
+      def self.configure
+        self.configuration ||= CommandServiceConfiguration.new
+        yield(configuration) if block_given?
+        CommandService.new(configuration)
+      end
+
+      # +DefaultCommandServiceConfiguration+ Configuration class for the CommandService containing:
+      #
+      #   +event_store+ The Sequent::Core::EventStore
+      #   +command_handler_classes+ Array of BaseCommandHandler classes that need to handle commands
+      #   +transaction_provider+ How to do transaction management. Defaults to Sequent::Core::Transactions::NoTransactions
+      #   +filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
+      def initialize(configuration = CommandServiceConfiguration.new)
+        @event_store = configuration.event_store
+        @repository = AggregateRepository.new(configuration.event_store)
+        @filters = configuration.filters
+        @transaction_provider = configuration.transaction_provider
+        @command_handlers = configuration.command_handler_classes.map { |handler| handler.new(@repository) }
       end
 
       # Executes the given commands in a single transactional block as implemented by the +transaction_provider+

@@ -17,10 +17,10 @@ describe Sequent::Core::CommandService do
   let(:command) { DummyCommand.new(aggregate_id: "1") }
 
   let(:command_service) do
-    Sequent::Core::CommandService.new(
-      event_store,
-      [foo_handler_class]
-    )
+    Sequent::Core::CommandService.configure do |config|
+      config.event_store = event_store
+      config.command_handler_classes = [foo_handler_class]
+    end
   end
 
   before :each do
