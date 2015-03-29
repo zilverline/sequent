@@ -29,7 +29,7 @@ module Sequent
 
         end
       end
-      Sinatra.register App
     end
   end
 end
+Sinatra.register Sequent::Web::Sinatra::App
