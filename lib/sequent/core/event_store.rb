@@ -6,9 +6,9 @@ module Sequent
     class EventStoreConfiguration
       attr_accessor :record_class, :event_handlers
 
-      def initialize
-        @record_class = Sequent::Core::EventRecord
-        @event_handlers = []
+      def initialize(record_class = Sequent::Core::EventRecord, event_handlers = [])
+        @record_class = record_class
+        @event_handlers = event_handlers
       end
     end
 
