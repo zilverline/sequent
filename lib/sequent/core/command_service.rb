@@ -30,13 +30,18 @@ module Sequent
     class CommandService
 
       class << self
-        attr_accessor :configuration
+        attr_accessor :configuration,
+                      :instance
       end
 
+      # Creates a new CommandService and overwrites all existing config.
+      # The new CommandService can be retrieved via the +CommandService.instance+ method.
+      #
+      # If you don't want a singleton you can always instantiate it yourself using the +CommandService.new+.
       def self.configure
-        self.configuration ||= CommandServiceConfiguration.new
+        self.configuration = CommandServiceConfiguration.new
         yield(configuration) if block_given?
-        CommandService.new(configuration)
+        self.instance = CommandService.new(configuration)
       end
 
       # +DefaultCommandServiceConfiguration+ Configuration class for the CommandService containing:

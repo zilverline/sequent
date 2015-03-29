@@ -15,13 +15,18 @@ module Sequent
     class EventStore
 
       class << self
-        attr_accessor :configuration
+        attr_accessor :configuration,
+                      :instance
       end
 
+      # Creates a new EventStore and overwrites all existing config.
+      # The new EventStore can be retrieved via the +EventStore.instance+ method.
+      #
+      # If you don't want a singleton you can always instantiate it yourself using the +EventStore.new+.
       def self.configure
-        self.configuration ||= EventStoreConfiguration.new
+        self.configuration = EventStoreConfiguration.new
         yield(configuration) if block_given?
-        EventStore.new(configuration)
+        EventStore.instance = EventStore.new(configuration)
       end
 
       def initialize(configuration = EventStoreConfiguration.new)
