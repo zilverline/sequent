@@ -32,7 +32,7 @@ gem install sequent
 ```
 
 ```
-require 'sequent/sequent'
+require 'sequent'
 ```
 
 # Contributing
