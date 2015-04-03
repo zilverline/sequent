@@ -1,5 +1,7 @@
 # Sequent
 
+[![Build Status](https://travis-ci.org/zilverline/sequent.svg?branch=master)](https://travis-ci.org/zilverline/sequent) [![Code Climate](https://codeclimate.com/github/zilverline/sequent/badges/gpa.svg)](https://codeclimate.com/github/zilverline/sequent) [![Test Coverage](https://codeclimate.com/github/zilverline/sequent/badges/coverage.svg)](https://codeclimate.com/github/zilverline/sequent)
+
 Sequent is a CQRS and event sourcing framework written in Ruby.
 
 In short: This means instead of storing the current state of your domain model we only store _what happened_ (events).
