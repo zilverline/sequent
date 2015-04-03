@@ -15,7 +15,7 @@ module Sequent
       #     validates_with Sequent::Core::Helpers::AssociationValidator, associations: [:trainee]
       #
       #   end
-      class Sequent::Core::Helpers::AssociationValidator < ActiveModel::Validator
+      class AssociationValidator < ActiveModel::Validator
 
         def validate(record)
           associations = options[:associations]
