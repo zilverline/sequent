@@ -27,7 +27,7 @@ module Sequent
         raise "Empty history" if events.empty?
         @id = events.first.aggregate_id
         @uncommitted_events = []
-        @sequence_number = events.size + 1
+        @sequence_number = events.last.sequence_number + 1
         events.each { |event| handle_message(event) }
       end
 
@@ -38,6 +38,10 @@ module Sequent
 
       def clear_events
         uncommitted_events.clear
+      end
+
+      on SnapshotEvent do |event|
+        load_from_snapshot event
       end
 
       protected
@@ -74,7 +78,7 @@ module Sequent
       def load_from_history(events)
         raise "Empty history" if events.empty?
         @organization_id = events.first.organization_id
-        super(events)
+        super
       end
 
       protected

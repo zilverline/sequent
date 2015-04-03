@@ -12,7 +12,6 @@ module Sequent
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json
       validates_numericality_of :sequence_number
 
-
       def event
         payload = Oj.strict_load(event_json)
         Class.const_get(event_type.to_sym).deserialize_from_json(payload)
@@ -31,4 +30,3 @@ module Sequent
 
   end
 end
-

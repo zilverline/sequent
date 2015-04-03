@@ -56,7 +56,9 @@ module Sequent
 
     end
 
+    class SnapshotEvent < Event
+      attrs data: Hash
+    end
+
   end
 end
-
-

@@ -48,7 +48,17 @@ module Sequent
       #
       def load_events(aggregate_id)
         event_types = {}
-        @record_class.connection.select_all("select event_type, event_json from #{@record_class.table_name} where aggregate_id = '#{aggregate_id}' order by sequence_number asc").map! do |event_hash|
+        @record_class.connection.select_all(%Q{
+SELECT event_type, event_json
+  FROM #{@record_class.table_name}
+ WHERE aggregate_id = '#{aggregate_id}'
+   AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
+                                      FROM #{@record_class.table_name}
+                                     WHERE event_type = '#{SnapshotEvent.name}'
+                                       AND aggregate_id = '#{aggregate_id}'), 0)
+ ORDER BY sequence_number ASC, (CASE event_type WHEN '#{SnapshotEvent.name}' THEN 0 ELSE 1 END) ASC
+}).map! do |event_hash|
+          kind = event_hash["kind"]
           event_type = event_hash["event_type"]
           event_json = Oj.strict_load(event_hash["event_json"])
           unless event_types.has_key?(event_type)

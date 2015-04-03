@@ -22,11 +22,11 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should load an aggregate from the event store" do
-    allow(event_store).to receive(:load_events).with(:id).and_return(:events)
+    allow(event_store).to receive(:load_events).with(:id).and_return([:events])
 
     loaded = repository.load_aggregate(:id, DummyAggregate)
 
-    expect(loaded.loaded_events).to equal(:events)
+    expect(loaded.loaded_events).to eq([:events])
   end
 
   it "should commit and clear events from aggregates in the identity map" do

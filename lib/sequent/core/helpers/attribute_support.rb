@@ -43,6 +43,12 @@ class Array
   end
 end
 
+class Hash
+  def self.deserialize_from_json(value)
+    value
+  end
+end
+
 module Sequent
   module Core
     module Helpers
@@ -203,5 +209,3 @@ EOS
     end
   end
 end
-
-
