@@ -66,6 +66,18 @@ Commands in sequent use ActiveModel for validations.
       attrs pay_date: Date, amount: Integer
     end
 
+Sequent will automatically add validators in `Sequent::Core::BaseCommand`s for frequently used classes like:
+
+* Date
+* DateTime
+* Integer
+* Boolean
+
+When posted form the web and created like `PayInvoiceCommand.from_params(params[:pay_invoice_command])` its values are typically still all String.
+Sequent takes care of parsing the string values to the correct types automatically when a Command is valid (`valid?`).
+Its values will be parsed to the correct types by the CommandService. If you instantiate a Command manually with the correct types nothing will change.
+
+
 ## CommandService
 
 Sequent provides a `Sequent::Core::CommandService` to propagate the commands to the correct aggregates. This is done
@@ -169,6 +181,13 @@ Value objects, like commands, use ActiveModel for validations.
     class Address < Sequent::Core::ValueObject
       attrs street: String, country: Country
     end
+
+Sequent will automatically add validators in `Sequent::Core::ValueObject`s for frequently used classes like:
+
+* Date
+* DateTime
+* Integer
+* Boolean
 
 # License
 
