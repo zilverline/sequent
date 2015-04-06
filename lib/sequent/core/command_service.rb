@@ -72,6 +72,7 @@ module Sequent
               @filters.each { |filter| filter.execute(command) }
 
               if command.valid?
+                command.parse_attrs_to_correct_types!
                 @command_handlers.each do |command_handler|
                   command_handler.handle_message command if command_handler.handles_message? command
                 end
