@@ -106,43 +106,14 @@ EOS
           prefix ? HashWithIndifferentAccess[result.map { |k, v| ["#{prefix}_#{k}", v] }] : result
         end
 
-        # If you have a Date object validate it with this method when the unparsed input is a String
-        # This scenario is typically when a date is posted from the web.
-        #
-        # Example
-        #
-        #   class Person < Sequent::Core::ValueObject
-        #     attrs date_of_birth: Date
-        #
-        #     validate :valid_date
-        #   end
-        #
-        # If the date_of_birth is a valid date it will be parsed into a proper Date object.
-        # This implementation currently only support dd-mm-yyyy format.
-        def valid_date
-          self.class.types.each do |name, clazz|
-            if clazz == Date
-              return if self.instance_variable_get("@#{name}").kind_of? Date
-              unless self.instance_variable_get("@#{name}").blank?
-                if (/\d{2}-\d{2}-\d{4}/ =~ self.instance_variable_get("@#{name}")).nil?
-                  @errors.add(name.to_s, :invalid_date) if (/\d{2}-\d{2}-\d{4}/ =~ self.instance_variable_get("@#{name}")).nil?
-                else
-                  begin
-                    self.instance_variable_set "@#{name}", Date.strptime(self.instance_variable_get("@#{name}"), "%d-%m-%Y")
-                  rescue
-                    @errors.add(name.to_s, :invalid_date)
-                  end
-                end
-              end
-
-            end
-          end
-        end
-
       end
 
       class ArrayWithType
         attr_accessor :item_type
+
+        def parse_from_string(values)
+          values.map { |item| item_type.parse_from_string(item) }
+        end
 
         def initialize(item_type)
           raise "needs a item_type" unless item_type
