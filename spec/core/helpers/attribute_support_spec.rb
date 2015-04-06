@@ -137,6 +137,33 @@ describe Sequent::Core::Helpers::AttributeSupport do
       end
     end
 
+    context DateTime do
+      class WithDateTime < Sequent::Core::ValueObject
+        attrs value: DateTime
+      end
+
+      it "handles nils" do
+        obj = WithDateTime.new(value: nil)
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "handles DateTimes" do
+        obj = WithDateTime.new(value: DateTime.current)
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "handles valid date strings" do
+        obj = WithDateTime.new(value: "2015-04-06T19:43:07+02:00")
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "reports errors for invalid date" do
+        obj = WithDateTime.new(value: "2015-04-dfgdsfg07+02:00")
+        expect(obj.valid?).to be_falsey
+      end
+
+    end
+
 
   end
 end

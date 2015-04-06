@@ -60,8 +60,8 @@ class Date
 end
 
 class DateTime
-  def self.add_validations_for(_, _)
-
+  def self.add_validations_for(klass, field)
+    klass.validates field, "sequent::Core::Helpers::DateTime" => true
   end
   def self.parse_from_string(value)
     value.is_a?(DateTime) ? value : deserialize_from_json(value)
