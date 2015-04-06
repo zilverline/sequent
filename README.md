@@ -189,6 +189,8 @@ Sequent will automatically add validators in `Sequent::Core::ValueObject`s for f
 * Integer
 * Boolean
 
+Validation is automatically triggered when adding `ValueObject`s to Commands.
+
 # License
 
 Sequent is released under the MIT License.

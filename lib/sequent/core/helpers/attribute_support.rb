@@ -31,15 +31,28 @@ module Sequent
             end
           end
 
+          def type_for(name)
+            @types.first { |k, _| k == name }.last
+          end
+
           def attrs(args)
             @types ||= {}
             @types.merge!(args)
+            @associations = []
             args.each do |attribute, type|
               attr_accessor attribute
               if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport) && type.respond_to?(:add_validations_for)
                 type.add_validations_for(self, attribute)
               end
+
+              if type.class == Sequent::Core::Helpers::ArrayWithType
+                @associations << attribute
+              elsif included_modules.include?(ActiveModel::Validations) &&
+                type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
+                @associations << attribute
+              end
             end
+            validates_with Sequent::Core::Helpers::AssociationValidator, associations: @associations if @associations.present?
             # Generate method that sets all defined attributes based on the attrs hash.
             class_eval <<EOS
               def update_all_attributes(attrs)

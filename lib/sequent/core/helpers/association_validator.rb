@@ -26,7 +26,14 @@ module Sequent
             if value && !value.kind_of?(Array) && record.respond_to?(:attributes) && !value.kind_of?(record.attributes[association])
               record.errors[association] = "is not of type #{record.attributes[association]}"
             elsif value && value.kind_of?(Array)
-              record.errors[association] = "is invalid" if value.any? { |v| not v.valid? }
+              item_type = record.class.type_for(association).item_type
+              record.errors[association] = "is invalid" if value.any? do |v|
+                if v.respond_to? :valid?
+                  not v.valid?
+                else
+                  not item_type.valid_value?(v)
+                end
+              end
             else
               record.errors[association] = "is invalid" if value && value.invalid?
 

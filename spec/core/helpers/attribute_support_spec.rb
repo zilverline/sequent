@@ -164,9 +164,198 @@ describe Sequent::Core::Helpers::AttributeSupport do
 
     end
 
-    pending Sequent::Core::ValueObject
+    context Sequent::Core::ValueObject do
+      class NestedValueObject < Sequent::Core::ValueObject
+        attrs value: Integer
+      end
 
-    pending Array
+      class BaseValueObject < Sequent::Core::ValueObject
+        attrs nested: NestedValueObject
+      end
+
+      class BaseValueObjectWithMulitpleNested < Sequent::Core::ValueObject
+        attrs nested: NestedValueObject, another: NestedValueObject
+      end
+
+      it "handles nil" do
+        obj = BaseValueObject.new(nested: nil)
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "reports an error when nested invalid" do
+        obj = BaseValueObject.new(nested: NestedValueObject.new(value: "A"))
+        expect(obj.valid?).to be_falsey
+        expect(obj.validation_errors[:nested_value]).to_not be_nil
+      end
+
+      it "reports an error for all invalid nested" do
+        obj = BaseValueObjectWithMulitpleNested.new(
+          nested: NestedValueObject.new(value: "A"),
+          another: NestedValueObject.new(value: "B")
+        )
+        expect(obj.valid?).to be_falsey
+        expect(obj.validation_errors[:nested_value]).to_not be_nil
+        expect(obj.validation_errors[:another_value]).to_not be_nil
+      end
+
+      it "handles valid input" do
+        obj = BaseValueObject.new(nested: NestedValueObject.new(value: "1"))
+        expect(obj.valid?).to be_truthy
+      end
+    end
+
+    context Array do
+
+      context Integer do
+
+        class ArrayInteger < Sequent::Core::ValueObject
+          attrs values: array(Integer)
+        end
+
+        it "handles nil" do
+          obj = ArrayInteger.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "reports an error for invalid Integers in the array" do
+          obj = ArrayInteger.new(values: ["a"])
+          expect(obj.valid?).to be_falsey
+          expect(obj.validation_errors[:values]).to eq ["is invalid"]
+        end
+
+        it "handles valid input" do
+          obj = ArrayInteger.new(values: ["1", 2])
+          expect(obj.valid?).to be_truthy
+        end
+      end
+
+      context Date do
+        class ArrayWithDate < Sequent::Core::ValueObject
+          attrs values: array(Date)
+        end
+
+        it "handles nil" do
+          obj = ArrayWithDate.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "reports an error for invalid Dates in the array" do
+          obj = ArrayWithDate.new(values: ["aa-aa-aaaa"])
+          expect(obj.valid?).to be_falsey
+          expect(obj.validation_errors[:values]).to eq ["is invalid"]
+        end
+
+        it "handles valid input" do
+          obj = ArrayWithDate.new(values: ["01-01-2015", Date.today])
+          expect(obj.valid?).to be_truthy
+        end
+
+      end
+      context DateTime do
+        class ArrayWithDateTime < Sequent::Core::ValueObject
+          attrs values: array(DateTime)
+        end
+
+        it "handles nil" do
+          obj = ArrayWithDateTime.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "reports an error for invalid DateTimes in the array" do
+          obj = ArrayWithDateTime.new(values: ["aa-aa-aaaa"])
+          expect(obj.valid?).to be_falsey
+          expect(obj.validation_errors[:values]).to eq ["is invalid"]
+        end
+
+        it "handles valid input" do
+          obj = ArrayWithDateTime.new(values: ["2015-04-06T19:43:07+02:00", DateTime.now])
+          expect(obj.valid?).to be_truthy
+        end
+
+      end
+
+      context String do
+        class ArrayWithString < Sequent::Core::ValueObject
+          attrs values: array(String)
+        end
+
+        it "handles nil" do
+          obj = ArrayWithString.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "handles valid input" do
+          obj = ArrayWithString.new(values: ["ben", "kim"])
+          expect(obj.valid?).to be_truthy
+        end
+
+      end
+      context Symbol do
+        class ArrayWithSymbol < Sequent::Core::ValueObject
+          attrs values: array(Symbol)
+        end
+
+        it "handles nil" do
+          obj = ArrayWithSymbol.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "handles valid input" do
+          obj = ArrayWithSymbol.new(values: ["ben", :kim])
+          expect(obj.valid?).to be_truthy
+        end
+
+      end
+      context Boolean do
+        class ArrayWithBoolean < Sequent::Core::ValueObject
+          attrs values: array(Boolean)
+        end
+
+        it "handles nil" do
+          obj = ArrayWithBoolean.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "reports an error for invalid Boolean in the array" do
+          obj = ArrayWithDateTime.new(values: ["yes"])
+          expect(obj.valid?).to be_falsey
+          expect(obj.validation_errors[:values]).to eq ["is invalid"]
+        end
+
+        it "handles valid input" do
+          obj = ArrayWithBoolean.new(values: ["true", "false", true, false])
+          expect(obj.valid?).to be_truthy
+        end
+
+      end
+
+      context Sequent::Core::ValueObject do
+        class FooBar < Sequent::Core::ValueObject
+          attrs value: Integer
+        end
+
+        class ArrayWithValueObject < Sequent::Core::ValueObject
+          attrs values: array(FooBar)
+        end
+
+        it "handles nil" do
+          obj = ArrayWithValueObject.new(values: nil)
+          expect(obj.valid?).to be_truthy
+        end
+
+        it "reports an error for invalid ValueObject in the array" do
+          obj = ArrayWithValueObject.new(values: [FooBar.new(value: "a")])
+          expect(obj.valid?).to be_falsey
+          expect(obj.validation_errors[:values]).to eq ["is invalid"]
+        end
+
+        it "handles valid input" do
+          obj = ArrayWithValueObject.new(values: [FooBar.new(value: 1), FooBar.new(value: "2")])
+          expect(obj.valid?).to be_truthy
+        end
+
+      end
+    end
 
   end
 end
