@@ -164,6 +164,9 @@ describe Sequent::Core::Helpers::AttributeSupport do
 
     end
 
+    pending Sequent::Core::ValueObject
+
+    pending Array
 
   end
 end
