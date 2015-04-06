@@ -32,15 +32,6 @@ describe Sequent::Core::Helpers::AttributeSupport do
     attrs some_attribute: String
   end
 
-  class WithBoolean < Sequent::Core::ValueObject
-    include ActiveModel::Validations::Callbacks
-    include Sequent::Core::Helpers::BooleanSupport
-
-    attrs foo: Boolean
-
-    validates :foo, inclusion: {in: [true, false]}, allow_nil: true
-  end
-
   it "returns validation errors as hash" do
     subject = NestedTestClass.new
     expect(subject.valid?).to be_falsey
@@ -79,16 +70,6 @@ describe Sequent::Core::Helpers::AttributeSupport do
 
   it "should support subclasses" do
     expect(SubTestClass.types).to eq({sub_message: String, message: String})
-  end
-
-  it "transforms string to booleans if possible" do
-    expect(WithBoolean.new.valid?).to be_truthy
-    expect(WithBoolean.new(foo: true).valid?).to be_truthy
-    expect(WithBoolean.new(foo: false).valid?).to be_truthy
-    expect(WithBoolean.new(foo: "").valid?).to be_falsey
-    expect(WithBoolean.new(foo: "foobar").valid?).to be_falsey
-    expect(WithBoolean.new(foo: nil).valid?).to be_truthy
-    expect(WithBoolean.new(foo: "true").valid?).to be_truthy
   end
 
 end
