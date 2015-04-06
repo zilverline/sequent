@@ -76,4 +76,67 @@ describe Sequent::Core::Helpers::AttributeSupport do
     end
   end
 
+  context "add default validations" do
+
+    context Integer do
+      class WithInteger < Sequent::Core::ValueObject
+        attrs value: Integer
+      end
+
+      it "reports errors for not number" do
+        obj = WithInteger.new(value: "A")
+        expect(obj.valid?).to be_falsey
+        expect(obj.validation_errors[:value]).to eq ["is not a number"]
+      end
+
+      it "reports errors for invalid integers" do
+        obj = WithInteger.new(value: "1.0")
+        expect(obj.valid?).to be_falsey
+        expect(obj.validation_errors[:value]).to eq ["must be an integer"]
+      end
+
+      it "handles valid integers" do
+        expect(WithInteger.new(value: 1)).to be_valid
+      end
+
+    end
+
+    context String do
+      class WithString < Sequent::Core::ValueObject
+        attrs value: String
+      end
+
+      it "handles strings" do
+        expect(WithString.new(value: "1")).to be_valid
+      end
+    end
+
+    context Date do
+      class WithDate < Sequent::Core::ValueObject
+        attrs value: Date
+      end
+
+      it "handles nils" do
+        obj = WithDate.new(value: nil)
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "handles Dates" do
+        obj = WithDate.new(value: Date.today)
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "handles valid date strings" do
+        obj = WithDate.new(value: "01-01-2015")
+        expect(obj.valid?).to be_truthy
+      end
+
+      it "reports errors for invalid date" do
+        obj = WithDate.new(value: "aa-bb-cccc")
+        expect(obj.valid?).to be_falsey
+      end
+    end
+
+
+  end
 end

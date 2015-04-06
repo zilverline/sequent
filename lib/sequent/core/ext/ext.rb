@@ -20,6 +20,10 @@ class String
 end
 
 class Integer
+  def self.add_validations_for(klass, field)
+    klass.validates_numericality_of field, only_integer: true
+  end
+
   def self.parse_from_string(value)
     Integer(value) unless value.nil?
     deserialize_from_json value
@@ -41,8 +45,8 @@ class Boolean
 end
 
 class Date
-  def self.add_validations_for(_, _)
-
+  def self.add_validations_for(klass, field)
+    klass.validates field, "sequent::Core::Helpers::Date" => true
   end
 
   def self.parse_from_string(value)

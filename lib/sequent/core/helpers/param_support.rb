@@ -22,8 +22,6 @@ module Sequent
                 value = type.from_params(value)
               elsif type.is_a? Sequent::Core::Helpers::ArrayWithType
                 value = value.map { |v| type.item_type.from_params(v) }
-              elsif type <= Date
-                value = Date.strptime(value, "%d-%m-%Y") if value
               end
               result.instance_variable_set(:"@#{attribute}", value)
             end
@@ -50,7 +48,7 @@ module Sequent
             elsif value.kind_of?(Array)
               value = value.map { |val| val.kind_of?(ValueObject) ? val.as_params : val }
             elsif value.kind_of? Date
-              value = value.strftime("%d-%m-%Y") if value
+              value = value.strftime("%d-%m-%Y") if value #TODO: Remove here
             end
             hash[field[0]] = value
           end

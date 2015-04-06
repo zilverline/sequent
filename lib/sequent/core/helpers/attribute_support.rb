@@ -34,10 +34,12 @@ module Sequent
           def attrs(args)
             @types ||= {}
             @types.merge!(args)
-            args.each do |attribute, _|
+            args.each do |attribute, type|
               attr_accessor attribute
+              if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport) && type.respond_to?(:add_validations_for)
+                type.add_validations_for(self, attribute)
+              end
             end
-
             # Generate method that sets all defined attributes based on the attrs hash.
             class_eval <<EOS
               def update_all_attributes(attrs)
