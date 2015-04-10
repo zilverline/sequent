@@ -32,7 +32,7 @@ module Sequent
           end
 
           def type_for(name)
-            @types.first { |k, _| k == name }.last
+            @types.find { |k, _| k == name }.last
           end
 
           def attrs(args)

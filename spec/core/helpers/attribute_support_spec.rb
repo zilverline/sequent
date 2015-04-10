@@ -370,8 +370,25 @@ describe Sequent::Core::Helpers::AttributeSupport do
           expect(obj.valid?).to be_truthy
         end
 
+        context "multiple assicatiations" do
+          class MultipleAssociations < Sequent::Core::ValueObject
+            attrs value: FooBar, values: array(FooBar)
+          end
+
+          it "handles nil" do
+            obj = MultipleAssociations.new(value: nil, values: nil)
+            expect(obj.valid?).to be_truthy
+          end
+
+          it "handles valid input" do
+            obj = MultipleAssociations.new(value: FooBar.new(value: 2), values: [FooBar.new(value: 1)])
+            expect(obj.valid?).to be_truthy
+          end
+
+        end
       end
     end
+
 
   end
 end
