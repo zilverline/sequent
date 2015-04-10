@@ -13,6 +13,7 @@ module Sequent
     end
 
     class EventStore
+      include ActiveRecord::ConnectionAdapters::Quoting
 
       class << self
         attr_accessor :configuration,
@@ -54,13 +55,13 @@ module Sequent
         stream = StreamRecord.where(aggregate_id: aggregate_id).first!
         events = @record_class.connection.select_all(%Q{
 SELECT event_type, event_json
-  FROM #{@record_class.table_name}
- WHERE aggregate_id = '#{aggregate_id}'
+  FROM #{quote_table_name @record_class.table_name}
+ WHERE aggregate_id = #{quote aggregate_id}
    AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
-                                      FROM #{@record_class.table_name}
-                                     WHERE event_type = '#{SnapshotEvent.name}'
-                                       AND aggregate_id = '#{aggregate_id}'), 0)
- ORDER BY sequence_number ASC, (CASE event_type WHEN '#{SnapshotEvent.name}' THEN 0 ELSE 1 END) ASC
+                                      FROM #{quote_table_name @record_class.table_name}
+                                     WHERE event_type = #{quote SnapshotEvent.name}
+                                       AND aggregate_id = #{quote aggregate_id}), 0)
+ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote SnapshotEvent.name} THEN 0 ELSE 1 END) ASC
 }).map! do |event_hash|
           deserialize_event(event_hash)
         end
@@ -79,20 +80,20 @@ SELECT event_type, event_json
       def aggregates_that_need_snapshots(limit: 10, last_aggregate_id: nil)
         query = %Q{
 SELECT aggregate_id
-  FROM #{@record_class.table_name} events
- WHERE aggregate_id > '#{last_aggregate_id}'
-   AND event_type <> '#{SnapshotEvent.name}'
+  FROM #{quote_table_name @record_class.table_name} events
+ WHERE aggregate_id > COALESCE(#{quote last_aggregate_id}, '')
+   AND event_type <> #{quote SnapshotEvent.name}
  GROUP BY aggregate_id
 HAVING (MAX(sequence_number)
         - (COALESCE((SELECT MAX(sequence_number)
-                       FROM #{@record_class.table_name} snapshots
-                      WHERE event_type = '#{SnapshotEvent.name}'
+                       FROM #{quote_table_name @record_class.table_name} snapshots
+                      WHERE event_type = #{quote SnapshotEvent.name}
                         AND snapshots.aggregate_id = events.aggregate_id), 0)))
        >= (SELECT snapshot_threshold
-             FROM #{StreamRecord.table_name} streams
+             FROM #{quote_table_name StreamRecord.table_name} streams
             WHERE events.aggregate_id = streams.aggregate_id)
  ORDER BY aggregate_id
- LIMIT #{limit};
+ LIMIT #{quote limit}
 }
         @record_class.connection.select_all(query).map {|x| x['aggregate_id']}
       end
