@@ -1,5 +1,7 @@
+require_relative 'spec/database'
+
 task 'db:create' do
-  require_relative 'spec/spec_helper'
+  Database.establish_connection
   load('db/schema.rb')
 end
 
