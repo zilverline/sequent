@@ -7,10 +7,11 @@ module Sequent
 
       self.table_name = "event_records"
 
+      belongs_to :stream_record
       belongs_to :command_record
 
-      validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json
-      validates_numericality_of :sequence_number
+      validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
+      validates_numericality_of :sequence_number, :only_integer => true, :greater_than => 0
 
       def event
         payload = Oj.strict_load(event_json)

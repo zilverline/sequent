@@ -9,6 +9,8 @@ describe Sequent::Core::AggregateRoot do
   class TestAggregateRoot < Sequent::Core::TenantAggregateRoot
     attr_accessor :test_event_count
 
+    self.snapshot_threshold = 30
+
     def initialize(params)
       super(params[:aggregate_id], params[:organization_id])
     end
@@ -47,7 +49,7 @@ describe Sequent::Core::AggregateRoot do
   end
 
   it "starts sequence numberings based on history" do
-    subject = TestAggregateRoot.load_from_history [TestEvent.new(aggregate_id: "historical_id", sequence_number: 1, organization_id: "foo", field: "value")]
+    subject = TestAggregateRoot.load_from_history :stream, [TestEvent.new(aggregate_id: "historical_id", sequence_number: 1, organization_id: "foo", field: "value")]
     subject.generate_event
     expect(subject.uncommitted_events[0].sequence_number).to eq 2
   end

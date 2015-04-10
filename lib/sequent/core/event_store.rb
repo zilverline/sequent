@@ -38,17 +38,20 @@ module Sequent
       # Stores the events in the EventStore and publishes the events
       # to the registered event_handlers.
       #
-      def commit_events(command, events)
-        store_events(command, events)
-        publish_events(events, @event_handlers)
+      # Events is a hash or array of pairs from `StreamRecord` to
+      # arrays of uncommitted `Event`s.
+      #
+      def commit_events(command, streams_with_events)
+        store_events(command, streams_with_events)
+        publish_events(streams_with_events.flat_map {|_, events| events}, @event_handlers)
       end
 
       ##
       # Returns all events for the aggregate ordered by sequence_number
       #
       def load_events(aggregate_id)
-        event_types = {}
-        @record_class.connection.select_all(%Q{
+        stream = StreamRecord.where(aggregate_id: aggregate_id).first!
+        events = @record_class.connection.select_all(%Q{
 SELECT event_type, event_json
   FROM #{@record_class.table_name}
  WHERE aggregate_id = '#{aggregate_id}'
@@ -58,34 +61,39 @@ SELECT event_type, event_json
                                        AND aggregate_id = '#{aggregate_id}'), 0)
  ORDER BY sequence_number ASC, (CASE event_type WHEN '#{SnapshotEvent.name}' THEN 0 ELSE 1 END) ASC
 }).map! do |event_hash|
-          kind = event_hash["kind"]
-          event_type = event_hash["event_type"]
-          event_json = Oj.strict_load(event_hash["event_json"])
-          unless event_types.has_key?(event_type)
-            event_types[event_type] = Class.const_get(event_type.to_sym)
-          end
-          event_types[event_type].deserialize_from_json(event_json)
+          deserialize_event(event_hash)
         end
+        [stream, events]
       end
 
       ##
       # Replays all events in the event store to the registered event_handlers.
       #
-      # @param block that returns the event stream.
+      # @param block that returns the events.
       def replay_events
-        event_stream = yield
-        event_types = {}
-        event_stream.each do |event_hash|
-          event_type = event_hash["event_type"]
-          payload = Oj.strict_load(event_hash["event_json"])
-          unless event_types.has_key?(event_type)
-            event_types[event_type] = Class.const_get(event_type.to_sym)
-          end
-          event = event_types[event_type].deserialize_from_json(payload)
-          @event_handlers.each do |handler|
-            handler.handle_message event
-          end
-        end
+        events = yield.map {|event_hash| deserialize_event(event_hash)}
+        publish_events(events, @event_handlers)
+      end
+
+      def aggregates_that_need_snapshots(limit: 10, last_aggregate_id: nil)
+        query = %Q{
+SELECT aggregate_id
+  FROM #{@record_class.table_name} events
+ WHERE aggregate_id > '#{last_aggregate_id}'
+   AND event_type <> '#{SnapshotEvent.name}'
+ GROUP BY aggregate_id
+HAVING (MAX(sequence_number)
+        - (COALESCE((SELECT MAX(sequence_number)
+                       FROM #{@record_class.table_name} snapshots
+                      WHERE event_type = '#{SnapshotEvent.name}'
+                        AND snapshots.aggregate_id = events.aggregate_id), 0)))
+       >= (SELECT snapshot_threshold
+             FROM #{StreamRecord.table_name} streams
+            WHERE events.aggregate_id = streams.aggregate_id)
+ ORDER BY aggregate_id
+ LIMIT #{limit};
+}
+        @record_class.connection.select_all(query).map {|x| x['aggregate_id']}
       end
 
       protected
@@ -95,6 +103,31 @@ SELECT event_type, event_json
 
       private
 
+      def deserialize_event(event_hash)
+        event_type = event_hash.fetch("event_type")
+        event_json = Oj.strict_load(event_hash.fetch("event_json"))
+        resolve_event_type(event_type).deserialize_from_json(event_json)
+      end
+
+      # This may not be thread-safe.
+      def resolve_event_type(event_type)
+        @event_types ||= {}
+        @event_types.fetch(event_type) do |k|
+          @event_types[k] = constant_get(k)
+        end
+      end
+
+      # A better const get (via https://www.ruby-forum.com/topic/103276)
+      def constant_get(hierachy)
+        ancestors = hierachy.split(%r/::/)
+        parent = Object
+        while ((child = ancestors.shift))
+          klass = parent.const_get child
+          parent = klass
+        end
+        klass
+      end
+
       def publish_events(events, event_handlers)
         events.each do |event|
           event_handlers.each do |handler|
@@ -103,14 +136,13 @@ SELECT event_type, event_json
         end
       end
 
-      def to_events(event_records)
-        event_records.map(&:event)
-      end
-
-      def store_events(command, events = [])
-        command_record = Sequent::Core::CommandRecord.create!(:command => command)
-        events.each do |event|
-          @record_class.create!(:command_record => command_record, :event => event)
+      def store_events(command, streams_with_events = [])
+        command_record = CommandRecord.create!(:command => command)
+        streams_with_events.each do |stream_record, uncommitted_events|
+          stream_record.save! unless stream_record.id.present?
+          uncommitted_events.each do |event|
+            @record_class.create!(:command_record => command_record, :stream_record => stream_record, :event => event)
+          end
         end
       end
 

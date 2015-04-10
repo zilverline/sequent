@@ -7,7 +7,8 @@ describe Sequent::Core::AggregateRepository do
     attr_reader :loaded_events
     attr_writer :uncommitted_events
 
-    def load_from_history(events)
+    def load_from_history(stream, events)
+      @event_stream = stream
       @loaded_events = events
     end
   end
@@ -22,17 +23,18 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should load an aggregate from the event store" do
-    allow(event_store).to receive(:load_events).with(:id).and_return([:events])
+    allow(event_store).to receive(:load_events).with(:id).and_return([:stream, [:events]])
 
     loaded = repository.load_aggregate(:id, DummyAggregate)
 
+    expect(loaded.event_stream).to eq(:stream)
     expect(loaded.loaded_events).to eq([:events])
   end
 
   it "should commit and clear events from aggregates in the identity map" do
     repository.add_aggregate aggregate
     aggregate.uncommitted_events = [:event]
-    allow(event_store).to receive(:commit_events).with(:command, [:event]).once
+    allow(event_store).to receive(:commit_events).with(:command, [[aggregate.event_stream, [:event]]]).once
 
     repository.commit(:command)
 

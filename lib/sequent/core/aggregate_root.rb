@@ -1,19 +1,31 @@
 require_relative 'helpers/self_applier'
+require_relative 'stream_record'
 
 module Sequent
   module Core
+    module SnapshotConfiguration
+      module ClassMethods
+        attr_accessor :snapshot_threshold
+      end
+
+      def self.included(host_class)
+        host_class.extend(ClassMethods)
+      end
+    end
+
     # Base class for all your domain classes.
     #
     # +load_from_history+ functionality to be loaded_from_history, meaning a stream of events.
     #
     class AggregateRoot
       include Helpers::SelfApplier
+      include SnapshotConfiguration
 
-      attr_reader :id, :uncommitted_events, :sequence_number
+      attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
 
-      def self.load_from_history(events)
+      def self.load_from_history(stream, events)
         aggregate_root = allocate() # allocate without calling new
-        aggregate_root.load_from_history(events)
+        aggregate_root.load_from_history(stream, events)
         aggregate_root
       end
 
@@ -21,13 +33,17 @@ module Sequent
         @id = id
         @uncommitted_events = []
         @sequence_number = 1
+        @event_stream = StreamRecord.new :aggregate_type => self.class.name,
+                                         :aggregate_id => id,
+                                         :snapshot_threshold => self.class.snapshot_threshold
       end
 
-      def load_from_history(events)
+      def load_from_history(stream, events)
         raise "Empty history" if events.empty?
         @id = events.first.aggregate_id
         @uncommitted_events = []
         @sequence_number = events.last.sequence_number + 1
+        @event_stream = stream
         events.each { |event| handle_message(event) }
       end
 
@@ -35,9 +51,8 @@ module Sequent
         "#{self.class.name}: #{@id}"
       end
 
-
       def clear_events
-        uncommitted_events.clear
+        @uncommitted_events = []
       end
 
       on SnapshotEvent do |event|
@@ -75,7 +90,7 @@ module Sequent
         @organization_id = organization_id
       end
 
-      def load_from_history(events)
+      def load_from_history(stream, events)
         raise "Empty history" if events.empty?
         @organization_id = events.first.organization_id
         super
