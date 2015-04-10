@@ -35,7 +35,16 @@ If you are unfamiliar with these concepts you can catch up with:
 
 Fork and send pull requests
 
-Run specs via `rspec`
+## Running the specs
+If you wish to make changes to the `sequent` gem you can use `rake
+spec` to run the tests. Before doing so you need to create a postgres
+user and database first:
+
+    createuser -D -S -R sequent
+    createdb sequent_spec_db -O sequent
+    rake db:create
+
+The data in this database is deleted every time you run the specs!
 
 # Tutorial
 
@@ -169,18 +178,6 @@ Value objects, like commands, use ActiveModel for validations.
     class Address < Sequent::Core::ValueObject
       attrs street: String, country: Country
     end
-
-# Development
-
-If you wish to make changes to the `sequent` gem you can use `rake
-spec` to run the tests. Before doing so you need to create a postgres
-user and database first:
-
-    createuser -D -S -R sequent
-    createdb sequent_spec_db -O sequent
-    rake db:create
-
-The data in this database is deleted every time you run the specs!
 
 # License
 
