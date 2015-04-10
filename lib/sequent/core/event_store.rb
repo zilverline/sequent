@@ -4,34 +4,37 @@ require_relative 'event_record'
 module Sequent
   module Core
     class EventStoreConfiguration
-      attr_accessor :record_class, :event_handlers
+      attr_accessor :record_class, :event_handler_classes
 
-      def initialize(record_class = Sequent::Core::EventRecord, event_handlers = [])
+      def initialize(record_class = Sequent::Core::EventRecord, event_handler_classes = [])
         @record_class = record_class
-        @event_handlers = event_handlers
+        @event_handler_classes = event_handler_classes
       end
     end
 
     class EventStore
-
       class << self
-        attr_accessor :configuration,
-                      :instance
+        def configure
+          configuration = instance.configuration.dup
+          yield(configuration) if block_given?
+          @instance = new(configuration) # this makes it threadsafe
+        end
+
+        def reset
+          @instance = new
+        end
+
+        def instance
+          @instance ||= new
+        end
       end
 
-      # Creates a new EventStore and overwrites all existing config.
-      # The new EventStore can be retrieved via the +EventStore.instance+ method.
-      #
-      # If you don't want a singleton you can always instantiate it yourself using the +EventStore.new+.
-      def self.configure
-        self.configuration = EventStoreConfiguration.new
-        yield(configuration) if block_given?
-        EventStore.instance = EventStore.new(configuration)
-      end
+      attr_accessor :configuration
 
       def initialize(configuration = EventStoreConfiguration.new)
+        self.configuration = configuration
         @record_class = configuration.record_class
-        @event_handlers = configuration.event_handlers
+        @event_handlers = configuration.event_handler_classes.map(&:new)
       end
 
       ##
@@ -103,8 +106,6 @@ module Sequent
           @record_class.create!(:command_record => command_record, :event => event)
         end
       end
-
     end
-
   end
 end

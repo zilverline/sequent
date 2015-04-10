@@ -46,6 +46,14 @@ module Sequent
                      :delete_all_records, :update_all_records, :do_with_records, :do_with_record, :delete_record,
                      :find_records, :last_record
 
+
+      private
+
+      def self.inherited(subclass)
+        Sequent::Core::EventStore.configure do |config|
+          config.event_handler_classes << subclass
+        end
+      end
     end
   end
 end

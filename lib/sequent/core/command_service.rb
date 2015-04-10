@@ -14,7 +14,6 @@ module Sequent
         @transaction_provider = Sequent::Core::Transactions::NoTransactions.new
         @filters = []
       end
-
     end
 
     #
@@ -28,21 +27,23 @@ module Sequent
     # * Unit of Work is cleared
     #
     class CommandService
-
       class << self
-        attr_accessor :configuration,
-                      :instance
+        def configure
+          configuration = instance.configuration.dup
+          yield(configuration) if block_given?
+          @instance = new(configuration) # this makes it threadsafe
+        end
+
+        def reset
+          @instance = new
+        end
+
+        def instance
+          @instance ||= new
+        end
       end
 
-      # Creates a new CommandService and overwrites all existing config.
-      # The new CommandService can be retrieved via the +CommandService.instance+ method.
-      #
-      # If you don't want a singleton you can always instantiate it yourself using the +CommandService.new+.
-      def self.configure
-        self.configuration = CommandServiceConfiguration.new
-        yield(configuration) if block_given?
-        self.instance = CommandService.new(configuration)
-      end
+      attr_accessor :configuration
 
       # +DefaultCommandServiceConfiguration+ Configuration class for the CommandService containing:
       #
@@ -51,6 +52,7 @@ module Sequent
       #   +transaction_provider+ How to do transaction management. Defaults to Sequent::Core::Transactions::NoTransactions
       #   +filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
       def initialize(configuration = CommandServiceConfiguration.new)
+        self.configuration = configuration
         @event_store = configuration.event_store
         @repository = AggregateRepository.new(configuration.event_store)
         @filters = configuration.filters
@@ -110,5 +112,4 @@ module Sequent
   end
 end
 
-
-
+Sequent::Core::CommandService.instance
