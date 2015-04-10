@@ -28,7 +28,9 @@ module Sequent
             elsif value && value.kind_of?(Array)
               item_type = record.class.type_for(association).item_type
               record.errors[association] = "is invalid" if value.any? do |v|
-                if v.respond_to? :valid?
+                if v.nil?
+                  true
+                elsif v.respond_to? :valid?
                   not v.valid?
                 else
                   not item_type.valid_value?(v)

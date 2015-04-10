@@ -222,6 +222,17 @@ describe Sequent::Core::Helpers::AttributeSupport do
 
     context Array do
 
+      context "nils" do
+        class ArrayWithNil < Sequent::Core::ValueObject
+          attrs values: array(Integer)
+        end
+
+        it "handles nil" do
+          obj = ArrayInteger.new(values: [nil])
+          expect(obj.valid?).to be_falsey
+        end
+      end
+
       context Integer do
 
         class ArrayInteger < Sequent::Core::ValueObject
@@ -357,6 +368,11 @@ describe Sequent::Core::Helpers::AttributeSupport do
         it "handles nil" do
           obj = ArrayWithValueObject.new(values: nil)
           expect(obj.valid?).to be_truthy
+        end
+
+        it "reports an error for nil as value of the array" do
+          obj = ArrayWithValueObject.new(values: [nil])
+          expect(obj.valid?).to be_falsey
         end
 
         it "reports an error for invalid ValueObject in the array" do
