@@ -30,7 +30,7 @@ end
 
 class Integer
   def self.add_validations_for(klass, field)
-    klass.validates_numericality_of field, only_integer: true
+    klass.validates_numericality_of field, only_integer: true, allow_nil: true, allow_nil: true
   end
 
   def self.parse_from_string(value)

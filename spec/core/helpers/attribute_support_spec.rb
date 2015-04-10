@@ -111,6 +111,10 @@ describe Sequent::Core::Helpers::AttributeSupport do
         expect(WithInteger.new(value: 1)).to be_valid
       end
 
+      it "handles nil value" do
+        expect(WithInteger.new).to be_valid
+      end
+
     end
 
     context String do
