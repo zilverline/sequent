@@ -32,6 +32,7 @@ module Sequent
       def initialize(configuration = EventStoreConfiguration.new)
         @record_class = configuration.record_class
         @event_handlers = configuration.event_handlers
+        @event_types = ThreadSafe::Cache.new
       end
 
       ##
@@ -109,12 +110,8 @@ HAVING (MAX(sequence_number)
         resolve_event_type(event_type).deserialize_from_json(event_json)
       end
 
-      # This may not be thread-safe.
       def resolve_event_type(event_type)
-        @event_types ||= {}
-        @event_types.fetch(event_type) do |k|
-          @event_types[k] = constant_get(k)
-        end
+        @event_types.fetch_or_store(event_type) { |k| constant_get(k) }
       end
 
       # A better const get (via https://www.ruby-forum.com/topic/103276)
