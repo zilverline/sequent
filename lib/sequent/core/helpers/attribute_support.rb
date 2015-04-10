@@ -52,7 +52,9 @@ module Sequent
                 @associations << attribute
               end
             end
-            validates_with Sequent::Core::Helpers::AssociationValidator, associations: @associations if @associations.present?
+            if included_modules.include?(ActiveModel::Validations) && @associations.present?
+              validates_with Sequent::Core::Helpers::AssociationValidator, associations: @associations
+            end
             # Generate method that sets all defined attributes based on the attrs hash.
             class_eval <<EOS
               def update_all_attributes(attrs)

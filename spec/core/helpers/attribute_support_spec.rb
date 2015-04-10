@@ -78,6 +78,18 @@ describe Sequent::Core::Helpers::AttributeSupport do
 
   context "add default validations" do
 
+    context Sequent::Core::Event do
+      class AnEvent < Sequent::Core::Event
+        attrs values: array(Integer)
+      end
+
+      it "adds no validations for events" do
+        obj = AnEvent.new(aggregate_id: "1", sequence_number: 2, values: [1])
+        expect(obj.respond_to?(:valid?)).to be_falsey
+      end
+
+    end
+
     context Integer do
       class WithInteger < Sequent::Core::ValueObject
         attrs value: Integer
