@@ -241,6 +241,34 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       expect(command.values).to be_nil
     end
 
+    context Sequent::Core::ValueObject do
+      class Litmanen < Sequent::Core::BaseCommand
+        attrs value: Integer
+      end
+      class CommandWithArrayWithValueObjects < Sequent::Core::BaseCommand
+        attrs values: array(Litmanen)
+      end
+
+      it "parses an array of ValueObjects" do
+        litmanen = Litmanen.new(value: 1)
+        command = CommandWithArrayWithValueObjects.new(values: [litmanen])
+        command.parse_attrs_to_correct_types!
+        expect(command.values).to eq [litmanen]
+      end
+
+      it "handles nil" do
+        command = CommandWithArrayWithValueObjects.new(values: nil)
+        command.parse_attrs_to_correct_types!
+        expect(command.values).to be_nil
+      end
+
+      it "handles an empty array" do
+        command = CommandWithArrayWithValueObjects.new(values: [])
+        command.parse_attrs_to_correct_types!
+        expect(command.values).to be_empty
+      end
+    end
+
   end
 
   context "associations" do

@@ -129,7 +129,14 @@ EOS
         attr_accessor :item_type
 
         def parse_from_string(values)
-          values.map { |item| item_type.parse_from_string(item) }
+          values.map do |item|
+            if item.respond_to?(:parse_attrs_to_correct_types!)
+              item.parse_attrs_to_correct_types!
+              item
+            else
+              item_type.parse_from_string(item)
+            end
+          end
         end
 
         def initialize(item_type)
