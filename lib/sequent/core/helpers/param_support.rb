@@ -47,8 +47,10 @@ module Sequent
               value = value.as_params
             elsif value.kind_of?(Array)
               value = value.map { |val| val.kind_of?(ValueObject) ? val.as_params : val }
-            elsif value.kind_of? Date
-              value = value.strftime("%d-%m-%Y") if value #TODO: Remove here
+            elsif value.is_a? DateTime
+              value = value.iso8601
+            elsif value.is_a? Date
+              value = value.strftime("%d-%m-%Y") # TODO Remove to TypeConverter
             end
             hash[field[0]] = value
           end
