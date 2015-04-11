@@ -47,6 +47,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       expect(command.value).to be_nil
     end
 
+    it "handles blank" do
+      command = CommandWithInteger.new(value: " ")
+      command.parse_attrs_to_correct_types!
+      expect(command.value).to be_nil
+    end
+
   end
 
   context Symbol do
@@ -70,7 +76,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       command = CommandWithSymbol.new(value: nil)
       command.parse_attrs_to_correct_types!
       expect(command.value).to be_nil
+    end
 
+    it "handles blanks" do
+      command = CommandWithSymbol.new(value: " ")
+      command.parse_attrs_to_correct_types!
+      expect(command.value).to be_nil
     end
   end
 
@@ -108,6 +119,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       command.parse_attrs_to_correct_types!
       expect(command.value).to eq false
     end
+
+    it "handles blank" do
+      command = CommandWithBoolean.new(value: " ")
+      command.parse_attrs_to_correct_types!
+      expect(command.value).to be_nil
+    end
   end
 
   context Date do
@@ -144,6 +161,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       command.parse_attrs_to_correct_types!
       expect(command.value).to be_nil
     end
+
+    it "handles blank" do
+      command = CommandWithDate.new(value: " ")
+      command.parse_attrs_to_correct_types!
+      expect(command.value).to be_nil
+    end
   end
 
   context DateTime do
@@ -177,6 +200,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
     it "handles nils" do
       command = CommandWithDateTime.new(value: nil)
+      command.parse_attrs_to_correct_types!
+      expect(command.value).to be_nil
+    end
+
+    it "handles blank" do
+      command = CommandWithDateTime.new(value: "")
       command.parse_attrs_to_correct_types!
       expect(command.value).to be_nil
     end

@@ -115,6 +115,11 @@ describe Sequent::Core::Helpers::AttributeSupport do
         expect(WithInteger.new).to be_valid
       end
 
+      it "handles blank" do
+        expect(WithInteger.new(value: "")).to be_valid
+        expect(WithInteger.new(value: " ")).to be_valid
+      end
+
     end
 
     context String do
@@ -157,7 +162,7 @@ describe Sequent::Core::Helpers::AttributeSupport do
         expect(obj.valid?).to be_falsey
       end
 
-      it "blank is not an invalid format" do
+      it "handles blank" do
         obj = WithDate.new(value: "")
         expect(obj.valid?).to be_truthy
       end

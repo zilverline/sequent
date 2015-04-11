@@ -5,10 +5,10 @@ class Symbol
   end
 
   def self.deserialize_from_json(value)
-    value.try(:to_sym)
+    value.blank? ? nil : value.try(:to_sym)
   end
 
-  def self.valid_value?(value)
+  def self.valid_value?(_)
     true
   end
 end
@@ -30,11 +30,11 @@ end
 
 class Integer
   def self.add_validations_for(klass, field)
-    klass.validates_numericality_of field, only_integer: true, allow_nil: true
+    klass.validates_numericality_of field, only_integer: true, allow_nil: true, allow_blank: true
   end
 
   def self.parse_from_string(value)
-    Integer(value) unless value.nil?
+    Integer(value) unless value.blank?
     deserialize_from_json value
   end
 
@@ -43,7 +43,7 @@ class Integer
   end
 
   def self.valid_value?(value)
-    return true if value.nil?
+    return true if value.blank?
     begin
       Integer(value)
       return true
@@ -56,7 +56,11 @@ end
 
 class Boolean
   def self.parse_from_string(value)
-    value.nil? ? nil : (value.is_a?(TrueClass) || value == "true")
+    if value.blank? && !(value.is_a?(TrueClass) || value.is_a?(FalseClass))
+      nil
+    else
+      (value.is_a?(TrueClass) || value == "true")
+    end
   end
 
   def self.deserialize_from_json(value)
@@ -64,7 +68,7 @@ class Boolean
   end
 
   def self.valid_value?(value)
-    return true if value.nil?
+    return true if value.blank?
     value.is_a?(TrueClass) || value.is_a?(FalseClass) || value == "true" || value == "false"
   end
 end
@@ -75,12 +79,12 @@ class Date
   end
 
   def self.parse_from_string(value)
-    return if value.nil?
+    return if value.blank?
     value.is_a?(Date) ? value : Date.strptime(value, "%d-%m-%Y")
   end
 
   def self.deserialize_from_json(value)
-    value.nil? ? nil : Date.iso8601(value.dup)
+    value.blank? ? nil : Date.iso8601(value.dup)
   end
 
   def self.valid_value?(value)
@@ -102,11 +106,11 @@ class DateTime
   end
 
   def self.deserialize_from_json(value)
-    value.nil? ? nil : DateTime.iso8601(value.dup)
+    value.blank? ? nil : DateTime.iso8601(value.dup)
   end
 
   def self.valid_value?(value)
-    return true if value.nil?
+    return true if value.blank?
     value.is_a?(DateTime) || !!DateTime.iso8601(value.dup) rescue false
   end
 
