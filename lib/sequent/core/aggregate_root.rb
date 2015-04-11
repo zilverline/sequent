@@ -55,6 +55,11 @@ module Sequent
         @uncommitted_events = []
       end
 
+      def take_snapshot!
+        snapshot = build_event SnapshotEvent, data: self.save_to_snapshot
+        @uncommitted_events << snapshot
+      end
+
       on SnapshotEvent do |event|
         load_from_snapshot event
       end

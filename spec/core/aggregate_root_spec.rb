@@ -19,9 +19,22 @@ describe Sequent::Core::AggregateRoot do
       apply TestEvent, field: "value"
     end
 
+    def event_count
+      @event_count ||= 0
+    end
+
+    protected
+    def save_to_snapshot
+      {event_count: event_count}
+    end
+
+    def load_from_snapshot(event)
+      @event_count = event.data[:event_count]
+    end
+
     private
     on TestEvent do |_|
-
+      @event_count = event_count + 1
     end
   end
 
@@ -69,4 +82,20 @@ describe Sequent::Core::AggregateRoot do
     expect(subject.to_s).to eq "TestAggregateRoot: identifier"
   end
 
+  context "snapshotting" do
+    before { subject.generate_event }
+
+    it "adds an uncommitted snapshot event" do
+      expect {
+        subject.take_snapshot!
+      }.to change { subject.uncommitted_events.count }.by(1)
+    end
+
+    it "restores state from the snapshot" do
+      subject.take_snapshot!
+      snapshot_event = subject.uncommitted_events.last
+      restored = TestAggregateRoot.load_from_history :stream, [snapshot_event]
+      expect(restored.event_count).to eq 1
+    end
+  end
 end
