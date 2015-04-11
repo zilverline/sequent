@@ -156,6 +156,11 @@ describe Sequent::Core::Helpers::AttributeSupport do
         obj = WithDate.new(value: "aa-bb-cccc")
         expect(obj.valid?).to be_falsey
       end
+
+      it "blank is not an invalid format" do
+        obj = WithDate.new(value: "")
+        expect(obj.valid?).to be_truthy
+      end
     end
 
     context DateTime do
