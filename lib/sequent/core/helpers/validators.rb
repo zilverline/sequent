@@ -9,13 +9,7 @@ module Sequent
       #   attrs value: Date
       class DateValidator < ActiveModel::EachValidator
         def validate_each(subject, attribute, value)
-          return if value.nil?
-          return if value.is_a?(Date)
-          begin
-            Date.parse_from_string(value)
-          rescue
-            subject.errors.add attribute, :invalid_date
-          end
+          subject.errors.add attribute, :invalid_date unless Date.valid_value?(value)
         end
       end
       # Validates DateTimes

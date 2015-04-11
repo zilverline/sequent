@@ -85,7 +85,9 @@ class Date
 
   def self.valid_value?(value)
     return true if value.nil?
-    value.is_a?(Date) || !!Date.strptime(value, "%d-%m-%Y") rescue false
+    return true if value.is_a?(Date)
+    return false unless value =~ /\d{2}-\d{2}-\d{4}/
+    !!Date.strptime(value, "%d-%m-%Y") rescue false
   end
 
 end

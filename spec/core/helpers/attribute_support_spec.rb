@@ -147,6 +147,11 @@ describe Sequent::Core::Helpers::AttributeSupport do
         expect(obj.valid?).to be_truthy
       end
 
+      it "handles valid date formats" do
+        obj = WithDate.new(value: "1-1-2015")
+        expect(obj.valid?).to be_falsey
+      end
+
       it "reports errors for invalid date" do
         obj = WithDate.new(value: "aa-bb-cccc")
         expect(obj.valid?).to be_falsey
