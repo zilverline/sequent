@@ -1,6 +1,7 @@
 require_relative 'uuid_helper'
 require_relative 'copyable'
 require_relative 'value_validators'
+require_relative 'string_to_value_parsers'
 require_relative 'attribute_support'
 require_relative 'equal_support'
 require_relative 'param_support'

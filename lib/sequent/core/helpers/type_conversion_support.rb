@@ -16,7 +16,7 @@ module Sequent
             if raw_value.respond_to?(:parse_attrs_to_correct_types)
               the_copy.send("#{name}=", raw_value.parse_attrs_to_correct_types)
             else
-              parsed_value = type.parse_from_string(raw_value)
+              parsed_value = Sequent::Core::Helpers::StringToValueParsers.for(type).parse_from_string(raw_value)
               the_copy.send("#{name}=", parsed_value)
             end
           end

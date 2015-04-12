@@ -1,5 +1,6 @@
 require 'active_support'
 require_relative '../ext/ext'
+require_relative 'array_with_type'
 
 module Sequent
   module Core
@@ -125,32 +126,6 @@ EOS
 
       end
 
-      class ArrayWithType
-        attr_accessor :item_type
-
-        def parse_from_string(values)
-          values.map do |item|
-            if item.respond_to?(:parse_attrs_to_correct_types)
-              item.parse_attrs_to_correct_types
-            else
-              item_type.parse_from_string(item)
-            end
-          end
-        end
-
-        def initialize(item_type)
-          raise "needs a item_type" unless item_type
-          @item_type = item_type
-        end
-
-        def deserialize_from_json(value)
-          value.nil? ? nil : value.map { |item| item_type.deserialize_from_json(item) }
-        end
-
-        def to_s
-          "Sequent::Core::Helpers::ArrayWithType.new(#{item_type})"
-        end
-      end
 
     end
   end
