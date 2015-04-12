@@ -33,7 +33,7 @@ module Sequent
                 elsif v.respond_to? :valid?
                   not v.valid?
                 else
-                  not item_type.valid_value?(v)
+                  not Sequent::Core::Helpers::ValueValidators.for(item_type).valid_value?(v)
                 end
               end
             else

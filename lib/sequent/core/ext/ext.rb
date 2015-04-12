@@ -8,9 +8,6 @@ class Symbol
     value.blank? ? nil : value.try(:to_sym)
   end
 
-  def self.valid_value?(_)
-    true
-  end
 end
 
 class String
@@ -20,10 +17,6 @@ class String
 
   def self.deserialize_from_json(value)
     value
-  end
-
-  def self.valid_value?(value)
-    value.nil? || value.is_a?(String)
   end
 
 end
@@ -42,16 +35,6 @@ class Integer
     value.blank? ? nil : value.to_i
   end
 
-  def self.valid_value?(value)
-    return true if value.blank?
-    begin
-      Integer(value)
-      return true
-    rescue
-      return false
-    end
-  end
-
 end
 
 class Boolean
@@ -67,10 +50,6 @@ class Boolean
     value.nil? ? nil : (value.present? ? value : false)
   end
 
-  def self.valid_value?(value)
-    return true if value.blank?
-    value.is_a?(TrueClass) || value.is_a?(FalseClass) || value == "true" || value == "false"
-  end
 end
 
 class Date
@@ -87,13 +66,6 @@ class Date
     value.blank? ? nil : Date.iso8601(value.dup)
   end
 
-  def self.valid_value?(value)
-    return true if value.blank?
-    return true if value.is_a?(Date)
-    return false unless value =~ /\d{2}-\d{2}-\d{4}/
-    !!Date.strptime(value, "%d-%m-%Y") rescue false
-  end
-
 end
 
 class DateTime
@@ -107,11 +79,6 @@ class DateTime
 
   def self.deserialize_from_json(value)
     value.blank? ? nil : DateTime.iso8601(value.dup)
-  end
-
-  def self.valid_value?(value)
-    return true if value.blank?
-    value.is_a?(DateTime) || !!DateTime.iso8601(value.dup) rescue false
   end
 
 end
