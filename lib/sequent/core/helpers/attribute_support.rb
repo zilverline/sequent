@@ -40,7 +40,7 @@ module Sequent
           def attrs(args)
             @types ||= {}
             @types.merge!(args)
-            @associations = []
+            associations = []
             args.each do |attribute, type|
               attr_accessor attribute
               if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport)
@@ -48,14 +48,14 @@ module Sequent
               end
 
               if type.class == Sequent::Core::Helpers::ArrayWithType
-                @associations << attribute
+                associations << attribute
               elsif included_modules.include?(ActiveModel::Validations) &&
                 type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
-                @associations << attribute
+                associations << attribute
               end
             end
-            if included_modules.include?(ActiveModel::Validations) && @associations.present?
-              validates_with Sequent::Core::Helpers::AssociationValidator, associations: @associations
+            if included_modules.include?(ActiveModel::Validations) && associations.present?
+              validates_with Sequent::Core::Helpers::AssociationValidator, associations: associations
             end
             # Generate method that sets all defined attributes based on the attrs hash.
             class_eval <<EOS
