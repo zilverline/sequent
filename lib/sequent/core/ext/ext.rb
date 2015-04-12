@@ -15,9 +15,6 @@ class String
 end
 
 class Integer
-  def self.add_validations_for(klass, field)
-    klass.validates_numericality_of field, only_integer: true, allow_nil: true, allow_blank: true
-  end
 
   def self.deserialize_from_json(value)
     value.blank? ? nil : value.to_i
@@ -34,9 +31,6 @@ class Boolean
 end
 
 class Date
-  def self.add_validations_for(klass, field)
-    klass.validates field, "sequent::Core::Helpers::Date" => true
-  end
 
   def self.deserialize_from_json(value)
     value.blank? ? nil : Date.iso8601(value.dup)
@@ -45,9 +39,6 @@ class Date
 end
 
 class DateTime
-  def self.add_validations_for(klass, field)
-    klass.validates field, "sequent::Core::Helpers::DateTime" => true
-  end
 
   def self.deserialize_from_json(value)
     value.blank? ? nil : DateTime.iso8601(value.dup)

@@ -1,6 +1,7 @@
 require 'active_support'
 require_relative '../ext/ext'
 require_relative 'array_with_type'
+require_relative 'default_validators'
 
 module Sequent
   module Core
@@ -42,8 +43,8 @@ module Sequent
             @associations = []
             args.each do |attribute, type|
               attr_accessor attribute
-              if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport) && type.respond_to?(:add_validations_for)
-                type.add_validations_for(self, attribute)
+              if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport)
+                Sequent::Core::Helpers::DefaultValidators.for(type).add_validations_for(self, attribute)
               end
 
               if type.class == Sequent::Core::Helpers::ArrayWithType
