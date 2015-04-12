@@ -74,10 +74,11 @@ module Sequent
               if command.valid?
                 parsed_command = command.parse_attrs_to_correct_types
                 @command_handlers.select { |h| h.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
+                @repository.commit(parsed_command)
+              else
+                raise CommandNotValid.new(command)
               end
 
-              @repository.commit(command)
-              raise CommandNotValid.new(command) unless command.validation_errors.empty?
             end
           end
         ensure
