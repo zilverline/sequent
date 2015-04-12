@@ -130,9 +130,8 @@ EOS
 
         def parse_from_string(values)
           values.map do |item|
-            if item.respond_to?(:parse_attrs_to_correct_types!)
-              item.parse_attrs_to_correct_types!
-              item
+            if item.respond_to?(:parse_attrs_to_correct_types)
+              item.parse_attrs_to_correct_types
             else
               item_type.parse_from_string(item)
             end
