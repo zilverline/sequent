@@ -10,11 +10,9 @@ module Sequent
       class DateTimeValidator < ActiveModel::EachValidator
         def validate_each(subject, attribute, value)
           return if value.is_a?(DateTime)
-          begin
-            DateTime.deserialize_from_json(value)
-          rescue
-            subject.errors.add attribute, :invalid_date_time
-          end
+          DateTime.deserialize_from_json(value)
+        rescue
+          subject.errors.add attribute, :invalid_date_time
         end
       end
     end
