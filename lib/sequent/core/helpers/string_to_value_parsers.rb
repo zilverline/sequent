@@ -17,7 +17,6 @@ module Sequent
 
         def self.parse_to_integer(value)
           Integer(value) unless value.blank?
-          Integer.deserialize_from_json value
         end
 
         def self.parse_to_bool(value)
