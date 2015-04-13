@@ -71,13 +71,10 @@ module Sequent
             commands.each do |command|
               @filters.each { |filter| filter.execute(command) }
 
-              if command.valid?
-                parsed_command = command.parse_attrs_to_correct_types
-                @command_handlers.select { |h| h.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
-                @repository.commit(parsed_command)
-              else
-                raise CommandNotValid.new(command)
-              end
+              raise CommandNotValid.new(command) unless command.valid?
+              parsed_command = command.parse_attrs_to_correct_types
+              @command_handlers.select { |h| h.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
+              @repository.commit(parsed_command)
 
             end
           end
