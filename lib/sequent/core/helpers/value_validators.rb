@@ -14,13 +14,9 @@ module Sequent
         }
 
         def self.valid_integer?(value)
-          return true if value.blank?
-          begin
-            Integer(value)
-            return true
-          rescue
-            return false
-          end
+          value.blank? || Integer(value)
+        rescue
+          false
         end
 
         def self.valid_bool?(value)
