@@ -72,6 +72,4 @@ describe Sequent::Core::CommandService do
                                                               end
     end
   end
-
-
 end

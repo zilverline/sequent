@@ -35,9 +35,11 @@ module Sequent
         end
 
         private
+
         def incorrect_type?(value, record, association)
           !value.kind_of?(Array) && record.respond_to?(:attributes) && !value.kind_of?(record.attributes[association])
         end
+
         def all_valid?(value, item_type)
           value.any? do |v|
             if v.nil?

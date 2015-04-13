@@ -68,8 +68,6 @@ module Sequent
           end
         end
       end
-
     end
   end
 end
-

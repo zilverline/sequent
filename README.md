@@ -55,7 +55,6 @@ Sequent provides the following concepts from a CQRS and an event sourced applica
 * Aggregates
 * ValueObjects
 
-
 ## Commands
 Commands are the instructions typically initiated by the users, for instance by submitting forms.
 Good practive is to give them descriptive names like `PayInvoiceCommand`.

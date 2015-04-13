@@ -48,8 +48,6 @@ module Sequent
           VALIDATORS[@klass].call(value)
         end
       end
-
     end
   end
 end
-
