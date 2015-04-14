@@ -33,6 +33,7 @@ module Sequent
               Sequent::Core::Helpers::ParamSupport,
               ActiveModel::Serializers::JSON,
               ActiveModel::Validations
+      include Sequent::Core::Helpers::TypeConversionSupport
 
       self.include_root_in_json=false
 

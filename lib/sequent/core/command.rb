@@ -17,6 +17,7 @@ module Sequent
               Sequent::Core::Helpers::EqualSupport,
               Sequent::Core::Helpers::ParamSupport,
               Sequent::Core::Helpers::Mergable
+      include Sequent::Core::Helpers::TypeConversionSupport
 
       attrs created_at: DateTime
 

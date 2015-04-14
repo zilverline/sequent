@@ -2,6 +2,10 @@ require 'spec_helper'
 
 describe Sequent::Core::BaseCommand do
 
+  it "includes TypeConversion" do
+    expect(Sequent::Core::BaseCommand.included_modules).to include(Sequent::Core::Helpers::TypeConversionSupport)
+  end
+
   context Sequent::Core::TenantCommand do
 
     it "can be constructed with an aggregate_id and organization_id" do

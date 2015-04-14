@@ -12,8 +12,11 @@ class CountryList < Sequent::Core::ValueObject
   attrs countries: array(Country)
 end
 
-
 describe Sequent::Core::ValueObject do
+
+  it "includes TypeConversion" do
+    expect(Sequent::Core::ValueObject.included_modules).to include(Sequent::Core::Helpers::TypeConversionSupport)
+  end
 
   let(:country) { Country.new({code: 'NL', name: 'Nederland'}) }
 
