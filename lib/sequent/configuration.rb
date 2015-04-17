@@ -20,8 +20,6 @@ module Sequent
       :discovered_event_handlers,
       :autodiscover_event_handlers
 
-    attr_accessor
-
     def self.instance
       @instance ||= new
     end
@@ -51,12 +49,12 @@ module Sequent
       self.aggregate_repository = Sequent::Core::AggregateRepository.new(event_store)
     end
 
-    def all_event_handlers(autodiscover_event_handlers = autodiscover_event_handlers)
+    def all_event_handlers(autodiscover_event_handlers = self.autodiscover_event_handlers)
       return discovered_event_handlers + @event_handlers if autodiscover_event_handlers
       @event_handlers
     end
 
-    def all_command_handlers(autodiscover_command_handlers = autodiscover_command_handlers)
+    def all_command_handlers(autodiscover_command_handlers = self.autodiscover_command_handlers)
       return discovered_command_handlers + @command_handlers if autodiscover_command_handlers
       @command_handlers
     end
