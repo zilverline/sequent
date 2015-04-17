@@ -64,7 +64,6 @@ Sequent provides the following concepts from a CQRS and an event sourced applica
 * Aggregates
 * ValueObjects
 
-
 ## Commands
 Commands are the instructions typically initiated by the users, for instance by submitting forms.
 Good practive is to give them descriptive names like `PayInvoiceCommand`.
@@ -74,6 +73,18 @@ Commands in sequent use ActiveModel for validations.
       validates_presence_of :pay_date
       attrs pay_date: Date, amount: Integer
     end
+
+Sequent will automatically add validators in `Sequent::Core::BaseCommand`s for frequently used classes like:
+
+* Date
+* DateTime
+* Integer
+* Boolean
+
+When posted form the web and created like `PayInvoiceCommand.from_params(params[:pay_invoice_command])` its values are typically still all String.
+Sequent takes care of parsing the string values to the correct types automatically when a Command is valid (`valid?`).
+Its values will be parsed to the correct types by the CommandService. If you instantiate a Command manually with the correct types nothing will change.
+
 
 ## CommandService
 
@@ -178,6 +189,15 @@ Value objects, like commands, use ActiveModel for validations.
     class Address < Sequent::Core::ValueObject
       attrs street: String, country: Country
     end
+
+Sequent will automatically add validators in `Sequent::Core::ValueObject`s for frequently used classes like:
+
+* Date
+* DateTime
+* Integer
+* Boolean
+
+Validation is automatically triggered when adding `ValueObject`s to Commands.
 
 # License
 

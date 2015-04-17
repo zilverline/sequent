@@ -1,47 +1,7 @@
 require 'active_support'
-# TODO: Move this into a separate core_ext folder like for instance Rails does.
-# WARNING: Monkey patches below...
-class Symbol
-  def self.deserialize_from_json(value)
-    value.try(:to_sym)
-  end
-end
-
-class String
-  def self.deserialize_from_json(value)
-    value
-  end
-end
-
-class Integer
-  def self.deserialize_from_json(value)
-    value.blank? ? nil : value.to_i
-  end
-end
-
-class Boolean
-  def self.deserialize_from_json(value)
-    value.nil? ? nil : (value.present? ? value : false)
-  end
-end
-
-class Date
-  def self.deserialize_from_json(value)
-    value.nil? ? nil : Date.iso8601(value.dup)
-  end
-end
-
-class DateTime
-  def self.deserialize_from_json(value)
-    value.nil? ? nil : DateTime.iso8601(value.dup)
-  end
-end
-
-class Array
-  def self.deserialize_from_json(value)
-    value
-  end
-end
+require_relative '../ext/ext'
+require_relative 'array_with_type'
+require_relative 'default_validators'
 
 class Hash
   def self.deserialize_from_json(value)
@@ -79,13 +39,30 @@ module Sequent
             end
           end
 
+          def type_for(name)
+            @types.find { |k, _| k == name }.last
+          end
+
           def attrs(args)
             @types ||= {}
             @types.merge!(args)
-            args.each do |attribute, _|
+            associations = []
+            args.each do |attribute, type|
               attr_accessor attribute
-            end
+              if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport)
+                Sequent::Core::Helpers::DefaultValidators.for(type).add_validations_for(self, attribute)
+              end
 
+              if type.class == Sequent::Core::Helpers::ArrayWithType
+                associations << attribute
+              elsif included_modules.include?(ActiveModel::Validations) &&
+                type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
+                associations << attribute
+              end
+            end
+            if included_modules.include?(ActiveModel::Validations) && associations.present?
+              validates_with Sequent::Core::Helpers::AssociationValidator, associations: associations
+            end
             # Generate method that sets all defined attributes based on the attrs hash.
             class_eval <<EOS
               def update_all_attributes(attrs)
@@ -154,57 +131,8 @@ EOS
           prefix ? HashWithIndifferentAccess[result.map { |k, v| ["#{prefix}_#{k}", v] }] : result
         end
 
-        # If you have a Date object validate it with this method when the unparsed input is a String
-        # This scenario is typically when a date is posted from the web.
-        #
-        # Example
-        #
-        #   class Person < Sequent::Core::ValueObject
-        #     attrs date_of_birth: Date
-        #
-        #     validate :valid_date
-        #   end
-        #
-        # If the date_of_birth is a valid date it will be parsed into a proper Date object.
-        # This implementation currently only support dd-mm-yyyy format.
-        def valid_date
-          self.class.types.each do |name, clazz|
-            if clazz == Date
-              return if self.instance_variable_get("@#{name}").kind_of? Date
-              unless self.instance_variable_get("@#{name}").blank?
-                if (/\d{2}-\d{2}-\d{4}/ =~ self.instance_variable_get("@#{name}")).nil?
-                  @errors.add(name.to_s, :invalid_date) if (/\d{2}-\d{2}-\d{4}/ =~ self.instance_variable_get("@#{name}")).nil?
-                else
-                  begin
-                    self.instance_variable_set "@#{name}", Date.strptime(self.instance_variable_get("@#{name}"), "%d-%m-%Y")
-                  rescue
-                    @errors.add(name.to_s, :invalid_date)
-                  end
-                end
-              end
-
-            end
-          end
-        end
-
       end
 
-      class ArrayWithType
-        attr_accessor :item_type
-
-        def initialize(item_type)
-          raise "needs a item_type" unless item_type
-          @item_type = item_type
-        end
-
-        def deserialize_from_json(value)
-          value.nil? ? nil : value.map { |item| item_type.deserialize_from_json(item) }
-        end
-
-        def to_s
-          "Sequent::Core::Helpers::ArrayWithType.new(#{item_type})"
-        end
-      end
 
     end
   end

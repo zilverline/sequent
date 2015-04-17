@@ -4,7 +4,6 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.name        = 'sequent'
   s.version     = Sequent::VERSION
-  s.date        = '2014-03-15'
   s.summary     = "Event sourcing framework for Ruby"
   s.description = "Sequent is a CQRS and event sourcing framework for Ruby."
   s.authors     = ["Lars Vonk", "Bob Forma", "Erik Rozendaal"]
