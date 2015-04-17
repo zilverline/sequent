@@ -23,7 +23,7 @@ module Sequent
           end
 
           def message_mapping
-            @@message_mapping ||= {}
+            @message_mapping ||= {}
           end
         end
 

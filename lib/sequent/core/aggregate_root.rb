@@ -60,8 +60,10 @@ module Sequent
         @uncommitted_events << snapshot
       end
 
-      on SnapshotEvent do |event|
-        load_from_snapshot event
+      def self.inherited(subclass)
+        subclass.on SnapshotEvent do |event|
+          load_from_snapshot event
+        end
       end
 
       protected
