@@ -31,7 +31,7 @@ module Sequent
     def initialize
       self.event_store = Sequent::Core::EventStore.new(self)
       self.command_service = Sequent::Core::CommandService.new(self)
-      self.record_class = []
+      self.record_class = Sequent::Core::EventRecord
       self.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
 
       self.command_handlers = []

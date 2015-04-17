@@ -55,6 +55,7 @@ module Sequent
       end
 
       protected
+
       def record_class
         configuration.record_class
       end
