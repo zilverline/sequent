@@ -12,19 +12,15 @@ end
 describe Sequent::Core::CommandService do
 
   let(:event_store) { double }
-  let(:foo_handler_class) { double }
+  let(:foo_handler_class) { double(new: foo_handler) }
   let(:foo_handler) { double }
   let(:command) { DummyCommand.new(aggregate_id: "1") }
 
   let(:command_service) do
-    Sequent::Core::CommandService.configure do |config|
-      config.event_store = event_store
-      config.command_handler_classes = [foo_handler_class]
+    Sequent.configure do |config|
+      config.command_handlers = [foo_handler_class]
     end
-  end
-
-  before :each do
-    expect(foo_handler_class).to receive(:new).and_return(foo_handler)
+    Sequent.configuration.command_service
   end
 
   it "does not call a command handler when it does not handle a certain command" do

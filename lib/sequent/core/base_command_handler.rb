@@ -38,8 +38,8 @@ module Sequent
       private
 
       def self.inherited(subclass)
-        Sequent::Core::CommandService.configure do |config|
-          config.command_handler_classes << subclass
+        Sequent.configure do |config|
+          config.discovered_command_handlers << subclass
         end
       end
     end

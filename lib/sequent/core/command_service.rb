@@ -2,20 +2,6 @@ require_relative 'transactions/no_transactions'
 
 module Sequent
   module Core
-
-    class CommandServiceConfiguration
-      attr_accessor :event_store,
-                    :command_handler_classes,
-                    :transaction_provider,
-                    :filters
-
-      def initialize
-        @command_handler_classes = []
-        @transaction_provider = Sequent::Core::Transactions::NoTransactions.new
-        @filters = []
-      end
-    end
-
     #
     # Single point in the application where subclasses of Sequent::Core::BaseCommand
     # are executed. This will initiate the entire flow of:
@@ -27,22 +13,6 @@ module Sequent
     # * Unit of Work is cleared
     #
     class CommandService
-      class << self
-        def configure
-          configuration = instance.configuration.dup
-          yield(configuration) if block_given?
-          @instance = new(configuration) # this makes it threadsafe
-        end
-
-        def reset
-          @instance = new
-        end
-
-        def instance
-          @instance ||= new
-        end
-      end
-
       attr_accessor :configuration
 
       # +DefaultCommandServiceConfiguration+ Configuration class for the CommandService containing:
@@ -53,11 +23,6 @@ module Sequent
       #   +filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
       def initialize(configuration = CommandServiceConfiguration.new)
         self.configuration = configuration
-        @event_store = configuration.event_store
-        @repository = AggregateRepository.new(configuration.event_store)
-        @filters = configuration.filters
-        @transaction_provider = configuration.transaction_provider
-        @command_handlers = configuration.command_handler_classes.map { |handler| handler.new(@repository) }
       end
 
       # Executes the given commands in a single transactional block as implemented by the +transaction_provider+
@@ -69,26 +34,47 @@ module Sequent
       # * The +repository+ commits the command and all uncommitted_events resulting from the command
       def execute_commands(*commands)
         begin
-          @transaction_provider.transactional do
+          transaction_provider.transactional do
             commands.each do |command|
-              @filters.each { |filter| filter.execute(command) }
+              filters.each { |filter| filter.execute(command) }
 
               raise CommandNotValid.new(command) unless command.valid?
               parsed_command = command.parse_attrs_to_correct_types
-              @command_handlers.select { |h| h.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
-              @repository.commit(parsed_command)
+              command_handlers.select { |h| h.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
+              repository.commit(parsed_command)
             end
           end
         ensure
-          @repository.clear
+          repository.clear
         end
 
       end
 
       def remove_event_handler(clazz)
-        @event_store.remove_event_handler(clazz)
+        event_store.remove_event_handler(clazz)
       end
 
+      private
+
+      def event_store
+        configuration.event_store
+      end
+
+      def repository
+        configuration.aggregate_repository
+      end
+
+      def filters
+        configuration.command_filters
+      end
+
+      def transaction_provider
+        configuration.transaction_provider
+      end
+
+      def command_handlers
+        configuration.all_command_handlers.map { |handler| handler.new(repository) }
+      end
     end
 
     # Raised when BaseCommand.valid? returns false
@@ -108,8 +94,5 @@ module Sequent
         errors(@command.class.to_s.underscore)
       end
     end
-
   end
 end
-
-Sequent::Core::CommandService.instance

@@ -5,7 +5,7 @@ describe Sequent::Core::BaseEventHandler do
     it 'registers itself with Sequent::Core::EventStore' do
       event_handler = Class.new(Sequent::Core::BaseEventHandler) do
       end
-      expect(Sequent::Core::EventStore.instance.configuration.event_handler_classes).to include event_handler
+      expect(Sequent.configuration.all_event_handlers).to include event_handler
     end
   end
 end

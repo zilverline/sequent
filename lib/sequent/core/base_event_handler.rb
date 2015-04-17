@@ -50,8 +50,8 @@ module Sequent
       private
 
       def self.inherited(subclass)
-        Sequent::Core::EventStore.configure do |config|
-          config.event_handler_classes << subclass
+        Sequent.configure do |config|
+          config.discovered_event_handlers << subclass
         end
       end
     end

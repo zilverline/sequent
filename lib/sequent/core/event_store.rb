@@ -3,38 +3,11 @@ require_relative 'event_record'
 
 module Sequent
   module Core
-    class EventStoreConfiguration
-      attr_accessor :record_class, :event_handler_classes
-
-      def initialize(record_class = Sequent::Core::EventRecord, event_handler_classes = [])
-        @record_class = record_class
-        @event_handler_classes = event_handler_classes
-      end
-    end
-
     class EventStore
-      class << self
-        def configure
-          configuration = instance.configuration.dup
-          yield(configuration) if block_given?
-          @instance = new(configuration) # this makes it threadsafe
-        end
-
-        def reset
-          @instance = new
-        end
-
-        def instance
-          @instance ||= new
-        end
-      end
-
       attr_accessor :configuration
 
-      def initialize(configuration = EventStoreConfiguration.new)
+      def initialize(configuration = Sequent.configuration)
         self.configuration = configuration
-        @record_class = configuration.record_class
-        @event_handlers = configuration.event_handler_classes.map(&:new)
       end
 
       ##
@@ -43,7 +16,7 @@ module Sequent
       #
       def commit_events(command, events)
         store_events(command, events)
-        publish_events(events, @event_handlers)
+        publish_events(events, event_handlers)
       end
 
       ##
@@ -51,7 +24,7 @@ module Sequent
       #
       def load_events(aggregate_id)
         event_types = {}
-        @record_class.connection.select_all("select event_type, event_json from #{@record_class.table_name} where aggregate_id = '#{aggregate_id}' order by sequence_number asc").map! do |event_hash|
+        record_class.connection.select_all("select event_type, event_json from #{record_class.table_name} where aggregate_id = '#{aggregate_id}' order by sequence_number asc").map! do |event_hash|
           event_type = event_hash["event_type"]
           event_json = Oj.strict_load(event_hash["event_json"])
           unless event_types.has_key?(event_type)
@@ -75,7 +48,7 @@ module Sequent
             event_types[event_type] = Class.const_get(event_type.to_sym)
           end
           event = event_types[event_type].deserialize_from_json(payload)
-          @event_handlers.each do |handler|
+          event_handlers.each do |handler|
             handler.handle_message event
           end
         end
@@ -83,7 +56,11 @@ module Sequent
 
       protected
       def record_class
-        @record_class
+        configuration.record_class
+      end
+
+      def event_handlers
+        configuration.all_event_handlers
       end
 
       private
@@ -103,7 +80,7 @@ module Sequent
       def store_events(command, events = [])
         command_record = Sequent::Core::CommandRecord.create!(:command => command)
         events.each do |event|
-          @record_class.create!(:command_record => command_record, :event => event)
+          record_class.create!(:command_record => command_record, :event => event)
         end
       end
     end
