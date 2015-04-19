@@ -10,7 +10,6 @@ module Sequent
     # Base command
     class BaseCommand
       include ActiveModel::Validations,
-              ActiveModel::Serializers::JSON,
               Sequent::Core::Helpers::Copyable,
               Sequent::Core::Helpers::AttributeSupport,
               Sequent::Core::Helpers::UuidHelper,
@@ -20,8 +19,6 @@ module Sequent
       include Sequent::Core::Helpers::TypeConversionSupport
 
       attrs created_at: DateTime
-
-      self.include_root_in_json = false
 
       def initialize(args = {})
         update_all_attributes args

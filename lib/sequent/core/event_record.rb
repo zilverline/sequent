@@ -14,7 +14,7 @@ module Sequent
 
 
       def event
-        payload = Oj.strict_load(event_json)
+        payload = Oj.strict_load(event_json, {})
         Class.const_get(event_type.to_sym).deserialize_from_json(payload)
       end
 
@@ -24,7 +24,7 @@ module Sequent
         self.organization_id = event.organization_id if event.respond_to?(:organization_id)
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = event.to_json.to_s
+        self.event_json = Oj.dump(event)
       end
 
     end

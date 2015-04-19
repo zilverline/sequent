@@ -10,10 +10,8 @@ module Sequent
       include Sequent::Core::Helpers::StringSupport,
               Sequent::Core::Helpers::EqualSupport,
               Sequent::Core::Helpers::AttributeSupport,
-              Sequent::Core::Helpers::Copyable,
-              ActiveModel::Serializers::JSON
+              Sequent::Core::Helpers::Copyable
       attrs aggregate_id: String, sequence_number: Integer, created_at: DateTime
-      self.include_root_in_json = false
 
       def initialize(args = {})
         update_all_attributes args
