@@ -29,7 +29,7 @@ module Sequent
       end
       protected
       def payload_variables
-        %w{@aggregate_id @sequence_number @created_at @underscored}
+        %w{@aggregate_id @sequence_number @created_at}
       end
 
     end
