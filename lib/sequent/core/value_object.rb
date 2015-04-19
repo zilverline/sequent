@@ -35,7 +35,6 @@ module Sequent
       include Sequent::Core::Helpers::TypeConversionSupport
 
       def initialize(args = {})
-        @errors = ActiveModel::Errors.new(self)
         update_all_attributes args
       end
 
