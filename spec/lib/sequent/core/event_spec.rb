@@ -86,4 +86,16 @@ describe Sequent::Core::Event do
     expect(event).to eq other
   end
 
+  context ".attributes" do
+
+    it "ignores non attrs like @valid" do
+      person = Person.new(name: "foo")
+      person.valid?
+      event = TestTenantEvent.new(aggregate_id: "1", sequence_number: 2, organization_id: "3", owner: person)
+      expect(event.attributes[:owner]).to_not have_key(:errors)
+      expect(event.attributes[:owner]).to_not have_key(:validation_context)
+    end
+
+  end
+
 end

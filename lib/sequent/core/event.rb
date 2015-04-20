@@ -24,7 +24,7 @@ module Sequent
         result = {}
         instance_variables
           .reject { |k| payload_variables.include?(k.to_s) }
-          .select { |k| attributes.keys.include?(to_attribute_name(k))}
+          .select { |k| self.class.types.keys.include?(to_attribute_name(k))}
           .each do |k|
           result[k.to_s[1 .. -1].to_sym] = instance_variable_get(k)
         end

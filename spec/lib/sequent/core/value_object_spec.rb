@@ -83,6 +83,17 @@ describe Sequent::Core::ValueObject do
     ).to eq CountryList.new({countries: [country]})
   end
 
+  context ".attributes" do
+
+    it "ignores non attrs like @valid" do
+      address = Address.new
+      address.valid?
+      expect(address.attributes).to_not have_key(:errors)
+      expect(address.attributes).to_not have_key(:validation_context)
+    end
+
+  end
+
 end
 
 
