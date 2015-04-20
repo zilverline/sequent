@@ -53,8 +53,8 @@ describe Sequent::Core::Event do
     event = TestTenantEvent.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, owner: person
     )
-    json = Oj.dump(event)
-    other = TestTenantEvent.deserialize_from_json(Oj.strict_load(json, {}))
+    json = Sequent::Core::Oj.dump(event)
+    other = TestTenantEvent.deserialize_from_json(Sequent::Core::Oj.strict_load(json))
     expect(other).to eq event
   end
 
@@ -63,7 +63,7 @@ describe Sequent::Core::Event do
     event = EventWithDate.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, date_of_birth: today
     )
-    other = EventWithDate.deserialize_from_json(Oj.strict_load(Oj.dump(event), {}))
+    other = EventWithDate.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(other).to eq event
   end
 
@@ -71,18 +71,18 @@ describe Sequent::Core::Event do
     event = EventWithUnknownAttributeType.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, name: FooType.new
     )
-    expect { EventWithUnknownAttributeType.deserialize_from_json(Oj.strict_load(Oj.dump(event), {})) }.to raise_exception(NoMethodError)
+    expect { EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))) }.to raise_exception(NoMethodError)
   end
 
   it "converts symbols" do
     event = EventWithSymbol.new(aggregate_id: 123, sequence_number: 7, organization_id: "bar", status: :foo)
-    other = EventWithSymbol.deserialize_from_json(Oj.strict_load(Oj.dump(event), {}))
+    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
   end
 
   it "deserializes nil symbols" do
     event = EventWithSymbol.new(aggregate_id: 123, organization_id: "bar", sequence_number: 7)
-    other = EventWithSymbol.deserialize_from_json(Oj.strict_load(Oj.dump(event), {}))
+    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
   end
 

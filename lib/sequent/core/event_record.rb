@@ -1,5 +1,5 @@
-require 'oj'
 require 'active_record'
+require_relative 'sequent_oj'
 
 module Sequent
   module Core
@@ -7,7 +7,7 @@ module Sequent
     module SerializesEvent
 
       def event
-        payload = Oj.strict_load(self.event_json, {})
+        payload = Sequent::Core::Oj.strict_load(self.event_json)
         Class.const_get(self.event_type.to_sym).deserialize_from_json(payload)
       end
 
@@ -17,7 +17,7 @@ module Sequent
         self.organization_id = event.organization_id if event.respond_to?(:organization_id)
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = Oj.dump(event.attributes)
+        self.event_json = Sequent::Core::Oj.dump(event.attributes)
       end
 
     end

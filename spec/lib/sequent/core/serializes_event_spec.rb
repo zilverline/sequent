@@ -31,7 +31,7 @@ describe Sequent::Core::SerializesEvent do
       value_object.valid?
       record = RecordMock.new
       record.event = event
-      payload = Oj.strict_load(record.event_json, {})
+      payload = Sequent::Core::Oj.strict_load(record.event_json)
       expect(payload).to have_key("aggregate_id")
       expect(payload).to have_key("sequence_number")
       expect(payload).to have_key("value")

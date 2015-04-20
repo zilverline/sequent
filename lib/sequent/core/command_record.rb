@@ -1,10 +1,12 @@
 require 'active_record'
+require_relative 'sequent_oj'
+
 module Sequent
   module Core
 
     module SerializesCommand
       def command
-        args = Oj.strict_load(command_json, {})
+        args = Sequent::Core::Oj.strict_load(command_json)
         Class.const_get(command_type.to_sym).deserialize_from_json(args)
       end
 
@@ -14,7 +16,7 @@ module Sequent
         self.organization_id = command.organization_id if command.respond_to? :organization_id
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
-        self.command_json = Oj.dump(command.attributes)
+        self.command_json = Sequent::Core::Oj.dump(command.attributes)
       end
     end
 

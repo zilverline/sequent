@@ -61,12 +61,12 @@ module Sequent
 
         private
         def serialize_events(events)
-          events.map { |event| [event.class.name.to_sym, Oj.dump(event)] }
+          events.map { |event| [event.class.name.to_sym, Sequent::Core::Oj.dump(event)] }
         end
 
         def deserialize_events(events)
           events.map do |type, json|
-            Class.const_get(type).deserialize_from_json(Oj.strict_load(json, {}))
+            Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
           end
         end
 
@@ -87,7 +87,7 @@ module Sequent
       def then_events *events
         @event_store.stored_events.map(&:class).should == events.map(&:class)
         @event_store.stored_events.zip(events).each do |actual, expected|
-          Oj.strict_load(Oj.dump(actual.payload), {}).should == Oj.strict_load(Oj.dump(expected.payload), {}) if expected
+          Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload)).should == Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload)) if expected
         end
       end
 
