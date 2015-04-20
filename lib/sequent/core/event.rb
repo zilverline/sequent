@@ -37,7 +37,7 @@ module Sequent
 
       private
       def to_attribute_name(instance_variable_name)
-        instance_variable_name.to_s.gsub('@', '').to_sym
+        instance_variable_name[1 .. -1].to_sym
       end
 
     end
