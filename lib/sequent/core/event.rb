@@ -23,7 +23,7 @@ module Sequent
       def payload
         result = {}
         instance_variables
-          .reject { |k| payload_variables.include?(k.to_s) }
+          .reject { |k| payload_variables.include?(k) }
           .select { |k| self.class.types.keys.include?(to_attribute_name(k))}
           .each do |k|
           result[k.to_s[1 .. -1].to_sym] = instance_variable_get(k)
@@ -32,7 +32,7 @@ module Sequent
       end
       protected
       def payload_variables
-        %w{@aggregate_id @sequence_number @created_at}
+        %i{@aggregate_id @sequence_number @created_at}
       end
 
       private
@@ -53,7 +53,7 @@ module Sequent
 
       protected
       def payload_variables
-        super << "@organization_id"
+        super << :"@organization_id"
       end
 
     end
