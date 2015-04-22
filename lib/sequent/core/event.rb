@@ -10,10 +10,8 @@ module Sequent
       include Sequent::Core::Helpers::StringSupport,
               Sequent::Core::Helpers::EqualSupport,
               Sequent::Core::Helpers::AttributeSupport,
-              Sequent::Core::Helpers::Copyable,
-              ActiveModel::Serializers::JSON
+              Sequent::Core::Helpers::Copyable
       attrs aggregate_id: String, sequence_number: Integer, created_at: DateTime
-      self.include_root_in_json = false
 
       def initialize(args = {})
         update_all_attributes args
@@ -24,14 +22,22 @@ module Sequent
 
       def payload
         result = {}
-        instance_variables.reject { |k| payload_variables.include?(k.to_s) }.each do |k|
+        instance_variables
+          .reject { |k| payload_variables.include?(k) }
+          .select { |k| self.class.types.keys.include?(to_attribute_name(k))}
+          .each do |k|
           result[k.to_s[1 .. -1].to_sym] = instance_variable_get(k)
         end
         result
       end
       protected
       def payload_variables
-        %w{@aggregate_id @sequence_number @created_at @underscored}
+        %i{@aggregate_id @sequence_number @created_at}
+      end
+
+      private
+      def to_attribute_name(instance_variable_name)
+        instance_variable_name[1 .. -1].to_sym
       end
 
     end
@@ -47,7 +53,7 @@ module Sequent
 
       protected
       def payload_variables
-        super << "@organization_id"
+        super << :"@organization_id"
       end
 
     end

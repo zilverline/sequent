@@ -1,5 +1,5 @@
-require 'oj'
 require_relative 'event_record'
+require_relative 'sequent_oj'
 
 module Sequent
   module Core
@@ -50,7 +50,7 @@ module Sequent
         event_types = {}
         @record_class.connection.select_all("select event_type, event_json from #{@record_class.table_name} where aggregate_id = '#{aggregate_id}' order by sequence_number asc").map! do |event_hash|
           event_type = event_hash["event_type"]
-          event_json = Oj.strict_load(event_hash["event_json"])
+          event_json = Sequent::Core::Oj.strict_load(event_hash["event_json"])
           unless event_types.has_key?(event_type)
             event_types[event_type] = Class.const_get(event_type.to_sym)
           end
@@ -67,7 +67,7 @@ module Sequent
         event_types = {}
         event_stream.each do |event_hash|
           event_type = event_hash["event_type"]
-          payload = Oj.strict_load(event_hash["event_json"])
+          payload = Sequent::Core::Oj.strict_load(event_hash["event_json"])
           unless event_types.has_key?(event_type)
             event_types[event_type] = Class.const_get(event_type.to_sym)
           end

@@ -14,7 +14,7 @@ module Sequent
           def from_params(params = {})
             result = allocate
             params = HashWithIndifferentAccess.new(params)
-            result.attributes.each do |attribute, type|
+            result.class.types.each do |attribute, type|
               value = params[attribute]
 
               next if value.blank?

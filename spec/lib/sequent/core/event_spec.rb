@@ -53,8 +53,8 @@ describe Sequent::Core::Event do
     event = TestTenantEvent.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, owner: person
     )
-    json = event.to_json
-    other = TestTenantEvent.deserialize_from_json(ActiveSupport::JSON.decode(json))
+    json = Sequent::Core::Oj.dump(event)
+    other = TestTenantEvent.deserialize_from_json(Sequent::Core::Oj.strict_load(json))
     expect(other).to eq event
   end
 
@@ -63,7 +63,7 @@ describe Sequent::Core::Event do
     event = EventWithDate.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, date_of_birth: today
     )
-    other = EventWithDate.deserialize_from_json(ActiveSupport::JSON.decode(event.to_json))
+    other = EventWithDate.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(other).to eq event
   end
 
@@ -71,19 +71,31 @@ describe Sequent::Core::Event do
     event = EventWithUnknownAttributeType.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, name: FooType.new
     )
-    expect { EventWithUnknownAttributeType.deserialize_from_json(ActiveSupport::JSON.decode(event.to_json)) }.to raise_exception(NoMethodError)
+    expect { EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))) }.to raise_exception(NoMethodError)
   end
 
   it "converts symbols" do
     event = EventWithSymbol.new(aggregate_id: 123, sequence_number: 7, organization_id: "bar", status: :foo)
-    other = EventWithSymbol.deserialize_from_json(ActiveSupport::JSON.decode(event.to_json))
+    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
   end
 
   it "deserializes nil symbols" do
     event = EventWithSymbol.new(aggregate_id: 123, organization_id: "bar", sequence_number: 7)
-    other = EventWithSymbol.deserialize_from_json(ActiveSupport::JSON.decode(event.to_json))
+    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
+  end
+
+  context ".attributes" do
+
+    it "ignores non attrs like @valid" do
+      person = Person.new(name: "foo")
+      person.valid?
+      event = TestTenantEvent.new(aggregate_id: "1", sequence_number: 2, organization_id: "3", owner: person)
+      expect(event.attributes[:owner]).to_not have_key(:errors)
+      expect(event.attributes[:owner]).to_not have_key(:validation_context)
+    end
+
   end
 
 end
