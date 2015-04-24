@@ -34,6 +34,14 @@ module Sequent
       def repository
         @repository
       end
+
+      private
+
+      def self.inherited(subclass)
+        Sequent.configure do |config|
+          config.discovered_command_handlers << subclass
+        end
+      end
     end
   end
 end

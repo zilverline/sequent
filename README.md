@@ -20,15 +20,6 @@ If you are unfamiliar with these concepts you can catch up with:
 
     require 'sequent'
 
-    Sequent::Core::EventStore.configure do |config|
-      config.event_handlers = [MyEventHandler.new]
-    end
-
-    Sequent::Core::CommandService.configure do |config|
-      config.event_store = Sequent::Core::EventStore.instance
-      config.command_handler_classes = [MyCommandHandler]
-    end
-
     Sequent::Core::CommandService.instance.execute_commands MyCommand.new(...)
 
 # Contributing
