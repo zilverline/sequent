@@ -1,3 +1,5 @@
+require_relative 'helpers/functions'
+
 module Sequent
   module Core
     # Repository for aggregates.
@@ -16,9 +18,17 @@ module Sequent
       # Key used in thread local
       AGGREGATES_KEY = 'Sequent::Core::AggregateRepository::aggregates'.to_sym
 
+      attr_reader :event_store
+
       class NonUniqueAggregateId < Exception
         def initialize(existing, new)
           super "Duplicate aggregate #{new} with same key as existing #{existing}"
+        end
+      end
+
+      class AggregateNotFound < Exception
+        def initialize(id)
+          super "Aggregate with id #{id} not found"
         end
       end
 
@@ -50,15 +60,17 @@ module Sequent
       # Returns the one in the current Unit Of Work otherwise loads it from history.
       #
       # If we implement snapshotting this is the place.
-      def load_aggregate(aggregate_id, clazz)
-        if aggregates.has_key?(aggregate_id)
-          result = aggregates[aggregate_id]
-          raise TypeError, "#{result.class} is not a #{clazz}" unless result.is_a?(clazz)
-          result
-        else
+      def load_aggregate(aggregate_id, clazz = nil)
+        result = aggregates.fetch(aggregate_id) do |aggregate_id|
           stream, events = @event_store.load_events(aggregate_id)
-          aggregates[aggregate_id] = clazz.load_from_history(stream, events)
+          raise AggregateNotFound.new(aggregate_id) unless stream
+          aggregate_class = Helpers::constant_get(stream.aggregate_type)
+          aggregates[aggregate_id] = aggregate_class.load_from_history(stream, events)
         end
+
+        raise TypeError, "#{result.class} is not a #{clazz}" if result && clazz && !(result.class <= clazz)
+
+        result
       end
 
       # Gets all uncommitted_events from the 'registered' aggregates

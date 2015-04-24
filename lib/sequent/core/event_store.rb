@@ -1,19 +1,24 @@
 require 'oj'
 require_relative 'event_record'
+require_relative 'helpers/functions'
 
 module Sequent
   module Core
     class EventStoreConfiguration
-      attr_accessor :record_class, :event_handlers
+      attr_accessor :stream_record_class, :event_record_class, :snapshot_event_class, :event_handlers
 
-      def initialize(record_class = Sequent::Core::EventRecord, event_handlers = [])
-        @record_class = record_class
+      def initialize(stream_record_class: StreamRecord, event_record_class: EventRecord, snapshot_event_class: SnapshotEvent, event_handlers: [])
+        @stream_record_class = stream_record_class
+        @event_record_class = event_record_class
+        @snapshot_event_class = snapshot_event_class
         @event_handlers = event_handlers
       end
     end
 
     class EventStore
       include ActiveRecord::ConnectionAdapters::Quoting
+
+      attr_reader :stream_record_class, :event_record_class
 
       class << self
         attr_accessor :configuration,
@@ -31,7 +36,9 @@ module Sequent
       end
 
       def initialize(configuration = EventStoreConfiguration.new)
-        @record_class = configuration.record_class
+        @stream_record_class = configuration.stream_record_class
+        @event_record_class = configuration.event_record_class
+        @snapshot_event_class = configuration.snapshot_event_class
         @event_handlers = configuration.event_handlers
         @event_types = ThreadSafe::Cache.new
       end
@@ -52,20 +59,20 @@ module Sequent
       # Returns all events for the aggregate ordered by sequence_number
       #
       def load_events(aggregate_id)
-        stream = StreamRecord.where(aggregate_id: aggregate_id).first!
-        events = @record_class.connection.select_all(%Q{
+        stream = @stream_record_class.where(aggregate_id: aggregate_id).first!
+        events = @event_record_class.connection.select_all(%Q{
 SELECT event_type, event_json
-  FROM #{quote_table_name @record_class.table_name}
+  FROM #{quote_table_name @event_record_class.table_name}
  WHERE aggregate_id = #{quote aggregate_id}
    AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
-                                      FROM #{quote_table_name @record_class.table_name}
-                                     WHERE event_type = #{quote SnapshotEvent.name}
+                                      FROM #{quote_table_name @event_record_class.table_name}
+                                     WHERE event_type = #{quote @snapshot_event_class.name}
                                        AND aggregate_id = #{quote aggregate_id}), 0)
- ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote SnapshotEvent.name} THEN 0 ELSE 1 END) ASC
+ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote @snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
 }).map! do |event_hash|
           deserialize_event(event_hash)
         end
-        [stream, events]
+        [stream.event_stream, events]
       end
 
       ##
@@ -77,30 +84,37 @@ SELECT event_type, event_json
         publish_events(events, @event_handlers)
       end
 
+      ##
+      # Returns the ids of aggregates that need a new snapshot.
+      #
       def aggregates_that_need_snapshots(limit: 10, last_aggregate_id: nil)
         query = %Q{
 SELECT aggregate_id
-  FROM #{quote_table_name @record_class.table_name} events
+  FROM #{quote_table_name @event_record_class.table_name} events
  WHERE aggregate_id > COALESCE(#{quote last_aggregate_id}, '')
-   AND event_type <> #{quote SnapshotEvent.name}
+   AND event_type <> #{quote @snapshot_event_class.name}
  GROUP BY aggregate_id
 HAVING (MAX(sequence_number)
         - (COALESCE((SELECT MAX(sequence_number)
-                       FROM #{quote_table_name @record_class.table_name} snapshots
-                      WHERE event_type = #{quote SnapshotEvent.name}
+                       FROM #{quote_table_name @event_record_class.table_name} snapshots
+                      WHERE event_type = #{quote @snapshot_event_class.name}
                         AND snapshots.aggregate_id = events.aggregate_id), 0)))
        >= (SELECT snapshot_threshold
-             FROM #{quote_table_name StreamRecord.table_name} streams
+             FROM #{quote_table_name @stream_record_class.table_name} streams
             WHERE events.aggregate_id = streams.aggregate_id)
  ORDER BY aggregate_id
  LIMIT #{quote limit}
 }
-        @record_class.connection.select_all(query).map {|x| x['aggregate_id']}
+        @event_record_class.connection.select_all(query).map {|x| x['aggregate_id']}
       end
 
-      protected
-      def record_class
-        @record_class
+      def find_event_stream(aggregate_id)
+        record = @stream_record_class.where(aggregate_id: aggregate_id).first
+        if record
+          record.event_stream
+        else
+          nil
+        end
       end
 
       private
@@ -112,18 +126,7 @@ HAVING (MAX(sequence_number)
       end
 
       def resolve_event_type(event_type)
-        @event_types.fetch_or_store(event_type) { |k| constant_get(k) }
-      end
-
-      # A better const get (via https://www.ruby-forum.com/topic/103276)
-      def constant_get(hierachy)
-        ancestors = hierachy.split(%r/::/)
-        parent = Object
-        while ((child = ancestors.shift))
-          klass = parent.const_get child
-          parent = klass
-        end
-        klass
+        @event_types.fetch_or_store(event_type) { |k| Helpers::constant_get(k) }
       end
 
       def publish_events(events, event_handlers)
@@ -136,10 +139,15 @@ HAVING (MAX(sequence_number)
 
       def store_events(command, streams_with_events = [])
         command_record = CommandRecord.create!(:command => command)
-        streams_with_events.each do |stream_record, uncommitted_events|
-          stream_record.save! unless stream_record.id.present?
+        streams_with_events.each do |event_stream, uncommitted_events|
+          unless event_stream.stream_record_id
+            stream_record = StreamRecord.new
+            stream_record.event_stream = event_stream
+            stream_record.save!
+            event_stream.stream_record_id = stream_record.id
+          end
           uncommitted_events.each do |event|
-            @record_class.create!(:command_record => command_record, :stream_record => stream_record, :event => event)
+            @event_record_class.create!(:command_record => command_record, :stream_record_id => event_stream.stream_record_id, :event => event)
           end
         end
       end

@@ -36,26 +36,37 @@ module Sequent
 
       class FakeEventStore
         def initialize
-          @all_events = []
+          @event_streams = {}
+          @all_events = {}
           @stored_events = []
         end
 
         def load_events(aggregate_id)
-          deserialize_events(@all_events).select { |event| aggregate_id == event.aggregate_id }
+          event_stream = @event_streams[aggregate_id]
+          return nil unless event_stream
+          [event_stream, deserialize_events(@all_events[aggregate_id])]
+        end
+
+        def find_event_stream(aggregate_id)
+          @event_streams[aggregate_id]
         end
 
         def stored_events
           deserialize_events(@stored_events)
         end
 
-        def commit_events(_, events)
-          serialized = serialize_events(events)
-          @all_events += serialized
-          @stored_events += serialized
+        def commit_events(_, streams_with_events)
+          streams_with_events.each do |event_stream, events|
+            serialized = serialize_events(events)
+            @event_streams[event_stream.aggregate_id] = event_stream
+            @all_events[event_stream.aggregate_id] ||= []
+            @all_events[event_stream.aggregate_id] += serialized
+            @stored_events += serialized
+          end
         end
 
-        def given_events(events)
-          @all_events += serialize_events(events)
+        def given_events(streams_with_events)
+          commit_events(nil, streams_with_events)
           @stored_events = []
         end
 
@@ -72,9 +83,8 @@ module Sequent
 
       end
 
-      def given_events *events
-        raise ArgumentError.new("events can not be nil") if events.compact.empty?
-        @event_store.given_events(events)
+      def given_streams_with_events *streams_with_events
+        @event_store.given_events(streams_with_events)
       end
 
       def when_command command

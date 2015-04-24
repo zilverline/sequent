@@ -5,7 +5,14 @@ module Sequent
   module Core
     module SnapshotConfiguration
       module ClassMethods
-        attr_accessor :snapshot_threshold
+        def enable_snapshots(threshold = 20)
+          @snapshot_threshold = threshold
+          on SnapshotEvent do |event|
+            load_from_snapshot event
+          end
+        end
+
+        attr_reader :snapshot_threshold
       end
 
       def self.included(host_class)
@@ -33,9 +40,9 @@ module Sequent
         @id = id
         @uncommitted_events = []
         @sequence_number = 1
-        @event_stream = StreamRecord.new :aggregate_type => self.class.name,
-                                         :aggregate_id => id,
-                                         :snapshot_threshold => self.class.snapshot_threshold
+        @event_stream = EventStream.new aggregate_type: self.class.name,
+                                        aggregate_id: id,
+                                        snapshot_threshold: self.class.snapshot_threshold
       end
 
       def load_from_history(stream, events)
@@ -58,12 +65,6 @@ module Sequent
       def take_snapshot!
         snapshot = build_event SnapshotEvent, data: self.save_to_snapshot
         @uncommitted_events << snapshot
-      end
-
-      def self.inherited(subclass)
-        subclass.on SnapshotEvent do |event|
-          load_from_snapshot event
-        end
       end
 
       protected

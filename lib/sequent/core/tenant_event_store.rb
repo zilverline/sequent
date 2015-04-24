@@ -7,11 +7,11 @@ module Sequent
 
       def replay_events_for(organization_id)
         replay_events do
-          @record_class.connection.select_all(%Q{
+          @event_record_class.connection.select_all(%Q{
 SELECT event_type, event_json
-  FROM #{quote_table_name @record_class.table_name}
+  FROM #{quote_table_name @event_record_class.table_name}
  WHERE organization_id = #{quote organization_id}
-   AND event_type <> #{quote SnapshotEvent.name}
+   AND event_type <> #{quote @snapshot_event_class.name}
  ORDER BY id
 })
         end

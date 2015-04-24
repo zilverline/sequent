@@ -11,9 +11,9 @@ module Sequent
 
         it "can be configured using a ActiveRecord class" do
           Sequent::Core::EventStore.configure do |config|
-            config.record_class = :foo
+            config.event_record_class = :foo
           end
-          expect(Sequent::Core::EventStore.configuration.record_class).to eq :foo
+          expect(Sequent::Core::EventStore.configuration.event_record_class).to eq :foo
         end
 
         it "can be configured with event_handlers" do
@@ -32,8 +32,8 @@ module Sequent
           CommandRecord.new,
           [
             [
-              StreamRecord.new(:aggregate_type => 'MyAggregate', :aggregate_id => aggregate_id, :snapshot_threshold => 13),
-              [MyEvent.new(:aggregate_id => aggregate_id, :sequence_number => 1)]
+              EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
             ]
           ]
         )
@@ -52,8 +52,8 @@ module Sequent
           CommandRecord.new,
           [
             [
-              StreamRecord.new(:aggregate_type => 'MyAggregate', :aggregate_id => aggregate_id, :snapshot_threshold => 1),
-              [MyEvent.new(:aggregate_id => aggregate_id, :sequence_number => 1)]
+              EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 1),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
             ]
           ]
         )

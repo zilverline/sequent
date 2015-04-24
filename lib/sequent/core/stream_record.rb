@@ -2,6 +2,17 @@ require 'active_record'
 
 module Sequent
   module Core
+    class EventStream
+      attr_accessor :aggregate_type, :aggregate_id, :snapshot_threshold, :stream_record_id
+
+      def initialize(aggregate_type:, aggregate_id:, snapshot_threshold: nil, stream_record_id: nil)
+        @aggregate_type = aggregate_type
+        @aggregate_id = aggregate_id
+        @snapshot_threshold = snapshot_threshold
+        @stream_record_id = stream_record_id
+      end
+    end
+
     class StreamRecord < ActiveRecord::Base
 
       self.table_name = "stream_records"
@@ -10,6 +21,16 @@ module Sequent
       validates_numericality_of :snapshot_threshold, :only_integer => true, :greater_than => 0, :allow_nil => true
 
       has_many :events
+
+      def event_stream
+        EventStream.new(aggregate_type: aggregate_type, aggregate_id: aggregate_id, snapshot_threshold: snapshot_threshold, stream_record_id: id)
+      end
+
+      def event_stream=(data)
+        self.aggregate_type = data.aggregate_type
+        self.aggregate_id = data.aggregate_id
+        self.snapshot_threshold = data.snapshot_threshold
+      end
     end
   end
 end
