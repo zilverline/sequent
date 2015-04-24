@@ -4,17 +4,31 @@ describe Sequent::Core::EventStore do
   context ".configure" do
 
     it "can be configured using a ActiveRecord class" do
-      Sequent::Core::EventStore.configure do |config|
+      Sequent.configure do |config|
         config.record_class = :foo
       end
-      expect(Sequent::Core::EventStore.configuration.record_class).to eq :foo
+      expect(Sequent.configuration.record_class).to eq :foo
     end
 
     it "can be configured with event_handlers" do
-      Sequent::Core::EventStore.configure do |config|
-        config.event_handlers = [:event_handler]
+      event_handler_class = Class.new
+      Sequent.configure do |config|
+        config.event_handlers = [event_handler_class]
       end
-      expect(Sequent::Core::EventStore.configuration.event_handlers).to eq [:event_handler]
+      expect(Sequent.configuration.event_handlers).to eq [event_handler_class]
+    end
+
+    it 'can be configured multiple times' do
+      foo = Class.new
+      bar = Class.new
+      Sequent.configure do |config|
+        config.event_handlers = [foo]
+      end
+      expect(Sequent.configuration.event_handlers).to eq [foo]
+      Sequent.configure do |config|
+        config.event_handlers << bar
+      end
+      expect(Sequent.configuration.event_handlers).to eq [foo, bar]
     end
   end
 end
