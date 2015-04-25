@@ -73,7 +73,7 @@ module Sequent
       end
 
       def command_handlers
-        configuration.command_handlers.map { |handler| handler.new(repository) }
+        configuration.command_handlers
       end
     end
 

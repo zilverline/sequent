@@ -11,4 +11,9 @@ module Sequent
   def self.configuration
     Configuration.instance
   end
+
+  # Short hand for Sequent.configuration.command_service
+  def self.command_service
+    configuration.command_service
+  end
 end

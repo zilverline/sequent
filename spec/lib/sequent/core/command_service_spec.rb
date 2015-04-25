@@ -12,13 +12,12 @@ end
 describe Sequent::Core::CommandService do
 
   let(:event_store) { double }
-  let(:foo_handler_class) { double(new: foo_handler) }
   let(:foo_handler) { double }
   let(:command) { DummyCommand.new(aggregate_id: "1") }
 
   let(:command_service) do
     Sequent.configure do |config|
-      config.command_handlers = [foo_handler_class]
+      config.command_handlers = [foo_handler]
     end
     Sequent.configuration.command_service
   end

@@ -21,11 +21,11 @@ If you are unfamiliar with these concepts you can catch up with:
     require 'sequent'
 
     Sequent.configure do |config|
-      config.event_handlers = [MyEventHandler]
-      config.command_handlers = [MyCommandHandler]
+      config.event_handlers = [MyEventHandler.new]
+      config.command_handlers = [MyCommandHandler.new]
     end
 
-    Sequent::Core::CommandService.instance.execute_commands MyCommand.new(...)
+    Sequent.command_service.execute_commands MyCommand.new(...)
 
 # Contributing
 
@@ -79,7 +79,7 @@ Sequent provides a `Sequent::Core::CommandService` to propagate the commands to 
 via the registered CommandHandlers.
 
     command = PayInvoiceCommand.new(aggregate_id: "10", pay_date: Date.today, amount: 100)
-    Sequent::Core::CommandService.instance.execute command
+    Sequent.command_service.execute command
 
 ## CommandHandlers
 
@@ -102,7 +102,7 @@ the uncommitted events are cleared from the aggregate.
 
 The repository is keeps track of the Unit-Of-Work per thread, so can be shared between threads.
 
-    AggregateRepository.new(Sequent::Core::EventStore.instance)
+    AggregateRepository.new(Sequent.config.event_store)
 
 ## Events
 
@@ -130,11 +130,14 @@ See the `Sequent::Core::RecordSessions::ActiveRecordSession` if you want to impl
 ## EventStore
 
 The EventStore is where the Events go. As a user you only have to configure the EventStore, Sequent takes care of the rest.
+The EventStore is configured and accessible via the configuration.
 
-    Sequent::Core::EventStore.configure do |config|
+    Sequent.configure do |config|
       config.record_class = Sequent::Core::EventRecord # configured by default but can be overridden
-      config.event_handlers = [MyEventHandler.new] # put your event handlers here
+      config.event_handlers = [MyEventHandler.new]     # put your event handlers here
     end
+
+    Sequent.configuration.event_store
 
 ## Aggregates
 
