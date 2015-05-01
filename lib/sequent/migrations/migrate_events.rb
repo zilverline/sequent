@@ -36,18 +36,19 @@ module Sequent
       def execute_migrations(current_version, new_version, &after_migration_block)
         if current_version != new_version and current_version > 0
           ((current_version + 1)..new_version).each do |upgrade_to_version|
-            migration_class = "MigrateToVersion#{upgrade_to_version}".to_sym
-            if Kernel.const_defined?(migration_class)
+            migration_class_name = "Database::MigrateToVersion#{upgrade_to_version}"
+            if migration_class = Sequent::Core::Helpers::constant_get?(migration_class_name)
               begin
-                Kernel.const_get(migration_class).new(@env).migrate
+                migration_class.new(@env).migrate
               ensure
                 after_migration_block.call if after_migration_block
               end
+            else
+              puts "No event migration found for version #{upgrade_to_version}, skipping..."
             end
           end
         end
       end
-
     end
   end
 end

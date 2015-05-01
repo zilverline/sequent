@@ -2,7 +2,7 @@ module Sequent
   module Core
     module Helpers
       # A better const get (via https://www.ruby-forum.com/topic/103276)
-      def self.constant_get(hierachy)
+      def self.constant_get!(hierachy)
         ancestors = hierachy.split(%r/::/)
         parent = Object
         while ((child = ancestors.shift))
@@ -10,6 +10,12 @@ module Sequent
           parent = klass
         end
         klass
+      end
+
+      def self.constant_get?(hierarchy)
+        constant_get!(hierarchy)
+      rescue NameError
+        nil
       end
     end
   end

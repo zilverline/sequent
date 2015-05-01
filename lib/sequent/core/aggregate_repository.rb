@@ -64,7 +64,7 @@ module Sequent
         result = aggregates.fetch(aggregate_id) do |aggregate_id|
           stream, events = @event_store.load_events(aggregate_id)
           raise AggregateNotFound.new(aggregate_id) unless stream
-          aggregate_class = Helpers::constant_get(stream.aggregate_type)
+          aggregate_class = Helpers::constant_get!(stream.aggregate_type)
           aggregates[aggregate_id] = aggregate_class.load_from_history(stream, events)
         end
 
