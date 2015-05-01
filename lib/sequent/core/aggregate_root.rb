@@ -5,6 +5,11 @@ module Sequent
   module Core
     module SnapshotConfiguration
       module ClassMethods
+        ##
+        # Enable snapshots for this aggregate. The aggregate instance
+        # must define the *load_from_snapshot* and *save_to_snapshot*
+        # methods.
+        #
         def enable_snapshots(default_threshold: 20)
           @snapshot_default_threshold = default_threshold
           on SnapshotEvent do |event|
