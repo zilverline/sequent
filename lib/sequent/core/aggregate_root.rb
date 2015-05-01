@@ -5,14 +5,14 @@ module Sequent
   module Core
     module SnapshotConfiguration
       module ClassMethods
-        def enable_snapshots(threshold = 20)
-          @snapshot_threshold = threshold
+        def enable_snapshots(default_threshold: 20)
+          @snapshot_default_threshold = default_threshold
           on SnapshotEvent do |event|
             load_from_snapshot event
           end
         end
 
-        attr_reader :snapshot_threshold
+        attr_reader :snapshot_default_threshold
       end
 
       def self.included(host_class)
@@ -42,7 +42,7 @@ module Sequent
         @sequence_number = 1
         @event_stream = EventStream.new aggregate_type: self.class.name,
                                         aggregate_id: id,
-                                        snapshot_threshold: self.class.snapshot_threshold
+                                        snapshot_threshold: self.class.snapshot_default_threshold
       end
 
       def load_from_history(stream, events)

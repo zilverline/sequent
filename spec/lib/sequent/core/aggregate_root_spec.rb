@@ -9,7 +9,7 @@ describe Sequent::Core::AggregateRoot do
   class TestAggregateRoot < Sequent::Core::TenantAggregateRoot
     attr_accessor :test_event_count
 
-    enable_snapshots threshold: 30
+    enable_snapshots default_threshold: 30
 
     def initialize(params)
       super(params[:aggregate_id], params[:organization_id])
