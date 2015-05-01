@@ -31,14 +31,10 @@ module Sequent
               Sequent::Core::Helpers::Copyable,
               Sequent::Core::Helpers::AttributeSupport,
               Sequent::Core::Helpers::ParamSupport,
-              ActiveModel::Serializers::JSON,
               ActiveModel::Validations
       include Sequent::Core::Helpers::TypeConversionSupport
 
-      self.include_root_in_json=false
-
       def initialize(args = {})
-        @errors = ActiveModel::Errors.new(self)
         update_all_attributes args
       end
 

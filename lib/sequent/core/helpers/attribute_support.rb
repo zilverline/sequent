@@ -115,9 +115,17 @@ EOS
         end
 
 
-        # needed for active module JSON serialization
         def attributes
-          self.class.types
+          hash = HashWithIndifferentAccess.new
+          self.class.types.each do |name, _|
+            value = self.instance_variable_get("@#{name}")
+            hash[name] = if value.respond_to?(:attributes)
+                           value.attributes
+                         else
+                           value
+                         end
+          end
+          hash
         end
 
         def validation_errors(prefix = nil)

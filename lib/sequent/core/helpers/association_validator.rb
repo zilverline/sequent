@@ -24,7 +24,7 @@ module Sequent
             next unless association # since ruby 2.0...?
             value = record.instance_variable_get("@#{association.to_s}")
             if value && incorrect_type?(value, record, association)
-              record.errors[association] = "is not of type #{record.attributes[association]}"
+              record.errors[association] = "is not of type #{record.class.types[association]}"
             elsif value && value.kind_of?(Array)
               item_type = record.class.type_for(association).item_type
               record.errors[association] = "is invalid" if all_valid?(value, item_type)
@@ -37,7 +37,7 @@ module Sequent
         private
 
         def incorrect_type?(value, record, association)
-          !value.kind_of?(Array) && record.respond_to?(:attributes) && !value.kind_of?(record.attributes[association])
+          !value.kind_of?(Array) && record.class.respond_to?(:types) && !value.kind_of?(record.class.types[association])
         end
 
         def all_valid?(value, item_type)

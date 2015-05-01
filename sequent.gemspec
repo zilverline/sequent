@@ -22,4 +22,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency  'rspec', '~> 3.2'
   s.add_development_dependency  'rspec-mocks', '~> 3.2'
   s.add_development_dependency  'rspec-collection_matchers', '~> 1.1'
+  s.add_development_dependency  'rake', '~> 10.4'
 end

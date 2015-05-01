@@ -1,6 +1,6 @@
-require 'oj'
 require_relative 'event_record'
 require_relative 'helpers/functions'
+require_relative 'sequent_oj'
 
 module Sequent
   module Core
@@ -121,7 +121,7 @@ HAVING (MAX(sequence_number)
 
       def deserialize_event(event_hash)
         event_type = event_hash.fetch("event_type")
-        event_json = Oj.strict_load(event_hash.fetch("event_json"))
+        event_json = Sequent::Core::Oj.strict_load(event_hash.fetch("event_json"))
         resolve_event_type(event_type).deserialize_from_json(event_json)
       end
 

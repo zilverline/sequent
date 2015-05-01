@@ -10,7 +10,7 @@ module Sequent
       module TypeConversionSupport
         def parse_attrs_to_correct_types
           the_copy = dup
-          the_copy.attributes.each do |name, type|
+          the_copy.class.types.each do |name, type|
             raw_value = the_copy.send("#{name}")
             next if raw_value.nil?
             if raw_value.respond_to?(:parse_attrs_to_correct_types)
