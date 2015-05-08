@@ -58,7 +58,7 @@ module Sequent
           ]
         )
 
-        expect(event_store.aggregates_that_need_snapshots).to include(aggregate_id)
+        expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
       end
     end
 
