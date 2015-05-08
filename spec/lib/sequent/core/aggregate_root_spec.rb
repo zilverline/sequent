@@ -23,15 +23,6 @@ describe Sequent::Core::AggregateRoot do
       @event_count ||= 0
     end
 
-    protected
-    def save_to_snapshot
-      {event_count: event_count}
-    end
-
-    def load_from_snapshot(event)
-      @event_count = event.data[:event_count]
-    end
-
     private
     on TestEvent do |_|
       @event_count = event_count + 1

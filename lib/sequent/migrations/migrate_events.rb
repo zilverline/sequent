@@ -44,7 +44,7 @@ module Sequent
                 after_migration_block.call if after_migration_block
               end
             else
-              puts "No event migration found for version #{upgrade_to_version}, skipping..."
+              puts "No event migration found for version #{upgrade_to_version}, skipping..." unless @env == "test"
             end
           end
         end

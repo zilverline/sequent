@@ -1,3 +1,4 @@
+require 'base64'
 require_relative 'helpers/self_applier'
 require_relative 'stream_record'
 
@@ -12,9 +13,10 @@ module Sequent
         #
         def enable_snapshots(default_threshold: 20)
           @snapshot_default_threshold = default_threshold
-          on SnapshotEvent do |event|
-            load_from_snapshot event
-          end
+        end
+
+        def snapshots_enabled?
+          !snapshot_default_threshold.nil?
         end
 
         attr_reader :snapshot_default_threshold
@@ -36,8 +38,14 @@ module Sequent
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
 
       def self.load_from_history(stream, events)
-        aggregate_root = allocate() # allocate without calling new
-        aggregate_root.load_from_history(stream, events)
+        first, *rest = events
+        if first.is_a? SnapshotEvent
+          aggregate_root = Marshal.load(Base64.decode64(first.data))
+          rest.each { |x| aggregate_root.apply_event(x) }
+        else
+          aggregate_root = allocate() # allocate without calling new
+          aggregate_root.load_from_history(stream, events)
+        end
         aggregate_root
       end
 
@@ -54,9 +62,9 @@ module Sequent
         raise "Empty history" if events.empty?
         @id = events.first.aggregate_id
         @uncommitted_events = []
-        @sequence_number = events.last.sequence_number + 1
+        @sequence_number = 1
         @event_stream = stream
-        events.each { |event| handle_message(event) }
+        events.each { |event| apply_event(event) }
       end
 
       def to_s
@@ -68,8 +76,13 @@ module Sequent
       end
 
       def take_snapshot!
-        snapshot = build_event SnapshotEvent, data: self.save_to_snapshot
+        snapshot = build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
         @uncommitted_events << snapshot
+      end
+
+      def apply_event(event)
+        handle_message(event)
+        @sequence_number = event.sequence_number + 1
       end
 
       protected
@@ -86,9 +99,8 @@ module Sequent
       #
       def apply(event, params={})
         event = build_event(event, params) if event.is_a?(Class)
-        handle_message(event)
+        apply_event(event)
         @uncommitted_events << event
-        @sequence_number += 1
       end
     end
 

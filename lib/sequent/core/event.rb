@@ -62,8 +62,8 @@ module Sequent
 
     end
 
-    class SnapshotEvent < TenantEvent
-      attrs data: Hash
+    class SnapshotEvent < Event
+      attrs data: String
     end
 
   end

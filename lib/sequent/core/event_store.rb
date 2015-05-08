@@ -87,7 +87,7 @@ SELECT event_type, event_json
       ##
       # Returns the ids of aggregates that need a new snapshot.
       #
-      def aggregates_that_need_snapshots(limit: 10, last_aggregate_id: nil)
+      def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
         query = %Q{
 SELECT aggregate_id
   FROM #{quote_table_name @event_record_class.table_name} events

@@ -109,6 +109,3 @@ module Sequent
 
   end
 end
-
-
-
