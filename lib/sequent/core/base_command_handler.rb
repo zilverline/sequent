@@ -12,7 +12,7 @@ module Sequent
     #       repository.add_aggregate Invoice.new(command.aggregate_id)
     #     end
     #
-    #     on PayInvoiceCommanddo |command|
+    #     on PayInvoiceCommand do |command|
     #       do_with_aggregate(command, Invoice) {|invoice|invoice.pay(command.pay_date)}
     #     end
     #   end
@@ -20,7 +20,9 @@ module Sequent
       include Sequent::Core::Helpers::SelfApplier,
               Sequent::Core::Helpers::UuidHelper
 
-      def initialize(repository)
+      attr_accessor :repository
+
+      def initialize(repository = Sequent.configuration.aggregate_repository)
         @repository = repository
       end
 
@@ -30,10 +32,6 @@ module Sequent
         yield aggregate if block_given?
       end
 
-      protected
-      def repository
-        @repository
-      end
     end
   end
 end
