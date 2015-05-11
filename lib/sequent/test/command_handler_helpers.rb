@@ -85,9 +85,9 @@ module Sequent
       end
 
       def then_events *events
-        @event_store.stored_events.map(&:class).should == events.map(&:class)
+        expect(@event_store.stored_events.map(&:class)).to eq(events.map(&:class))
         @event_store.stored_events.zip(events).each do |actual, expected|
-          Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload)).should == Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload)) if expected
+          expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
         end
       end
 
