@@ -1,3 +1,4 @@
+require 'forwardable'
 require_relative 'event_record'
 require_relative 'helpers/functions'
 require_relative 'sequent_oj'
@@ -7,8 +8,10 @@ module Sequent
 
     class EventStore
       include ActiveRecord::ConnectionAdapters::Quoting
+      extend Forwardable
 
       attr_accessor :configuration
+      def_delegators :@configuration, :stream_record_class, :event_record_class, :snapshot_event_class, :event_handlers
 
       def initialize(configuration = Sequent.configuration)
         self.configuration = configuration
@@ -87,22 +90,6 @@ HAVING (MAX(sequence_number)
         else
           nil
         end
-      end
-
-      def stream_record_class
-        configuration.stream_record_class
-      end
-
-      def event_record_class
-        configuration.event_record_class
-      end
-
-      def snapshot_event_class
-        configuration.snapshot_event_class
-      end
-
-      def event_handlers
-        configuration.event_handlers
       end
 
       private
