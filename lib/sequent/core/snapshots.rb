@@ -1,8 +1,6 @@
 module Sequent
   module Core
     class Snapshots
-      def initialize
-      end
 
       def aggregates_that_need_snapshots(events_since_last_snapshot: 20, limit: 10, last_aggregate_id: nil)
         query = %Q{
@@ -19,6 +17,7 @@ HAVING MAX(sequence_number) - (COALESCE((SELECT MAX(sequence_number)
 }
         @record_class.connection.select_all(query).to_a
       end
+
     end
   end
 end
