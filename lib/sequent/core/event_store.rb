@@ -63,20 +63,16 @@ SELECT event_type, event_json
       # Returns the ids of aggregates that need a new snapshot.
       #
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
+        stream_table = quote_table_name stream_record_class.table_name
+        event_table = quote_table_name event_record_class.table_name
         query = %Q{
 SELECT aggregate_id
-  FROM #{quote_table_name event_record_class.table_name} events
+  FROM #{stream_table} stream
  WHERE aggregate_id > COALESCE(#{quote last_aggregate_id}, '')
-   AND event_type <> #{quote snapshot_event_class.name}
- GROUP BY aggregate_id
-HAVING (MAX(sequence_number)
-        - (COALESCE((SELECT MAX(sequence_number)
-                       FROM #{quote_table_name event_record_class.table_name} snapshots
-                      WHERE event_type = #{quote snapshot_event_class.name}
-                        AND snapshots.aggregate_id = events.aggregate_id), 0)))
-       >= (SELECT snapshot_threshold
-             FROM #{quote_table_name stream_record_class.table_name} streams
-            WHERE events.aggregate_id = streams.aggregate_id)
+   AND snapshot_threshold IS NOT NULL
+   AND snapshot_threshold <= (
+         (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE events.event_type <> #{quote snapshot_event_class.name} AND stream.aggregate_id = events.aggregate_id) -
+         COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{event_table} snapshots WHERE snapshots.event_type = #{quote snapshot_event_class.name} AND stream.aggregate_id = snapshots.aggregate_id), 0))
  ORDER BY aggregate_id
  LIMIT #{quote limit}
 }
