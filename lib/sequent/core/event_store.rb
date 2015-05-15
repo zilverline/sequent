@@ -108,7 +108,7 @@ SELECT aggregate_id
       end
 
       def store_events(command, streams_with_events = [])
-        command_record = CommandRecord.create!(:command => command)
+        command_record = CommandRecord.create!(command: command)
         streams_with_events.each do |event_stream, uncommitted_events|
           unless event_stream.stream_record_id
             stream_record = stream_record_class.new
@@ -117,7 +117,7 @@ SELECT aggregate_id
             event_stream.stream_record_id = stream_record.id
           end
           uncommitted_events.each do |event|
-            event_record_class.create!(:command_record => command_record, :stream_record_id => event_stream.stream_record_id, :event => event)
+            event_record_class.create!(command_record: command_record, stream_record_id: event_stream.stream_record_id, event: event)
           end
         end
       end
