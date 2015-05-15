@@ -21,8 +21,8 @@ module Sequent
       # Stores the events in the EventStore and publishes the events
       # to the registered event_handlers.
       #
-      # Events is a hash or array of pairs from `StreamRecord` to
-      # arrays of uncommitted `Event`s.
+      # Streams_with_Events is an enumerable of pairs from
+      # `StreamRecord` to arrays of uncommitted `Event`s.
       #
       def commit_events(command, streams_with_events)
         store_events(command, streams_with_events)

@@ -56,8 +56,6 @@ module Sequent
 
       # Loads aggregate by given id and class
       # Returns the one in the current Unit Of Work otherwise loads it from history.
-      #
-      # If we implement snapshotting this is the place.
       def load_aggregate(aggregate_id, clazz = nil)
         result = aggregates.fetch(aggregate_id) do |aggregate_id|
           stream, events = @event_store.load_events(aggregate_id)
