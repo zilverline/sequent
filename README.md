@@ -38,7 +38,7 @@ user and database first:
 
     createuser -D -S -R sequent
     createdb sequent_spec_db -O sequent
-    rake db:create
+    bundle exec rake db:create
 
 The data in this database is deleted every time you run the specs!
 
