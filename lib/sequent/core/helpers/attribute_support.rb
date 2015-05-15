@@ -3,12 +3,6 @@ require_relative '../ext/ext'
 require_relative 'array_with_type'
 require_relative 'default_validators'
 
-class Hash
-  def self.deserialize_from_json(value)
-    value
-  end
-end
-
 module Sequent
   module Core
     module Helpers
