@@ -1,6 +1,5 @@
 require 'forwardable'
 require_relative 'event_record'
-require_relative 'helpers/functions'
 require_relative 'sequent_oj'
 
 module Sequent
@@ -97,7 +96,7 @@ SELECT aggregate_id
       end
 
       def resolve_event_type(event_type)
-        @event_types.fetch_or_store(event_type) { |k| Helpers::constant_get!(k) }
+        @event_types.fetch_or_store(event_type) { |k| Class.const_get(k) }
       end
 
       def publish_events(events, event_handlers)

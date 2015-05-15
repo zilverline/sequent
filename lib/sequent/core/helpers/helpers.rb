@@ -1,4 +1,3 @@
-require_relative 'functions'
 require_relative 'uuid_helper'
 require_relative 'copyable'
 require_relative 'value_validators'

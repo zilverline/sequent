@@ -36,8 +36,12 @@ module Sequent
       def execute_migrations(current_version, new_version, &after_migration_block)
         if current_version != new_version and current_version > 0
           ((current_version + 1)..new_version).each do |upgrade_to_version|
-            migration_class_name = "Database::MigrateToVersion#{upgrade_to_version}"
-            if migration_class = Sequent::Core::Helpers::constant_get?(migration_class_name)
+            migration_class = begin
+                                Class.const_get("Database::MigrateToVersion#{upgrade_to_version}")
+                              rescue NameError
+                                nil
+                              end
+            if migration_class
               begin
                 migration_class.new(@env).migrate
               ensure

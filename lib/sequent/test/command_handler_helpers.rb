@@ -78,7 +78,7 @@ module Sequent
 
         def deserialize_events(events)
           events.map do |type, json|
-            Sequent::Core::Helpers::constant_get!(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
+            Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
           end
         end
 

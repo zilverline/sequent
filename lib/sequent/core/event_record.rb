@@ -7,7 +7,7 @@ module Sequent
     module SerializesEvent
       def event
         payload = Sequent::Core::Oj.strict_load(self.event_json)
-        Helpers::constant_get!(self.event_type).deserialize_from_json(payload)
+        Class.const_get(self.event_type).deserialize_from_json(payload)
       end
 
       def event=(event)
