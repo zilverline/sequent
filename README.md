@@ -46,6 +46,12 @@ The data in this database is deleted every time you run the specs!
 
 See the [sequent example app](https://github.com/zilverline/sequent-examples)
 
+# Schema
+
+Sequent needs a Postgres database with the event store schema. The current schema is maintained in `db/sequent_schema.rb`.
+
+If you have trouble migrating from an older schema, please let us know. We'll be glad to help out.
+
 # Reference Guide
 
 Sequent provides the following concepts from a CQRS and an event sourced application:
