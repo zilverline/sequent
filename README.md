@@ -16,16 +16,18 @@ If you are unfamiliar with these concepts you can catch up with:
 
 # Getting started
 
-    gem install sequent
+```ruby
+gem install sequent
 
-    require 'sequent'
+require 'sequent'
 
-    Sequent.configure do |config|
-      config.event_handlers = [MyEventHandler.new]
-      config.command_handlers = [MyCommandHandler.new]
-    end
+Sequent.configure do |config|
+  config.event_handlers = [MyEventHandler.new]
+  config.command_handlers = [MyCommandHandler.new]
+end
 
-    Sequent.command_service.execute_commands MyCommand.new(...)
+Sequent.command_service.execute_commands MyCommand.new(...)
+```
 
 # Contributing
 
@@ -36,9 +38,11 @@ If you wish to make changes to the `sequent` gem you can use `rake
 spec` to run the tests. Before doing so you need to create a postgres
 user and database first:
 
-    createuser -D -S -R sequent
-    createdb sequent_spec_db -O sequent
-    bundle exec rake db:create
+```ruby
+createuser -D -S -R sequent
+createdb sequent_spec_db -O sequent
+bundle exec rake db:create
+```
 
 The data in this database is deleted every time you run the specs!
 
@@ -72,10 +76,12 @@ Commands are the instructions typically initiated by the users, for instance by 
 Good practive is to give them descriptive names like `PayInvoiceCommand`.
 Commands in sequent use ActiveModel for validations.
 
-    class PayInvoiceCommand < Sequent::Core::UpdateCommand
-      validates_presence_of :pay_date
-      attrs pay_date: Date, amount: Integer
-    end
+```ruby
+class PayInvoiceCommand < Sequent::Core::UpdateCommand
+  validates_presence_of :pay_date
+  attrs pay_date: Date, amount: Integer
+end
+```
 
 Sequent will automatically add validators in `Sequent::Core::BaseCommand`s for frequently used classes like:
 
@@ -94,19 +100,23 @@ Its values will be parsed to the correct types by the CommandService. If you ins
 Sequent provides a `Sequent::Core::CommandService` to propagate the commands to the correct aggregates. This is done
 via the registered CommandHandlers.
 
-    command = PayInvoiceCommand.new(aggregate_id: "10", pay_date: Date.today, amount: 100)
-    Sequent.command_service.execute command
+```ruby
+command = PayInvoiceCommand.new(aggregate_id: "10", pay_date: Date.today, amount: 100)
+Sequent.command_service.execute command
+```
 
 ## CommandHandlers
 
 CommandHandlers are responsible to interpreting the command and sending the correct message to an Aggregate, or in some
 cases create a new Aggregate and store it in the AggregateRepository.
 
-    class InvoiceCommandHandler < Sequent::Core::BaseCommandHandler
-      on PayInvoiceCommand do |command|
-        do_with_aggregate(command, Invoice) { |invoice| invoice.pay(command.pay_date, command.amount) }
-      end
-    end
+```ruby
+class InvoiceCommandHandler < Sequent::Core::BaseCommandHandler
+  on PayInvoiceCommand do |command|
+    do_with_aggregate(command, Invoice) { |invoice| invoice.pay(command.pay_date, command.amount) }
+  end
+end
+```
 
 ## AggregateRepository
 
@@ -118,27 +128,33 @@ the uncommitted events are cleared from the aggregate.
 
 The repository is keeps track of the Unit-Of-Work per thread, so can be shared between threads.
 
-    AggregateRepository.new(Sequent.config.event_store)
+```ruby
+AggregateRepository.new(Sequent.config.event_store)
+```
 
 ## Events
 
 Events describe what happened in the application. Events, like commands, have descriptive names in past tense e.g. InvoicePaidEvent
 
-    class InvoicePaidEvent < Sequent::Core::Event
-      attrs date_paid: Date
-    end
+```ruby
+class InvoicePaidEvent < Sequent::Core::Event
+  attrs date_paid: Date
+end
+```
 
 ## EventHandlers
 
 EventHandlers are registered with the EventStore and will be notified if an Event happened, for instance updating the view model.
 
-    class InvoiceEventHandler < Sequent::Core::BaseEventHandler
-      on InvoicePaidEvent do |event|
-        update_record(InvoiceRecord, event) do |record|
-          record.pay_date = event.date_paid
-        end
-      end
+```ruby
+class InvoiceEventHandler < Sequent::Core::BaseEventHandler
+  on InvoicePaidEvent do |event|
+    update_record(InvoiceRecord, event) do |record|
+      record.pay_date = event.date_paid
     end
+  end
+end
+```
 
 Sequent currently supports updating the view model using ActiveRecord out-of-the-box.
 See the `Sequent::Core::RecordSessions::ActiveRecordSession` if you want to implement another view model backend.
@@ -148,37 +164,41 @@ See the `Sequent::Core::RecordSessions::ActiveRecordSession` if you want to impl
 The EventStore is where the Events go. As a user you only have to configure the EventStore, Sequent takes care of the rest.
 The EventStore is configured and accessible via the configuration.
 
-    Sequent.configure do |config|
-      config.record_class = Sequent::Core::EventRecord # configured by default but can be overridden
-      config.event_handlers = [MyEventHandler.new]     # put your event handlers here
-    end
+```ruby
+Sequent.configure do |config|
+  config.record_class = Sequent::Core::EventRecord # configured by default but can be overridden
+  config.event_handlers = [MyEventHandler.new]     # put your event handlers here
+end
 
-    Sequent.configuration.event_store
+Sequent.configuration.event_store
+```
 
 ## Aggregates
 
 Aggregates are you top level domain classes that will execute the 'business logic'. Aggregates are called by
 the CommandHandlers.
 
-    class Invoice < Sequent::Core::AggregateRoot
-      def initialize(params)
-        apply InvoiceCreatedEvent, params
-      end
+```ruby
+class Invoice < Sequent::Core::AggregateRoot
+  def initialize(params)
+    apply InvoiceCreatedEvent, params
+  end
 
-      def pay(date, amount)
-        raise "not enough paid" if @total_amount > amount
-        apply InvoicePaidEvent, date_paid: date
-      end
+  def pay(date, amount)
+    raise "not enough paid" if @total_amount > amount
+    apply InvoicePaidEvent, date_paid: date
+  end
 
-      on InvoiceCreatedEvent do |event|
-        @total_amount = event.total_amount
-      end
+  on InvoiceCreatedEvent do |event|
+    @total_amount = event.total_amount
+  end
 
-      on InvoicePaidEvent do |event|
-        @date_paid = event.date_paid
-      end
+  on InvoicePaidEvent do |event|
+    @date_paid = event.date_paid
+  end
 
-    end
+end
+```
 
 Event sourced application separates the business logic (in this case the check for the amount paid) with updating the state.
 Since event sourced applications rebuild the model from the events, the state needs to be replayed but not your business rules.
@@ -187,14 +207,16 @@ Since event sourced applications rebuild the model from the events, the state ne
 
 Value objects, like commands, use ActiveModel for validations.
 
-    class Country < Sequent::Core::ValueObject
-      validate_presence_of :code, :name
-      attrs code: String, name: String
-    end
+```ruby
+class Country < Sequent::Core::ValueObject
+  validate_presence_of :code, :name
+  attrs code: String, name: String
+end
 
-    class Address < Sequent::Core::ValueObject
-      attrs street: String, country: Country
-    end
+class Address < Sequent::Core::ValueObject
+  attrs street: String, country: Country
+end
+```
 
 Sequent will automatically add validators in `Sequent::Core::ValueObject`s for frequently used classes like:
 
@@ -211,23 +233,27 @@ Snapshotting is an optimization where the aggregate's state is saved in the even
 
 Sequent supports snapshots on aggregates that call `enable_snapshots` with a default threshold. In general it is recommended to keep the threshold low, to surface possible snapshot bugs sooner.
 
-    class MyAggregateRoot < Sequent::Core::AggregateRoot
-      enable_snapshots default_threshold: 30
-    end
+```ruby
+class MyAggregateRoot < Sequent::Core::AggregateRoot
+  enable_snapshots default_threshold: 30
+end
+```
 
 To adjust the threshold of individual aggregates you can update its `StreamRecord`.
 
 Snapshots can be taken with a `SnapshotCommand`. For example by a Rake task.
 
-    namespace :snapshot do
-      task :take_all do
-        catch (:done) do
-          while true
-            command_service.execute_commands Sequent::Core::SnapshotCommand.new(limit: 10)
-          end
-        end
+```ruby
+namespace :snapshot do
+  task :take_all do
+    catch (:done) do
+      while true
+        command_service.execute_commands Sequent::Core::SnapshotCommand.new(limit: 10)
       end
     end
+  end
+end
+```
 
 # License
 
