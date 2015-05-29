@@ -9,7 +9,9 @@ module Sequent
 
     attr_accessor :event_store,
                   :command_service,
-                  :record_class,
+                  :event_record_class,
+                  :stream_record_class,
+                  :snapshot_event_class,
                   :transaction_provider
 
     attr_accessor :command_handlers,
@@ -32,7 +34,9 @@ module Sequent
 
       self.event_store = Sequent::Core::EventStore.new(self)
       self.command_service = Sequent::Core::CommandService.new(self)
-      self.record_class = Sequent::Core::EventRecord
+      self.event_record_class = Sequent::Core::EventRecord
+      self.stream_record_class = Sequent::Core::StreamRecord
+      self.snapshot_event_class = Sequent::Core::SnapshotEvent
       self.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
     end
 

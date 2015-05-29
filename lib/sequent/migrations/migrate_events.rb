@@ -36,10 +36,14 @@ module Sequent
       def execute_migrations(current_version, new_version, &after_migration_block)
         if current_version != new_version and current_version > 0
           ((current_version + 1)..new_version).each do |upgrade_to_version|
-            migration_class = "MigrateToVersion#{upgrade_to_version}".to_sym
-            if Kernel.const_defined?(migration_class)
+            migration_class = begin
+                                Class.const_get("Database::MigrateToVersion#{upgrade_to_version}")
+                              rescue NameError
+                                nil
+                              end
+            if migration_class
               begin
-                Kernel.const_get(migration_class).new(@env).migrate
+                migration_class.new(@env).migrate
               ensure
                 after_migration_block.call if after_migration_block
               end
@@ -47,7 +51,6 @@ module Sequent
           end
         end
       end
-
     end
   end
 end

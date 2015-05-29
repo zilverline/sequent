@@ -6,8 +6,17 @@ module Sequent
     class TenantEventStore < EventStore
       def replay_events_for(organization_id)
         replay_events do
-          aggregate_ids = record_class.connection.select_all("select distinct aggregate_id from #{record_class.table_name} where organization_id = '#{organization_id}'").map { |hash| hash["aggregate_id"] }
-          record_class.connection.select_all("select id, event_type, event_json from #{record_class.table_name} where aggregate_id in (#{aggregate_ids.map { |id| %Q{'#{id}'} }.join(",")}) order by id")
+          event_record_class.connection.select_all(%Q{
+SELECT events.event_type, events.event_json
+  FROM #{quote_table_name event_record_class.table_name} events
+ WHERE events.aggregate_id IN (SELECT aggregates.aggregate_id
+                                 FROM #{quote_table_name event_record_class.table_name} aggregates
+                                WHERE aggregates.organization_id = #{quote organization_id}
+                                  AND aggregates.sequence_number = 1
+                                  AND aggregates.event_type <> #{quote snapshot_event_class.name})
+   AND events.event_type <> #{quote snapshot_event_class.name}
+ ORDER BY events.id
+})
         end
       end
     end

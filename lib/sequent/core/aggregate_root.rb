@@ -1,19 +1,51 @@
+require 'base64'
 require_relative 'helpers/self_applier'
+require_relative 'stream_record'
 
 module Sequent
   module Core
+    module SnapshotConfiguration
+      module ClassMethods
+        ##
+        # Enable snapshots for this aggregate. The aggregate instance
+        # must define the *load_from_snapshot* and *save_to_snapshot*
+        # methods.
+        #
+        def enable_snapshots(default_threshold: 20)
+          @snapshot_default_threshold = default_threshold
+        end
+
+        def snapshots_enabled?
+          !snapshot_default_threshold.nil?
+        end
+
+        attr_reader :snapshot_default_threshold
+      end
+
+      def self.included(host_class)
+        host_class.extend(ClassMethods)
+      end
+    end
+
     # Base class for all your domain classes.
     #
     # +load_from_history+ functionality to be loaded_from_history, meaning a stream of events.
     #
     class AggregateRoot
       include Helpers::SelfApplier
+      include SnapshotConfiguration
 
-      attr_reader :id, :uncommitted_events, :sequence_number
+      attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
 
-      def self.load_from_history(events)
-        aggregate_root = allocate() # allocate without calling new
-        aggregate_root.load_from_history(events)
+      def self.load_from_history(stream, events)
+        first, *rest = events
+        if first.is_a? SnapshotEvent
+          aggregate_root = Marshal.load(Base64.decode64(first.data))
+          rest.each { |x| aggregate_root.apply_event(x) }
+        else
+          aggregate_root = allocate() # allocate without calling new
+          aggregate_root.load_from_history(stream, events)
+        end
         aggregate_root
       end
 
@@ -21,23 +53,36 @@ module Sequent
         @id = id
         @uncommitted_events = []
         @sequence_number = 1
+        @event_stream = EventStream.new aggregate_type: self.class.name,
+                                        aggregate_id: id,
+                                        snapshot_threshold: self.class.snapshot_default_threshold
       end
 
-      def load_from_history(events)
+      def load_from_history(stream, events)
         raise "Empty history" if events.empty?
         @id = events.first.aggregate_id
         @uncommitted_events = []
-        @sequence_number = events.size + 1
-        events.each { |event| handle_message(event) }
+        @sequence_number = 1
+        @event_stream = stream
+        events.each { |event| apply_event(event) }
       end
 
       def to_s
         "#{self.class.name}: #{@id}"
       end
 
-
       def clear_events
-        uncommitted_events.clear
+        @uncommitted_events = []
+      end
+
+      def take_snapshot!
+        snapshot = build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
+        @uncommitted_events << snapshot
+      end
+
+      def apply_event(event)
+        handle_message(event)
+        @sequence_number = event.sequence_number + 1
       end
 
       protected
@@ -54,9 +99,8 @@ module Sequent
       #
       def apply(event, params={})
         event = build_event(event, params) if event.is_a?(Class)
-        handle_message(event)
+        apply_event(event)
         @uncommitted_events << event
-        @sequence_number += 1
       end
     end
 
@@ -71,10 +115,10 @@ module Sequent
         @organization_id = organization_id
       end
 
-      def load_from_history(events)
+      def load_from_history(stream, events)
         raise "Empty history" if events.empty?
         @organization_id = events.first.organization_id
-        super(events)
+        super
       end
 
       protected

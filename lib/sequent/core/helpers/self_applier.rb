@@ -19,12 +19,11 @@ module Sequent
         module ClassMethods
 
           def on(*message_classes, &block)
-            @message_mapping ||= {}
-            message_classes.each { |message_class| @message_mapping[message_class] = block }
+            message_classes.each { |message_class| message_mapping[message_class] = block }
           end
 
           def message_mapping
-            @message_mapping || {}
+            @message_mapping ||= {}
           end
         end
 
@@ -42,4 +41,3 @@ module Sequent
     end
   end
 end
-

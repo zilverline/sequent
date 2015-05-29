@@ -62,7 +62,9 @@ module Sequent
 
     end
 
+    class SnapshotEvent < Event
+      attrs data: String
+    end
+
   end
 end
-
-

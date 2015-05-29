@@ -16,9 +16,17 @@ module Sequent
       # Key used in thread local
       AGGREGATES_KEY = 'Sequent::Core::AggregateRepository::aggregates'.to_sym
 
+      attr_reader :event_store
+
       class NonUniqueAggregateId < Exception
         def initialize(existing, new)
           super "Duplicate aggregate #{new} with same key as existing #{existing}"
+        end
+      end
+
+      class AggregateNotFound < Exception
+        def initialize(id)
+          super "Aggregate with id #{id} not found"
         end
       end
 
@@ -33,8 +41,9 @@ module Sequent
       # and all uncammited_events are stored in the +event_store+
       #
       def add_aggregate(aggregate)
-        if aggregates.has_key?(aggregate.id)
-          raise NonUniqueAggregateId.new(aggregate, aggregates[aggregate.id]) unless aggregates[aggregate.id].equal?(aggregate)
+        existing = aggregates[aggregate.id]
+        if existing && !existing.equal?(aggregate)
+          raise NonUniqueAggregateId.new(aggregate, aggregates[aggregate.id])
         else
           aggregates[aggregate.id] = aggregate
         end
@@ -47,17 +56,17 @@ module Sequent
 
       # Loads aggregate by given id and class
       # Returns the one in the current Unit Of Work otherwise loads it from history.
-      #
-      # If we implement snapshotting this is the place.
-      def load_aggregate(aggregate_id, clazz)
-        if aggregates.has_key?(aggregate_id)
-          result = aggregates[aggregate_id]
-          raise TypeError, "#{result.class} is not a #{clazz}" unless result.is_a?(clazz)
-          result
-        else
-          events = @event_store.load_events(aggregate_id)
-          aggregates[aggregate_id] = clazz.load_from_history(events)
+      def load_aggregate(aggregate_id, clazz = nil)
+        result = aggregates.fetch(aggregate_id) do |aggregate_id|
+          stream, events = @event_store.load_events(aggregate_id)
+          raise AggregateNotFound.new(aggregate_id) unless stream
+          aggregate_class = Class.const_get(stream.aggregate_type)
+          aggregates[aggregate_id] = aggregate_class.load_from_history(stream, events)
         end
+
+        raise TypeError, "#{result.class} is not a #{clazz}" if result && clazz && !(result.class <= clazz)
+
+        result
       end
 
       # Gets all uncommitted_events from the 'registered' aggregates
@@ -68,11 +77,13 @@ module Sequent
       # This is all abstracted away if you use the Sequent::Core::CommandService
       #
       def commit(command)
-        all_events = []
-        aggregates.each_value { |aggregate| all_events += aggregate.uncommitted_events }
-        return if all_events.empty?
-        aggregates.each_value { |aggregate| aggregate.clear_events }
-        store_events command, all_events
+        updated_aggregates = aggregates.values.reject {|x| x.uncommitted_events.empty?}
+        return if updated_aggregates.empty?
+        streams_with_events = updated_aggregates.map do |aggregate|
+          [ aggregate.event_stream, aggregate.uncommitted_events ]
+        end
+        updated_aggregates.each(&:clear_events)
+        store_events command, streams_with_events
       end
 
       # Clears the Unit of Work.
@@ -86,8 +97,8 @@ module Sequent
         Thread.current[AGGREGATES_KEY]
       end
 
-      def store_events(command, events)
-        @event_store.commit_events(command, events)
+      def store_events(command, streams_with_events)
+        @event_store.commit_events(command, streams_with_events)
       end
     end
   end
