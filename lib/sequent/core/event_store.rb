@@ -74,6 +74,7 @@ SELECT aggregate_id
          COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{event_table} snapshots WHERE snapshots.event_type = #{quote snapshot_event_class.name} AND stream.aggregate_id = snapshots.aggregate_id), 0))
  ORDER BY aggregate_id
  LIMIT #{quote limit}
+ FOR UPDATE
 }
         event_record_class.connection.select_all(query).map {|x| x['aggregate_id']}
       end
