@@ -38,7 +38,7 @@ If you wish to make changes to the `sequent` gem you can use `rake
 spec` to run the tests. Before doing so you need to create a postgres
 user and database first:
 
-```ruby
+```sh
 createuser -D -S -R sequent
 createdb sequent_spec_db -O sequent
 bundle exec rake db:create
