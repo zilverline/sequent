@@ -9,7 +9,7 @@ end
 
 task 'db:create' do
   Database.establish_connection
-  load('db/schema.rb')
+  load('db/sequent_schema.rb')
 end
 
 desc 'build a release'

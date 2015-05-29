@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.description = "Sequent is a CQRS and event sourcing framework for Ruby."
   s.authors     = ["Lars Vonk", "Bob Forma", "Erik Rozendaal"]
   s.email       = ["lars.vonk@gmail.com", "bforma@zilverline.com", "erozendaal@zilverline.com"]
-  s.files       = Dir["lib/**/*"]
+  s.files       = Dir["lib/**/*", "db/**/*"]
   s.homepage    =
     'https://github.com/zilverline/sequent'
   s.license       = 'MIT'
