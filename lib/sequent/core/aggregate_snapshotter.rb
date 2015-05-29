@@ -24,10 +24,10 @@ module Sequent
 
       def take_snapshot!(aggregate_id)
         aggregate = @repository.load_aggregate(aggregate_id)
-        puts "Taking snapshot for aggregate #{aggregate}"
+        Sequent.logger.info "Taking snapshot for aggregate #{aggregate}"
         aggregate.take_snapshot!
       rescue => e
-        puts "Failed to take snapshot for aggregate #{aggregate_id}: #{e}", e.inspect
+        Sequent.logger.warn "Failed to take snapshot for aggregate #{aggregate_id}: #{e}", e.inspect
       end
     end
   end
