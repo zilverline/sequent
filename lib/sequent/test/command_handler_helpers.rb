@@ -26,11 +26,16 @@ module Sequent
     #   end
     #
     #   it "marks an invoice as paid" do
-    #     given_events InvoiceCreatedEvent.new(args)
+    #     given_events Invoice, invoice_id, InvoiceCreatedEvent.new(args)
     #     when_command PayInvoiceCommand(args)
     #     then_events InvoicePaidEvent(args)
     #   end
     #
+    #   it "rejects coupon when does not exist" do
+    #     given_events Invoice, invoice_id, CartCreatedEvent.new(args)
+    #     when_command ApplyDiscountCouponCommand(args)
+    #     then_fail_with CouponDoesNotExist
+    #   end
     # end
     module CommandHandlerHelpers
 
@@ -65,7 +70,7 @@ module Sequent
           end
         end
 
-        def given_events(streams_with_events)
+        def given_events(*streams_with_events)
           commit_events(nil, streams_with_events)
           @stored_events = []
         end
@@ -84,15 +89,24 @@ module Sequent
 
       end
 
-      def given_streams_with_events *streams_with_events
-        @event_store.given_events(streams_with_events)
+      def given_events(aggregate_class, aggregate_id, *events)
+        @event_store.given_events [Sequent::Core::EventStream.new(aggregate_type: aggregate_class.to_s, aggregate_id: aggregate_id, snapshot_threshold: 30, stream_record_id: 1), events]
       end
+
 
       def when_command command
         raise "@command_handler is mandatory when using the #{self.class}" unless @command_handler
         raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.handles_message?(command)
-        @command_handler.handle_message(command)
+        begin
+          @command_handler.handle_message(command)
+        rescue Sequent::Core::DomainError => e
+          @actual_error = e
+        end
         @repository.commit(command)
+      end
+
+      def then_fails_with clazz
+        expect(@actual_error.class).to be(clazz)
       end
 
       def then_events *events
