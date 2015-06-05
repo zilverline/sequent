@@ -1,3 +1,5 @@
+require 'thread_safe'
+
 module Sequent
   module Test
     ##
@@ -65,12 +67,36 @@ module Sequent
           end
         end
 
-        def given_events(streams_with_events)
-          commit_events(nil, streams_with_events)
+        def given_events(events)
+          commit_events(nil, to_event_streams(events))
           @stored_events = []
         end
 
         private
+
+        def to_event_streams(events)
+          # Specs use a simple list of given events. We need a mapping from StreamRecord to the associated events for the event store.
+          streams_by_aggregate_id = {}
+          events.map do |event|
+            event_stream = streams_by_aggregate_id.fetch(event.aggregate_id) do |aggregate_id|
+              streams_by_aggregate_id[aggregate_id] =
+                find_event_stream(aggregate_id) ||
+                begin
+                  aggregate_type = FakeEventStore.aggregate_type_for_event(event)
+                  raise "cannot find aggregate type associated with creation event #{event}, did you include an event handler in your aggregate for this event?" unless aggregate_type
+                  Sequent::Core::EventStream.new(aggregate_type: aggregate_type.name, aggregate_id: aggregate_id)
+                end
+            end
+            [event_stream, [event]]
+          end
+        end
+
+        def self.aggregate_type_for_event(event)
+          @event_to_aggregate_type ||= ThreadSafe::Cache.new
+          @event_to_aggregate_type.fetch_or_store(event.class) do |klass|
+            Sequent::Core::AggregateRoot.descendants.find { |x| x.message_mapping.has_key?(klass) }
+          end
+        end
 
         def serialize_events(events)
           events.map { |event| [event.class.name, Sequent::Core::Oj.dump(event)] }
@@ -84,8 +110,8 @@ module Sequent
 
       end
 
-      def given_streams_with_events *streams_with_events
-        @event_store.given_events(streams_with_events)
+      def given_events *events
+        @event_store.given_events(events)
       end
 
       def when_command command
