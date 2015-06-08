@@ -36,7 +36,7 @@ module Sequent
     #   it "rejects coupon when does not exist" do
     #     given_events CartCreatedEvent.new(args)
     #     when_command ApplyDiscountCouponCommand(args)
-    #     then_fail_with CouponDoesNotExist
+    #     then_fails_with CouponDoesNotExist
     #   end
     # end
     module CommandHandlerHelpers
@@ -125,17 +125,18 @@ module Sequent
         raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.handles_message?(command)
         begin
           @command_handler.handle_message(command)
-        rescue Sequent::Core::DomainError => e
+        rescue StandardError => e
           @actual_error = e
         end
         @repository.commit(command)
       end
 
       def then_fails_with clazz
-        expect(@actual_error.class).to be(clazz)
+        expect(@actual_error).to be_kind_of(clazz)
       end
 
       def then_events *events
+        raise @actual_error unless !@actual_error
         expect(@event_store.stored_events.map(&:class)).to eq(events.map(&:class))
         @event_store.stored_events.zip(events).each do |actual, expected|
           expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
