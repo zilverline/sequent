@@ -125,7 +125,7 @@ module Sequent
         raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.handles_message?(command)
         begin
           @command_handler.handle_message(command)
-        rescue StandardError => e
+        rescue => e
           @actual_error = e
         end
         @repository.commit(command)
@@ -136,7 +136,7 @@ module Sequent
       end
 
       def then_events *events
-        raise @actual_error unless !@actual_error
+        raise @actual_error if @actual_error
         expect(@event_store.stored_events.map(&:class)).to eq(events.map(&:class))
         @event_store.stored_events.zip(events).each do |actual, expected|
           expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
