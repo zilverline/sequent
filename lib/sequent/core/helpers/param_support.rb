@@ -12,26 +12,28 @@ module Sequent
       module ParamSupport
         module ClassMethods
           def from_params(params = {})
-            result = allocate
-            params = HashWithIndifferentAccess.new(params)
-            result.class.types.each do |attribute, type|
-              value = params[attribute]
-
-              next if value.blank?
-              if type.respond_to? :from_params
-                value = type.from_params(value)
-              elsif type.is_a? Sequent::Core::Helpers::ArrayWithType
-                value = value.map { |v| type.item_type.from_params(v) }
-              end
-              result.instance_variable_set(:"@#{attribute}", value)
-            end
-            result
+            allocate.tap { |x| x.from_params(params) }
           end
-
         end
+
         # extend host class with class methods when we're included
         def self.included(host_class)
           host_class.extend(ClassMethods)
+        end
+
+        def from_params(params)
+          params = HashWithIndifferentAccess.new(params)
+          self.class.types.each do |attribute, type|
+            value = params[attribute]
+
+            next if value.blank?
+            if type.respond_to? :from_params
+              value = type.from_params(value)
+            elsif type.is_a? Sequent::Core::Helpers::ArrayWithType
+              value = value.map { |v| type.item_type.from_params(v) }
+            end
+            instance_variable_set(:"@#{attribute}", value)
+          end
         end
 
         def to_params(root)
