@@ -27,7 +27,7 @@ module Sequent
       end
 
       def handles_message?(command)
-        self.class.message_mapping.keys.find { |x| command.is_a? x }
+        self.class.message_mapping.keys.include? command.class
       end
 
       protected
