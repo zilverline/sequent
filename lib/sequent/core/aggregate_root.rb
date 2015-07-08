@@ -88,7 +88,7 @@ module Sequent
       protected
 
       def build_event(event, params = {})
-        event.new({aggregate_id: @id, sequence_number: @sequence_number}.merge(params))
+        event.new(params.merge({aggregate_id: @id, sequence_number: @sequence_number}))
       end
 
       # Provide subclasses nice DSL to 'apply' events via:
@@ -124,7 +124,7 @@ module Sequent
       protected
 
       def build_event(event, params = {})
-        super(event, {organization_id: @organization_id}.merge(params))
+        super(event, params.merge({organization_id: @organization_id}))
       end
     end
   end
