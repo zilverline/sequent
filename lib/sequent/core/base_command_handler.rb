@@ -26,6 +26,10 @@ module Sequent
         @repository = repository
       end
 
+      def handles_message?(command)
+        self.class.message_mapping.keys.find { |x| command.is_a? x }
+      end
+
       protected
       def do_with_aggregate(command, clazz, aggregate_id = nil)
         aggregate = @repository.load_aggregate(aggregate_id.nil? ? command.aggregate_id : aggregate_id, clazz)
