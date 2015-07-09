@@ -69,6 +69,8 @@ module Sequent
         result
       end
 
+      ##
+      # Returns whether the event store has an aggregate with the given id
       def contains_aggregate?(aggregate_id)
         @event_store.stream_exists?(aggregate_id)
       end
