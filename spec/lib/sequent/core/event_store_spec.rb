@@ -91,7 +91,7 @@ describe Sequent::Core::EventStore do
       expect(event_store.stream_exists?(aggregate_id)).to eq(true)
     end
 
-    it 'gets false for an existing aggregate' do
+    it 'gets false for an non-existing aggregate' do
       expect(event_store.stream_exists?(aggregate_id)).to eq(false)
     end
   end
