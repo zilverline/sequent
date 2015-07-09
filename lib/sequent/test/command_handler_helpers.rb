@@ -77,6 +77,10 @@ module Sequent
           @stored_events = []
         end
 
+        def stream_exists?(aggregate_id)
+          @event_streams.has_key?(aggregate_id)
+        end
+
         private
 
         def to_event_streams(events)

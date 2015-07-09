@@ -49,6 +49,10 @@ SELECT event_type, event_json
         [stream.event_stream, events]
       end
 
+      def stream_exists?(aggregate_id)
+        stream_record_class.exists?(aggregate_id: aggregate_id)
+      end
+
       ##
       # Replays all events in the event store to the registered event_handlers.
       #
