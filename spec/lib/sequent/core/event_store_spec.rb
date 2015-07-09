@@ -2,6 +2,9 @@ require 'spec_helper'
 
 describe Sequent::Core::EventStore do
 
+  class MyEvent < Sequent::Core::Event
+  end
+
   context ".configure" do
     it "can be configured using a ActiveRecord class" do
       Sequent.configure do |config|
@@ -33,9 +36,6 @@ describe Sequent::Core::EventStore do
   end
 
   context "snapshotting" do
-    class MyEvent < Sequent::Core::Event
-    end
-
     let(:event_store) { Sequent::configuration.event_store }
     let(:aggregate_id) { "aggregate-#{rand(10000000)}" }
 
@@ -71,6 +71,28 @@ describe Sequent::Core::EventStore do
       )
 
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+    end
+  end
+
+  describe '#exists?' do
+    let(:event_store) { Sequent::configuration.event_store }
+    let(:aggregate_id) { "aggregate-#{rand(10000000)}" }
+
+    it 'gets true for an existing aggregate' do
+      event_store.commit_events(
+        Sequent::Core::CommandRecord.new,
+        [
+          [
+            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
+          ]
+        ]
+      )
+      expect(event_store.stream_exists?(aggregate_id)).to eq(true)
+    end
+
+    it 'gets false for an existing aggregate' do
+      expect(event_store.stream_exists?(aggregate_id)).to eq(false)
     end
   end
 end

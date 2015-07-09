@@ -91,4 +91,13 @@ describe Sequent::Core::AggregateRepository do
     expect { repository.ensure_exists(:foo, InvoiceCreatedEvent) }.to raise_exception
   end
 
+  it 'contains an aggregate' do
+    allow(event_store).to receive(:stream_exists?).with(aggregate.id).and_return(true)
+    expect(repository.contains_aggregate?(aggregate.id)).to eq(true)
+  end
+
+  it 'does not contain an aggregate' do
+    allow(event_store).to receive(:stream_exists?).with(aggregate.id).and_return(false)
+    expect(repository.contains_aggregate?(aggregate.id)).to eq(false)
+  end
 end

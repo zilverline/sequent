@@ -69,6 +69,10 @@ module Sequent
         result
       end
 
+      def contains_aggregate?(aggregate_id)
+        @event_store.stream_exists?(aggregate_id)
+      end
+
       # Gets all uncommitted_events from the 'registered' aggregates
       # and stores them in the event store.
       # The command is 'attached' for traceability purpose so we can see
