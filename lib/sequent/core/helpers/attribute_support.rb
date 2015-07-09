@@ -122,6 +122,10 @@ EOS
           hash
         end
 
+        def update(changes)
+          self.class.new(attributes.merge(changes))
+        end
+
         def validation_errors(prefix = nil)
           result = errors.to_hash
           self.class.types.each do |field|
