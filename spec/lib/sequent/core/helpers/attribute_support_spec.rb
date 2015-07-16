@@ -417,13 +417,17 @@ describe Sequent::Core::Helpers::AttributeSupport do
           end
 
         end
-
-        context 'update' do
-          it 'updates the object with changes' do
-            expect(FooBar.new(value: 1).update(value: 2).value).to eq(2)
-          end
-        end
       end
+    end
+  end
+
+  describe '#update' do
+    class TestValue < Sequent::Core::ValueObject
+      attrs value: Integer
+    end
+
+    it 'updates the object with changes' do
+      expect(TestValue.new(value: 1).update(value: 2).value).to eq(2)
     end
   end
 end
