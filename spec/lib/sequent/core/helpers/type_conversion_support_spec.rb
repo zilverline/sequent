@@ -26,7 +26,7 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
     it "fails fast when invalid value" do
       command = CommandWithInteger.new(value: "A")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception
+      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for Integer(): "A"}
     end
 
     it "parses to an Integer" do
@@ -142,12 +142,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
     it "fails when not a valid Date format" do
       command = CommandWithDate.new(value: "2015-01-01")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception
+      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
     end
 
     it "fails when not a valid Date" do
       command = CommandWithDate.new(value: "31-31-2015")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception
+      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
     end
 
     it "handles Dates" do
@@ -184,12 +184,12 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
     it "fails when not a valid DateTime format" do
       command = CommandWithDateTime.new(value: "06-04-2015T14:42:32+02:00")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception
+      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
     end
 
     it "fails when not a valid DateTime" do
       command = CommandWithDateTime.new(value: "SSDFGS345345")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception
+      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
     end
 
     it "handles DateTimes" do
