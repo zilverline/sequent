@@ -66,6 +66,8 @@ Sequent provides the following concepts from a CQRS and an event sourced applica
 * AggregateRepository
 * Events
 * EventHandlers
+* Projectors
+* Workflows
 * EventStore
 * Aggregates
 * ValueObjects
