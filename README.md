@@ -144,7 +144,7 @@ end
 
 ## EventHandlers
 
-# Projectors
+### Projectors
 
 Projectors are registered with the EventStore and will be notified if an Event happened, so the view model (projection) can be updated.
 
@@ -161,7 +161,7 @@ end
 Sequent currently supports updating the view model using ActiveRecord out-of-the-box.
 See the `Sequent::Core::RecordSessions::ActiveRecordSession` if you want to implement another view model backend.
 
-# Workflows
+### Workflows
 
 Workflows are registered with the Eventstore and will be notified if an Event happened, so a new command could be executed.
 
