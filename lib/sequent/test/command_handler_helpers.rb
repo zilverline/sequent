@@ -116,13 +116,11 @@ module Sequent
             Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
           end
         end
-
       end
 
       def given_events *events
-        @event_store.given_events(events)
+        @event_store.given_events(events.flatten(1))
       end
-
 
       def when_command command
         raise "@command_handler is mandatory when using the #{self.class}" unless @command_handler
@@ -130,19 +128,19 @@ module Sequent
         begin
           @command_handler.handle_message(command)
         rescue => e
-          @actual_error = e
+          @unhandled_error = e
         end
         @repository.commit(command)
       end
 
       def then_fails_with clazz
-        expect(@actual_error).to be_kind_of(clazz)
+        expect(@unhandled_error).to be_kind_of(clazz)
+        @unhandled_error = nil
       end
 
       def then_events *events
-        raise @actual_error if @actual_error
-        expect(@event_store.stored_events.map(&:class)).to eq(events.map(&:class))
-        @event_store.stored_events.zip(events).each do |actual, expected|
+        expect(@event_store.stored_events.map(&:class)).to eq(events.flatten(1).map(&:class))
+        @event_store.stored_events.zip(events.flatten(1)).each do |actual, expected|
           expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
         end
       end
@@ -151,7 +149,11 @@ module Sequent
         then_events
       end
 
+      def self.included(spec)
+        spec.after do
+          raise @unhandled_error if @unhandled_error
+        end
+      end
     end
-
   end
 end
