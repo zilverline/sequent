@@ -116,13 +116,11 @@ module Sequent
             Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
           end
         end
-
       end
 
       def given_events *events
-        @event_store.given_events(events)
+        @event_store.given_events(events.flatten(1))
       end
-
 
       def when_command command
         raise "@command_handler is mandatory when using the #{self.class}" unless @command_handler
@@ -141,8 +139,8 @@ module Sequent
 
       def then_events *events
         raise @actual_error if @actual_error
-        expect(@event_store.stored_events.map(&:class)).to eq(events.map(&:class))
-        @event_store.stored_events.zip(events).each do |actual, expected|
+        expect(@event_store.stored_events.map(&:class)).to eq(events.flatten(1).map(&:class))
+        @event_store.stored_events.zip(events.flatten(1)).each do |actual, expected|
           expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
         end
       end
@@ -150,8 +148,6 @@ module Sequent
       def then_no_events
         then_events
       end
-
     end
-
   end
 end
