@@ -11,7 +11,7 @@ module Sequent
       # end
       #
       # You typically do not need to include this module in your classes. If you extend from
-      # Sequent::Core::AggregateRoot, Sequent::Core::BaseEventHandler or Sequent::Core::BaseCommandHandler
+      # Sequent::Core::AggregateRoot, Sequent::Core::Projector, Sequent::Core::Workflow or Sequent::Core::BaseCommandHandler
       # you will get this functionality for free.
       #
       module SelfApplier
