@@ -88,7 +88,7 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should raise exception if a aggregate does not exists" do
-    expect { repository.ensure_exists(:foo, InvoiceCreatedEvent) }.to raise_exception
+    expect { repository.ensure_exists(:foo, InvoiceCreatedEvent) }.to raise_exception NameError
   end
 
   it 'contains an aggregate' do
