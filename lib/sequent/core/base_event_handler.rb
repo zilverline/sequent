@@ -47,5 +47,8 @@ module Sequent
                      :find_records, :last_record
 
     end
+
+    # Alias the above class
+    Projector = BaseEventHandler
   end
 end

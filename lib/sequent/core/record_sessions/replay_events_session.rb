@@ -18,7 +18,7 @@ module Sequent
       #
       # Example:
       #
-      #   class InvoiceEventHandler < Sequent::Core::BaseEventHandler
+      #   class InvoiceEventHandler < Sequent::Core::Projector
       #     on RecipientMovedEvent do |event|
       #       update_all_records InvoiceRecord, recipient_id: event.recipient.aggregate_id do |record|
       #         record.recipient_street = record.recipient.street

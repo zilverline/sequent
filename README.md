@@ -66,6 +66,8 @@ Sequent provides the following concepts from a CQRS and an event sourced applica
 * AggregateRepository
 * Events
 * EventHandlers
+* Projectors
+* Workflows
 * EventStore
 * Aggregates
 * ValueObjects
@@ -144,10 +146,12 @@ end
 
 ## EventHandlers
 
-EventHandlers are registered with the EventStore and will be notified if an Event happened, for instance updating the view model.
+### Projectors
+
+Projectors are registered with the EventStore and will be notified if an Event happened, so the view model (projection) can be updated.
 
 ```ruby
-class InvoiceEventHandler < Sequent::Core::BaseEventHandler
+class InvoiceProjector < Sequent::Core::Projector
   on InvoicePaidEvent do |event|
     update_record(InvoiceRecord, event) do |record|
       record.pay_date = event.date_paid
@@ -158,6 +162,18 @@ end
 
 Sequent currently supports updating the view model using ActiveRecord out-of-the-box.
 See the `Sequent::Core::RecordSessions::ActiveRecordSession` if you want to implement another view model backend.
+
+### Workflows
+
+Workflows are registered with the Eventstore and will be notified if an Event happened, so a new command could be executed.
+
+```ruby
+class AccountWorkflow < Sequent::Core::Workflow
+  on EmailClaimed do |event|
+    execute_commands RegisterAccountForClaimedEmail.new(event)
+  end
+end
+```
 
 ## EventStore
 
