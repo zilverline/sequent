@@ -255,6 +255,20 @@ namespace :snapshot do
 end
 ```
 
+# Testing
+
+Sequent adds some test helpers to help test your event sourced application. Only RSpec is supported at the moment.
+The use of these modules are documented in the source code.
+
+```ruby
+require 'sequent/test'
+
+RSpec.configure do |c|
+  c.include Sequent::Test::CommandHandlerHelpers
+  c.include Sequent::Test::EventStreamHelpers # FactoryGirl is required for these helpers.
+end
+```
+
 # License
 
 Sequent is released under the MIT License.
