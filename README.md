@@ -104,7 +104,7 @@ via the registered CommandHandlers.
 
 ```ruby
 command = PayInvoiceCommand.new(aggregate_id: "10", pay_date: Date.today, amount: 100)
-Sequent.command_service.execute command
+Sequent.command_service.execute_commands command
 ```
 
 ## CommandHandlers
