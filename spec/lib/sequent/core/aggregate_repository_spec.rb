@@ -1,5 +1,7 @@
 require 'spec_helper'
 
+require 'securerandom'
+
 describe Sequent::Core::AggregateRepository do
 
   class DummyAggregate < Sequent::Core::TenantAggregateRoot
@@ -10,12 +12,13 @@ describe Sequent::Core::AggregateRepository do
     def load_from_history(stream, events)
       @event_stream = stream
       @loaded_events = events
+      @uncommitted_events = []
     end
   end
 
   let(:event_store) { double }
   let(:repository) { Sequent::Core::AggregateRepository.new(event_store) }
-  let(:aggregate) { DummyAggregate.new(:id, :org_id) }
+  let(:aggregate) { DummyAggregate.new(SecureRandom.uuid, :org_id) }
 
   it "should track added aggregates by id" do
     repository.add_aggregate aggregate
