@@ -15,13 +15,14 @@ module Sequent
     class CommandService
       attr_accessor :configuration
 
-      # +DefaultCommandServiceConfiguration+ Configuration class for the CommandService containing:
+      # Create a command service with the given configuration.
       #
       #   +event_store+ The Sequent::Core::EventStore
-      #   +command_handler_classes+ Array of BaseCommandHandler classes that need to handle commands
-      #   +transaction_provider+ How to do transaction management. Defaults to Sequent::Core::Transactions::NoTransactions
-      #   +filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
-      def initialize(configuration = CommandServiceConfiguration.new)
+      #   +aggregate_repository+ The Sequent::Core::AggregateRepository
+      #   +transaction_provider+ How to do transaction management.
+      #   +command_handlers+ List of command handlers that need to handle commands
+      #   +command_filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
+      def initialize(configuration)
         self.configuration = configuration
       end
 
