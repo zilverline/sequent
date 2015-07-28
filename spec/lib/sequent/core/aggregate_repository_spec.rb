@@ -4,7 +4,7 @@ require 'securerandom'
 
 describe Sequent::Core::AggregateRepository do
 
-  class DummyAggregate < Sequent::Core::TenantAggregateRoot
+  class DummyAggregate < Sequent::Core::AggregateRoot
 
     attr_reader :loaded_events
     attr_writer :uncommitted_events
@@ -18,7 +18,7 @@ describe Sequent::Core::AggregateRepository do
 
   let(:event_store) { double }
   let(:repository) { Sequent::Core::AggregateRepository.new(event_store) }
-  let(:aggregate) { DummyAggregate.new(SecureRandom.uuid, :org_id) }
+  let(:aggregate) { DummyAggregate.new(SecureRandom.uuid) }
 
   it "should track added aggregates by id" do
     repository.add_aggregate aggregate
@@ -42,8 +42,8 @@ describe Sequent::Core::AggregateRepository do
 
   it "should load a subclass aggregate" do
     allow(event_store).to receive(:load_events).with(:id).and_return([aggregate.event_stream, [:events]])
-    loaded = repository.load_aggregate(:id, Sequent::Core::TenantAggregateRoot)
-    expect(loaded.class).to be < Sequent::Core::TenantAggregateRoot
+    loaded = repository.load_aggregate(:id, Sequent::Core::AggregateRoot)
+    expect(loaded.class).to be < Sequent::Core::AggregateRoot
   end
 
   it "should fail when the expected type does not match the stored type" do
@@ -77,7 +77,7 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should prevent different aggregates with the same id from being added" do
-    another = DummyAggregate.new(:id, :org_id)
+    another = DummyAggregate.new(:id)
 
     repository.add_aggregate aggregate
     expect { repository.add_aggregate another }.to raise_error { |error|
