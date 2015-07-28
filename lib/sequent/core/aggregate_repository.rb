@@ -32,7 +32,6 @@ module Sequent
 
       def initialize(event_store)
         @event_store = event_store
-        clear
       end
 
       # Adds the given aggregate to the repository (or unit of work).
@@ -83,7 +82,7 @@ module Sequent
       # This is all abstracted away if you use the Sequent::Core::CommandService
       #
       def commit(command)
-        updated_aggregates = aggregates.values.reject {|x| x.uncommitted_events.empty?}
+        updated_aggregates = aggregates.values.reject { |x| x.uncommitted_events.empty? }
         return if updated_aggregates.empty?
         streams_with_events = updated_aggregates.map do |aggregate|
           [ aggregate.event_stream, aggregate.uncommitted_events ]
@@ -100,7 +99,7 @@ module Sequent
       private
 
       def aggregates
-        Thread.current[AGGREGATES_KEY]
+        Thread.current[AGGREGATES_KEY] ||= {}
       end
 
       def store_events(command, streams_with_events)
