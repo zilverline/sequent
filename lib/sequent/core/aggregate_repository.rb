@@ -93,7 +93,7 @@ module Sequent
 
       # Clears the Unit of Work.
       def clear
-        Thread.current[AGGREGATES_KEY] = {}
+        Thread.current[AGGREGATES_KEY] = nil
       end
 
       private

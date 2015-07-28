@@ -41,7 +41,7 @@ describe Sequent::Core::CommandService do
 
   it "always clear repository after execute" do
     expect { command_service.execute_commands(DummyBaseCommand.new) }.to raise_error(Sequent::Core::CommandNotValid)
-    expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_empty
+    expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_nil
   end
 
   context "command value parsing" do
