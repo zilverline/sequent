@@ -6,7 +6,7 @@ module Sequent
       include Helpers::SelfApplier
 
       def execute_commands(*commands)
-        Sequent.configuration.instance.command_service.execute_commands(*commands)
+        Sequent.configuration.command_service.execute_commands(*commands)
       end
     end
   end

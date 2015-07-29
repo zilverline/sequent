@@ -281,9 +281,12 @@ require 'sequent/test'
 
 RSpec.configure do |c|
   c.include Sequent::Test::CommandHandlerHelpers
+  c.include Sequent::Test::WorkflowHelpers
   c.include Sequent::Test::EventStreamHelpers # FactoryGirl is required for these helpers.
 end
 ```
+
+It's best to scope inclusion of `CommandHandlerHelpers` to your command handler specs and `WorkflowHelpers` to your workflows.
 
 # License
 
