@@ -131,6 +131,7 @@ module Sequent
           @unhandled_error = e
         end
         @repository.commit(command)
+        @repository.clear
       end
 
       def then_fails_with clazz
