@@ -95,4 +95,15 @@ describe Sequent::Core::EventStore do
       expect(event_store.stream_exists?(aggregate_id)).to eq(false)
     end
   end
+
+  describe "#load_events" do
+    let(:event_store) { Sequent::configuration.event_store }
+    let(:aggregate_id) { "aggregate-#{rand(10000000)}" }
+
+    it 'returns nil for non existing aggregates' do
+      stream, events = event_store.load_events(aggregate_id)
+      expect(stream).to be_nil
+      expect(events).to be_nil
+    end
+  end
 end
