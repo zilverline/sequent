@@ -33,11 +33,6 @@ module Sequent
     #     then_events InvoicePaidEvent(args)
     #   end
     #
-    #   it "rejects coupon when does not exist" do
-    #     given_events CartCreatedEvent.new(args)
-    #     when_command ApplyDiscountCouponCommand(args)
-    #     then_fails_with CouponDoesNotExist
-    #   end
     # end
     module CommandHandlerHelpers
 
@@ -125,18 +120,9 @@ module Sequent
       def when_command command
         raise "@command_handler is mandatory when using the #{self.class}" unless @command_handler
         raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.handles_message?(command)
-        begin
-          @command_handler.handle_message(command)
-        rescue => e
-          @unhandled_error = e
-        end
+        @command_handler.handle_message(command)
         @repository.commit(command)
         @repository.clear
-      end
-
-      def then_fails_with clazz
-        expect(@unhandled_error).to be_kind_of(clazz)
-        @unhandled_error = nil
       end
 
       def then_events *events
@@ -150,11 +136,6 @@ module Sequent
         then_events
       end
 
-      def self.included(spec)
-        spec.after do
-          raise @unhandled_error if @unhandled_error
-        end
-      end
     end
   end
 end
