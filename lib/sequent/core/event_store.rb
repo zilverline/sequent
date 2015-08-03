@@ -33,7 +33,8 @@ module Sequent
       # Returns all events for the aggregate ordered by sequence_number
       #
       def load_events(aggregate_id)
-        stream = stream_record_class.where(aggregate_id: aggregate_id).first!
+        stream = stream_record_class.where(aggregate_id: aggregate_id).first
+        return nil unless stream
         events = event_record_class.connection.select_all(%Q{
 SELECT event_type, event_json
   FROM #{quote_table_name event_record_class.table_name}
