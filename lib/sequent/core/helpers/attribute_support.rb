@@ -132,6 +132,15 @@ EOS
             value = self.instance_variable_get("@#{field[0]}")
             if value.respond_to? :validation_errors
               value.validation_errors.each { |k, v| result["#{field[0].to_s}_#{k.to_s}".to_sym] = v }
+            elsif field[1].class == ArrayWithType and value.present?
+              value.select do |val|
+                val.respond_to?(:validation_errors)
+              end
+              .each_with_index do |val, index|
+                val.validation_errors.each do |k, v|
+                  result["#{field[0].to_s}_#{index}_#{k.to_s}".to_sym] = v
+                end
+              end
             end
           end
           prefix ? HashWithIndifferentAccess[result.map { |k, v| ["#{prefix}_#{k}", v] }] : result

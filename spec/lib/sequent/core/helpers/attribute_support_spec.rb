@@ -52,6 +52,27 @@ describe Sequent::Core::Helpers::AttributeSupport do
       expect(subject.validation_errors).to be_empty
     end
 
+    context "arrays" do
+      class TestClassWithArray < Sequent::Core::ValueObject
+        attrs messages: array(SubTestClass)
+        validates_presence_of :messages
+      end
+
+      it "does not create errors for items in an empty array" do
+        subject = TestClassWithArray.new(messages: [])
+        expect(subject.valid?).to be_falsey
+        expect(subject.validation_errors[:messages]).to_not be_nil
+        expect(subject.validation_errors[:"messages_0_message"]).to be_nil
+      end
+
+      it "creates an error item in array" do
+        subject = TestClassWithArray.new(messages: [SubTestClass.new])
+        expect(subject.valid?).to be_falsey
+        expect(subject.validation_errors[:messages]).to_not be_nil
+        expect(subject.validation_errors[:"messages_0_message"]).to_not be_nil
+      end
+    end
+
   end
 
   context "including and inheritance" do
