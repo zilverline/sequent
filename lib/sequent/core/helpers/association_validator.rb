@@ -27,7 +27,7 @@ module Sequent
               record.errors[association] = "is not of type #{record.class.types[association]}"
             elsif value && value.kind_of?(Array)
               item_type = record.class.type_for(association).item_type
-              record.errors[association] = "is invalid" if all_valid?(value, item_type)
+              record.errors[association] = "is invalid" unless validate_all(value, item_type).all?
             else
               record.errors[association] = "is invalid" if value && value.invalid?
             end
@@ -40,14 +40,14 @@ module Sequent
           !value.kind_of?(Array) && record.class.respond_to?(:types) && !value.kind_of?(record.class.types[association])
         end
 
-        def all_valid?(value, item_type)
-          value.any? do |v|
-            if v.nil?
-              true
-            elsif v.respond_to? :valid?
-              not v.valid?
+        def validate_all(values, item_type)
+          values.map do |value|
+            if value.nil?
+              false
+            elsif value.respond_to?(:valid?)
+              value.valid?
             else
-              not Sequent::Core::Helpers::ValueValidators.for(item_type).valid_value?(v)
+              Sequent::Core::Helpers::ValueValidators.for(item_type).valid_value?(value)
             end
           end
         end
