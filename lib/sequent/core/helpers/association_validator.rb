@@ -21,7 +21,6 @@ module Sequent
           associations = options[:associations]
           associations = [associations] unless associations.instance_of?(Array)
           associations.each do |association|
-            next unless association # since ruby 2.0...?
             value = record.instance_variable_get("@#{association.to_s}")
             if value && incorrect_type?(value, record, association)
               record.errors[association] = "is not of type #{record.class.types[association]}"
