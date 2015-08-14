@@ -53,23 +53,40 @@ describe Sequent::Core::Helpers::AttributeSupport do
     end
 
     context "arrays" do
+      class TestClassWithRequiredString < Sequent::Core::ValueObject
+        attrs message: String
+        validates_presence_of :message
+      end
+
       class TestClassWithArray < Sequent::Core::ValueObject
-        attrs messages: array(SubTestClass)
+        attrs messages: array(TestClassWithRequiredString)
         validates_presence_of :messages
       end
 
       it "does not create errors for items in an empty array" do
         subject = TestClassWithArray.new(messages: [])
         expect(subject.valid?).to be_falsey
+        expect(subject.validation_errors.size).to eq 1
         expect(subject.validation_errors[:messages]).to_not be_nil
         expect(subject.validation_errors[:"messages_0_message"]).to be_nil
       end
 
       it "creates an error item in array" do
-        subject = TestClassWithArray.new(messages: [SubTestClass.new])
+        subject = TestClassWithArray.new(messages: [NestedTestClass.new])
         expect(subject.valid?).to be_falsey
+        expect(subject.validation_errors.size).to eq 2
         expect(subject.validation_errors[:messages]).to_not be_nil
         expect(subject.validation_errors[:"messages_0_message"]).to_not be_nil
+      end
+
+      it "creates an error for each item in array" do
+        subject = TestClassWithArray.new(messages: [NestedTestClass.new, NestedTestClass.new])
+        expect(subject.valid?).to be_falsey
+        errors = subject.validation_errors
+        expect(errors[:messages]).to_not be_nil
+        expect(errors[:"messages_0_message"]).to_not be_nil
+        expect(errors[:"messages_1_message"]).to_not be_nil
+        expect(errors.size).to eq 3
       end
     end
 
