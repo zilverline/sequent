@@ -21,6 +21,11 @@ module Sequent
       #
       class AssociationValidator < ActiveModel::Validator
 
+        def initialize(options = {})
+          super
+          raise "Must provide ':associations' to validate" unless options[:associations].present?
+        end
+
         def validate(record)
           associations = options[:associations]
           associations = [associations] unless associations.instance_of?(Array)
