@@ -6,15 +6,19 @@ module Sequent
       # Validator for associations. Typically used in Sequent::Core::Command,
       # Sequent::Core::Event and Sequent::Core::ValueObjects.
       #
+      # When you define attrs that are also value object or array(..) then this class is
+      # automatically used.
+      #
       # Example:
       #
-      #   class RegisterForTrainingCommand < UpdateCommand
+      #   class RegisterForTrainingCommand < Sequent::Core::Command
       #     attrs trainee: Person
-      #
-      #     validates_presence_of :trainee
-      #     validates_with Sequent::Core::Helpers::AssociationValidator, associations: [:trainee]
-      #
       #   end
+      #
+      # This will register :trainee with the AssociationValidator and is equivilant to
+      #
+      #   validates_with Sequent::Core::AssociationValidator, associations: [:trainee]
+      #
       class AssociationValidator < ActiveModel::Validator
 
         def validate(record)
