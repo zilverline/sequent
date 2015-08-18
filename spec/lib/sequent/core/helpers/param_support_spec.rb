@@ -1,5 +1,13 @@
 require 'spec_helper'
 
+class Person < Sequent::Core::ValueObject
+  attrs name: String
+end
+
+class House < Sequent::Core::ValueObject
+  attrs owner: Person
+end
+
 describe Sequent::Core::Helpers::ParamSupport do
   let(:ben) { Person.new(name: "Ben Vonk") }
   it "can translate an object from and into params" do
@@ -22,13 +30,49 @@ describe Sequent::Core::Helpers::ParamSupport do
     end
   end
 
+  context Sequent::Core::Helpers::ArrayWithType do
+    class ParamWithArray < Sequent::Core::ValueObject
+      attrs values: array(Integer)
+    end
 
-end
+    class ParamWithValueObjectArray < Sequent::Core::ValueObject
+      attrs values: array(Person)
+    end
 
-class Person < Sequent::Core::ValueObject
-  attrs name: String
-end
+    class ParamWithNestedArrays < Sequent::Core::ValueObject
+      attrs values: array(ParamWithArray)
+    end
 
-class House < Sequent::Core::ValueObject
-  attrs owner: Person
+    context ParamWithArray do
+      it "does not include empty arrays" do
+        subject = ParamWithArray.new(values: [])
+        expect(subject.to_params(:param_with_array)).to eq ({})
+      end
+
+      it "creates correct params" do
+        subject = ParamWithArray.new(values: [1, 2])
+        expect(subject.to_params(:param_with_array)).to eq ({"param_with_array[values][]" => [1, 2]})
+      end
+    end
+
+    context ParamWithValueObjectArray do
+      it "creates correct params" do
+        subject = ParamWithValueObjectArray.new(values: [Person.new(name: "Ben"), Person.new(name: "Kim")])
+        expect(subject.to_params(:foo)).to eq ({"foo[values][][name]" => ["Ben", "Kim"]})
+      end
+
+    end
+
+    context ParamWithNestedArrays do
+      let(:subject) { subject = ParamWithNestedArrays.new(values: [ParamWithArray.new(values: [1, 2])]) }
+      it "creates correct params" do
+        expect(subject.to_params(:foo)).to eq ({"foo[values][][values][]" => [1, 2]})
+      end
+
+      it "can recreate from params" do
+        expect(ParamWithNestedArrays.from_params(subject.as_params)).to eq subject
+      end
+    end
+  end
+
 end
