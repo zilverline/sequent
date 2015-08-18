@@ -30,7 +30,13 @@ module Sequent
             if type.respond_to? :from_params
               value = type.from_params(value)
             elsif type.is_a? Sequent::Core::Helpers::ArrayWithType
-              value = value.map { |v| type.item_type.from_params(v) }
+              value = value.map do |v|
+                if type.item_type.respond_to?(:from_params)
+                  type.item_type.from_params(v)
+                else
+                  v
+                end
+              end
             end
             instance_variable_set(:"@#{attribute}", value)
           end
@@ -45,36 +51,54 @@ module Sequent
           self.class.types.each do |field|
             value = self.instance_variable_get("@#{field[0]}")
             next if field[0] == "errors"
-            if value.respond_to?(:as_params) && value.kind_of?(ValueObject)
-              value = value.as_params
-            elsif value.kind_of?(Array)
-              value = value.map { |val| val.kind_of?(ValueObject) ? val.as_params : val }
-            elsif value.is_a? DateTime
-              value = value.iso8601
-            elsif value.is_a? Date
-              value = value.strftime("%d-%m-%Y") # TODO Remove to TypeConverter
-            end
-            hash[field[0]] = value
+            hash[field[0]] = if value.kind_of?(Array)
+                               next if value.blank?
+                               value.map{|v|value_to_string(v)}
+                             else
+                               value_to_string(value)
+                             end
           end
           hash
         end
 
         private
-        def make_params(root, hash)
-          result={}
+
+        def value_to_string(val)
+          if val.is_a?(Sequent::Core::ValueObject)
+            val.as_params
+          elsif val.is_a? DateTime
+            val.iso8601
+          elsif val.is_a? Date
+            val.strftime("%d-%m-%Y")
+          else
+            val
+          end
+        end
+
+        def make_params(root, hash, memo = {})
           hash.each do |k, v|
             key = "#{root}[#{k}]"
             if v.is_a? Hash
-              make_params(key, v).each do |k, v|
-                result[k] = v.nil? ? "" : v.to_s
-              end
-            elsif v.is_a? Array
-              result[key] = v
+              make_params(key, v, memo)
+            elsif v.is_a?(Array) && v.first.is_a?(Hash)
+              key = "#{key}[]"
+              v.each { |value| make_params(key, value, memo) }
+            elsif v.is_a?(Array)
+              memo["#{key}[]"] = v
             else
-              result[key] = v.nil? ? "" : v.to_s
+              string_value = v.nil? ? "" : v.to_s
+              if memo.has_key?(key)
+                if memo[:key].is_a? Array
+                  memo[key] << string_value
+                else
+                  memo[key] = [memo[key], string_value]
+                end
+              else
+                memo[key] = string_value
+              end
             end
           end
-          result
+          memo
         end
       end
     end
