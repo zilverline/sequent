@@ -16,6 +16,12 @@ class Integer
   end
 end
 
+class Float
+  def self.deserialize_from_json(value)
+    value.blank? ? nil : value.to_f
+  end
+end
+
 class Boolean
   def self.deserialize_from_json(value)
     value.nil? ? nil : (value.present? ? value : false)

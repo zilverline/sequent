@@ -24,6 +24,10 @@ describe Sequent::Core::Event do
     attrs status: Symbol
   end
 
+  class EventWithFloat < Sequent::Core::Event
+    attrs latitude: Float, longitude: Float
+  end
+
   it "does not include aggregate_id, sequence_number and organization_id in payload" do
     expect(
       TestTenantEvent.new(
@@ -78,6 +82,12 @@ describe Sequent::Core::Event do
     event = EventWithSymbol.new(aggregate_id: 123, sequence_number: 7, organization_id: "bar", status: :foo)
     other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
+  end
+
+  it "converts floats" do
+    event = EventWithFloat.new(aggregate_id: 'X', sequence_number: 1, latitude: 52.370146, longitude: 4.953977)
+    deserialized = EventWithFloat.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
+    expect(event).to eq(deserialized)
   end
 
   it "deserializes nil symbols" do
