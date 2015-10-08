@@ -81,6 +81,10 @@ module Sequent
           if self.class.struct_cache.has_key?(struct_class_name)
             struct_class = self.class.struct_cache[struct_class_name]
           else
+            if column_names.include? :aggregate_id
+              @indices[record_class] ||= []
+              @indices[record_class] << [:aggregate_id]
+            end
 
             # We create a struct on the fly.
             # Since the replay happens in memory we implement the ==, eql? and hash methods
@@ -110,9 +114,6 @@ module Sequent
 
           yield record if block_given?
           @record_store[record_class] << record
-          if record.respond_to? :aggregate_id
-            @record_index[[record_class, record.aggregate_id]] = record
-          end
 
           if indexed?(record_class)
             do_with_cache_keys(record_class, record) do |key|
@@ -179,9 +180,7 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          if where_clause.has_key? :aggregate_id and where_clause.size == 1
-            [@record_index[[record_class, where_clause[:aggregate_id]]]].compact
-          elsif use_index?(record_class, where_clause)
+          if use_index?(record_class, where_clause)
             values = get_index(record_class, where_clause).map { |field| where_clause[field] }
             @record_index[[record_class, *values]] || []
           else
