@@ -108,7 +108,12 @@ SELECT aggregate_id
       def publish_events(events, event_handlers)
         events.each do |event|
           event_handlers.each do |handler|
-            handler.handle_message event
+            begin
+              handler.handle_message event
+            rescue => e
+              msg = "Replay failed => aggregate: #{event.aggregate_id}, event: #{event.class}, sequence_number: #{event.sequence_number}"
+              raise e, msg, e.backtrace
+            end
           end
         end
       end
