@@ -55,6 +55,41 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
   end
 
+  context Float do
+    class CommandWithFloat < Sequent::Core::BaseCommand
+      attrs value: Float
+    end
+
+    it "fails fast when invalid value" do
+      command = CommandWithFloat.new(value: "A")
+      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for Float(): "A"}
+    end
+
+    it "parses to an Float" do
+      command = CommandWithFloat.new(value: "1.123")
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq 1.123
+    end
+
+    it "handles Floats" do
+      command = CommandWithFloat.new(value: 1.098)
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq 1.098
+    end
+
+    it "handles nils" do
+      command = CommandWithFloat.new(value: nil)
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to be_nil
+    end
+
+    it "handles blank" do
+      command = CommandWithFloat.new(value: " ")
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to be_nil
+    end
+  end
+
   context Symbol do
     class CommandWithSymbol < Sequent::Core::BaseCommand
       attrs value: Symbol
