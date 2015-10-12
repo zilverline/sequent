@@ -33,6 +33,12 @@ Sequent.command_service.execute_commands MyCommand.new(...)
 
 Fork and send pull requests
 
+# Releasing
+
+Change the version in `lib/version.rb`. Commit this change.
+
+Then run `rake release`. A git tag will be created and pushed, and the new version of the gem will be pushed to rubygems.
+
 ## Running the specs
 If you wish to make changes to the `sequent` gem you can use `rake
 spec` to run the tests. Before doing so you need to create a postgres
