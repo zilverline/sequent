@@ -9,6 +9,15 @@ module Sequent
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
 
+      class PublishEventError < RuntimeError
+        attr_reader :event_handler_class, :event
+
+        def initialize(event_handler_class, event)
+          @event_handler_class = event_handler_class
+          @event = event
+        end
+      end
+
       attr_accessor :configuration
       def_delegators :@configuration, :stream_record_class, :event_record_class, :snapshot_event_class, :event_handlers
 
@@ -108,7 +117,11 @@ SELECT aggregate_id
       def publish_events(events, event_handlers)
         events.each do |event|
           event_handlers.each do |handler|
-            handler.handle_message event
+            begin
+              handler.handle_message event
+            rescue
+              raise PublishEventError.new(handler.class, event)
+            end
           end
         end
       end
