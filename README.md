@@ -62,6 +62,30 @@ Sequent needs a Postgres database with the event store schema. The current schem
 
 If you have trouble migrating from an older schema, please let us know. We'll be glad to help out.
 
+# Rake Tasks
+
+Sequent provides some Rake tasks to ease setup. To make them available in your project, add
+the following to your `Rakefile`.
+
+```ruby
+begin
+  require 'sequent/rake/tasks'
+  Sequent::Rake::Tasks.new(opts).register!
+rescue LoadError
+  puts 'Sequent tasks are not available'
+end
+```
+
+You *must* pass some options (`opts`) to tell Sequent your configuration.
+
+* `db_config_supplier` — function that takes an environment and returns the database configs for that environment (e.g. `YAML.parse('db/database.yml')`)
+* `environment` — deployment environment (like `RAILS_ENV`) to get the appropriate database config
+* `event_store_schema` — name of the database schema that contains the event store (defaults to `public`)
+* `view_schema` — hash with the `name` `version` and `definition` (path to your `view_schema.rb`) of your view schema
+* `migration_path` — path to your migrations directory (defaults to `db/migrate`)
+
+And you're all set to use the Rake tasks (see `rake -T` for a description).
+
 # Reference Guide
 
 Sequent provides the following concepts from a CQRS and an event sourced application:
