@@ -2,10 +2,10 @@ module Sequent
   module Support
     class ViewProjection
       attr_reader :name, :version, :schema_definition
-      def initialize(name, version, schema_definition)
-        @name = name
-        @version = version
-        @schema_definition = schema_definition
+      def initialize(options)
+        @name = options.fetch(:name)
+        @version = options.fetch(:version)
+        @schema_definition = options.fetch(:definition)
       end
 
       def build!

@@ -80,8 +80,9 @@ module Sequent
       private
 
       def current_environments
-        envs = [options.fetch(:environment)]
-        envs << 'test' if @env == 'development'
+        environment = options.fetch(:environment)
+        envs = [environment]
+        envs << 'test' if environment == 'development'
         envs
       end
 
@@ -94,10 +95,7 @@ module Sequent
       end
 
       def view_projection
-        schema_config = options.fetch(:view_schema)
-        @view_projection ||= Sequent::Support::ViewProjection.new(
-          schema_config.fetch(:name), schema_config.fetch(:version), schema_config.fetch(:definition)
-        )
+        @view_projection ||= Sequent::Support::ViewProjection.new(options.fetch(:view_schema))
       end
     end
   end
