@@ -89,6 +89,8 @@ Sequent::Support::ViewSchema.define do
 end
 ```
 
+The support module is not required with sequent automatically. Require `sequent/support` to enable it.
+
 # Rake Tasks
 
 Sequent provides some Rake tasks to ease setup. To make them available in your project, add
