@@ -60,19 +60,22 @@ describe Sequent::Support::Database do
         }.from(false).to(true)
       end
 
-      it 'skips schema creation if the schema exists' do
+      it 'ignores existing schema' do
         database.create_schema!('eventstore')
         expect { database.create_schema!('eventstore') }.to_not raise_error
       end
     end
 
     describe '#drop_schema!' do
-      before { database.create_schema!('my_app') }
       it 'drops the schema' do
-        database = Sequent::Support::Database.new
+        database.create_schema!('my_app')
         expect { database.drop_schema!('my_app') }.to change {
           database.schema_exists?('my_app')
         }.from(true).to(false)
+      end
+
+      it 'ignores non-existing schema' do
+        expect { database.drop_schema!('my_app') }.to_not raise_error
       end
     end
 

@@ -46,7 +46,7 @@ module Sequent
 
       def drop_schema!(schema)
         ActiveRecord::Base.connection.execute(
-          "DROP SCHEMA #{schema} CASCADE"
+          "DROP SCHEMA IF EXISTS #{schema} CASCADE"
         )
       end
 
