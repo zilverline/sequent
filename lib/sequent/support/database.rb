@@ -37,15 +37,11 @@ module Sequent
       end
 
       def create_schema!(schema)
-        sql = "CREATE SCHEMA #{schema}"
+        sql = "CREATE SCHEMA IF NOT EXISTS #{schema}"
         if user = ActiveRecord::Base.connection_config[:username]
           sql += " AUTHORIZATION #{user}"
         end
         ActiveRecord::Base.connection.execute(sql)
-      end
-
-      def create_schema_if_not_exists!(schema)
-        create_schema!(schema) unless schema_exists?(schema)
       end
 
       def drop_schema!(schema)

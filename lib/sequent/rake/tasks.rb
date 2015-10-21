@@ -52,7 +52,7 @@ module Sequent
 
           desc 'Migrate the database'
           task migrate: :establish_connection do
-            database.create_schema_if_not_exists!(options.fetch(:event_store_schema))
+            database.create_schema!(options.fetch(:event_store_schema))
             database.migrate(options.fetch(:migrations_path))
           end
         end

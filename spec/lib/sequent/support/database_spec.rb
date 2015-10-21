@@ -59,17 +59,10 @@ describe Sequent::Support::Database do
           database.schema_exists?('eventstore')
         }.from(false).to(true)
       end
-    end
-
-    describe '#create_schema_if_not_exists!' do
-      it 'creates the schema' do
-        expect { database.create_schema_if_not_exists!('eventstore') }.to change {
-          database.schema_exists?('eventstore')
-        }.from(false).to(true)
-      end
 
       it 'skips schema creation if the schema exists' do
-        expect { database.create_schema_if_not_exists!('eventstore') }.to_not raise_error
+        database.create_schema!('eventstore')
+        expect { database.create_schema!('eventstore') }.to_not raise_error
       end
     end
 
