@@ -60,7 +60,34 @@ See the [sequent example app](https://github.com/zilverline/sequent-examples)
 
 Sequent needs a Postgres database with the event store schema. The current schema is maintained in `db/sequent_schema.rb`.
 
+It is strongly recommended to copy this schema into your first migration and use migrations to keep it up to date. You can use ActiveRecord migrations
+with Sequent and provides a task to run them (see section on Rake Tasks).
+
 If you have trouble migrating from an older schema, please let us know. We'll be glad to help out.
+
+# View Schema
+
+Besides the event store database schema your app needs view projections. These projections are versioned and kept in a different database schema.
+
+Sequent provides support to make ActiveRecord use separate connection pools for these schemas. Use `Sequent::Support::BaseViewModel` as
+your base model class and call `Sequent::Support::Database.establish_connections(db_config, view_schema_name)` during initialization.
+
+The view schema is not maintained through migrations but instead is rebuild from recorded events. Therefore, there are no migrations on the view schema.
+Its schema should be provided as a schema definition (e.g. in `db/view_schema.rb`).
+
+Because the view schema needs a different connection (with the view schema on the search path), use the `Sequent::Support::ViewSchema` extension of
+`ActiveRecord::Schema` to define it.
+
+For example:
+
+```ruby
+Sequent::Support::ViewSchema.define do
+  create_table 'accounts' do |t|
+    t.string 'name', null: false
+    t.string 'email', null: false
+  end
+end
+```
 
 # Rake Tasks
 
@@ -82,7 +109,7 @@ You *must* pass some options (`opts`) to tell Sequent your configuration.
 * `environment` — deployment environment (like `RAILS_ENV`) to get the appropriate database config
 * `event_store_schema` — name of the database schema that contains the event store (defaults to `public`)
 * `view_schema` — hash with the `name` `version` and `definition` (path to your `view_schema.rb`) of your view schema
-* `migration_path` — path to your migrations directory (defaults to `db/migrate`)
+* `migration_path` — path to your ActiveRecord migrations directory (defaults to `db/migrate`)
 
 And you're all set to use the Rake tasks (see `rake -T` for a description).
 
