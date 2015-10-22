@@ -95,7 +95,7 @@ module Sequent
       end
 
       def view_projection
-        @view_projection ||= Sequent::Support::ViewProjection.new(options.fetch(:view_schema))
+        options.fetch(:view_projection)
       end
     end
   end
