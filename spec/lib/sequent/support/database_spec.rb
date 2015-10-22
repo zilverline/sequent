@@ -25,7 +25,7 @@ describe Sequent::Support::Database do
       end
     end
 
-    describe '.establish_connections' do
+    describe '.establish_connection' do
       before { Sequent::Support::Database.create!(db_config) }
       after do
         Sequent::Support::Database.disconnect!
@@ -33,13 +33,8 @@ describe Sequent::Support::Database do
       end
 
       it 'connects the ActiveRecord::Base pool' do
-        Sequent::Support::Database.establish_connections(db_config, 'view_schema_1')
+        Sequent::Support::Database.establish_connection(db_config)
         expect(ActiveRecord::Base.connection).to be_active
-      end
-
-      it 'connects the Sequent::Support::BaseViewModel pool' do
-        Sequent::Support::Database.establish_connections(db_config, 'view_schema_1')
-        expect(Sequent::Support::BaseViewModel.connection).to be_active
       end
     end
   end
@@ -47,7 +42,7 @@ describe Sequent::Support::Database do
   context 'instance methods' do
     before do
       Sequent::Support::Database.create!(db_config)
-      Sequent::Support::Database.establish_connections(db_config, 'view_schema_1')
+      Sequent::Support::Database.establish_connection(db_config)
     end
     after { Sequent::Support::Database.drop!(db_config) }
 

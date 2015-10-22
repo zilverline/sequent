@@ -18,16 +18,12 @@ module Sequent
         ActiveRecord::Base.connection.drop_database(db_config['database'])
       end
 
-      def self.establish_connections(db_config, view_schema_name)
-        Sequent::Support::BaseViewModel.establish_connection(
-          db_config.merge('schema_search_path' => view_schema_name)
-        )
+      def self.establish_connection(db_config)
         ActiveRecord::Base.establish_connection(db_config)
       end
 
       def self.disconnect!
         ActiveRecord::Base.connection_pool.disconnect!
-        Sequent::Support::BaseViewModel.connection_pool.disconnect!
       end
 
       def schema_exists?(schema)
