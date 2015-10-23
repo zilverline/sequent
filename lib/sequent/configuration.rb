@@ -27,6 +27,10 @@ module Sequent
       @instance = new
     end
 
+    def self.restore(configuration)
+      @instance = configuration
+    end
+
     def initialize
       self.command_handlers = []
       self.command_filters = []

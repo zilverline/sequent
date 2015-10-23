@@ -60,7 +60,67 @@ See the [sequent example app](https://github.com/zilverline/sequent-examples)
 
 Sequent needs a Postgres database with the event store schema. The current schema is maintained in `db/sequent_schema.rb`.
 
+It is strongly recommended to copy this schema into your first migration and use migrations to keep it up to date. You can use ActiveRecord migrations
+with Sequent and provides a task to run them (see section on Rake Tasks).
+
 If you have trouble migrating from an older schema, please let us know. We'll be glad to help out.
+
+# View Schema
+
+Besides the event store database schema your app needs view projections. Projections are versioned and kept in a different database schema, but in
+the same database.
+
+Sequent adds support to maintain both schemas in the same database. Set the `schema_search_path` in your database config to your event store schema and
+your view projection schema, respectively. E.g. 'event_store, view_1'.
+
+The view schema is not maintained through migrations but instead is rebuild from recorded events. Therefore, there are no migrations on the view schema.
+Its schema should be provided as a schema definition (e.g. in `db/view_schema.rb`).
+
+To load the view schema in a different database schema use the `Sequent::Support::ViewSchema` extension of `ActiveRecord::Schema` to define it.
+
+For example:
+
+```ruby
+Sequent::Support::ViewSchema.define(view_projection: Sequent::Support::ViewProjection.new(..)) do
+  create_table 'accounts' do |t|
+    t.string 'name', null: false
+    t.string 'email', null: false
+  end
+end
+```
+
+The support module is not required with sequent automatically. Require `sequent/support` to enable it.
+
+---
+
+Sequent provides support to make ActiveRecord use separate connection pools for these schemas.
+
+Use `Sequent::Support::BaseViewModel` as
+your base model class and call `Sequent::Support::Database.establish_connections(db_config, view_schema_name)` during initialization.
+
+# Rake Tasks
+
+Sequent provides some Rake tasks to ease setup. To make them available in your project, add
+the following to your `Rakefile`.
+
+```ruby
+begin
+  require 'sequent/rake/tasks'
+  Sequent::Rake::Tasks.new(opts).register!
+rescue LoadError
+  puts 'Sequent tasks are not available'
+end
+```
+
+You *must* pass some options (`opts`) to tell Sequent your configuration.
+
+* `db_config_supplier` — function that takes an environment and returns the database configs for that environment (e.g. `YAML.parse('db/database.yml')`)
+* `environment` — deployment environment (like `RAILS_ENV`) to get the appropriate database config
+* `event_store_schema` — name of the database schema that contains the event store (defaults to `public`)
+* `view_projection` — a `Sequent::Support::ViewProjection` that specifies your view schema
+* `migration_path` — path to your ActiveRecord migrations directory (defaults to `db/migrate`)
+
+And you're all set to use the Rake tasks (see `rake -T` for a description).
 
 # Reference Guide
 
