@@ -65,7 +65,7 @@ module Sequent
         end
 
         def parse_from_string(value)
-          parser = PARSERS[@klass]
+          parser = PARSERS.fetch(@klass) { |key| fail "Unsupported value type: #{key}" }
           if @array_with_type
             parser.call(value, @array_with_type.item_type)
           else
