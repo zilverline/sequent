@@ -91,13 +91,6 @@ end
 
 The support module is not required with sequent automatically. Require `sequent/support` to enable it.
 
----
-
-Sequent provides support to make ActiveRecord use separate connection pools for these schemas.
-
-Use `Sequent::Support::BaseViewModel` as
-your base model class and call `Sequent::Support::Database.establish_connections(db_config, view_schema_name)` during initialization.
-
 # Rake Tasks
 
 Sequent provides some Rake tasks to ease setup. To make them available in your project, add
