@@ -6,16 +6,30 @@ module Sequent
         @name = options.fetch(:name)
         @version = options.fetch(:version)
         @schema_definition = options.fetch(:definition)
+        @replay_event_handlers = options.fetch(:event_handlers)
       end
 
       def build!
-        load schema_definition
-        event_store = Sequent.configuration.event_store
-        event_store.replay_events { Events::ORDERED_BY_ID[event_store] }
+        with_default_configuration do
+          Sequent.configuration.event_handlers = @replay_event_handlers
+
+          load schema_definition
+          event_store = Sequent.configuration.event_store
+          event_store.replay_events { Events::ORDERED_BY_ID[event_store] }
+        end
       end
 
       def schema_name
         "#{name}_#{version}"
+      end
+
+      private
+
+      def with_default_configuration
+        original_configuration = Sequent.configuration
+        Sequent::Configuration.reset
+        yield
+        Sequent::Configuration.restore(original_configuration)
       end
     end
 
