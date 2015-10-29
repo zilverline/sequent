@@ -208,13 +208,17 @@ module Sequent
         def commit
           begin
             @record_store.each do |clazz, records|
+              @column_cache ||= {}
+              @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
+                hash.merge({ column.name => column })
+              end
               if records.size > @insert_with_csv_size
                 csv = CSV.new("")
                 column_names = clazz.column_names.reject { |name| name == "id" }
                 records.each do |obj|
                   begin
                     csv << column_names.map do |column_name|
-                      obj[column_name]
+                      @column_cache[clazz.name][column_name].type_cast_for_database(obj[column_name])
                     end
                   end
                 end
@@ -246,15 +250,15 @@ module Sequent
                     end
                   end
                 end
-
               else
-
                 clazz.unscoped do
                   inserts = []
                   column_names = clazz.column_names.reject { |name| name == "id" }
                   prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
                   records.each do |r|
-                    values = column_names.map { |name| r[name.to_sym] }
+                    values = column_names.map do |column_name|
+                      @column_cache[clazz.name][column_name].type_cast_for_database(r[column_name.to_sym])
+                    end
                     inserts << values
                   end
                   sql = %Q{insert into #{clazz.table_name} (#{column_names.join(",")}) values (#{prepared_values})}
@@ -264,8 +268,6 @@ module Sequent
                 end
               end
             end
-
-
           ensure
             clear
           end
