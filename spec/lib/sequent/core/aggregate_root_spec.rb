@@ -2,17 +2,17 @@ require 'spec_helper'
 
 describe Sequent::Core::AggregateRoot do
 
-  class TestEvent < Sequent::Core::TenantEvent
+  class TestEvent < Sequent::Core::Event
     attrs field: String
   end
 
-  class TestAggregateRoot < Sequent::Core::TenantAggregateRoot
+  class TestAggregateRoot < Sequent::Core::AggregateRoot
     attr_accessor :test_event_count
 
     enable_snapshots default_threshold: 30
 
     def initialize(params)
-      super(params[:aggregate_id], params[:organization_id])
+      super(params[:aggregate_id])
     end
 
     def generate_event

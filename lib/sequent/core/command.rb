@@ -59,19 +59,5 @@ module Sequent
     class UpdateCommand < Command
       include UpdateSequenceNumber
     end
-
-    class TenantCommand < Command
-      attrs organization_id: String
-
-      def initialize(args = {})
-        raise ArgumentError, "Missing organization_id" if args[:organization_id].nil?
-        super
-      end
-    end
-
-    class UpdateTenantCommand < TenantCommand
-      include UpdateSequenceNumber
-    end
-
   end
 end

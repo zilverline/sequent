@@ -42,29 +42,8 @@ module Sequent
 
     end
 
-    class TenantEvent < Event
-
-      attrs organization_id: String
-
-      def initialize(args = {})
-        super
-        raise "Missing organization_id" unless @organization_id
-      end
-
-      protected
-      def payload_variables
-        super << :"@organization_id"
-      end
-
-    end
-
-    class CreateEvent < TenantEvent
-
-    end
-
     class SnapshotEvent < Event
       attrs data: String
     end
-
   end
 end
