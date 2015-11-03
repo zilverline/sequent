@@ -29,6 +29,11 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for Integer(): "A"}
     end
 
+    it "fails with a generic Sequent error" do
+      command = CommandWithInteger.new(value: "A")
+      expect { command.parse_attrs_to_correct_types }.to raise_exception(Sequent::Core::TypeConversionError)
+    end
+
     it "parses to an Integer" do
       command = CommandWithInteger.new(value: "1")
       command = command.parse_attrs_to_correct_types
@@ -274,6 +279,11 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       command = CommandWithArray.new(values: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.values).to be_nil
+    end
+
+    it "fails for a non-array value" do
+      command = CommandWithArray.new(values: "string")
+      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for array(): "string"}
     end
 
     context Sequent::Core::ValueObject do
