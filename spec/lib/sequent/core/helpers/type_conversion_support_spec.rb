@@ -276,6 +276,11 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       expect(command.values).to be_nil
     end
 
+    it "fails for a non-array value" do
+      command = CommandWithArray.new(values: "string")
+      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for array(): "string"}
+    end
+
     context Sequent::Core::ValueObject do
       class Litmanen < Sequent::Core::BaseCommand
         attrs value: Integer

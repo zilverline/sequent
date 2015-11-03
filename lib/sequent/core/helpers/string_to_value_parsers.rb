@@ -42,6 +42,7 @@ module Sequent
         end
 
         def self.parse_array(values, type_in_array)
+          fail "invalid value for array(): \"#{values}\"" unless values.is_a?(Array)
           values.map do |item|
             if item.respond_to?(:parse_attrs_to_correct_types)
               item.parse_attrs_to_correct_types
