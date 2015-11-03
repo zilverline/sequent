@@ -46,6 +46,11 @@ describe Sequent::Core::Helpers::AssociationValidator do
       expect(object.errors).to_not be_empty
     end
 
+    it "reports a non-array value" do
+      values[:numbers] = "string"
+      subject.validate(object)
+      expect(object.errors).to_not be_empty
+    end
   end
 
   context "validating an array with value objects" do

@@ -16,6 +16,10 @@ module Sequent
         def to_s
           "Sequent::Core::Helpers::ArrayWithType.new(#{item_type})"
         end
+
+        def candidate?(value)
+          value.is_a?(Array)
+        end
       end
     end
   end

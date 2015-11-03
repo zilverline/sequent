@@ -53,6 +53,11 @@ describe Sequent::Core::Helpers::ParamSupport do
         subject = ParamWithArray.new(values: [1, 2])
         expect(subject.to_params(:param_with_array)).to eq ({"param_with_array[values][]" => [1, 2]})
       end
+
+      it "creates an invalid object from invalid params" do
+        params = {'values' => 'string'}
+        expect(ParamWithArray.from_params(params)).to_not be_valid
+      end
     end
 
     context ParamWithValueObjectArray do
