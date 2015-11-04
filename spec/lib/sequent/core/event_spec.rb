@@ -6,21 +6,21 @@ describe Sequent::Core::Event do
     attrs name: String
   end
 
-  class TestTenantEvent < Sequent::Core::TenantEvent
+  class TestEventEvent < Sequent::Core::Event
     attrs name: String, date_time: DateTime, owner: Person
   end
 
-  class EventWithDate < Sequent::Core::TenantEvent
+  class EventWithDate < Sequent::Core::Event
     attrs date_of_birth: Date
   end
 
   class FooType;
   end
-  class EventWithUnknownAttributeType < Sequent::Core::TenantEvent
+  class EventWithUnknownAttributeType < Sequent::Core::Event
     attrs name: FooType
   end
 
-  class EventWithSymbol < Sequent::Core::TenantEvent
+  class EventWithSymbol < Sequent::Core::Event
     attrs status: Symbol
   end
 
@@ -30,7 +30,7 @@ describe Sequent::Core::Event do
 
   it "does not include aggregate_id, sequence_number and organization_id in payload" do
     expect(
-      TestTenantEvent.new(
+      TestEventEvent.new(
         {aggregate_id: 123, sequence_number: 7, organization_id: "bar", name: "foo"}
       ).payload).to eq({ name: "foo", date_time: nil, owner: nil })
   end
@@ -38,27 +38,27 @@ describe Sequent::Core::Event do
   it "deserializes DateTime using iso8601" do
     now = DateTime.now
     val = now.iso8601
-    event = TestTenantEvent.deserialize_from_json(
+    event = TestEventEvent.deserialize_from_json(
       "aggregate_id" => "bla", "sequence_number" => 1, "created_at" => val
     )
     expect(event.created_at.iso8601).to eq val
   end
 
   it "events are equal when deserialized from same attributes" do
-    event1 = TestTenantEvent.new(aggregate_id: "foo", organization_id: "bar", sequence_number: 1)
+    event1 = TestEventEvent.new(aggregate_id: "foo", organization_id: "bar", sequence_number: 1)
     created_at = event1.created_at.iso8601
-    event2 = TestTenantEvent.deserialize_from_json("aggregate_id" => "foo", "organization_id" => "bar", "sequence_number" => 1, "created_at" => created_at)
+    event2 = TestEventEvent.deserialize_from_json("aggregate_id" => "foo", "organization_id" => "bar", "sequence_number" => 1, "created_at" => created_at)
     expect(event1).to eq event2
   end
 
   it "is converted from and to json and ignore validation stuff from activemodel" do
     person = Person.new({name: "foo"})
     person.valid?
-    event = TestTenantEvent.new(
+    event = TestEventEvent.new(
       aggregate_id: 123, organization_id: "bar", sequence_number: 7, owner: person
     )
     json = Sequent::Core::Oj.dump(event)
-    other = TestTenantEvent.deserialize_from_json(Sequent::Core::Oj.strict_load(json))
+    other = TestEventEvent.deserialize_from_json(Sequent::Core::Oj.strict_load(json))
     expect(other).to eq event
   end
 
@@ -101,7 +101,7 @@ describe Sequent::Core::Event do
     it "ignores non attrs like @valid" do
       person = Person.new(name: "foo")
       person.valid?
-      event = TestTenantEvent.new(aggregate_id: "1", sequence_number: 2, organization_id: "3", owner: person)
+      event = TestEventEvent.new(aggregate_id: "1", sequence_number: 2, organization_id: "3", owner: person)
       expect(event.attributes[:owner]).to_not have_key(:errors)
       expect(event.attributes[:owner]).to_not have_key(:validation_context)
     end

@@ -103,29 +103,5 @@ module Sequent
         @uncommitted_events << event
       end
     end
-
-    # You can use this class when running in a multi tenant environment
-    # It basically makes sure that the +organization_id+ (the tenant_id for historic reasons)
-    # is available for the subclasses
-    class TenantAggregateRoot < AggregateRoot
-      attr_reader :organization_id
-
-      def initialize(id, organization_id)
-        super(id)
-        @organization_id = organization_id
-      end
-
-      def load_from_history(stream, events)
-        raise "Empty history" if events.empty?
-        @organization_id = events.first.organization_id
-        super
-      end
-
-      protected
-
-      def build_event(event, params = {})
-        super(event, params.merge({organization_id: @organization_id}))
-      end
-    end
   end
 end
