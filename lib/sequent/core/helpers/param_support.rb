@@ -29,7 +29,7 @@ module Sequent
             next if value.blank?
             if type.respond_to? :from_params
               value = type.from_params(value)
-            elsif type.is_a? Sequent::Core::Helpers::ArrayWithType
+            elsif value.is_a?(Array)
               value = value.map do |v|
                 if type.item_type.respond_to?(:from_params)
                   type.item_type.from_params(v)
