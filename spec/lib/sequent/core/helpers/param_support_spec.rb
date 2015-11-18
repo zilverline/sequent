@@ -51,7 +51,7 @@ describe Sequent::Core::Helpers::ParamSupport do
 
       it "creates correct params" do
         subject = ParamWithArray.new(values: [1, 2])
-        expect(subject.to_params(:param_with_array)).to eq ({"param_with_array[values][]" => [1, 2]})
+        expect(subject.to_params(:param_with_array)).to eq ({"param_with_array[values][0]" => 1, "param_with_array[values][1]" => 2})
       end
 
       it "creates an invalid object from invalid params" do
@@ -63,15 +63,14 @@ describe Sequent::Core::Helpers::ParamSupport do
     context ParamWithValueObjectArray do
       it "creates correct params" do
         subject = ParamWithValueObjectArray.new(values: [Person.new(name: "Ben"), Person.new(name: "Kim")])
-        expect(subject.to_params(:foo)).to eq ({"foo[values][][name]" => ["Ben", "Kim"]})
+        expect(subject.to_params(:foo)).to eq ({"foo[values][0][name]" => "Ben", "foo[values][1][name]" => "Kim"})
       end
-
     end
 
     context ParamWithNestedArrays do
       let(:subject) { subject = ParamWithNestedArrays.new(values: [ParamWithArray.new(values: [1, 2])]) }
       it "creates correct params" do
-        expect(subject.to_params(:foo)).to eq ({"foo[values][][values][]" => [1, 2]})
+        expect(subject.to_params(:foo)).to eq ({"foo[values][0][values][0]" => 1, "foo[values][0][values][1]" => 2})
       end
 
       it "can recreate from params" do
@@ -79,5 +78,4 @@ describe Sequent::Core::Helpers::ParamSupport do
       end
     end
   end
-
 end
