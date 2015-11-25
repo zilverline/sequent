@@ -22,6 +22,13 @@ class Float
   end
 end
 
+class BigDecimal
+  def self.deserialize_from_json(value)
+    return nil if value.nil?
+    BigDecimal.new(value)
+  end
+end
+
 class Boolean
   def self.deserialize_from_json(value)
     value.nil? ? nil : (value.present? ? value : false)
