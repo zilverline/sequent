@@ -19,6 +19,8 @@ module Sequent
 
     attr_accessor :event_handlers
 
+    attr_accessor :uuid_generator
+
     def self.instance
       @instance ||= new
     end
@@ -42,6 +44,7 @@ module Sequent
       self.stream_record_class = Sequent::Core::StreamRecord
       self.snapshot_event_class = Sequent::Core::SnapshotEvent
       self.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
+      self.uuid_generator = Sequent::Core::RandomUuidGenerator
     end
 
     def event_store=(event_store)

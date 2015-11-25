@@ -3,7 +3,7 @@ require 'spec_helper'
 require 'sequent/support'
 
 describe Sequent::Support::Database do
-  let(:database_name) { SecureRandom.uuid }
+  let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
     {'adapter' => 'postgresql',
      'host' => 'localhost',

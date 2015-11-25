@@ -18,7 +18,7 @@ describe Sequent::Core::AggregateRepository do
 
   let(:event_store) { double }
   let(:repository) { Sequent::Core::AggregateRepository.new(event_store) }
-  let(:aggregate) { DummyAggregate.new(SecureRandom.uuid) }
+  let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
 
   it "should track added aggregates by id" do
     repository.add_aggregate aggregate
