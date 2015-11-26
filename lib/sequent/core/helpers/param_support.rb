@@ -75,28 +75,18 @@ module Sequent
           end
         end
 
-        def make_params(root, hash, memo = {})
-          hash.each do |k, v|
-            key = "#{root}[#{k}]"
-            if v.is_a? Hash
-              make_params(key, v, memo)
-            elsif v.is_a?(Array) && v.first.is_a?(Hash)
-              key = "#{key}[]"
-              v.each { |value| make_params(key, value, memo) }
-            elsif v.is_a?(Array)
-              memo["#{key}[]"] = v
-            else
-              string_value = v.nil? ? "" : v.to_s
-              if memo.has_key?(key)
-                if memo[:key].is_a? Array
-                  memo[key] << string_value
-                else
-                  memo[key] = [memo[key], string_value]
-                end
-              else
-                memo[key] = string_value
-              end
+        def make_params(key, enumerable, memo = {})
+          case enumerable
+          when Array
+            enumerable.each_with_index do |object, index|
+              make_params("#{key}[#{index}]", object, memo)
             end
+          when Hash
+            enumerable.each do |hash_key, object|
+              make_params("#{key}[#{hash_key}]", object, memo)
+            end
+          else
+            memo[key] = enumerable
           end
           memo
         end

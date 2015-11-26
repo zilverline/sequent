@@ -16,6 +16,10 @@ module Sequent
           @event_handler_class = event_handler_class
           @event = event
         end
+
+        def message
+          "Event Handler: #{@event_record_class.inspect}\nEvent: #{@event.inspect}\nCause: #{cause.inspect}"
+        end
       end
 
       attr_accessor :configuration

@@ -5,6 +5,10 @@ require_relative 'configuration'
 require 'logger'
 
 module Sequent
+  def self.new_uuid
+    Sequent.configuration.uuid_generator.uuid
+  end
+
   def self.logger
     @logger ||= Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
   end
