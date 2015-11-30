@@ -9,6 +9,7 @@ module Sequent
           ::Symbol => ->(value) { Symbol.deserialize_from_json(value) },
           ::String => ->(value) { value },
           ::Integer => ->(value) { parse_to_integer(value) },
+          ::BigDecimal => ->(value) { parse_to_bigdecimal(value) },
           ::Float => ->(value) { parse_to_float(value) },
           ::Boolean => ->(value) { parse_to_bool(value) },
           ::Date => ->(value) { parse_to_date(value) },
@@ -18,6 +19,10 @@ module Sequent
 
         def self.parse_to_integer(value)
           Integer(value) unless value.blank?
+        end
+
+        def self.parse_to_bigdecimal(value)
+          BigDecimal.new(value) unless value.blank?
         end
 
         def self.parse_to_float(value)
