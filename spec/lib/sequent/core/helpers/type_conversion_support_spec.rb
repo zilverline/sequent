@@ -60,6 +60,18 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
   end
 
+  context BigDecimal do
+    class CommandWithBigDecimal < Sequent::Core::BaseCommand
+      attrs value: BigDecimal
+    end
+
+    it 'parses to a BigDecimal' do
+      command = CommandWithBigDecimal.new(value: '10.10')
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq BigDecimal.new('10.10')
+    end
+  end
+
   context Float do
     class CommandWithFloat < Sequent::Core::BaseCommand
       attrs value: Float
