@@ -5,7 +5,11 @@ module Sequent
     # small wrapper class to centralize oj and its settings.
     class Oj
 
-      ::Oj.default_options={mode: :compat}
+      ::Oj.default_options={
+        bigdecimal_as_decimal: false,
+        bigdecimal_load: :bigdecimal,
+        mode: :compat,
+      }
 
       def self.strict_load(json)
         ::Oj.strict_load(json, {})
