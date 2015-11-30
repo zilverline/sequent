@@ -26,7 +26,7 @@ module Sequent
           self.class.types.each do |attribute, type|
             value = params[attribute]
 
-            next if value.blank?
+            next if value.nil?
             if type.respond_to? :from_params
               value = type.from_params(value)
             elsif value.is_a?(Array)

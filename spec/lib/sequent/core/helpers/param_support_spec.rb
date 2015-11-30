@@ -77,5 +77,21 @@ describe Sequent::Core::Helpers::ParamSupport do
         expect(ParamWithNestedArrays.from_params(subject.as_params)).to eq subject
       end
     end
+
+    context Boolean do
+      class ParamWithBool < Sequent::Core::ValueObject
+        attrs value: Boolean
+      end
+
+      it 'assign value with true' do
+        subject = ParamWithBool.from_params('value' => true)
+        expect(subject.value).to eq(true)
+      end
+
+      it 'assign value with false' do
+        subject = ParamWithBool.from_params('value' => false)
+        expect(subject.value).to eq(false)
+      end
+    end
   end
 end
