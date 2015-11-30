@@ -4,10 +4,8 @@ module Sequent
   module Core
     # small wrapper class to centralize oj and its settings.
     class Oj
-
-      ::Oj.default_options={
+      ::Oj.default_options = {
         bigdecimal_as_decimal: false,
-        bigdecimal_load: :bigdecimal,
         mode: :compat,
       }
 
@@ -18,7 +16,6 @@ module Sequent
       def self.dump(obj)
         ::Oj.dump(obj)
       end
-
     end
   end
 end
