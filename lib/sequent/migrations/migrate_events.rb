@@ -31,7 +31,7 @@ module Sequent
       #
       # @param current_version The current version of the application. E.g. 10
       # @param new_version The version to migrate to. E.g. 11
-      # @param &after_migration_block an optional block to run after the migrations run. E.g. close resources
+      # @param &after_migration_block an optional block (with the current upgrade version as param) to run after the migrations run. E.g. close resources
       #
       def execute_migrations(current_version, new_version, &after_migration_block)
         if current_version != new_version and current_version > 0
@@ -45,7 +45,7 @@ module Sequent
               begin
                 migration_class.new(@env).migrate
               ensure
-                after_migration_block.call if after_migration_block
+                yield(upgrade_to_version) if block_given?
               end
             end
           end
