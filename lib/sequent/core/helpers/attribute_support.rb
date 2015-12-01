@@ -122,12 +122,12 @@ EOS
           hash
         end
 
-        def as_json
+        def as_json(opts = {})
           hash = HashWithIndifferentAccess.new
           self.class.types.each do |name, _|
             value = self.instance_variable_get("@#{name}")
             hash[name] = if value.respond_to?(:as_json)
-                           value.as_json
+                           value.as_json(opts)
                          else
                            value
                          end
