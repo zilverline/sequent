@@ -14,6 +14,14 @@ module Sequent
           def from_params(params = {})
             allocate.tap { |x| x.from_params(params) }
           end
+
+          # Create an object based on HTTP form data
+          # This differs from form_params that an empty string
+          # is the same as nil since HTTP form post will send empty text fields
+          def from_form_data(params = {})
+            allocate.tap { |x| x.from_params(params, false) }
+          end
+
         end
 
         # extend host class with class methods when we're included
@@ -21,12 +29,13 @@ module Sequent
           host_class.extend(ClassMethods)
         end
 
-        def from_params(params)
+        def from_params(params, strict_nil_check = true)
           params = HashWithIndifferentAccess.new(params)
           self.class.types.each do |attribute, type|
             value = params[attribute]
 
-            next if value.nil?
+            next if strict_nil_check && value.nil?
+            next if (!strict_nil_check && value.blank?)
             if type.respond_to? :from_params
               value = type.from_params(value)
             elsif value.is_a?(Array)
@@ -53,7 +62,7 @@ module Sequent
             next if field[0] == "errors"
             hash[field[0]] = if value.kind_of?(Array)
                                next if value.blank?
-                               value.map{|v|value_to_string(v)}
+                               value.map { |v| value_to_string(v) }
                              else
                                value_to_string(value)
                              end
@@ -77,16 +86,16 @@ module Sequent
 
         def make_params(key, enumerable, memo = {})
           case enumerable
-          when Array
-            enumerable.each_with_index do |object, index|
-              make_params("#{key}[#{index}]", object, memo)
-            end
-          when Hash
-            enumerable.each do |hash_key, object|
-              make_params("#{key}[#{hash_key}]", object, memo)
-            end
-          else
-            memo[key] = enumerable
+            when Array
+              enumerable.each_with_index do |object, index|
+                make_params("#{key}[#{index}]", object, memo)
+              end
+            when Hash
+              enumerable.each do |hash_key, object|
+                make_params("#{key}[#{hash_key}]", object, memo)
+              end
+            else
+              memo[key] = enumerable
           end
           memo
         end
