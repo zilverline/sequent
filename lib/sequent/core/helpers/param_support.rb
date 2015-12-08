@@ -11,15 +11,15 @@ module Sequent
       #
       module ParamSupport
         module ClassMethods
-          def from_params(params = {})
-            allocate.tap { |x| x.from_params(params) }
+          def from_params(params = {}, strict_nil_check = true)
+            allocate.tap { |x| x.from_params(params, strict_nil_check) }
           end
 
           # Create an object based on HTTP form data
           # This differs from form_params that an empty string
           # is the same as nil since HTTP form post will send empty text fields
           def from_form_data(params = {})
-            allocate.tap { |x| x.from_params(params, false) }
+            from_params(params, false)
           end
 
         end
