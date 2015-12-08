@@ -41,7 +41,7 @@ module Sequent
             elsif value.is_a?(Array)
               value = value.map do |v|
                 if type.item_type.respond_to?(:from_params)
-                  type.item_type.from_params(v)
+                  type.item_type.from_params(v, strict_nil_check)
                 else
                   v
                 end
