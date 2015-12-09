@@ -19,6 +19,29 @@ describe Sequent::Core::Helpers::ParamSupport do
     expect(House.from_params(house.as_params)).to eq(house)
   end
 
+  context 'strict nil check' do
+    context '.from_params' do
+      it 'skips nil attributes' do
+        actual = Person.from_params({'name' => nil})
+        expect(actual.name).to be_nil
+      end
+      it 'respects empty strings' do
+        actual = Person.from_params({'name' => ''})
+        expect(actual.name).to eq ''
+      end
+    end
+    context '.from_form_data' do
+      it 'skips nil attributes' do
+        actual = Person.from_form_data({'name' => nil})
+        expect(actual.name).to be_nil
+      end
+      it 'skips empty strings' do
+        actual = Person.from_form_data({'name' => ''})
+        expect(actual.name).to be_nil
+      end
+    end
+  end
+
   context DateTime do
     class ParamWithDateTime < Sequent::Core::ValueObject
       attrs value: DateTime
@@ -44,19 +67,38 @@ describe Sequent::Core::Helpers::ParamSupport do
     end
 
     context ParamWithArray do
-      it "does not include empty arrays" do
-        subject = ParamWithArray.new(values: [])
-        expect(subject.to_params(:param_with_array)).to eq ({})
+      context '#to_params' do
+        it "does not include empty arrays" do
+          subject = ParamWithArray.new(values: [])
+          expect(subject.to_params(:param_with_array)).to eq ({})
+        end
+
+        it "creates correct params" do
+          subject = ParamWithArray.new(values: [1, 2])
+          expect(subject.to_params(:param_with_array)).to eq ({"param_with_array[values][0]" => 1, "param_with_array[values][1]" => 2})
+        end
       end
 
-      it "creates correct params" do
-        subject = ParamWithArray.new(values: [1, 2])
-        expect(subject.to_params(:param_with_array)).to eq ({"param_with_array[values][0]" => 1, "param_with_array[values][1]" => 2})
+      context '#from_params' do
+        it "creates an invalid object from invalid params" do
+          params = {'values' => 'string'}
+          expect(ParamWithArray.from_params(params)).to_not be_valid
+        end
+
+        it 'includes an empty array' do
+          actual = ParamWithArray.from_params({'values' => []})
+          expect(actual).to be_valid
+          expect(actual.values).to be_empty
+        end
       end
 
-      it "creates an invalid object from invalid params" do
-        params = {'values' => 'string'}
-        expect(ParamWithArray.from_params(params)).to_not be_valid
+      context '#from_form_data' do
+
+        it 'does not include an empty array' do
+          actual = ParamWithArray.from_form_data({'values' => []})
+          expect(actual).to be_valid
+          expect(actual.values).to be_nil
+        end
       end
     end
 
