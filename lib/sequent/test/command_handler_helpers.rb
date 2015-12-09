@@ -125,9 +125,12 @@ module Sequent
         @repository.clear
       end
 
-      def then_events *events
-        expect(@event_store.stored_events.map(&:class)).to eq(events.flatten(1).map(&:class))
-        @event_store.stored_events.zip(events.flatten(1)).each do |actual, expected|
+      def then_events(*expected_events)
+        expected_classes = expected_events.flatten(1).map { |event| event.class == Class ? event : event.class }
+        expect(@event_store.stored_events.map(&:class)).to eq(expected_classes)
+
+        @event_store.stored_events.zip(expected_events.flatten(1)).each do |actual, expected|
+          next if expected.class == Class
           expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
         end
       end
