@@ -39,7 +39,7 @@ module Sequent
       #
       def commit_events(command, streams_with_events)
         store_events(command, streams_with_events)
-        publish_events(streams_with_events.flat_map {|_, events| events}, event_handlers)
+        publish_events(streams_with_events.flat_map { |_, events| events }, event_handlers)
       end
 
       ##
@@ -72,7 +72,7 @@ SELECT event_type, event_json
       #
       # @param block that returns the events.
       def replay_events
-        events = yield.map {|event_hash| deserialize_event(event_hash)}
+        events = yield.map { |event_hash| deserialize_event(event_hash) }
         publish_events(events, event_handlers)
       end
 
@@ -94,7 +94,7 @@ SELECT aggregate_id
  LIMIT #{quote limit}
  FOR UPDATE
 }
-        event_record_class.connection.select_all(query).map {|x| x['aggregate_id']}
+        event_record_class.connection.select_all(query).map { |x| x['aggregate_id'] }
       end
 
       def find_event_stream(aggregate_id)
@@ -140,7 +140,16 @@ SELECT aggregate_id
             event_stream.stream_record_id = stream_record.id
           end
           uncommitted_events.each do |event|
-            event_record_class.create!(command_record: command_record, stream_record_id: event_stream.stream_record_id, event: event)
+            values = {command_record: command_record,
+                      stream_record_id: event_stream.stream_record_id,
+                      aggregate_id: event.aggregate_id,
+                      sequence_number: event.sequence_number,
+                      event_type: event.class.name,
+                      event_json: event_record_class.serialize_to_json(event),
+                      created_at: event.created_at}
+            values = values.merge(organization_id: event.organization_id) if event.respond_to?(:organization_id)
+
+            event_record_class.create!(values)
           end
         end
       end

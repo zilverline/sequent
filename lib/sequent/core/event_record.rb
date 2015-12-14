@@ -16,7 +16,17 @@ module Sequent
         self.organization_id = event.organization_id if event.respond_to?(:organization_id)
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = Sequent::Core::Oj.dump(event.attributes)
+        self.event_json = self.class.serialize_to_json(event)
+      end
+
+      module ClassMethods
+        def serialize_to_json(event)
+          Sequent::Core::Oj.dump(event)
+        end
+      end
+
+      def self.included(host_class)
+        host_class.extend(ClassMethods)
       end
     end
 

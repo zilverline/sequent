@@ -122,6 +122,19 @@ EOS
           hash
         end
 
+        def as_json(opts = {})
+          hash = HashWithIndifferentAccess.new
+          self.class.types.each do |name, _|
+            value = self.instance_variable_get("@#{name}")
+            hash[name] = if value.respond_to?(:as_json)
+                           value.as_json(opts)
+                         else
+                           value
+                         end
+          end
+          hash
+        end
+
         def update(changes)
           self.class.new(attributes.merge(changes))
         end
@@ -134,8 +147,8 @@ EOS
               value.validation_errors.each { |k, v| result["#{field[0].to_s}_#{k.to_s}".to_sym] = v }
             elsif field[1].class == ArrayWithType and value.present?
               value
-              .select { |val| val.respond_to?(:validation_errors) }
-              .each_with_index do |val, index|
+                .select { |val| val.respond_to?(:validation_errors) }
+                .each_with_index do |val, index|
                 val.validation_errors.each do |k, v|
                   result["#{field[0].to_s}_#{index}_#{k.to_s}".to_sym] = v
                 end
