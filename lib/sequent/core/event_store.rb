@@ -18,7 +18,7 @@ module Sequent
         end
 
         def message
-          "Event Handler: #{@event_record_class.inspect}\nEvent: #{@event.inspect}\nCause: #{cause.inspect}"
+          "Event Handler: #{@event_handler_class.inspect}\nEvent: #{@event.inspect}\nCause: #{cause.inspect}"
         end
       end
 
