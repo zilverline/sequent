@@ -22,6 +22,19 @@ module Sequent
         end
       end
 
+      class DeserializeEventError < RuntimeError
+        attr_reader :event_hash
+
+        def initialize(event_hash)
+          @event_hash = event_hash
+        end
+
+        def message
+          "Event hash: #{event_hash.inspect}\nCause: #{cause.inspect}"
+        end
+
+      end
+
       attr_accessor :configuration
       def_delegators :@configuration, :stream_record_class, :event_record_class, :snapshot_event_class, :event_handlers
 
@@ -112,6 +125,8 @@ SELECT aggregate_id
         event_type = event_hash.fetch("event_type")
         event_json = Sequent::Core::Oj.strict_load(event_hash.fetch("event_json"))
         resolve_event_type(event_type).deserialize_from_json(event_json)
+      rescue
+        raise DeserializeEventError.new(event_hash)
       end
 
       def resolve_event_type(event_type)
