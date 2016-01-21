@@ -15,7 +15,8 @@ module Sequent
 
           load schema_definition
           event_store = Sequent.configuration.event_store
-          event_store.replay_events { Events::ORDERED_BY_ID[event_store] }
+          ordering = Events::ORDERED_BY_STREAM
+          event_store.replay_events { ordering[event_store] }
         end
       end
 
@@ -36,14 +37,17 @@ module Sequent
     module Events
       extend ActiveRecord::ConnectionAdapters::Quoting
 
-      ORDERED_BY_ID = lambda do |event_store|
+      ORDERED_BY_STREAM = lambda do |event_store|
+        stream_record_class = event_store.stream_record_class
         event_record_class = event_store.event_record_class
         snapshot_event_class = event_store.snapshot_event_class
         event_store.event_record_class.connection.select_all("
 SELECT event_type, event_json
-  FROM #{quote_table_name event_record_class.table_name}
+  FROM #{quote_table_name event_record_class.table_name} events
+INNER JOIN #{quote_table_name stream_record_class.table_name} streams
+    ON events.stream_record_id = streams.id
  WHERE event_type <> #{quote snapshot_event_class}
- ORDER BY id
+ ORDER BY streams.id, events.sequence_number
 ")
       end
     end
