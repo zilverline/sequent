@@ -62,7 +62,7 @@ module Sequent
         stream = stream_record_class.where(aggregate_id: aggregate_id).first
         return nil unless stream
         events = event_record_class.connection.select_all(%Q{
-SELECT event_type, event_json
+SELECT event_type, event_json, sequence_number
   FROM #{quote_table_name event_record_class.table_name}
  WHERE aggregate_id = #{quote aggregate_id}
    AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
@@ -124,7 +124,9 @@ SELECT aggregate_id
       def deserialize_event(event_hash)
         event_type = event_hash.fetch("event_type")
         event_json = Sequent::Core::Oj.strict_load(event_hash.fetch("event_json"))
-        resolve_event_type(event_type).deserialize_from_json(event_json)
+        event = resolve_event_type(event_type).deserialize_from_json(event_json)
+        event.sequence_number = event_hash.fetch('sequence_number').to_i
+        event
       rescue
         raise DeserializeEventError.new(event_hash)
       end
