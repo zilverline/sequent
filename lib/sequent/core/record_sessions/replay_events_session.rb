@@ -227,26 +227,9 @@ module Sequent
                 conn = ActiveRecord::Base.connection.raw_connection
                 copy_data = StringIO.new csv.string
                 conn.transaction do
-                  conn.exec("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv")
-                  begin
+                  conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
                     while copy_data.read(1024, buf)
-                      ### Uncomment this to test error-handling for exceptions from the reader side:
-                      # raise Errno::ECONNRESET, "socket closed while reading"
-                      until conn.put_copy_data(buf)
-                        sleep 0.1
-                      end
-                    end
-                  rescue Errno => err
-                    errmsg = "%s while reading copy data: %s" % [err.class.name, err.message]
-                    conn.put_copy_end(errmsg)
-                  ensure
-                    conn.put_copy_end
-                    copy_data.close
-                    while res = conn.get_result
-                      status = res.res_status(res.result_status)
-                      if status != "PGRES_COMMAND_OK"
-                        raise "Postgres copy command failed: #{status}, #{res.error_message}"
-                      end
+                      conn.put_copy_data(buf)
                     end
                   end
                 end
