@@ -34,7 +34,7 @@ module Sequent
             if value && incorrect_type?(value, record, association)
               record.errors[association] = "is not of type #{describe_type(record.class.types[association])}"
             elsif value && value.is_a?(Array)
-              item_type = record.class.type_for(association).item_type
+              item_type = record.class.types.fetch(association).item_type
               record.errors[association] = "is invalid" unless validate_all(value, item_type).all?
             else
               record.errors[association] = "is invalid" if value && value.invalid?
