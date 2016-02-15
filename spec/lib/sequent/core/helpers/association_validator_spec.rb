@@ -92,6 +92,23 @@ describe Sequent::Core::Helpers::AssociationValidator do
       expect(object.validation_errors[:numbers_0_number]).to_not be_empty
       expect(object.validation_errors[:numbers_2_number]).to_not be_empty
     end
+  end
 
+  context 'inheritance' do
+    let(:options) { {associations: [:numbers]} }
+
+    class ValueObjectWithArray < Sequent::Core::ValueObject
+      attrs numbers: array(Integer)
+
+      validates :numbers, presence: true
+    end
+
+    SubclassWithArray = Class.new(ValueObjectWithArray)
+
+    it 'can handle inherited array properties' do
+      object = SubclassWithArray.new(numbers: (1..5).to_a)
+      subject.validate(object)
+      expect(object.errors).to be_empty
+    end
   end
 end

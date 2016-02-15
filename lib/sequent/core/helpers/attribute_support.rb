@@ -34,7 +34,8 @@ module Sequent
           end
 
           def type_for(name)
-            @types.find { |k, _| k == name }.last
+            _, type = types.find { |k, _| k == name }
+            type
           end
 
           def attrs(args)
