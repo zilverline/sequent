@@ -33,10 +33,6 @@ module Sequent
             end
           end
 
-          def type_for(name)
-            @types.find { |k, _| k == name }.last
-          end
-
           def attrs(args)
             @types ||= {}
             @types.merge!(args)
