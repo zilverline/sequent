@@ -81,7 +81,7 @@ module Sequent
           if self.class.struct_cache.has_key?(struct_class_name)
             struct_class = self.class.struct_cache[struct_class_name]
           else
-            if column_names.include? :aggregate_id
+            if column_names.include? 'aggregate_id'
               @indices[record_class] ||= []
               @indices[record_class] << [:aggregate_id]
             end
