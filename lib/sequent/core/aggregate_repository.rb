@@ -18,13 +18,13 @@ module Sequent
 
       attr_reader :event_store
 
-      class NonUniqueAggregateId < Exception
+      class NonUniqueAggregateId < StandardError
         def initialize(existing, new)
           super "Duplicate aggregate #{new} with same key as existing #{existing}"
         end
       end
 
-      class AggregateNotFound < Exception
+      class AggregateNotFound < StandardError
         def initialize(id)
           super "Aggregate with id #{id} not found"
         end
