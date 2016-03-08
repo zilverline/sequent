@@ -22,6 +22,14 @@ module Sequent
         end
       end
 
+      class OptimisticLockingError < RuntimeError
+        attr_reader :event
+
+        def initialize(event)
+          @event = event
+        end
+      end
+
       class DeserializeEventError < RuntimeError
         attr_reader :event_hash
 
@@ -164,11 +172,14 @@ SELECT aggregate_id
                       created_at: event.created_at}
             values = values.merge(organization_id: event.organization_id) if event.respond_to?(:organization_id)
 
-            event_record_class.create!(values)
+            begin
+              event_record_class.create!(values)
+            rescue ActiveRecord::RecordNotUnique => e
+              fail OptimisticLockingError.new(event)
+            end
           end
         end
       end
     end
-
   end
 end
