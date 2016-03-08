@@ -174,7 +174,7 @@ SELECT aggregate_id
 
             begin
               event_record_class.create!(values)
-            rescue ActiveRecord::RecordNotUnique => e
+            rescue ActiveRecord::RecordNotUnique
               fail OptimisticLockingError.new(event)
             end
           end
