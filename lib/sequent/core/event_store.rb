@@ -28,6 +28,14 @@ module Sequent
         def initialize(event)
           @event = event
         end
+
+        def message
+          I18n.t(i18n_key)
+        end
+
+        def i18n_key
+          "errors.#{self.class.name}"
+        end
       end
 
       class DeserializeEventError < RuntimeError

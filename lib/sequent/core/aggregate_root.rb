@@ -37,6 +37,22 @@ module Sequent
 
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
 
+      class DomainError < RuntimeError
+        attr_reader :i18n_parameters
+
+        def initialize(i18n_parameters = {})
+          @i18n_parameters = i18n_parameters
+        end
+
+        def message
+          I18n.t(i18n_key, i18n_parameters)
+        end
+
+        def i18n_key
+          "errors.#{self.class.name}"
+        end
+      end
+
       def self.load_from_history(stream, events)
         first, *rest = events
         if first.is_a? SnapshotEvent
