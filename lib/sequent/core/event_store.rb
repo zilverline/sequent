@@ -23,11 +23,6 @@ module Sequent
       end
 
       class OptimisticLockingError < RuntimeError
-        attr_reader :event
-
-        def initialize(event)
-          @event = event
-        end
       end
 
       class DeserializeEventError < RuntimeError
@@ -129,6 +124,10 @@ SELECT aggregate_id
 
       private
 
+      def column_names
+        @column_names ||= event_record_class.column_names.reject { |c| c == 'id' }
+      end
+
       def deserialize_event(event_hash)
         event_type = event_hash.fetch("event_type")
         event_json = Sequent::Core::Oj.strict_load(event_hash.fetch("event_json"))
@@ -155,30 +154,37 @@ SELECT aggregate_id
 
       def store_events(command, streams_with_events = [])
         command_record = CommandRecord.create!(command: command)
-        streams_with_events.each do |event_stream, uncommitted_events|
+        event_records = streams_with_events.flat_map do |event_stream, uncommitted_events|
           unless event_stream.stream_record_id
             stream_record = stream_record_class.new
             stream_record.event_stream = event_stream
             stream_record.save!
             event_stream.stream_record_id = stream_record.id
           end
-          uncommitted_events.each do |event|
-            values = {command_record: command_record,
-                      stream_record_id: event_stream.stream_record_id,
-                      aggregate_id: event.aggregate_id,
-                      sequence_number: event.sequence_number,
-                      event_type: event.class.name,
-                      event_json: event_record_class.serialize_to_json(event),
-                      created_at: event.created_at}
+          uncommitted_events.map do |event|
+            values = {
+              command_record_id: command_record.id,
+              stream_record_id: event_stream.stream_record_id,
+              aggregate_id: event.aggregate_id,
+              sequence_number: event.sequence_number,
+              event_type: event.class.name,
+              event_json: event_record_class.serialize_to_json(event),
+              created_at: event.created_at
+            }
             values = values.merge(organization_id: event.organization_id) if event.respond_to?(:organization_id)
 
-            begin
-              event_record_class.create!(values)
-            rescue ActiveRecord::RecordNotUnique
-              fail OptimisticLockingError.new(event)
-            end
+            event_record_class.new(values)
           end
         end
+        connection = event_record_class.connection
+        values = event_records
+                   .map { |r| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
+                   .join(',')
+        columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
+        sql = %Q{insert into #{connection.quote_table_name(event_record_class.table_name)} (#{columns}) values #{values}}
+        event_record_class.connection.insert_sql(sql)
+      rescue ActiveRecord::RecordNotUnique
+        fail OptimisticLockingError.new
       end
     end
   end
