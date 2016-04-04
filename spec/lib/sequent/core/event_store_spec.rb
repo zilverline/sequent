@@ -74,6 +74,22 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe '#commit_events' do
+    it 'fails with OptimisticLockingError when RecordNotUnique' do
+      expect {
+      event_store.commit_events(
+        Sequent::Core::CommandRecord.new,
+        [
+          [
+            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1), MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
+          ]
+        ]
+      )
+      }.to raise_error(Sequent::Core::EventStore::OptimisticLockingError) {|error|expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)}
+    end
+  end
+
   describe '#exists?' do
     it 'gets true for an existing aggregate' do
       event_store.commit_events(
