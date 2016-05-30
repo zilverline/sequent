@@ -18,7 +18,8 @@ module Sequent
         }
 
         def self.parse_to_integer(value)
-          Integer(value) unless value.blank?
+          return value if value.is_a?(Integer)
+          Integer(value, 10) unless value.blank?
         end
 
         def self.parse_to_bigdecimal(value)

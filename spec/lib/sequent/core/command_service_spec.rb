@@ -60,8 +60,32 @@ describe Sequent::Core::CommandService do
       command_service.execute_commands(command)
     end
 
+    it 'removes leading zeros if it is valid' do
+      command = WithIntegerCommand.new(aggregate_id: "1", value: "02")
+      expect(foo_handler).to receive(:handles_message?).and_return(true)
+      expect(foo_handler).to receive(:handle_message).with(
+                               WithIntegerCommand.new(aggregate_id: "1", value: 2)
+                             ).and_return(true)
+
+      command_service.execute_commands(command)
+    end
+
     it "does not parse values if the command is invalid" do
       command = WithIntegerCommand.new(value: "A")
+      expect { command_service.execute_commands(command) }.to raise_error do |e|
+                                                                expect(e.errors[:value]).to eq ['is not a number']
+                                                              end
+    end
+
+    it "does not removes leading zeros if command is invalid" do
+      command = WithIntegerCommand.new(aggregate_id: "1", value: "0x")
+      expect { command_service.execute_commands(command) }.to raise_error do |e|
+                                                                expect(e.errors[:value]).to eq ['is not a number']
+                                                              end
+    end
+
+    it "does not removes leading zeros when using hexadecimal values" do
+      command = WithIntegerCommand.new(aggregate_id: "1", value: "0x10")
       expect { command_service.execute_commands(command) }.to raise_error do |e|
                                                                 expect(e.errors[:value]).to eq ['is not a number']
                                                               end
