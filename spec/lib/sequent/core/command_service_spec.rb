@@ -83,5 +83,12 @@ describe Sequent::Core::CommandService do
                                                                 expect(e.errors[:value]).to eq ['is not a number']
                                                               end
     end
+
+    it "does not removes leading zeros when using hexadecimal values" do
+      command = WithIntegerCommand.new(aggregate_id: "1", value: "0x10")
+      expect { command_service.execute_commands(command) }.to raise_error do |e|
+                                                                expect(e.errors[:value]).to eq ['is not a number']
+                                                              end
+    end
   end
 end
