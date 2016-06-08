@@ -141,6 +141,7 @@ SELECT aggregate_id
       end
 
       def publish_events(events, event_handlers)
+        return if configuration.disable_event_handlers
         events.each do |event|
           event_handlers.each do |handler|
             begin
