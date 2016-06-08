@@ -160,6 +160,23 @@ describe Sequent::Core::EventStore do
         )
         expect(handler.recorded_events).to eq([my_event])
       end
+
+      context 'Sequent.configuration.disable_event_handlers = true' do
+        it 'does not publish any events' do
+          Sequent.configuration.disable_event_handlers = true
+          my_event = MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)
+          event_store.commit_events(
+            Sequent::Core::CommandRecord.new,
+            [
+              [
+                Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
+                [my_event]
+              ]
+            ]
+          )
+          expect(handler.recorded_events).to eq([])
+        end
+      end
     end
 
     context 'given a failing event handler' do

@@ -21,6 +21,8 @@ module Sequent
 
     attr_accessor :uuid_generator
 
+    attr_accessor :disable_event_handlers
+
     def self.instance
       @instance ||= new
     end
@@ -45,6 +47,7 @@ module Sequent
       self.snapshot_event_class = Sequent::Core::SnapshotEvent
       self.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
+      self.disable_event_handlers = false
     end
 
     def event_store=(event_store)
