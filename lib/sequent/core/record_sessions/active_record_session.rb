@@ -31,7 +31,8 @@ module Sequent
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
           unless record
-            record = new_record(record_class, values.merge(created_at: created_at))
+            record = new_record(record_class, values)
+            record.created_at = created_at if record.respond_to?(:created_at)
           end
           yield record
           record.save!
