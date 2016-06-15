@@ -65,12 +65,13 @@ module Sequent
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
-          defaults = {update_sequence_number: true}
-          args = defaults.merge(options)
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
           yield record if block_given?
-          record.sequence_number = event.sequence_number if args[:update_sequence_number]
+          update_sequence_number = options.key?(:update_sequence_number) ?
+                                     options[:update_sequence_number] :
+                                     record.respond_to?(:sequence_number=)
+          record.sequence_number = event.sequence_number if update_sequence_number
         end
 
         def create_record(record_class, values)

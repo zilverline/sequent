@@ -11,13 +11,14 @@ module Sequent
       class ActiveRecordSession
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
-          defaults = {update_sequence_number: true}
-          args = defaults.merge(options)
           record = record_class.unscoped.where(where_clause).first
           raise("Record of class #{record_class} with where clause #{where_clause} not found while handling event #{event}") unless record
-          yield record if block_given?
-          record.sequence_number = event.sequence_number if args[:update_sequence_number]
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
+          yield record if block_given?
+          update_sequence_number = options.key?(:update_sequence_number) ?
+                                     options[:update_sequence_number] :
+                                     record.respond_to?(:sequence_number=)
+          record.sequence_number = event.sequence_number if update_sequence_number
           record.save!
         end
 
