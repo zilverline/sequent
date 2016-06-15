@@ -97,12 +97,27 @@ SELECT event_type, event_json
       #
       # Prefer this replay method if your db adapter supports cursors.
       #
-      # @param block that returns the events cursor
-      def replay_events_from_cursor(block_size: 2000, &block)
-        cursor = block.call
+      # @param get_events lambda that returns the events cursor
+      # @param on_progress lambda that gets called on substantial progress
+      def replay_events_from_cursor(block_size: 2000,
+                                    get_events:,
+                                    on_progress: PRINT_PROGRESS)
+        progress = 0
+        cursor = get_events.call
         cursor.each_row(block_size: block_size).each do |record|
           event = deserialize_event(record)
           publish_events([event], event_handlers)
+          progress += 1
+          on_progress[progress, false] if progress % block_size == 0
+        end
+        on_progress[progress, true]
+      end
+
+      PRINT_PROGRESS = lambda do |progress, done|
+        if done
+          puts "Done replaying #{progress} events"
+        else
+          puts "Replayed #{progress} events"
         end
       end
 
