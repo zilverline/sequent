@@ -61,6 +61,7 @@ module Sequent
         recorded = fake_command_service.recorded_commands
         expect(recorded.map(&:class)).to eq(commands.flatten(1).map(&:class))
         expect(fake_command_service.recorded_commands).to eq(commands.flatten(1))
+        expect(recorded).to all(be_valid)
       end
 
       def self.included(spec)
