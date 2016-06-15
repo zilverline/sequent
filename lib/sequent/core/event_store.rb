@@ -93,6 +93,20 @@ SELECT event_type, event_json
       end
 
       ##
+      # Replays all events on an `EventRecord` cursor from the given block.
+      #
+      # Prefer this replay method if your db adapter supports cursors.
+      #
+      # @param block that returns the events cursor
+      def replay_events_from_cursor(block_size: 2000, &block)
+        cursor = block.call
+        cursor.each_row(block_size: block_size).each do |record|
+          event = deserialize_event(record)
+          publish_events([event], event_handlers)
+        end
+      end
+
+      ##
       # Returns the ids of aggregates that need a new snapshot.
       #
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
