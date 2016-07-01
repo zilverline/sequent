@@ -1,7 +1,6 @@
 require 'spec_helper'
 
 describe Sequent::Core::BaseCommand do
-
   it "includes TypeConversion" do
     expect(Sequent::Core::BaseCommand.included_modules).to include(Sequent::Core::Helpers::TypeConversionSupport)
   end
@@ -40,4 +39,13 @@ describe Sequent::Core::BaseCommand do
     end
   end
 
+  context Sequent::Core::Commands do
+    it 'registers subclasses of Sequent::Core::Command' do
+      expect(Sequent::Core::Commands.find('Sequent::Core::UpdateCommand')).to eq Sequent::Core::UpdateCommand
+    end
+
+    it 'does not find any other object' do
+      expect(Sequent::Core::Commands.find('String')).to eq nil
+    end
+  end
 end

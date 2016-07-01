@@ -36,6 +36,26 @@ module Sequent
       end
     end
 
+    class Commands
+      class << self
+        def commands
+          @commands ||= []
+        end
+
+        def all
+          commands
+        end
+
+        def <<(command)
+          commands << command
+        end
+
+        def find(command_name)
+          commands.find { |c| c.name == command_name }
+        end
+      end
+    end
+
     # Most commonly used command
     # Command can be instantiated just by using:
     #
@@ -54,6 +74,9 @@ module Sequent
         super
       end
 
+      def self.inherited(subclass)
+        Commands << subclass
+      end
     end
 
     class UpdateCommand < Command
