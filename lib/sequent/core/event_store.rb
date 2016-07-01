@@ -87,7 +87,9 @@ SELECT event_type, event_json
       # Replays all events in the event store to the registered event_handlers.
       #
       # @param block that returns the events.
+      # <b>DEPRECATED:</b> use <tt>replay_events_from_cursor</tt> instead.
       def replay_events
+        warn "[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`"
         events = yield.map { |event_hash| deserialize_event(event_hash) }
         publish_events(events, event_handlers)
       end
