@@ -1,4 +1,6 @@
 require 'spec_helper'
+require 'sequent/support'
+require 'postgresql_cursor'
 
 describe Sequent::Core::EventStore do
 
@@ -212,6 +214,80 @@ describe Sequent::Core::EventStore do
       it 'specifies the event that failed' do
         expect(publish_error.event).to eq(my_event)
       end
+    end
+  end
+
+  describe "#replay_events_from_cursor" do
+    let(:stream_record) do
+      Sequent::Core::StreamRecord.create!(
+        aggregate_type: "Sequent::Core::AggregateRoot",
+        aggregate_id: aggregate_id,
+        created_at: DateTime.now
+      )
+    end
+    let(:command_record) do
+      Sequent::Core::CommandRecord.create!(
+        command_type: "Sequent::Core::Command",
+        command_json: "{}",
+        aggregate_id: stream_record.aggregate_id
+      )
+    end
+    let(:get_events_cursor) do
+      ->() { Sequent::Support::Events::ORDERED_BY_STREAM[event_store] }
+    end
+
+    before do
+      Sequent::Core::EventRecord.delete_all
+      5.times do |n|
+        Sequent::Core::EventRecord.create!(
+          aggregate_id: stream_record.aggregate_id,
+          sequence_number: n + 1,
+          event_type: "Sequent::Core::Event",
+          event_json: "{}",
+          created_at: DateTime.now,
+          command_record_id: command_record.id,
+          stream_record_id: stream_record.id
+        )
+      end
+    end
+
+    it "publishes all events" do
+      replay_counter = ReplayCounter.new
+      event_store.configuration.event_handlers << replay_counter
+      event_store.replay_events_from_cursor(
+        block_size: 2,
+        get_events: get_events_cursor,
+        on_progress: proc {}
+      )
+      expect(replay_counter.replay_count).to eq(Sequent::Core::EventRecord.count)
+    end
+
+    it "reports progress for each block" do
+      progress = 0
+      progress_reported_count = 0
+      on_progress = lambda do |n, _|
+        progress = n
+        progress_reported_count += 1
+      end
+      event_store.replay_events_from_cursor(
+        block_size: 2,
+        get_events: get_events_cursor,
+        on_progress: on_progress
+      )
+      total_events = Sequent::Core::EventRecord.count
+      expect(progress).to eq(total_events)
+      expect(progress_reported_count).to eq((total_events / 2.0).ceil)
+    end
+  end
+
+  class ReplayCounter < Sequent::Core::BaseEventHandler
+    attr_reader :replay_count
+    def initialize
+      @replay_count = 0
+    end
+
+    on Sequent::Core::Event do |_|
+      @replay_count += 1
     end
   end
 end
