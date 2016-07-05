@@ -1,3 +1,5 @@
+require 'postgresql_cursor'
+
 module Sequent
   module Support
     class ViewProjection
@@ -16,7 +18,10 @@ module Sequent
           load schema_definition
           event_store = Sequent.configuration.event_store
           ordering = Events::ORDERED_BY_STREAM
-          event_store.replay_events_from_cursor { ordering[event_store] }
+          event_store.replay_events_from_cursor(
+            block_size: 10_000,
+            get_events: ->() { ordering[event_store] }
+          )
         end
       end
 
