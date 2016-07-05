@@ -87,9 +87,40 @@ SELECT event_type, event_json
       # Replays all events in the event store to the registered event_handlers.
       #
       # @param block that returns the events.
+      # <b>DEPRECATED:</b> use <tt>replay_events_from_cursor</tt> instead.
       def replay_events
+        warn "[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`"
         events = yield.map { |event_hash| deserialize_event(event_hash) }
         publish_events(events, event_handlers)
+      end
+
+      ##
+      # Replays all events on an `EventRecord` cursor from the given block.
+      #
+      # Prefer this replay method if your db adapter supports cursors.
+      #
+      # @param get_events lambda that returns the events cursor
+      # @param on_progress lambda that gets called on substantial progress
+      def replay_events_from_cursor(block_size: 2000,
+                                    get_events:,
+                                    on_progress: PRINT_PROGRESS)
+        progress = 0
+        cursor = get_events.call
+        cursor.each_row(block_size: block_size).each do |record|
+          event = deserialize_event(record)
+          publish_events([event], event_handlers)
+          progress += 1
+          on_progress[progress, false] if progress % block_size == 0
+        end
+        on_progress[progress, true]
+      end
+
+      PRINT_PROGRESS = lambda do |progress, done|
+        if done
+          puts "Done replaying #{progress} events"
+        else
+          puts "Replayed #{progress} events"
+        end
       end
 
       ##
