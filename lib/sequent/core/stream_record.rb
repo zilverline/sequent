@@ -20,7 +20,7 @@ module Sequent
       validates_presence_of :aggregate_type, :aggregate_id
       validates_numericality_of :snapshot_threshold, only_integer: true, greater_than: 0, allow_nil: true
 
-      has_many :events
+      has_many :event_records
 
       def event_stream
         EventStream.new(aggregate_type: aggregate_type, aggregate_id: aggregate_id, snapshot_threshold: snapshot_threshold, stream_record_id: id)
