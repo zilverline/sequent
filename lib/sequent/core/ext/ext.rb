@@ -36,12 +36,24 @@ class Boolean
 end
 
 class Date
+  def self.from_params(value)
+    value.blank? ? nil : Date.iso8601(value.dup)
+  rescue ArgumentError
+    value
+  end
+
   def self.deserialize_from_json(value)
     value.blank? ? nil : Date.iso8601(value.dup)
   end
 end
 
 class DateTime
+  def self.from_params(value)
+    value.blank? ? nil : DateTime.iso8601(value.dup)
+  rescue ArgumentError
+    value
+  end
+
   def self.deserialize_from_json(value)
     value.blank? ? nil : DateTime.iso8601(value.dup)
   end

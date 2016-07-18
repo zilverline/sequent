@@ -186,17 +186,17 @@ describe Sequent::Core::Helpers::AttributeSupport do
       end
 
       it "handles valid date strings" do
-        obj = WithDate.new(value: "01-01-2015")
+        obj = WithDate.new(value: "2015-01-01")
         expect(obj.valid?).to be_truthy
       end
 
       it "handles valid date formats" do
-        obj = WithDate.new(value: "1-1-2015")
+        obj = WithDate.new(value: "2015-1-1")
         expect(obj.valid?).to be_falsey
       end
 
       it "reports errors for invalid date" do
-        obj = WithDate.new(value: "aa-bb-cccc")
+        obj = WithDate.new(value: "cccc-aa-bb")
         expect(obj.valid?).to be_falsey
       end
 
@@ -326,7 +326,7 @@ describe Sequent::Core::Helpers::AttributeSupport do
         end
 
         it "handles valid input" do
-          obj = ArrayWithDate.new(values: ["01-01-2015", Date.today])
+          obj = ArrayWithDate.new(values: ["2015-01-01", Date.today])
           expect(obj.valid?).to be_truthy
         end
 
