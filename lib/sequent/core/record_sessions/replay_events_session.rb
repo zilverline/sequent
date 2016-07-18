@@ -52,6 +52,84 @@ module Sequent
           end
         end
 
+        class Index
+          def initialize(indexed_columns)
+            @indexed_columns = Hash.new do |hash, record_class|
+              if record_class.column_names.include? 'aggregate_id'
+                hash[record_class] = [:aggregate_id]
+              else
+                hash[record_class] = []
+              end
+            end
+
+            @indexed_columns.merge!(indexed_columns)
+
+            @index = {}
+            @reverse_index = {}
+          end
+
+          def add(record_class, record)
+            return unless indexed?(record_class)
+
+            get_keys(record_class, record).each do |key|
+              @index[key] ||= []
+              @index[key] << record
+
+              @reverse_index[record] ||= []
+              @reverse_index[record] << key
+            end
+          end
+
+          def remove(record_class, record)
+            return unless indexed?(record_class)
+
+            keys = @reverse_index.delete(record) { [] }
+
+            return unless keys.any?
+
+            keys.each do |key|
+              @index[key].delete(record)
+            end
+          end
+
+          def update(record_class, record)
+            remove(record_class, record)
+            add(record_class, record)
+          end
+
+          def find(record_class, where_clause)
+            key = get_index(record_class, where_clause).reduce([record_class]) do |arr, field|
+              arr << where_clause[field]
+            end
+            @index[key] || []
+          end
+
+          def clear
+            @index = {}
+            @reverse_index = {}
+          end
+
+          def use_index?(record_class, where_clause)
+            @indexed_columns.has_key?(record_class) && @indexed_columns[record_class].any? { |indexed_where| where_clause.keys.size == indexed_where.size && (where_clause.keys - indexed_where).empty? }
+          end
+
+          private
+
+          def indexed?(record_class)
+            @indexed_columns.has_key?(record_class)
+          end
+
+          def get_keys(record_class, record)
+            @indexed_columns[record_class].map do |index|
+              index.reduce([record_class]) { |arr, key| arr << record[key] }
+            end
+          end
+
+          def get_index(record_class, where_clause)
+            @indexed_columns[record_class].find { |indexed_where| where_clause.keys.size == indexed_where.size && (where_clause.keys - indexed_where).empty? }
+          end
+        end
+
         # +insert_with_csv_size+ number of records to insert in a single batch
         #
         # +indices+ Hash of indices to create in memory. Greatly speeds up the replaying.
@@ -60,14 +138,14 @@ module Sequent
         def initialize(insert_with_csv_size = 50, indices = {})
           @insert_with_csv_size = insert_with_csv_size
           @record_store = Hash.new { |h, k| h[k] = Set.new }
-          @record_index = {}
-          @indices = indices
+          @record_index = Index.new(indices)
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
           yield record if block_given?
+          @record_index.update(record_class, record)
           update_sequence_number = options.key?(:update_sequence_number) ?
                                      options[:update_sequence_number] :
                                      record.respond_to?(:sequence_number=)
@@ -82,11 +160,6 @@ module Sequent
           if self.class.struct_cache.has_key?(struct_class_name)
             struct_class = self.class.struct_cache[struct_class_name]
           else
-            if column_names.include? 'aggregate_id'
-              @indices[record_class] ||= []
-              @indices[record_class] << [:aggregate_id]
-            end
-
             # We create a struct on the fly.
             # Since the replay happens in memory we implement the ==, eql? and hash methods
             # to point to the same object. A record is the same if and only if they point to
@@ -116,12 +189,8 @@ module Sequent
           yield record if block_given?
           @record_store[record_class] << record
 
-          if indexed?(record_class)
-            do_with_cache_keys(record_class, record) do |key|
-              @record_index[key] = [] unless @record_index.has_key?(key)
-              @record_index[key] << record
-            end
-          end
+          @record_index.add(record_class, record)
+
           record
         end
 
@@ -131,6 +200,7 @@ module Sequent
             record = create_record(record_class, values.merge(created_at: created_at))
           end
           yield record if block_given?
+          @record_index.update(record_class, record)
           record
         end
 
@@ -153,11 +223,7 @@ module Sequent
 
         def delete_record(record_class, record)
           @record_store[record_class].delete(record)
-          if indexed?(record_class)
-            do_with_cache_keys(record_class, record) do |key|
-              @record_index[key].delete(record) if @record_index.has_key?(key)
-            end
-          end
+          @record_index.remove(record_class, record)
         end
 
         def update_all_records(record_class, where_clause, updates)
@@ -165,6 +231,7 @@ module Sequent
             updates.each_pair do |k, v|
               record[k.to_sym] = v
             end
+            @record_index.update(record_class, record)
           end
         end
 
@@ -172,18 +239,19 @@ module Sequent
           records = find_records(record_class, where_clause)
           records.each do |record|
             yield record
+            @record_index.update(record_class, record)
           end
         end
 
         def do_with_record(record_class, where_clause)
           record = get_record!(record_class, where_clause)
           yield record
+          @record_index.update(record_class, record)
         end
 
         def find_records(record_class, where_clause)
-          if use_index?(record_class, where_clause)
-            values = get_index(record_class, where_clause).map { |field| where_clause[field] }
-            @record_index[[record_class, *values]] || []
+          if @record_index.use_index?(record_class, where_clause)
+            @record_index.find(record_class, where_clause)
           else
             @record_store[record_class].select do |record|
               where_clause.all? do |k, v|
@@ -261,32 +329,7 @@ module Sequent
           @record_store.clear
           @record_index.clear
         end
-
-        private
-        def indexed?(record_class)
-          @indices.has_key?(record_class)
-        end
-
-        def do_with_cache_keys(record_class, record)
-          @indices[record_class].each do |index|
-            cache_key = [record_class]
-            index.each do |key|
-              cache_key << record[key]
-            end
-            yield cache_key
-          end
-        end
-
-        def use_index?(record_class, where_clause)
-          @indices.has_key?(record_class) and @indices[record_class].any? { |indexed_where| where_clause.keys.size == indexed_where.size and (where_clause.keys - indexed_where).empty? }
-        end
-
-        def get_index(record_class, where_clause)
-          @indices[record_class].find { |indexed_where| where_clause.keys.size == indexed_where.size and (where_clause.keys - indexed_where).empty? }
-        end
-
       end
-
     end
   end
 end
