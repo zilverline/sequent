@@ -37,6 +37,7 @@ end
 
 class Date
   def self.from_params(value)
+    return value if value.is_a?(Date)
     value.blank? ? nil : Date.iso8601(value.dup)
   rescue ArgumentError
     value
