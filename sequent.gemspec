@@ -19,6 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency              'postgresql_cursor', '~> 0.6'
   s.add_dependency              'oj', '~> 2.10'
   s.add_dependency              'thread_safe', '~> 0.3.5'
+  s.add_dependency              'google_hash', '~> 0.9.0'
   s.add_development_dependency  'rspec', '~> 3.2'
   s.add_development_dependency  'rspec-mocks', '~> 3.2'
   s.add_development_dependency  'rspec-collection_matchers', '~> 1.1'
