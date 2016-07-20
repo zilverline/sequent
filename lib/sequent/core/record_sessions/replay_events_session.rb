@@ -99,7 +99,8 @@ module Sequent
           end
 
           def find(record_class, where_clause)
-            key = [record_class.name] + get_index(record_class, where_clause).map { |field| where_clause[field] }
+            key = [record_class.name]
+            get_index(record_class, where_clause).each { |field| key << where_clause[field] }
             @index[key.hash] || []
           end
 
@@ -120,7 +121,9 @@ module Sequent
 
           def get_keys(record_class, record)
             @indexed_columns[record_class].map do |index|
-              [record_class.name] + index.map { |key| record[key] }
+              arr = [record_class.name]
+              index.each { |key| arr << record[key] }
+              arr
             end
           end
 
