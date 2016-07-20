@@ -70,7 +70,6 @@ module Sequent
           end
 
           def add(record_class, record)
-            return
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
@@ -84,7 +83,6 @@ module Sequent
           end
 
           def remove(record_class, record)
-            return
             return unless indexed?(record_class)
 
             keys = @reverse_index.delete(record.object_id.hash) { [] }
@@ -257,7 +255,7 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          if false #@record_index.use_index?(record_class, where_clause)
+          if @record_index.use_index?(record_class, where_clause)
             @record_index.find(record_class, where_clause)
           else
             @record_store[record_class].select do |record|
