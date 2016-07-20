@@ -66,25 +66,25 @@ module Sequent
             @indexed_columns.merge!(indexed_columns)
 
             @index = GoogleHashSparseLongToRuby.new
-            # @reverse_index = GoogleHashSparseLongToRuby.new
+            @reverse_index = GoogleHashSparseLongToRuby.new
           end
 
           def add(record_class, record)
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              @index[key.hash] ||= []
+              @index[key.hash] = [] unless @index.has_key? key.hash
               @index[key.hash] << record
 
-              # @reverse_index[record.hash] ||= []
-              # @reverse_index[record.hash] << key.hash
+              @reverse_index[record.object_id.hash] = [] unless @reverse_index.has_key? record.object_id.hash
+              @reverse_index[record.object_id.hash] << key.hash
             end
           end
 
           def remove(record_class, record)
             return unless indexed?(record_class)
 
-            keys = @reverse_index.delete(record.hash) { [] }
+            keys = @reverse_index.delete(record.object_id.hash) { [] }
 
             return unless keys.any?
 
@@ -94,8 +94,8 @@ module Sequent
           end
 
           def update(record_class, record)
-            # remove(record_class, record)
-            # add(record_class, record)
+            remove(record_class, record)
+            add(record_class, record)
           end
 
           def find(record_class, where_clause)
@@ -105,8 +105,8 @@ module Sequent
           end
 
           def clear
-            @index = {}
-            @reverse_index = {}
+            @index = GoogleHashSparseLongToRuby.new
+            @reverse_index = GoogleHashSparseLongToRuby.new
           end
 
           def use_index?(record_class, where_clause)
@@ -225,7 +225,7 @@ module Sequent
 
         def delete_record(record_class, record)
           @record_store[record_class].delete(record)
-          # @record_index.remove(record_class, record)
+          @record_index.remove(record_class, record)
         end
 
         def update_all_records(record_class, where_clause, updates)
