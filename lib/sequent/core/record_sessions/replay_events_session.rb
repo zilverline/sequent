@@ -66,7 +66,7 @@ module Sequent
             @indexed_columns.merge!(indexed_columns)
 
             @index = GoogleHashSparseLongToRuby.new
-            @reverse_index = GoogleHashSparseLongToRuby.new
+            # @reverse_index = GoogleHashSparseLongToRuby.new
           end
 
           def add(record_class, record)
@@ -76,8 +76,8 @@ module Sequent
               @index[key.hash] ||= []
               @index[key.hash] << record
 
-              @reverse_index[record.hash] ||= []
-              @reverse_index[record.hash] << key.hash
+              # @reverse_index[record.hash] ||= []
+              # @reverse_index[record.hash] << key.hash
             end
           end
 
@@ -94,8 +94,8 @@ module Sequent
           end
 
           def update(record_class, record)
-            remove(record_class, record)
-            add(record_class, record)
+            # remove(record_class, record)
+            # add(record_class, record)
           end
 
           def find(record_class, where_clause)
@@ -225,7 +225,7 @@ module Sequent
 
         def delete_record(record_class, record)
           @record_store[record_class].delete(record)
-          @record_index.remove(record_class, record)
+          # @record_index.remove(record_class, record)
         end
 
         def update_all_records(record_class, where_clause, updates)
