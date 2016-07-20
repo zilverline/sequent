@@ -65,26 +65,26 @@ module Sequent
 
             @indexed_columns.merge!(indexed_columns)
 
-            @index = GoogleHashSparseRubyToRuby.new
-            @reverse_index = GoogleHashSparseRubyToRuby.new
+            @index = GoogleHashSparseIntToRuby.new
+            @reverse_index = GoogleHashSparseIntToInt.new
           end
 
           def add(record_class, record)
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              @index[key] ||= []
-              @index[key] << record
+              @index[key.hash] ||= []
+              @index[key.hash] << record
 
-              @reverse_index[record] ||= []
-              @reverse_index[record] << key
+              @reverse_index[record.hash] ||= []
+              @reverse_index[record.hash] << key.hash
             end
           end
 
           def remove(record_class, record)
             return unless indexed?(record_class)
 
-            keys = @reverse_index.delete(record) { [] }
+            keys = @reverse_index.delete(record.hash) { [] }
 
             return unless keys.any?
 
@@ -99,10 +99,8 @@ module Sequent
           end
 
           def find(record_class, where_clause)
-            key = get_index(record_class, where_clause).reduce([record_class]) do |arr, field|
-              arr << where_clause[field]
-            end
-            @index[key] || []
+            key = [record_class.name] + get_index(record_class, where_clause).map { |field| where_clause[field] }
+            @index[key.hash] || []
           end
 
           def clear
@@ -122,7 +120,7 @@ module Sequent
 
           def get_keys(record_class, record)
             @indexed_columns[record_class].map do |index|
-              index.reduce([record_class]) { |arr, key| arr << record[key] }
+              [record_class.name] + index.map { |key| record[key] }
             end
           end
 
