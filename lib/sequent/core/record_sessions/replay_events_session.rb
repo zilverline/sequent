@@ -65,8 +65,8 @@ module Sequent
 
             @indexed_columns.merge!(indexed_columns)
 
-            @index = GoogleHashSparseIntToRuby.new
-            @reverse_index = GoogleHashSparseIntToInt.new
+            @index = GoogleHashSparseLongToRuby.new
+            @reverse_index = GoogleHashSparseLongToLong.new
           end
 
           def add(record_class, record)
