@@ -90,6 +90,7 @@ module Sequent
 
             keys.each do |key|
               @index[key].delete(record)
+              @index.delete(key) if @index[key].count == 0
             end
           end
 
