@@ -274,54 +274,52 @@ module Sequent
         end
 
         def commit
-          begin
-            @record_store.each do |clazz, records|
-              @column_cache ||= {}
-              @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
-                hash.merge({ column.name => column })
+          @record_store.each do |clazz, records|
+            @column_cache ||= {}
+            @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
+              hash.merge({ column.name => column })
+            end
+            if records.size > @insert_with_csv_size
+              csv = CSV.new("")
+              column_names = clazz.column_names.reject { |name| name == "id" }
+              records.each do |obj|
+                begin
+                  csv << column_names.map do |column_name|
+                    @column_cache[clazz.name][column_name].type_cast_for_database(obj[column_name])
+                  end
+                end
               end
-              if records.size > @insert_with_csv_size
-                csv = CSV.new("")
-                column_names = clazz.column_names.reject { |name| name == "id" }
-                records.each do |obj|
-                  begin
-                    csv << column_names.map do |column_name|
-                      @column_cache[clazz.name][column_name].type_cast_for_database(obj[column_name])
-                    end
-                  end
-                end
 
-                buf = ''
-                conn = ActiveRecord::Base.connection.raw_connection
-                copy_data = StringIO.new csv.string
-                conn.transaction do
-                  conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
-                    while copy_data.read(1024, buf)
-                      conn.put_copy_data(buf)
-                    end
+              buf = ''
+              conn = ActiveRecord::Base.connection.raw_connection
+              copy_data = StringIO.new csv.string
+              conn.transaction do
+                conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
+                  while copy_data.read(1024, buf)
+                    conn.put_copy_data(buf)
                   end
                 end
-              else
-                clazz.unscoped do
-                  inserts = []
-                  column_names = clazz.column_names.reject { |name| name == "id" }
-                  prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
-                  records.each do |r|
-                    values = column_names.map do |column_name|
-                      @column_cache[clazz.name][column_name].type_cast_for_database(r[column_name.to_sym])
-                    end
-                    inserts << values
+              end
+            else
+              clazz.unscoped do
+                inserts = []
+                column_names = clazz.column_names.reject { |name| name == "id" }
+                prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
+                records.each do |r|
+                  values = column_names.map do |column_name|
+                    @column_cache[clazz.name][column_name].type_cast_for_database(r[column_name.to_sym])
                   end
-                  sql = %Q{insert into #{clazz.table_name} (#{column_names.join(",")}) values (#{prepared_values})}
-                  inserts.each do |insert|
-                    clazz.connection.raw_connection.async_exec(sql, insert)
-                  end
+                  inserts << values
+                end
+                sql = %Q{insert into #{clazz.table_name} (#{column_names.join(",")}) values (#{prepared_values})}
+                inserts.each do |insert|
+                  clazz.connection.raw_connection.async_exec(sql, insert)
                 end
               end
             end
-          ensure
-            clear
           end
+        ensure
+          clear
         end
 
         def clear
