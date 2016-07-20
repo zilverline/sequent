@@ -86,7 +86,6 @@ module Sequent
             return unless indexed?(record_class)
 
             keys = @reverse_index.delete(record.object_id.hash) { [] }
-            # puts keys.inspect
 
             return unless keys.any?
 
@@ -108,6 +107,8 @@ module Sequent
           end
 
           def clear
+            puts @index.inspect
+            puts @reverse_index.inspect
             @index = GoogleHashSparseLongToRuby.new
             @reverse_index = GoogleHashSparseLongToRuby.new
           end
