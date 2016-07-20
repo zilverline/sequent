@@ -107,8 +107,6 @@ module Sequent
           end
 
           def clear
-            puts @index.inspect
-            puts @reverse_index.inspect
             @index = GoogleHashSparseLongToRuby.new
             @reverse_index = GoogleHashSparseLongToRuby.new
           end
