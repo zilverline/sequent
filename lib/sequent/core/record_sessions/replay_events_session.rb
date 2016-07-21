@@ -72,7 +72,6 @@ module Sequent
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              # print "#{@index.keys.count} "
               @index[key.hash] = [] unless @index.has_key? key.hash
               @index[key.hash] << record
 
