@@ -40,7 +40,7 @@ module Sequent
 
         def self.parse_to_date(value)
           return if value.blank?
-          value.is_a?(Date) ? value : Date.strptime(value, "%d-%m-%Y")
+          value.is_a?(Date) ? value : Date.iso8601(value.dup)
         end
 
         def self.parse_to_date_time(value)

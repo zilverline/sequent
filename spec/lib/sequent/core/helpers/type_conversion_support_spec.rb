@@ -187,18 +187,18 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
     let(:date) { Date.new(2015, 1, 1) }
 
     it "parses to a Date" do
-      command = CommandWithDate.new(value: "01-01-2015")
+      command = CommandWithDate.new(value: "2015-01-01")
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq date
     end
 
     it "fails when not a valid Date format" do
-      command = CommandWithDate.new(value: "2015-01-01")
+      command = CommandWithDate.new(value: "01-01-2015")
       expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
     end
 
     it "fails when not a valid Date" do
-      command = CommandWithDate.new(value: "31-31-2015")
+      command = CommandWithDate.new(value: "2015-31-31")
       expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
     end
 

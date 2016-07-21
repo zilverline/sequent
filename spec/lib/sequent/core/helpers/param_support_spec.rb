@@ -48,8 +48,19 @@ describe Sequent::Core::Helpers::ParamSupport do
     end
 
     it "handles datetime" do
-      obj = ParamWithDateTime.new(value: DateTime.now.iso8601)
+      obj = ParamWithDateTime.new(value: DateTime.now)
       expect(ParamWithDateTime.from_params(obj.as_params)).to eq(obj)
+    end
+  end
+
+  context Date do
+    class ParamWithDate < Sequent::Core::ValueObject
+      attrs value: Date
+    end
+
+    it "handles date" do
+      obj = ParamWithDate.new(value: Date.today)
+      expect(ParamWithDate.from_params(obj.as_params)).to eq(obj)
     end
   end
 

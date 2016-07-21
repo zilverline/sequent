@@ -78,7 +78,7 @@ module Sequent
           elsif val.is_a? DateTime
             val.iso8601
           elsif val.is_a? Date
-            val.strftime("%d-%m-%Y")
+            val.iso8601
           else
             val
           end

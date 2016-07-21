@@ -27,8 +27,8 @@ module Sequent
         def self.valid_date?(value)
           return true if value.blank?
           return true if value.is_a?(Date)
-          return false unless value =~ /\d{2}-\d{2}-\d{4}/
-          !!Date.strptime(value, "%d-%m-%Y") rescue false
+          return false unless value =~ /\d{4}-\d{2}-\d{2}/
+          !!Date.iso8601(value) rescue false
         end
 
         def self.valid_date_time?(value)
