@@ -72,24 +72,23 @@ module Sequent
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              @index[key.hash] = [] unless @index.has_key? key.hash
-              @index[key.hash] << record
+              @index[key] ||= []
+              @index[key] << record
 
-              @reverse_index[record.object_id.hash] = [] unless @reverse_index.has_key? record.object_id.hash
-              @reverse_index[record.object_id.hash] << key.hash
+              @reverse_index[record] ||= []
+              @reverse_index[record] << key
             end
           end
 
           def remove(record_class, record)
             return unless indexed?(record_class)
 
-            keys = @reverse_index.delete(record.object_id.hash) { [] }
+            keys = @reverse_index.delete(record) { [] }
 
             return unless keys.any?
 
             keys.each do |key|
               @index[key].delete(record)
-              @index.delete(key) if @index[key].count == 0
             end
           end
 
@@ -99,9 +98,10 @@ module Sequent
           end
 
           def find(record_class, where_clause)
-            key = [record_class.name]
-            get_index(record_class, where_clause).each { |field| key << where_clause[field] }
-            @index[key.hash] || []
+            key = get_index(record_class, where_clause).reduce([record_class]) do |arr, field|
+              arr << where_clause[field]
+            end
+            @index[key] || []
           end
 
           def clear
@@ -121,9 +121,7 @@ module Sequent
 
           def get_keys(record_class, record)
             @indexed_columns[record_class].map do |index|
-              arr = [record_class.name]
-              index.each { |key| arr << record[key] }
-              arr
+              index.reduce([record_class]) { |arr, key| arr << record[key] }
             end
           end
 
@@ -266,6 +264,7 @@ module Sequent
                   actual_value == expected_value
                 end
               end
+
             end
           end.dup
         end
@@ -276,52 +275,54 @@ module Sequent
         end
 
         def commit
-          @record_store.each do |clazz, records|
-            @column_cache ||= {}
-            @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
-              hash.merge({ column.name => column })
-            end
-            if records.size > @insert_with_csv_size
-              csv = CSV.new("")
-              column_names = clazz.column_names.reject { |name| name == "id" }
-              records.each do |obj|
-                begin
-                  csv << column_names.map do |column_name|
-                    @column_cache[clazz.name][column_name].type_cast_for_database(obj[column_name])
-                  end
-                end
+          begin
+            @record_store.each do |clazz, records|
+              @column_cache ||= {}
+              @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
+                hash.merge({ column.name => column })
               end
-
-              buf = ''
-              conn = ActiveRecord::Base.connection.raw_connection
-              copy_data = StringIO.new csv.string
-              conn.transaction do
-                conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
-                  while copy_data.read(1024, buf)
-                    conn.put_copy_data(buf)
-                  end
-                end
-              end
-            else
-              clazz.unscoped do
-                inserts = []
+              if records.size > @insert_with_csv_size
+                csv = CSV.new("")
                 column_names = clazz.column_names.reject { |name| name == "id" }
-                prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
-                records.each do |r|
-                  values = column_names.map do |column_name|
-                    @column_cache[clazz.name][column_name].type_cast_for_database(r[column_name.to_sym])
+                records.each do |obj|
+                  begin
+                    csv << column_names.map do |column_name|
+                      @column_cache[clazz.name][column_name].type_cast_for_database(obj[column_name])
+                    end
                   end
-                  inserts << values
                 end
-                sql = %Q{insert into #{clazz.table_name} (#{column_names.join(",")}) values (#{prepared_values})}
-                inserts.each do |insert|
-                  clazz.connection.raw_connection.async_exec(sql, insert)
+
+                buf = ''
+                conn = ActiveRecord::Base.connection.raw_connection
+                copy_data = StringIO.new csv.string
+                conn.transaction do
+                  conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
+                    while copy_data.read(1024, buf)
+                      conn.put_copy_data(buf)
+                    end
+                  end
+                end
+              else
+                clazz.unscoped do
+                  inserts = []
+                  column_names = clazz.column_names.reject { |name| name == "id" }
+                  prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
+                  records.each do |r|
+                    values = column_names.map do |column_name|
+                      @column_cache[clazz.name][column_name].type_cast_for_database(r[column_name.to_sym])
+                    end
+                    inserts << values
+                  end
+                  sql = %Q{insert into #{clazz.table_name} (#{column_names.join(",")}) values (#{prepared_values})}
+                  inserts.each do |insert|
+                    clazz.connection.raw_connection.async_exec(sql, insert)
+                  end
                 end
               end
             end
+          ensure
+            clear
           end
-        ensure
-          clear
         end
 
         def clear
