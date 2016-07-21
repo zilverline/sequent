@@ -1,6 +1,5 @@
 require 'set'
 require 'active_record'
-require 'google_hash'
 
 module Sequent
   module Core
@@ -65,8 +64,8 @@ module Sequent
 
             @indexed_columns.merge!(indexed_columns)
 
-            @index = GoogleHashSparseLongToRuby.new
-            @reverse_index = GoogleHashSparseLongToRuby.new
+            @index = {}
+            @reverse_index = {}
           end
 
           def add(record_class, record)
@@ -107,8 +106,8 @@ module Sequent
           end
 
           def clear
-            @index = GoogleHashSparseLongToRuby.new
-            @reverse_index = GoogleHashSparseLongToRuby.new
+            @index = {}
+            @reverse_index = {}
           end
 
           def use_index?(record_class, where_clause)
