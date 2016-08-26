@@ -45,7 +45,7 @@ spec` to run the tests. Before doing so you need to create a postgres
 user and database first:
 
 ```sh
-createuser -D -S -R sequent
+createuser -D -s -R sequent
 createdb sequent_spec_db -O sequent
 bundle exec rake db:create
 ```
@@ -99,7 +99,7 @@ the following to your `Rakefile`.
 ```ruby
 begin
   require 'sequent/rake/tasks'
-  Sequent::Rake::Tasks.new(opts).register!
+  Sequent::Rake::Tasks.new({db_config_supplier: YAML.load_file('db/database.yml'), environment: ENV['RACK_ENV'] || 'development'}).register!
 rescue LoadError
   puts 'Sequent tasks are not available'
 end
@@ -107,7 +107,7 @@ end
 
 You *must* pass some options (`opts`) to tell Sequent your configuration.
 
-* `db_config_supplier` — function that takes an environment and returns the database configs for that environment (e.g. `YAML.parse('db/database.yml')`)
+* `db_config_supplier` — function that takes an environment and returns the database configs for that environment (e.g. `YAML.load_file('db/database.yml')`)
 * `environment` — deployment environment (like `RAILS_ENV`) to get the appropriate database config
 * `event_store_schema` — name of the database schema that contains the event store (defaults to `public`)
 * `view_projection` — a `Sequent::Support::ViewProjection` that specifies your view schema
