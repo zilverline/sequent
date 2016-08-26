@@ -54,6 +54,99 @@ The data in this database is deleted every time you run the specs!
 
 # Tutorial
 
+## First domain test using rspec
+
+Sequent provides a given, when, then stanza when testing your domain code. These test are typically very fast
+since they do not rely on a database.
+
+`gem install rspec`
+
+In `spec/spec_helper.rb`
+
+```ruby
+require 'bundler/setup'
+Bundler.setup
+
+require 'sequent/test'
+
+RSpec.configure do |config|
+  config.include Sequent::Test::CommandHandlerHelpers
+
+  config.before :each do
+    @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+    @repository = Sequent::Core::AggregateRepository.new(@event_store)
+    @repository.clear
+  end
+end
+```
+
+In `spec/account_spec.rb`
+
+```ruby
+require 'spec_helper'
+
+describe 'Account' do
+  let(:aggregate_id) { Sequent.new_uuid }
+
+  before :each do
+    @command_handler = AccountCommandHandler.new
+  end
+
+  it 'creates an account' do
+    when_command CreateAccount.new(aggregate_id: aggregate_id, name: 'ben')
+    then_events AccountCreated.new(aggregate_id: aggregate_id, sequence_number: 1), 
+      AccountNameChanged.new(aggregate_id: aggregate_id, sequence_number: 2, name: 'ben')
+  end
+end
+```
+
+Run the spec: `rake spec` and it will fail since none of the domain classes exist.
+
+In `lib/domain.rb`
+
+```ruby
+
+# the command
+class CreateAccount < Sequent::Core::Command
+  attrs name: String
+  validate_presence_of :name
+end
+
+# events
+class AccountCreated < Sequent::Core::CreateEvent
+end
+
+class AccountNameChanged < Sequent::Core::Event
+  attrs name: String
+end
+
+# aggregate root
+class Account < Sequent::Core::AggregateRoot
+  def initialize(command)
+    super(command.aggregate_id)
+    # apply will set the mandatory event attributes aggregate_id and sequence_number
+    apply AccountCreated
+    apply AccountNameChanged, name: command.name
+  end
+
+  on AccountCreated do
+  end
+
+  on AccountNameChanged do |event|
+    @name = event.command
+  end
+end
+
+# command handler
+class AccountCommandHandler < Sequent::Core::BaseCommandHandler
+  on CreateAccount do |command|
+    repository.add_aggregate Account.new(command)
+  end
+end
+```
+
+## More examples
+
 See the [sequent example app](https://github.com/zilverline/sequent-examples)
 
 # Schema
