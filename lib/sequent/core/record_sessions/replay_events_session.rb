@@ -171,11 +171,7 @@ module Sequent
               class #{struct_class_name}
                 include InitStruct
                 def ==(other)
-                  return true if self.equal?(other)
-                  super
-                end
-                def eql?(other)
-                  self == other
+                  self.equal?(other)
                 end
                 def hash
                   self.object_id.hash
