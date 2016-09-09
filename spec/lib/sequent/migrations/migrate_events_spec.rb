@@ -18,6 +18,10 @@ describe Sequent::Migrations::MigrateEvents do
 
     end
 
+    def version
+      2
+    end
+
     def migrate
       @@called = true
     end
@@ -40,6 +44,11 @@ describe Sequent::Migrations::MigrateEvents do
     def migrate
       @@called = true
     end
+
+    def version
+      3
+    end
+
   end
 
   class Database::MigrateToVersion4
@@ -49,6 +58,11 @@ describe Sequent::Migrations::MigrateEvents do
     def migrate
       raise 'for spec'
     end
+
+    def version
+      4
+    end
+
   end
 
   after :each do

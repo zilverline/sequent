@@ -35,10 +35,11 @@ module Sequent
       #
       def execute_migrations(current_version, new_version, &after_migration_block)
         migrations(current_version, new_version).each do |migration_class|
+          migration = migration_class.new(@env)
           begin
-            migration_class.new(@env).migrate
+            migration.migrate
           ensure
-            yield(upgrade_to_version) if block_given?
+            yield(migration.version) if block_given?
           end
         end
       end
