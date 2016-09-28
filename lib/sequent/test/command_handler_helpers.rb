@@ -129,9 +129,11 @@ module Sequent
         expected_classes = expected_events.flatten(1).map { |event| event.class == Class ? event : event.class }
         expect(@event_store.stored_events.map(&:class)).to eq(expected_classes)
 
-        @event_store.stored_events.zip(expected_events.flatten(1)).each do |actual, expected|
+        @event_store.stored_events.zip(expected_events.flatten(1)).each_with_index do |(actual, expected), index|
           next if expected.class == Class
-          expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
+          _actual = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
+          _expected = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
+          expect(_actual).to eq(_expected), "#{index+1}th Event of type #{actual.class} not equal\nexpected: #{_expected.inspect}\n     got: #{_actual.inspect}" if expected
         end
       end
 
