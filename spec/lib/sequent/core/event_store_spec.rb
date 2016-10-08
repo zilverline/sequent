@@ -265,7 +265,7 @@ describe Sequent::Core::EventStore do
     it "reports progress for each block" do
       progress = 0
       progress_reported_count = 0
-      on_progress = lambda do |n, _|
+      on_progress = lambda do |n, _, _|
         progress = n
         progress_reported_count += 1
       end

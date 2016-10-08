@@ -34,22 +34,29 @@ module Sequent
       # @param &after_migration_block an optional block (with the current upgrade version as param) to run after the migrations run. E.g. close resources
       #
       def execute_migrations(current_version, new_version, &after_migration_block)
-        if current_version != new_version and current_version > 0
-          ((current_version + 1)..new_version).each do |upgrade_to_version|
-            migration_class = begin
-                                Class.const_get("Database::MigrateToVersion#{upgrade_to_version}")
-                              rescue NameError
-                                nil
-                              end
-            if migration_class
-              begin
-                migration_class.new(@env).migrate
-              ensure
-                yield(upgrade_to_version) if block_given?
-              end
-            end
+        migrations(current_version, new_version).each do |migration_class|
+          migration = migration_class.new(@env)
+          begin
+            migration.migrate
+          ensure
+            yield(migration.version) if block_given?
           end
         end
+      end
+
+      def migrations(current_version, new_version)
+        return [] if current_version == 0
+        ((current_version + 1)..new_version).map do |upgrade_to_version|
+          begin
+            Class.const_get("Database::MigrateToVersion#{upgrade_to_version}")
+          rescue NameError
+            nil
+          end
+        end.compact
+      end
+
+      def has_migrations?(current_version, new_version)
+        migrations(current_version, new_version).any?
       end
     end
   end
