@@ -106,16 +106,21 @@ SELECT event_type, event_json
                                     on_progress: PRINT_PROGRESS)
         progress = 0
         cursor = get_events.call
+        ids_replayed = []
         cursor.each_row(block_size: block_size).each do |record|
           event = deserialize_event(record)
           publish_events([event], event_handlers)
           progress += 1
-          on_progress[progress, false] if progress % block_size == 0
+          ids_replayed << record['id']
+          if progress % block_size == 0
+            on_progress[progress, false, ids_replayed.compact]
+            ids_replayed.clear
+          end
         end
-        on_progress[progress, true]
+        on_progress[progress, true, ids_replayed.compact]
       end
 
-      PRINT_PROGRESS = lambda do |progress, done|
+      PRINT_PROGRESS = lambda do |progress, done, _|
         if done
           puts "Done replaying #{progress} events"
         else
