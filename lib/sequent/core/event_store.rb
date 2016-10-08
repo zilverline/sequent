@@ -113,11 +113,11 @@ SELECT event_type, event_json
           progress += 1
           ids_replayed << record['id']
           if progress % block_size == 0
-            on_progress[progress, false, ids_replayed.compact]
+            on_progress[progress, false, ids_replayed]
             ids_replayed.clear
           end
         end
-        on_progress[progress, true, ids_replayed.compact]
+        on_progress[progress, true, ids_replayed]
       end
 
       PRINT_PROGRESS = lambda do |progress, done, _|
