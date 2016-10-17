@@ -4,7 +4,7 @@ module Sequent
 
       class ActiveRecordTransactionProvider
         def transactional
-          ActiveRecord::Base.transaction do
+          ActiveRecord::Base.transaction(requires_new: true) do
             yield
           end
         end
