@@ -178,8 +178,8 @@ SELECT aggregate_id
 
       def publish_events(events, event_handlers)
         return if configuration.disable_event_handlers
-        events.each do |event|
-          event_handlers.each do |handler|
+        event_handlers.each do |handler|
+          events.each do |event|
             begin
               handler.handle_message event
             rescue
