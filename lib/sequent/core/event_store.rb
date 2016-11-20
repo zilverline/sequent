@@ -137,7 +137,7 @@ SELECT event_type, event_json
         query = %Q{
 SELECT aggregate_id
   FROM #{stream_table} stream
- WHERE aggregate_id > COALESCE(#{quote last_aggregate_id}, '')
+ WHERE aggregate_id::varchar > COALESCE(#{quote last_aggregate_id}, '')
    AND snapshot_threshold IS NOT NULL
    AND snapshot_threshold <= (
          (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE events.event_type <> #{quote snapshot_event_class.name} AND stream.aggregate_id = events.aggregate_id) -
