@@ -25,6 +25,9 @@ module Sequent
         @created_at = DateTime.now
       end
 
+      def self.inherited(subclass)
+        Commands << subclass
+      end
     end
 
     module UpdateSequenceNumber
@@ -72,10 +75,6 @@ module Sequent
       def initialize(args = {})
         raise ArgumentError, "Missing aggregate_id" if args[:aggregate_id].nil?
         super
-      end
-
-      def self.inherited(subclass)
-        Commands << subclass
       end
     end
 
