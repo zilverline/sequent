@@ -60,12 +60,12 @@ module Sequent
           stream, events = @event_store.load_events(aggregate_id)
           raise AggregateNotFound.new(aggregate_id) unless stream
           aggregate_class = Class.const_get(stream.aggregate_type)
-          aggregates[aggregate_id] = aggregate_class.load_from_history(stream, events)
+          aggregate_class.load_from_history(stream, events)
         end
 
-        raise TypeError, "#{result.class} is not a #{clazz}" if result && clazz && !(result.class <= clazz)
+        raise TypeError, "#{result.class} is not a #{clazz}" if clazz && result && !(result.class <= clazz)
+        aggregates[aggregate_id] = result
 
-        result
       end
 
       ##
