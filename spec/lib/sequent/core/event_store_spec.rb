@@ -79,16 +79,16 @@ describe Sequent::Core::EventStore do
   describe '#commit_events' do
     it 'fails with OptimisticLockingError when RecordNotUnique' do
       expect {
-      event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
-        [
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
           [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1), MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1), MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
+            ]
           ]
-        ]
-      )
-      }.to raise_error(Sequent::Core::EventStore::OptimisticLockingError) {|error|expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)}
+        )
+      }.to raise_error(Sequent::Core::EventStore::OptimisticLockingError) { |error| expect(error.cause).to be_a(ActiveRecord::RecordNotUnique) }
     end
   end
 
@@ -117,11 +117,55 @@ describe Sequent::Core::EventStore do
       expect(stream).to be_nil
       expect(events).to be_nil
     end
+
+    it 'returns the stream and events for existing aggregates' do
+      event_store.commit_events(
+        Sequent::Core::CommandRecord.new,
+        [
+          [
+            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
+          ]
+        ]
+      )
+      stream, events = event_store.load_events(aggregate_id)
+      expect(stream).to be
+      expect(events).to be
+    end
+  end
+
+  describe "#load_events_for_aggregates" do
+    let(:aggregate_id_1) { Sequent.new_uuid }
+    let(:aggregate_id_2) { Sequent.new_uuid }
+
+    before :each do
+      event_store.commit_events(
+        Sequent::Core::CommandRecord.new,
+        [
+          [
+            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
+            [MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1)]
+          ],
+          [
+            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_2),
+            [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)]
+          ]
+        ]
+      )
+    end
+    it 'returns the stream and events for multiple aggregates' do
+      streams_with_events = event_store.load_events_for_aggregates([aggregate_id_1, aggregate_id_2])
+
+      expect(streams_with_events).to have(2).items
+      expect(streams_with_events[0]).to have(2).items
+      expect(streams_with_events[1]).to have(2).items
+    end
   end
 
   describe 'error handling for publishing events' do
     class RecordingHandler < Sequent::Core::BaseEventHandler
       attr_reader :recorded_events
+
       def initialize
         super
         @recorded_events = []
@@ -282,6 +326,7 @@ describe Sequent::Core::EventStore do
 
   class ReplayCounter < Sequent::Core::BaseEventHandler
     attr_reader :replay_count
+
     def initialize
       @replay_count = 0
     end

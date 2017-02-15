@@ -65,7 +65,38 @@ module Sequent
 
         raise TypeError, "#{result.class} is not a #{clazz}" if clazz && result && !(result.class <= clazz)
         aggregates[aggregate_id] = result
+      end
 
+      ##
+      # Loads multiple aggregates at once.
+      # Returns the ones in the current Unit Of Work otherwise loads it from history.
+      #
+      # Note: This will load all the aggregates in memory, so querying 100s of aggregates
+      # with 100s of events could cause memory issues.
+      #
+      # Only returns the aggregates that exists.
+      # If +clazz+ is given and one of the aggregates is not of the correct type
+      # a +TypeError+ is raised.
+      #
+      # +aggregate_ids+ The ids of the aggregates to be loaded
+      # +clazz+ Optional argument that checks if all aggregates are of type +clazz+
+      def load_aggregates(aggregate_ids, clazz = nil)
+        fail ArgumentError.new('aggregate_ids is required') unless aggregate_ids
+        return [] if aggregate_ids.empty?
+
+        _aggregates = aggregates.values_at(*aggregate_ids).compact
+        _query_ids = aggregate_ids - _aggregates.map(&:id)
+
+        _aggregates += @event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
+          raise AggregateNotFound.new(stream.aggregate_id) unless stream
+          aggregate_class = Class.const_get(stream.aggregate_type)
+          aggregate_class.load_from_history(stream, events)
+        end unless _query_ids.empty?
+
+        _aggregates.map do |aggregate|
+          raise TypeError, "#{aggregate.class} is not a #{clazz}" if clazz && !(aggregate.class <= clazz)
+          aggregates[aggregate.id] = aggregate
+        end
       end
 
       ##
