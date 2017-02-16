@@ -35,12 +35,14 @@ describe Sequent::Core::AggregateRepository do
   let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
 
   it "should track added aggregates by id" do
+    allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
+
     repository.add_aggregate aggregate
     expect(repository.load_aggregate(aggregate.id, DummyAggregate)).to be(aggregate)
   end
 
   it "should load an aggregate from the event store" do
-    allow(event_store).to receive(:load_events).with(:id).and_return([aggregate.event_stream, [:events]])
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
 
     loaded = repository.load_aggregate(:id, DummyAggregate)
 
@@ -49,19 +51,19 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should not require expected aggregate class" do
-    allow(event_store).to receive(:load_events).with(:id).and_return([aggregate.event_stream, [:events]])
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
     loaded = repository.load_aggregate(:id)
     expect(loaded.class).to eq(DummyAggregate)
   end
 
   it "should load a subclass aggregate" do
-    allow(event_store).to receive(:load_events).with(:id).and_return([aggregate.event_stream, [:events]])
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
     loaded = repository.load_aggregate(:id, Sequent::Core::AggregateRoot)
     expect(loaded.class).to be < Sequent::Core::AggregateRoot
   end
 
   it "should fail when the expected type does not match the stored type" do
-    allow(event_store).to receive(:load_events).with(:id).and_return([aggregate.event_stream, [:events]])
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
     expect { repository.load_aggregate(:id, Integer) }.to raise_error TypeError
   end
 
@@ -76,14 +78,17 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should return aggregates from the identity map after loading from the event store" do
-    allow(event_store).to receive(:load_events).with(:id).and_return([aggregate.event_stream, [:events]]).once
+    allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([[aggregate.event_stream, [:events]]]).once
+    allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
 
-    a = repository.load_aggregate(:id, DummyAggregate)
-    b = repository.load_aggregate(:id, DummyAggregate)
+    a = repository.load_aggregate(aggregate.id, DummyAggregate)
+    b = repository.load_aggregate(aggregate.id, DummyAggregate)
     expect(a).to equal(b)
   end
 
   it "should check type when returning aggregate from identity map" do
+    allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
+
     repository.add_aggregate aggregate
     expect { repository.load_aggregate(aggregate.id, String) }.to raise_error { |error|
                                                                       expect(error).to be_a TypeError
@@ -91,7 +96,7 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should prevent different aggregates with the same id from being added" do
-    another = DummyAggregate.new(:id)
+    another = DummyAggregate.new(aggregate.id)
 
     repository.add_aggregate aggregate
     expect { repository.add_aggregate another }.to raise_error { |error|
@@ -100,6 +105,8 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it "should indicate if a aggregate exists" do
+    allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
+
     repository.add_aggregate aggregate
     expect(repository.ensure_exists(aggregate.id, DummyAggregate)).to be_truthy
   end
@@ -230,6 +237,10 @@ describe Sequent::Core::AggregateRepository do
       end
 
       context 'loaded in the identity map' do
+        before :each do
+          allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
+        end
+
         it 'does not query the event store again' do
           allow(event_store)
             .to(
