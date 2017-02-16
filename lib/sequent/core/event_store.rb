@@ -62,21 +62,30 @@ module Sequent
       # Returns all events for the aggregate ordered by sequence_number
       #
       def load_events(aggregate_id)
-        stream = stream_record_class.where(aggregate_id: aggregate_id).first
-        return nil unless stream
+        load_events_for_aggregates([aggregate_id])[0]
+      end
+
+      def load_events_for_aggregates(aggregate_ids)
+        return [] if aggregate_ids.none?
+
+        streams = stream_record_class.where(aggregate_id: aggregate_ids)
+
         events = event_record_class.connection.select_all(%Q{
 SELECT event_type, event_json
   FROM #{quote_table_name event_record_class.table_name}
- WHERE aggregate_id = #{quote aggregate_id}
-   AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
+WHERE aggregate_id in (#{aggregate_ids.map{ |aggregate_id| quote(aggregate_id)}.join(",")})
+  AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
                                       FROM #{quote_table_name event_record_class.table_name}
                                      WHERE event_type = #{quote snapshot_event_class.name}
-                                       AND aggregate_id = #{quote aggregate_id}), 0)
- ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
+                                       AND aggregate_id in (#{aggregate_ids.map{ |aggregate_id| quote(aggregate_id)}.join(",")})), 0)
+  ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
 }).map! do |event_hash|
           deserialize_event(event_hash)
         end
-        [stream.event_stream, events]
+
+        events
+          .group_by { |event| event.aggregate_id }
+          .map { |aggregate_id, _events| [streams.find { |stream_record| stream_record.aggregate_id == aggregate_id }.event_stream, _events] }
       end
 
       def stream_exists?(aggregate_id)

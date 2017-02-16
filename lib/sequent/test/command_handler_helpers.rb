@@ -49,6 +49,10 @@ module Sequent
           [event_stream, deserialize_events(@all_events[aggregate_id])]
         end
 
+        def load_events_for_aggregates(aggregate_ids)
+          aggregate_ids.map { |id| load_events(id) }
+        end
+
         def find_event_stream(aggregate_id)
           @event_streams[aggregate_id]
         end
