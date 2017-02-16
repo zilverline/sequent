@@ -56,15 +56,7 @@ module Sequent
       # Loads aggregate by given id and class
       # Returns the one in the current Unit Of Work otherwise loads it from history.
       def load_aggregate(aggregate_id, clazz = nil)
-        result = aggregates.fetch(aggregate_id) do |_|
-          stream, events = @event_store.load_events(aggregate_id)
-          raise AggregateNotFound.new(aggregate_id) unless stream
-          aggregate_class = Class.const_get(stream.aggregate_type)
-          aggregate_class.load_from_history(stream, events)
-        end
-
-        raise TypeError, "#{result.class} is not a #{clazz}" if clazz && result && !(result.class <= clazz)
-        aggregates[aggregate_id] = result
+        load_aggregates([aggregate_id], clazz)[0]
       end
 
       ##
@@ -91,10 +83,13 @@ module Sequent
           raise AggregateNotFound.new(stream.aggregate_id) unless stream
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
-        end unless _query_ids.empty?
+        end
+
+        _aggregates.each do |aggregate|
+          raise TypeError, "#{aggregate.class} is not a #{clazz}" if clazz && !(aggregate.class <= clazz)
+        end
 
         _aggregates.map do |aggregate|
-          raise TypeError, "#{aggregate.class} is not a #{clazz}" if clazz && !(aggregate.class <= clazz)
           aggregates[aggregate.id] = aggregate
         end
       end
