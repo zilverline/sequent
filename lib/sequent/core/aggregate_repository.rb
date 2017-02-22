@@ -66,7 +66,7 @@ module Sequent
       # Note: This will load all the aggregates in memory, so querying 100s of aggregates
       # with 100s of events could cause memory issues.
       #
-      # Only returns the aggregates that exists.
+      # Returns all aggregates or raises +AggregateNotFound+
       # If +clazz+ is given and one of the aggregates is not of the correct type
       # a +TypeError+ is raised.
       #
