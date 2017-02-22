@@ -139,11 +139,10 @@ describe Sequent::Core::AggregateRepository do
     end
 
     context 'with an empty store' do
-
-      it 'returns an empty list when nothing is found' do
+      it 'raises an error when nothing is found' do
         allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([]).once
 
-        expect(repository.load_aggregates([aggregate.id])).to be_empty
+        expect{ repository.load_aggregates([aggregate.id]) }.to raise_error Sequent::Core::AggregateRepository::AggregateNotFound
       end
     end
 
@@ -176,20 +175,15 @@ describe Sequent::Core::AggregateRepository do
         expect(aggregates[1].loaded_events).to eq([:events_2])
       end
 
-      it 'returns only the aggregates found' do
-        allow(event_store)
-          .to(
-            receive(:load_events_for_aggregates)
-              .with([aggregate.id, :foo])
-              .and_return([aggregate_stream_with_events])
-              .once
-          )
+      it 'raises error even if only one aggregate cannot be found' do
+        allow(event_store).to(
+          receive(:load_events_for_aggregates)
+          .with([aggregate.id, :foo])
+          .and_return([aggregate_stream_with_events])
+          .once
+        )
 
-        aggregates = repository.load_aggregates([aggregate.id, :foo])
-        expect(aggregates).to have(1).item
-
-        expect(aggregates[0].event_stream).to eq aggregate.event_stream
-        expect(aggregates[0].loaded_events).to eq([:events])
+        expect { repository.load_aggregates([aggregate.id, :foo]) }.to raise_error Sequent::Core::AggregateRepository::AggregateNotFound
       end
 
       it 'fails if one if the aggregates in the identity map is of incorrect type' do

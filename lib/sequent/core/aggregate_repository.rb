@@ -80,9 +80,13 @@ module Sequent
         _query_ids = aggregate_ids - _aggregates.map(&:id)
 
         _aggregates += @event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
-          raise AggregateNotFound.new(stream.aggregate_id) unless stream
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
+        end
+
+        if _aggregates.count != aggregate_ids.count
+          missing_aggregate_ids = _query_ids - _aggregates.map(&:id)
+          raise AggregateNotFound.new(missing_aggregate_ids)
         end
 
         _aggregates.each do |aggregate|
