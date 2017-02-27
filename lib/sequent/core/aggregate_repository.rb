@@ -89,8 +89,10 @@ module Sequent
           raise AggregateNotFound.new(missing_aggregate_ids)
         end
 
-        _aggregates.each do |aggregate|
-          raise TypeError, "#{aggregate.class} is not a #{clazz}" if clazz && !(aggregate.class <= clazz)
+        if clazz
+          _aggregates.each do |aggregate|
+            raise TypeError, "#{aggregate.class} is not a #{clazz}" if !(aggregate.class <= clazz)
+          end
         end
 
         _aggregates.map do |aggregate|
