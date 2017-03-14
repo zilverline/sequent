@@ -27,7 +27,7 @@ module Sequent
         Sequent.logger.info "Taking snapshot for aggregate #{aggregate}"
         aggregate.take_snapshot!
       rescue => e
-        Sequent.logger.warn "Failed to take snapshot for aggregate #{aggregate_id}: #{e}", e.inspect
+        Sequent.logger.error("Failed to take snapshot for aggregate #{aggregate_id}: #{e}, #{e.inspect}")
       end
     end
   end
