@@ -66,7 +66,7 @@ module Sequent
       # Note: This will load all the aggregates in memory, so querying 100s of aggregates
       # with 100s of events could cause memory issues.
       #
-      # Only returns the aggregates that exists.
+      # Returns all aggregates or raises +AggregateNotFound+
       # If +clazz+ is given and one of the aggregates is not of the correct type
       # a +TypeError+ is raised.
       #
@@ -80,13 +80,19 @@ module Sequent
         _query_ids = aggregate_ids - _aggregates.map(&:id)
 
         _aggregates += @event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
-          raise AggregateNotFound.new(stream.aggregate_id) unless stream
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end
 
-        _aggregates.each do |aggregate|
-          raise TypeError, "#{aggregate.class} is not a #{clazz}" if clazz && !(aggregate.class <= clazz)
+        if _aggregates.count != aggregate_ids.count
+          missing_aggregate_ids = _query_ids - _aggregates.map(&:id)
+          raise AggregateNotFound.new(missing_aggregate_ids)
+        end
+
+        if clazz
+          _aggregates.each do |aggregate|
+            raise TypeError, "#{aggregate.class} is not a #{clazz}" if !(aggregate.class <= clazz)
+          end
         end
 
         _aggregates.map do |aggregate|

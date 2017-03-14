@@ -44,13 +44,17 @@ module Sequent
         end
 
         def load_events(aggregate_id)
-          event_stream = @event_streams[aggregate_id]
-          return nil unless event_stream
-          [event_stream, deserialize_events(@all_events[aggregate_id])]
+          load_events_for_aggregates([aggregate_id])[0]
         end
 
         def load_events_for_aggregates(aggregate_ids)
-          aggregate_ids.map { |id| load_events(id) }
+          return [] if aggregate_ids.none?
+
+          aggregate_ids.map do |aggregate_id|
+            @event_streams[aggregate_id]
+          end.compact.map do |event_stream|
+            [event_stream, deserialize_events(@all_events[event_stream.aggregate_id])]
+          end
         end
 
         def find_event_stream(aggregate_id)
