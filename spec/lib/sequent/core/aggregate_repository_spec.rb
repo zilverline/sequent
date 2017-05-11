@@ -183,7 +183,19 @@ describe Sequent::Core::AggregateRepository do
           .once
         )
 
-        expect { repository.load_aggregates([aggregate.id, :foo]) }.to raise_error Sequent::Core::AggregateRepository::AggregateNotFound
+        expect { repository.load_aggregates([aggregate.id, :foo]) }.to raise_error(Sequent::Core::AggregateRepository::AggregateNotFound, "Aggregate with id [:foo] not found")
+      end
+
+      it 'can handle duplicate input for load_aggregates' do
+        allow(event_store).to(
+          receive(:load_events_for_aggregates)
+          .with([aggregate.id])
+          .and_return([aggregate_stream_with_events])
+          .once
+        )
+
+        aggregates = repository.load_aggregates([aggregate.id, aggregate.id])
+        expect(aggregates).to have(1).items
       end
 
       it 'fails if one if the aggregates in the identity map is of incorrect type' do

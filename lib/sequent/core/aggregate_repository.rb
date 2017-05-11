@@ -76,16 +76,17 @@ module Sequent
         fail ArgumentError.new('aggregate_ids is required') unless aggregate_ids
         return [] if aggregate_ids.empty?
 
-        _aggregates = aggregates.values_at(*aggregate_ids).compact
-        _query_ids = aggregate_ids - _aggregates.map(&:id)
+        _aggregate_ids = aggregate_ids.uniq
+        _aggregates = aggregates.values_at(*_aggregate_ids).compact
+        _query_ids = _aggregate_ids - _aggregates.map(&:id)
 
         _aggregates += @event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end
 
-        if _aggregates.count != aggregate_ids.count
-          missing_aggregate_ids = _query_ids - _aggregates.map(&:id)
+        if _aggregates.count != _aggregate_ids.count
+          missing_aggregate_ids = _aggregate_ids - _aggregates.map(&:id)
           raise AggregateNotFound.new(missing_aggregate_ids)
         end
 
