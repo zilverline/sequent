@@ -6,7 +6,7 @@ module Sequent
 
     class AggregateSnapshotter < BaseCommandHandler
 
-      def handles_message?(message)
+      def self.handles_message?(message)
         message.is_a? SnapshotCommand
       end
 
