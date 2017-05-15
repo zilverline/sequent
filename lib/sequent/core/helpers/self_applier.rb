@@ -17,13 +17,16 @@ module Sequent
       module SelfApplier
 
         module ClassMethods
-
           def on(*message_classes, &block)
             message_classes.each { |message_class| message_mapping[message_class] = block }
           end
 
           def message_mapping
             @message_mapping ||= {}
+          end
+
+          def handles_message?(message)
+            message_mapping.keys.include? message.class
           end
         end
 
@@ -35,9 +38,7 @@ module Sequent
           handler = self.class.message_mapping[message.class]
           self.instance_exec(message, &handler) if handler
         end
-
       end
-
     end
   end
 end

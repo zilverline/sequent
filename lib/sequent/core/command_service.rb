@@ -41,7 +41,7 @@ module Sequent
 
               raise CommandNotValid.new(command) unless command.valid?
               parsed_command = command.parse_attrs_to_correct_types
-              command_handlers.select { |h| h.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
+              command_handlers.select { |h| h.class.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
               repository.commit(parsed_command)
             end
           end

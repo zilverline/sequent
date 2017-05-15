@@ -127,7 +127,7 @@ module Sequent
 
       def when_command command
         raise "@command_handler is mandatory when using the #{self.class}" unless @command_handler
-        raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.handles_message?(command)
+        raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.class.handles_message?(command)
         @command_handler.handle_message(command)
         @repository.commit(command)
         @repository.clear
