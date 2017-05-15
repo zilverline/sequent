@@ -34,6 +34,10 @@ module Sequent
           host_class.extend(ClassMethods)
         end
 
+        def handles_message?(message)
+          self.class.handles_message?(message)
+        end
+
         def handle_message(message)
           handler = self.class.message_mapping[message.class]
           self.instance_exec(message, &handler) if handler
