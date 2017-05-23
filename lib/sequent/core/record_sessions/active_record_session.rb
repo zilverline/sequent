@@ -22,6 +22,10 @@ module Sequent
           record.save!
         end
 
+        def execute(statement)
+          ActiveRecord::Base.connection.execute(statement)
+        end
+
         def create_record(record_class, values)
           record = new_record(record_class, values)
           yield record if block_given?
