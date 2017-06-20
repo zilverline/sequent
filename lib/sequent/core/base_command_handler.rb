@@ -28,7 +28,7 @@ module Sequent
 
       protected
 
-      def do_with_aggregate(command, clazz, aggregate_id = nil)
+      def do_with_aggregate(command, clazz = nil, aggregate_id = nil)
         aggregate = @repository.load_aggregate(aggregate_id.nil? ? command.aggregate_id : aggregate_id, clazz)
         yield aggregate if block_given?
       end
