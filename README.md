@@ -50,86 +50,92 @@ First setup the `Gemfile`
 In `spec/spec_helper.rb` add the necessary plumbing code to be able to test. The helpers
 provided by sequent expect an `@event_store`, `@repository` to exist in the tests. 
 
-    # spec/spec_helper.rb
-    require 'bundler/setup'
-    Bundler.setup
-    
-    require 'sequent/test'
-    
-    RSpec.configure do |config|
-      config.include Sequent::Test::CommandHandlerHelpers
-    
-      config.before :each do
-        @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
-        @repository = Sequent::Core::AggregateRepository.new(@event_store)
-        @repository.clear
-      end
-    end
+```ruby
+# spec/spec_helper.rb
+require 'bundler/setup'
+Bundler.setup
+
+require 'sequent/test'
+
+RSpec.configure do |config|
+  config.include Sequent::Test::CommandHandlerHelpers
+
+  config.before :each do
+    @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+    @repository = Sequent::Core::AggregateRepository.new(@event_store)
+    @repository.clear
+  end
+end
+```
 
 In `spec/account_spec.rb` the actual tests for our domain are added. The first test will be to
 add an account. In eventsourced system we typically test this by checking which Events will occur
 after a certain Command is executed. The `when_command `helper provided by sequent expect an `@command_handler`
 variable to exist.
 
-    # spec/account_spec.rb
-    require 'spec_helper'
-    
-    describe 'Account' do
-      let(:aggregate_id) { Sequent.new_uuid }
-    
-      before :each do
-        @command_handler = AccountCommandHandler.new
-      end
-    
-      it 'creates an account' do
-        when_command CreateAccount.new(aggregate_id: aggregate_id, name: 'ben')
-        then_events AccountCreated.new(aggregate_id: aggregate_id, sequence_number: 1), 
-          AccountNameChanged.new(aggregate_id: aggregate_id, sequence_number: 2, name: 'ben')
-      end
-    end
+```ruby
+# spec/account_spec.rb
+require 'spec_helper'
+
+describe 'Account' do
+  let(:aggregate_id) { Sequent.new_uuid }
+
+  before :each do
+    @command_handler = AccountCommandHandler.new
+  end
+
+  it 'creates an account' do
+    when_command CreateAccount.new(aggregate_id: aggregate_id, name: 'ben')
+    then_events AccountCreated.new(aggregate_id: aggregate_id, sequence_number: 1), 
+      AccountNameChanged.new(aggregate_id: aggregate_id, sequence_number: 2, name: 'ben')
+  end
+end
+```
 
 Run the spec: `rake spec` and it will fail since none of the domain classes exist.
 
 In `lib/domain.rb` we are going to create the domain code. For now we keep it simple
 and put the Commands, CommandHandlers, Events and Aggregates all in the same file.
 
-    # the command
-    class CreateAccount < Sequent::Core::Command
-      attrs name: String
-      validate_presence_of :name
-    end
-    
-    # events
-    class AccountCreated < Sequent::Core::CreateEvent
-    end
-    
-    class AccountNameChanged < Sequent::Core::Event
-      attrs name: String
-    end
-    
-    # aggregate root
-    class Account < Sequent::Core::AggregateRoot
-      def initialize(command)
-        super(command.aggregate_id)
-        # apply will set the mandatory event attributes aggregate_id and sequence_number
-        apply AccountCreated
-        apply AccountNameChanged, name: command.name
-      end
-    
-      on AccountCreated do
-      end
-    
-      on AccountNameChanged do |event|
-        @name = event.command
-      end
-    end
-    
-    # command handler
-    class AccountCommandHandler < Sequent::Core::BaseCommandHandler
-      on CreateAccount do |command|
-        repository.add_aggregate Account.new(command)
-      end
-    end
+```ruby
+# the command
+class CreateAccount < Sequent::Core::Command
+  attrs name: String
+  validate_presence_of :name
+end
+
+# events
+class AccountCreated < Sequent::Core::CreateEvent
+end
+
+class AccountNameChanged < Sequent::Core::Event
+  attrs name: String
+end
+
+# aggregate root
+class Account < Sequent::Core::AggregateRoot
+  def initialize(command)
+    super(command.aggregate_id)
+    # apply will set the mandatory event attributes aggregate_id and sequence_number
+    apply AccountCreated
+    apply AccountNameChanged, name: command.name
+  end
+
+  on AccountCreated do
+  end
+
+  on AccountNameChanged do |event|
+    @name = event.command
+  end
+end
+
+# command handler
+class AccountCommandHandler < Sequent::Core::BaseCommandHandler
+  on CreateAccount do |command|
+    repository.add_aggregate Account.new(command)
+  end
+end
+```
 
 Now when we run the spec: `rake spec` and it will succeed.
 
@@ -165,12 +171,14 @@ To load the view schema in a different database schema use the `Sequent::Support
 
 For example:
 
-    Sequent::Support::ViewSchema.define(view_projection: Sequent::Support::ViewProjection.new(..)) do
-      create_table 'accounts' do |t|
-        t.string 'name', null: false
-        t.string 'email', null: false
-      end
-    end
+```ruby
+Sequent::Support::ViewSchema.define(view_projection: Sequent::Support::ViewProjection.new(..)) do
+  create_table 'accounts' do |t|
+    t.string 'name', null: false
+    t.string 'email', null: false
+  end
+end
+```
 
 The support module is not required with sequent automatically. Require `sequent/support` to enable it.
 
@@ -179,12 +187,14 @@ The support module is not required with sequent automatically. Require `sequent/
 Sequent provides some Rake tasks to ease setup. To make them available in your project, add
 the following to your `Rakefile`.
 
-    begin
-      require 'sequent/rake/tasks'
-      Sequent::Rake::Tasks.new({db_config_supplier: YAML.load_file('db/database.yml'), environment: ENV['RACK_ENV'] || 'development'}).register!
-    rescue LoadError
-      puts 'Sequent tasks are not available'
-    end
+```ruby
+begin
+  require 'sequent/rake/tasks'
+  Sequent::Rake::Tasks.new({db_config_supplier: YAML.load_file('db/database.yml'), environment: ENV['RACK_ENV'] || 'development'}).register!
+rescue LoadError
+  puts 'Sequent tasks are not available'
+end
+```
 
 You *must* pass some options (`opts`) to tell Sequent your configuration.
 
@@ -218,11 +228,13 @@ prints the progress to `STDOUT`
 
 So a very simple replay of all events:
 
-    all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
-    Sequent::Core::Eventstore.replay_events_from_cursor(
-      block_size: 2000, 
-      get_events: all_events, 
-    )
+```ruby
+all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
+Sequent::Core::Eventstore.replay_events_from_cursor(
+  block_size: 2000, 
+  get_events: all_events, 
+)
+```
     
 This strategy is fine when you don't have many events and it is okay to have downtime when doing a view schema upgrade.
 
@@ -251,16 +263,18 @@ simply keep track of the last id replayed since sequences in postgres can be out
 
 Replay of all events (step 3):
 
-    Sequent::Core::EventRecord.connection.execute('create table replay_ids(event_id numeric)')
-    all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
-    Sequent::Core::Eventstore.replay_events_from_cursor(
-      block_size: 2000, 
-      get_events: all_events, 
-      on_progress: ->(progress, done, ids_replayed) {
-            
-      }
-    )
-    
+```ruby
+Sequent::Core::EventRecord.connection.execute('create table replay_ids(event_id numeric)')
+all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
+Sequent::Core::Eventstore.replay_events_from_cursor(
+  block_size: 2000, 
+  get_events: all_events, 
+  on_progress: ->(progress, done, ids_replayed) {
+
+  }
+)
+```
+
 
 # Reference Guide
 
