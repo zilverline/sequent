@@ -3,6 +3,8 @@ Bundler.setup
 
 require 'rspec/collection_matchers'
 require_relative '../lib/sequent/sequent'
+require 'simplecov'
+SimpleCov.start if ENV["COVERAGE"]
 
 require_relative 'database'
 Database.establish_connection
