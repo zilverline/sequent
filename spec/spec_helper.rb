@@ -3,6 +3,7 @@ Bundler.setup
 
 require 'rspec/collection_matchers'
 require_relative '../lib/sequent/sequent'
+require 'simplecov'
 
 require_relative 'database'
 Database.establish_connection
