@@ -228,7 +228,7 @@ SELECT aggregate_id
                    .join(',')
         columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
         sql = %Q{insert into #{connection.quote_table_name(event_record_class.table_name)} (#{columns}) values #{values}}
-        event_record_class.connection.insert_sql(sql)
+        event_record_class.connection.insert(sql)
       rescue ActiveRecord::RecordNotUnique
         fail OptimisticLockingError.new
       end

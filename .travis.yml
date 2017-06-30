@@ -1,5 +1,8 @@
 language: ruby
 env:
+  matrix:
+    - "ACTIVE_STAR_VERSION='~> 4.2'"
+    - "ACTIVE_STAR_VERSION='~> 5.0.0'"
   global:
     - CC_TEST_REPORTER_ID=90d155b5365c78e09124561d299cb88a6da9ea595e3d2f7c2cff68dfb5100599
     - GIT_COMMITTED_AT=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then git log -1 --pretty=format:%ct; else git log -1 --skip 1 --pretty=format:%ct; fi)
@@ -7,6 +10,10 @@ env:
 rvm:
   - 2.1.5
   - 2.2.2
+matrix:
+  exclude:
+    - rvm: 2.1.5
+      env: "ACTIVE_STAR_VERSION='~> 5.0.0'"
 addons:
   postgresql: "9.3"
 before_script:
@@ -17,4 +24,4 @@ before_script:
   - chmod +x ./cc-test-reporter
 script:
   - bundle exec rspec
-  - if [ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_RUBY_VERSION" == "2.2.2" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_RUBY_VERSION" == "2.2.2" ] && [ "$ACTIVE_STAR_VERSION" == "~> 5.0.0" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
