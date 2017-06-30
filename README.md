@@ -19,7 +19,7 @@ If you are unfamiliar with these concepts you can catch up with:
 ## Getting started
 
     gem install sequent
-    
+
     require 'sequent'
 
 ## Introduction
@@ -41,14 +41,19 @@ Our folder structure for this example is as follows:
 
 First setup the `Gemfile`
 
+```ruby
     source "https://rubygems.org"
-    
+
     # let's use the latest and greatest
     gem 'sequent', git: 'git@github.com:zilverline/sequent.git'
 
+    group :test do
+      gem 'rspec'
+    end
+```
 
 In `spec/spec_helper.rb` add the necessary plumbing code to be able to test. The helpers
-provided by sequent expect an `@event_store`, `@repository` to exist in the tests. 
+provided by sequent expect an `@event_store`, `@repository` to exist in the tests.
 
 ```ruby
 # spec/spec_helper.rb
@@ -76,6 +81,7 @@ variable to exist.
 ```ruby
 # spec/account_spec.rb
 require 'spec_helper'
+require_relative '../lib/domain'
 
 describe 'Account' do
   let(:aggregate_id) { Sequent.new_uuid }
@@ -86,13 +92,13 @@ describe 'Account' do
 
   it 'creates an account' do
     when_command CreateAccount.new(aggregate_id: aggregate_id, name: 'ben')
-    then_events AccountCreated.new(aggregate_id: aggregate_id, sequence_number: 1), 
+    then_events AccountCreated.new(aggregate_id: aggregate_id, sequence_number: 1),
       AccountNameChanged.new(aggregate_id: aggregate_id, sequence_number: 2, name: 'ben')
   end
 end
 ```
 
-Run the spec: `rake spec` and it will fail since none of the domain classes exist.
+Run the spec: `rspec` and it will fail since none of the domain classes exist.
 
 In `lib/domain.rb` we are going to create the domain code. For now we keep it simple
 and put the Commands, CommandHandlers, Events and Aggregates all in the same file.
@@ -101,11 +107,11 @@ and put the Commands, CommandHandlers, Events and Aggregates all in the same fil
 # the command
 class CreateAccount < Sequent::Core::Command
   attrs name: String
-  validate_presence_of :name
+  validates_presence_of :name
 end
 
 # events
-class AccountCreated < Sequent::Core::CreateEvent
+class AccountCreated < Sequent::Core::Event
 end
 
 class AccountNameChanged < Sequent::Core::Event
@@ -125,7 +131,7 @@ class Account < Sequent::Core::AggregateRoot
   end
 
   on AccountNameChanged do |event|
-    @name = event.command
+    @name = event.name
   end
 end
 
@@ -137,7 +143,7 @@ class AccountCommandHandler < Sequent::Core::BaseCommandHandler
 end
 ```
 
-Now when we run the spec: `rake spec` and it will succeed.
+Now when we run the spec: `rspec` and it will succeed.
 
 ## More examples
 
@@ -224,24 +230,24 @@ param is passed to the `each_row` method and denotes the number of rows to fetch
 The `get_events` is an `ActiveRecord::Relation` containing the stream of events. Typically this is ordered
 per aggregate per sequence number. The `on_progress` parameter is a block that is called after the number
 of rows in `block_size` are processed and at the end of the method. By default the `on_progress` just
-prints the progress to `STDOUT` 
+prints the progress to `STDOUT`
 
 So a very simple replay of all events:
 
 ```ruby
 all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
 Sequent::Core::Eventstore.replay_events_from_cursor(
-  block_size: 2000, 
-  get_events: all_events, 
+  block_size: 2000,
+  get_events: all_events,
 )
 ```
-    
+
 This strategy is fine when you don't have many events and it is okay to have downtime when doing a view schema upgrade.
 
 ## Upgrading to a new view schema version with virtually no downtime
 
-Since the view schema's can always be regenerated from events 
-we can deploy and run migrations for a new version of a Sequent powered app with virtually 
+Since the view schema's can always be regenerated from events
+we can deploy and run migrations for a new version of a Sequent powered app with virtually
 no downtime since we can do the generation of the new view schema in the background.
 
 1. Install new version of your app on the server
@@ -267,8 +273,8 @@ Replay of all events (step 3):
 Sequent::Core::EventRecord.connection.execute('create table replay_ids(event_id numeric)')
 all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
 Sequent::Core::Eventstore.replay_events_from_cursor(
-  block_size: 2000, 
-  get_events: all_events, 
+  block_size: 2000,
+  get_events: all_events,
   on_progress: ->(progress, done, ids_replayed) {
 
   }
