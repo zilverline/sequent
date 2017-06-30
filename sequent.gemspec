@@ -13,8 +13,8 @@ Gem::Specification.new do |s|
     'https://github.com/zilverline/sequent'
   s.license       = 'MIT'
 
-  s.add_dependency              'activerecord', '~> 4.0'
-  s.add_dependency              'activemodel', '~> 4.0'
+  s.add_dependency              'activerecord', ['>= 4.0', '< 5.1']
+  s.add_dependency              'activemodel', ['>= 4.0', '< 5.1']
   s.add_dependency              'pg', '~> 0.18'
   s.add_dependency              'postgresql_cursor', '~> 0.6'
   s.add_dependency              'oj', '~> 2.17.5'
