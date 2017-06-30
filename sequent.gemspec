@@ -24,4 +24,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency  'rspec-collection_matchers', '~> 1.1'
   s.add_development_dependency  'rake', '~> 10.4'
   s.add_development_dependency  'pry', '~> 0.10'
+  s.add_development_dependency  'simplecov', '~> 0.14.1'
 end
