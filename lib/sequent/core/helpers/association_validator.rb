@@ -1,4 +1,5 @@
-require 'active_model'
+require 'active_model/validator'
+
 module Sequent
   module Core
     module Helpers
@@ -32,12 +33,12 @@ module Sequent
           associations.each do |association|
             value = record.instance_variable_get("@#{association.to_s}")
             if value && incorrect_type?(value, record, association)
-              record.errors[association] = "is not of type #{describe_type(record.class.types[association])}"
+              record.errors.add(association, "is not of type #{describe_type(record.class.types[association])}")
             elsif value && value.is_a?(Array)
               item_type = record.class.types.fetch(association).item_type
-              record.errors[association] = "is invalid" unless validate_all(value, item_type).all?
+              record.errors.add(association, "is invalid") unless validate_all(value, item_type).all?
             else
-              record.errors[association] = "is invalid" if value && value.invalid?
+              record.errors.add(association, "is invalid") if value && value.invalid?
             end
           end
         end
