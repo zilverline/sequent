@@ -17,4 +17,4 @@ before_script:
   - chmod +x ./cc-test-reporter
 script:
   - bundle exec rspec
-  - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_RUBY_VERSION" == "2.2.2" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
