@@ -5,6 +5,10 @@ rvm:
 env:
   - "ACTIVE_STAR_VERSION='~> 4.2'"
   - "ACTIVE_STAR_VERSION='~> 5.0.0'"
+matrix:
+  exclude:
+    - rvm: 2.1.5
+      env: "ACTIVE_STAR_VERSION='~> 5.0.0'"
 script: bundle exec rspec
 addons:
   postgresql: "9.3"
