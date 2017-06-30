@@ -3,6 +3,7 @@ env:
   global:
     - CC_TEST_REPORTER_ID=90d155b5365c78e09124561d299cb88a6da9ea595e3d2f7c2cff68dfb5100599
     - GIT_COMMITTED_AT=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then git log -1 --pretty=format:%ct; else git log -1 --skip 1 --pretty=format:%ct; fi)
+    - COVERAGE=true
 rvm:
   - 2.1.5
   - 2.2.2
