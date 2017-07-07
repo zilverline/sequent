@@ -109,22 +109,38 @@ module Sequent
         private
 
         def ensure_unique!(streams_with_events)
-          # ensure no duplicates within streams_with_events to store
-          non_unique_streams = streams_with_events.map { |event_stream, _| event_stream }.group_by(&:aggregate_id).select { |_, v| v.length > 1 }
-          raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id: #{non_unique_streams.first.last.first.aggregate_id}") if non_unique_streams.any?
+          ensure_no_duplicate_event_streams!(streams_with_events)
 
           streams_with_events.each do |event_stream, events|
-            # ensure no duplicates with the existing event_streams
-            raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id: #{event_stream.aggregate_id}") if @event_streams.has_key?(event_stream.aggregate_id) && @event_streams[event_stream.aggregate_id].aggregate_type.to_s != event_stream.aggregate_type.to_s
+            ensure_unique_event_stream!(event_stream)
 
-            # ensure events within stream are unique
-            non_unique_events = events.group_by(&:sequence_number).select { |_, v| v.length > 1 }
-            raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id / sequence_number: #{non_unique_events.first.last.first.aggregate_id} / #{non_unique_events.first.first}") if non_unique_events.any?
+            ensure_no_duplicate_events!(events)
 
-            # ensure no duplicates with the existing events
-            duplicate_events = deserialize_events(@all_events[event_stream.aggregate_id] || []).select { |stored_event| events.any? { |event| event.aggregate_id == stored_event.aggregate_id && event.sequence_number == stored_event.sequence_number } }
-            raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id / sequence_number: #{duplicate_events.first.aggregate_id} / #{duplicate_events.first.sequence_number}") if duplicate_events.any?
+            ensure_unique_events!(event_stream, events)
           end
+        end
+
+        # Ensure that given events do not exist in existing events
+        def ensure_unique_events!(event_stream, events)
+          duplicate_events = deserialize_events(@all_events[event_stream.aggregate_id] || []).select { |stored_event| events.any? { |event| event.aggregate_id == stored_event.aggregate_id && event.sequence_number == stored_event.sequence_number } }
+          raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id / sequence_number: #{duplicate_events.first.aggregate_id} / #{duplicate_events.first.sequence_number}") if duplicate_events.any?
+        end
+
+        # Ensure no duplicates exists in given events
+        def ensure_no_duplicate_events!(events)
+          non_unique_events = events.group_by(&:sequence_number).select { |_, v| v.length > 1 }
+          raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id / sequence_number: #{non_unique_events.first.last.first.aggregate_id} / #{non_unique_events.first.first}") if non_unique_events.any?
+        end
+
+        # Ensure that given event_stream does not exist yet
+        def ensure_unique_event_stream!(event_stream)
+          raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id: #{event_stream.aggregate_id}") if @event_streams.has_key?(event_stream.aggregate_id) && @event_streams[event_stream.aggregate_id].aggregate_type.to_s != event_stream.aggregate_type.to_s
+        end
+
+        # Ensure no duplicates exists in given event_streams
+        def ensure_no_duplicate_event_streams!(streams_with_events)
+          non_unique_streams = streams_with_events.map { |event_stream, _| event_stream }.group_by(&:aggregate_id).select { |_, v| v.length > 1 }
+          raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id: #{non_unique_streams.first.last.first.aggregate_id}") if non_unique_streams.any?
         end
 
         def to_event_streams(events)
