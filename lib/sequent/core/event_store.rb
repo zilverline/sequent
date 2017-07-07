@@ -199,6 +199,8 @@ SELECT aggregate_id
       end
 
       def store_events(command, streams_with_events = [])
+        fail ArgumentError.new("command is mandatory") unless command
+
         command_record = CommandRecord.create!(command: command)
         event_records = streams_with_events.flat_map do |event_stream, uncommitted_events|
           unless event_stream.stream_record_id

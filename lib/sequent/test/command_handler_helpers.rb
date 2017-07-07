@@ -65,7 +65,8 @@ module Sequent
           deserialize_events(@stored_events)
         end
 
-        def commit_events(_, streams_with_events)
+        def commit_events(command, streams_with_events)
+          fail ArgumentError.new("command is mandatory") unless command
           streams_with_events.each do |event_stream, events|
             serialized = serialize_events(events)
             @event_streams[event_stream.aggregate_id] = event_stream
