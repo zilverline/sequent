@@ -34,13 +34,32 @@ module Sequent
     #   end
     #
     # end
+    #
+    # The FakeEventStore has a +strict_mode+ option which enforces the same
+    # unique constraint as the real database.
+    # To enable strict_mode:
+    #
+    #   FakeEventStore.new(strict_mode: true)
+    #
+    #
     module CommandHandlerHelpers
-
+      class FakeCommand < Sequent::Core::BaseCommand; end
       class FakeEventStore
-        def initialize
+
+        DEFAULT_STRICT_MODE = false
+
+        #
+        # Initializes new FakeEventStore
+        #
+        # +options+
+        #   * strict_mode - Default false. Enforces same constraints as the real event store. This means:
+        #                     - Sequence numbers per aggregate have to be unique
+        #                     - +EventStream+s have to be unique, so there can be only one aggregate_type per aggregate_id
+        def initialize(options = {})
           @event_streams = {}
           @all_events = {}
           @stored_events = []
+          @strict_mode = options[:strict_mode] || DEFAULT_STRICT_MODE
         end
 
         def load_events(aggregate_id)
@@ -67,6 +86,8 @@ module Sequent
 
         def commit_events(command, streams_with_events)
           fail ArgumentError.new("command is mandatory") unless command
+          ensure_unique!(streams_with_events) if @strict_mode
+
           streams_with_events.each do |event_stream, events|
             serialized = serialize_events(events)
             @event_streams[event_stream.aggregate_id] = event_stream
@@ -77,7 +98,7 @@ module Sequent
         end
 
         def given_events(events)
-          commit_events(nil, to_event_streams(events))
+          commit_events(FakeCommand.new, to_event_streams(events))
           @stored_events = []
         end
 
@@ -86,6 +107,25 @@ module Sequent
         end
 
         private
+
+        def ensure_unique!(streams_with_events)
+          # ensure no duplicates within streams_with_events to store
+          non_unique_streams = streams_with_events.map { |event_stream, _| event_stream }.group_by(&:aggregate_id).select { |_, v| v.length > 1 }
+          raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id: #{non_unique_streams.first.last.first.aggregate_id}") if non_unique_streams.any?
+
+          streams_with_events.each do |event_stream, events|
+            # ensure no duplicates with the existing event_streams
+            raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id: #{event_stream.aggregate_id}") if @event_streams.has_key?(event_stream.aggregate_id) && @event_streams[event_stream.aggregate_id].aggregate_type.to_s != event_stream.aggregate_type.to_s
+
+            # ensure events within stream are unique
+            non_unique_events = events.group_by(&:sequence_number).select { |_, v| v.length > 1 }
+            raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id / sequence_number: #{non_unique_events.first.last.first.aggregate_id} / #{non_unique_events.first.first}") if non_unique_events.any?
+
+            # ensure no duplicates with the existing events
+            duplicate_events = deserialize_events(@all_events[event_stream.aggregate_id] || []).select { |stored_event| events.any? { |event| event.aggregate_id == stored_event.aggregate_id && event.sequence_number == stored_event.sequence_number } }
+            raise ActiveRecord::RecordNotUnique.new("Non unique aggregate_id / sequence_number: #{duplicate_events.first.aggregate_id} / #{duplicate_events.first.sequence_number}") if duplicate_events.any?
+          end
+        end
 
         def to_event_streams(events)
           # Specs use a simple list of given events. We need a mapping from StreamRecord to the associated events for the event store.
