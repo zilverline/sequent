@@ -119,12 +119,4 @@ SELECT 1 FROM pg_tables
 )
     results.count == 1
   end
-
-  def table_exists?(table_name)
-    results = ActiveRecord::Base.connection.select_all %Q(
-SELECT 1 FROM pg_tables
- WHERE tablename = '#{table_name}'
-)
-    results.count == 1
-  end
 end
