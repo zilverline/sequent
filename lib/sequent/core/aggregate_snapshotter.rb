@@ -1,18 +1,22 @@
 module Sequent
   module Core
+
+    ##
+    # Take up to `limit` snapshots when needed. Throws `:done` when done.
+    #
     class SnapshotCommand <  Sequent::Core::BaseCommand
       attrs limit: Integer
     end
 
+    ##
+    # Take snapshot of given aggregate
+    class TakeSnapshot < Sequent::Core::BaseCommand
+      attrs aggregate_id: String
+      validates_presence_of :aggregate_id
+    end
+
     class AggregateSnapshotter < BaseCommandHandler
 
-      def self.handles_message?(message)
-        message.is_a? SnapshotCommand
-      end
-
-      ##
-      # Take up to `limit` snapshots when needed. Throws `:done` when done.
-      #
       on SnapshotCommand do |command|
         aggregate_ids = repository.event_store.aggregates_that_need_snapshots(@last_aggregate_id, command.limit)
         aggregate_ids.each do |aggregate_id|
@@ -20,6 +24,10 @@ module Sequent
         end
         @last_aggregate_id = aggregate_ids.last
         throw :done if @last_aggregate_id.nil?
+      end
+
+      on TakeSnapshot do |command|
+        take_snapshot!(command.aggregate_id)
       end
 
       def take_snapshot!(aggregate_id)
