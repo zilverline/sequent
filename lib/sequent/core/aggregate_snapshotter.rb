@@ -10,9 +10,7 @@ module Sequent
 
     ##
     # Take snapshot of given aggregate
-    class TakeSnapshot < Sequent::Core::BaseCommand
-      attrs aggregate_id: String
-      validates_presence_of :aggregate_id
+    class TakeSnapshot < Sequent::Core::Command
     end
 
     class AggregateSnapshotter < BaseCommandHandler
