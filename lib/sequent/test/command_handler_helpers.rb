@@ -1,4 +1,5 @@
 require 'thread_safe'
+require 'sequent/core/event_store'
 
 module Sequent
   module Test
@@ -22,9 +23,9 @@ module Sequent
     # describe InvoiceCommandHandler do
     #
     #   before :each do
-    #     @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
-    #     @repository = Sequent::Core::AggregateRepository.new(@event_store)
-    #     @command_handler = InvoiceCommandHandler.new(@repository)
+    #     Sequent.configuration.event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+    #     Sequent.configuration.command_handlers = [] # add your command handlers here
+    #     Sequent.configuration.event_handlers = [] # add you event handlers (eg, workflows) here
     #   end
     #
     #   it "marks an invoice as paid" do
@@ -37,7 +38,12 @@ module Sequent
     module CommandHandlerHelpers
 
       class FakeEventStore
-        def initialize
+        extend Forwardable
+        attr_accessor :configuration
+        def_delegators :@configuration, :event_handlers
+
+        def initialize(configuration = Sequent.configuration)
+          self.configuration = configuration
           @event_streams = {}
           @all_events = {}
           @stored_events = []
@@ -72,6 +78,20 @@ module Sequent
             @all_events[event_stream.aggregate_id] ||= []
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
+          end
+          publish_events(streams_with_events.flat_map { |_, events| events }, event_handlers)
+        end
+
+        def publish_events(events, event_handlers)
+          return if configuration.disable_event_handlers
+          event_handlers.each do |handler|
+            events.each do |event|
+              begin
+                handler.handle_message event
+              rescue
+                raise Core::EventStore::PublishEventError.new(handler.class, event)
+              end
+            end
           end
         end
 
@@ -122,22 +142,18 @@ module Sequent
       end
 
       def given_events *events
-        @event_store.given_events(events.flatten(1))
+        Sequent.configuration.event_store.given_events(events.flatten(1))
       end
 
       def when_command command
-        raise "@command_handler is mandatory when using the #{self.class}" unless @command_handler
-        raise "Command handler #{@command_handler} cannot handle command #{command}, please configure the command type (forgot an include in the command class?)" unless @command_handler.class.handles_message?(command)
-        @command_handler.handle_message(command)
-        @repository.commit(command)
-        @repository.clear
+        Sequent.configuration.command_service.execute_commands command
       end
 
       def then_events(*expected_events)
         expected_classes = expected_events.flatten(1).map { |event| event.class == Class ? event : event.class }
-        expect(@event_store.stored_events.map(&:class)).to eq(expected_classes)
+        expect(Sequent.configuration.event_store.stored_events.map(&:class)).to eq(expected_classes)
 
-        @event_store.stored_events.zip(expected_events.flatten(1)).each_with_index do |(actual, expected), index|
+        Sequent.configuration.event_store.stored_events.zip(expected_events.flatten(1)).each_with_index do |(actual, expected), index|
           next if expected.class == Class
           _actual = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
           _expected = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
