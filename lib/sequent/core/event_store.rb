@@ -72,13 +72,13 @@ module Sequent
 
         events = event_record_class.connection.select_all(%Q{
 SELECT event_type, event_json
-  FROM #{quote_table_name event_record_class.table_name}
+  FROM #{quote_table_name event_record_class.table_name} AS o
 WHERE aggregate_id in (#{aggregate_ids.map{ |aggregate_id| quote(aggregate_id)}.join(",")})
-  AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
-                                      FROM #{quote_table_name event_record_class.table_name}
-                                     WHERE event_type = #{quote snapshot_event_class.name}
-                                       AND aggregate_id in (#{aggregate_ids.map{ |aggregate_id| quote(aggregate_id)}.join(",")})), 0)
-  ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
+AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
+                                 FROM #{quote_table_name event_record_class.table_name} AS i
+                                 WHERE event_type = #{quote snapshot_event_class.name}
+                                   AND i.aggregate_id = o.aggregate_id), 0)
+ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
 }).map! do |event_hash|
           deserialize_event(event_hash)
         end
