@@ -8,8 +8,8 @@ env:
     - GIT_COMMITTED_AT=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then git log -1 --pretty=format:%ct; else git log -1 --skip 1 --pretty=format:%ct; fi)
     - COVERAGE=true
 rvm:
-  - 2.1.5
   - 2.2.2
+  - 2.3.4
 matrix:
   exclude:
     - rvm: 2.1.5
