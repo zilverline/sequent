@@ -33,6 +33,21 @@ module Sequent
           record
         end
 
+        def create_records(record_class, array_of_value_hashes)
+          table = Arel::Table.new(record_class.table_name)
+
+          query = array_of_value_hashes.map do |values|
+            insert_manager = Arel::InsertManager.new(ActiveRecord::Base)
+            insert_manager.into(table)
+            insert_manager.insert(values.map do |key, value|
+              [table[key], value]
+            end)
+            insert_manager.to_sql
+          end.join(";")
+
+          execute(query)
+        end
+
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
           unless record

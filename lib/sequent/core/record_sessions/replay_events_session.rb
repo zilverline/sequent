@@ -198,6 +198,10 @@ module Sequent
           record
         end
 
+        def create_records(record_class, array_of_value_hashes)
+          array_of_value_hashes.each { |values| create_record(record_class, values) }
+        end
+
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
           unless record
