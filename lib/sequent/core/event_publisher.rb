@@ -53,6 +53,7 @@ module Sequent
               begin
                 handler.handle_message event
               rescue
+                events_queue.clear
                 raise PublishEventError.new(handler.class, event)
               end
             end
