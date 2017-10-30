@@ -244,7 +244,7 @@ describe Sequent::Core::EventStore do
         end
       end
 
-      it { is_expected.to be_a(Sequent::Core::EventStore::PublishEventError) }
+      it { is_expected.to be_a(Sequent::Core::EventPublisher::PublishEventError) }
 
       it 'preserves its cause' do
         expect(publish_error.cause).to be_a(FailingHandler::Error)
