@@ -54,6 +54,14 @@ describe Sequent::Core::RecordSessions::ReplayEventsSession do
     end
   end
 
+  it 'can save multiple objects at once' do
+    session.create_records(Sequent::Core::EventRecord, [{id: 1}, {id: 2}])
+    object = session.get_record!(record_class, {id: 1})
+    expect(object.id).to eq 1
+    object = session.get_record!(record_class, {id: 2})
+    expect(object.id).to eq 2
+  end
+
   context 'with an object' do
     before :each do
       session.create_record(Sequent::Core::EventRecord, {id: 1})
