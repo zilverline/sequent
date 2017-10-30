@@ -33,20 +33,8 @@ module Sequent
         Thread.current[:events_queue] ||= Queue.new
       end
 
-      def skip_if_already_processing(&block)
-        Thread.current[:events_queue_locked] = false if Thread.current[:events_queue_locked].nil?
-
-        return if Thread.current[:events_queue_locked]
-
-        Thread.current[:events_queue_locked] = true
-
-        block.yield
-      ensure
-        Thread.current[:events_queue_locked] = false
-      end
-
       def process_events
-        skip_if_already_processing do
+        Sequent::Util.skip_if_already_processing(:events_queue_lock) do
           while(!events_queue.empty?) do
             event = events_queue.pop
             configuration.event_handlers.each do |handler|
