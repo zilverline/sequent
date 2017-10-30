@@ -16,9 +16,7 @@ module Sequent
 
       def initialize
         @events_queue = Queue.new
-      end
-      def configuration
-        Sequent.configuration
+        @mutex = Mutex.new
       end
 
       def publish_events(events)
@@ -27,17 +25,28 @@ module Sequent
         process_events
       end
 
+      private
+
       def process_events
-        while(!@events_queue.empty?) do
-          event = @events_queue.pop
-          configuration.event_handlers.each do |handler|
-            begin
-              handler.handle_message event
-            rescue
-              raise PublishEventError.new(handler.class, event)
+        # only process events at the highest level
+        return if @mutex.locked?
+
+        @mutex.synchronize do
+          while(!@events_queue.empty?) do
+            event = @events_queue.pop
+            configuration.event_handlers.each do |handler|
+              begin
+                handler.handle_message event
+              rescue
+                raise PublishEventError.new(handler.class, event)
+              end
             end
           end
         end
+      end
+
+      def configuration
+        Sequent.configuration
       end
     end
   end
