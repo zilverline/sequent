@@ -1,13 +1,13 @@
 module Sequent
   module Core
+    #
+    # EventPublisher ensures that, for every thread, events will be published in the order in which they are meant to be published.
+    #
+    # This potentially introduces a wrinkle into your plans: You therefore should not split a "unit of work" across multiple threads.
+    #
+    # If you do not want this, you are free to implement your own version of EventPublisher and configure sequent to use it.
+    #
     class EventPublisher
-      #
-      # EventPublisher ensures that, for every thread, events will be published in the order in which they are meant to be published.
-      #
-      # This potentially introduces a wrinkle into your plans: You therefore should not split a "unit of work" across multiple threads.
-      #
-      # If you do not want this, you are free to implement your own version of EventPublisher and configure sequent to use it.
-      #
       class PublishEventError < RuntimeError
         attr_reader :event_handler_class, :event
 
