@@ -35,16 +35,22 @@ module Sequent
 
       def process_events
         Sequent::Util.skip_if_already_processing(:events_queue_lock) do
-          while(!events_queue.empty?) do
-            event = events_queue.pop
-            configuration.event_handlers.each do |handler|
-              begin
-                handler.handle_message event
-              rescue
-                events_queue.clear
-                raise PublishEventError.new(handler.class, event)
-              end
+          begin
+            while(!events_queue.empty?) do
+              process_event(events_queue.pop)
             end
+          ensure
+            events_queue.clear
+          end
+        end
+      end
+
+      def process_event(event)
+        configuration.event_handlers.each do |handler|
+          begin
+            handler.handle_message event
+          rescue
+            raise PublishEventError.new(handler.class, event)
           end
         end
       end

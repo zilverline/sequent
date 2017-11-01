@@ -49,13 +49,7 @@ module Sequent
           begin
             transaction_provider.transactional do
               while(!command_queue.empty?) do
-                command = command_queue.pop
-                filters.each { |filter| filter.execute(command) }
-
-                raise CommandNotValid.new(command) unless command.valid?
-                parsed_command = command.parse_attrs_to_correct_types
-                command_handlers.select { |h| h.class.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
-                repository.commit(parsed_command)
+                process_command(command_queue.pop)
               end
             end
           ensure
@@ -63,6 +57,15 @@ module Sequent
             repository.clear
           end
         end
+      end
+
+      def process_command(command)
+        filters.each { |filter| filter.execute(command) }
+
+        raise CommandNotValid.new(command) unless command.valid?
+        parsed_command = command.parse_attrs_to_correct_types
+        command_handlers.select { |h| h.class.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
+        repository.commit(parsed_command)
       end
 
       def command_queue
