@@ -34,9 +34,7 @@ module Sequent
       # * If the command is valid all +command_handlers+ that +handles_message?+ is invoked
       # * The +repository+ commits the command and all uncommitted_events resulting from the command
       def execute_commands(*commands)
-        commands.each do |command|
-          command_queue.push(command)
-        end
+        commands.each { |command| command_queue.push(command) }
         process_commands
       end
 
