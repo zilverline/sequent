@@ -13,19 +13,6 @@ module Sequent
     # * Unit of Work is cleared
     #
     class CommandService
-      attr_accessor :configuration
-
-      # Create a command service with the given configuration.
-      #
-      #   +event_store+ The Sequent::Core::EventStore
-      #   +aggregate_repository+ The Sequent::Core::AggregateRepository
-      #   +transaction_provider+ How to do transaction management.
-      #   +command_handlers+ List of command handlers that need to handle commands
-      #   +command_filters+ List of filter that respond_to :execute(command). Can be useful to do extra checks (security and such).
-      def initialize(configuration)
-        self.configuration = configuration
-      end
-
       # Executes the given commands in a single transactional block as implemented by the +transaction_provider+
       #
       # For each command:
@@ -73,23 +60,23 @@ module Sequent
       end
 
       def event_store
-        configuration.event_store
+        Sequent.configuration.event_store
       end
 
       def repository
-        configuration.aggregate_repository
+        Sequent.configuration.aggregate_repository
       end
 
       def filters
-        configuration.command_filters
+        Sequent.configuration.command_filters
       end
 
       def transaction_provider
-        configuration.transaction_provider
+        Sequent.configuration.transaction_provider
       end
 
       def command_handlers
-        configuration.command_handlers
+        Sequent.configuration.command_handlers
       end
     end
 

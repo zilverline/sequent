@@ -39,11 +39,8 @@ module Sequent
 
       class FakeEventStore
         extend Forwardable
-        attr_accessor :configuration
-        def_delegators :@configuration, :event_handlers
 
-        def initialize(configuration = Sequent.configuration)
-          self.configuration = configuration
+        def initialize
           @event_streams = {}
           @all_events = {}
           @stored_events = []
@@ -79,20 +76,11 @@ module Sequent
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
           end
-          publish_events(streams_with_events.flat_map { |_, events| events }, event_handlers)
+          publish_events(streams_with_events.flat_map { |_, events| events })
         end
 
-        def publish_events(events, event_handlers)
-          return if configuration.disable_event_handlers
-          event_handlers.each do |handler|
-            events.each do |event|
-              begin
-                handler.handle_message event
-              rescue
-                raise Core::EventStore::PublishEventError.new(handler.class, event)
-              end
-            end
-          end
+        def publish_events(events)
+          Sequent.configuration.event_publisher.publish_events(events)
         end
 
         def given_events(events)
