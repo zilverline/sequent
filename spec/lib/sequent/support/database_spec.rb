@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 require 'sequent/support'
+require 'tmpdir' # ruby 2.2.2 fails on Dir.tmpdir when not requiring
 
 describe Sequent::Support::Database do
   let(:database_name) { Sequent.new_uuid }
