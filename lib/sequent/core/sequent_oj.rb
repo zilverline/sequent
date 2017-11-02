@@ -6,7 +6,7 @@ module Sequent
     class Oj
       ::Oj.default_options = {
         bigdecimal_as_decimal: false,
-        mode: :compat,
+        mode: :rails,
       }
 
       def self.strict_load(json)

@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency              'activemodel', active_star_version
   s.add_dependency              'pg', '~> 0.18'
   s.add_dependency              'postgresql_cursor', '~> 0.6'
-  s.add_dependency              'oj', '~> 2.17.5'
+  s.add_dependency              'oj', '~> 3.3.9'
   s.add_dependency              'thread_safe', '~> 0.3.5'
   s.add_development_dependency  'rspec', '~> 3.2'
   s.add_development_dependency  'rspec-mocks', '~> 3.2'
