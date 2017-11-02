@@ -35,6 +35,7 @@ class TestMigration < MigrationClass
   def change
     create_table "ar_session_tests" do |t|
       t.string "name", null: false
+      t.string "initials", default: [], array:true
     end
   end
 end
@@ -50,6 +51,10 @@ EOF
   context 'create_records' do
     it 'can insert records by batch' do
       expect { session.create_records(ArSessionTest, [{name: 'kim'}, {name: 'ben'}]) }.to change { ArSessionTest.count }.by(2)
+    end
+
+    it 'can insert array values' do
+      expect { session.create_records(ArSessionTest, [{name: 'john', initials: ['j', 'f']}]) }.to change { ArSessionTest.count }.by(1)
     end
   end
 
