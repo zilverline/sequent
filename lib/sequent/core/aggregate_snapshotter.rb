@@ -29,7 +29,7 @@ module Sequent
       end
 
       def take_snapshot!(aggregate_id)
-        aggregate = @repository.load_aggregate(aggregate_id)
+        aggregate = repository.load_aggregate(aggregate_id)
         Sequent.logger.info "Taking snapshot for aggregate #{aggregate}"
         aggregate.take_snapshot!
       rescue => e
