@@ -12,7 +12,8 @@ module Sequent
                   :event_record_class,
                   :stream_record_class,
                   :snapshot_event_class,
-                  :transaction_provider
+                  :transaction_provider,
+                  :event_publisher
 
     attr_accessor :command_handlers,
                   :command_filters
@@ -47,6 +48,7 @@ module Sequent
       self.snapshot_event_class = Sequent::Core::SnapshotEvent
       self.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
+      self.event_publisher = Sequent::Core::EventPublisher.new
       self.disable_event_handlers = false
     end
 
