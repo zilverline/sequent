@@ -58,5 +58,15 @@ EOF
     end
   end
 
+  context 'update_all_records' do
+    it 'can updates records by batch' do
+      session.create_record(ArSessionTest, {name: 'kim', initials: ['j', 'j']})
+
+      session.update_all_records(ArSessionTest, {name: 'kim'}, {initials: ['k', 'k']})
+
+      expect(session.get_record(ArSessionTest, {name: 'kim'}).initials).to eq ['k', 'k']
+    end
+  end
+
 end
 
