@@ -37,7 +37,7 @@ module Sequent
           table = Arel::Table.new(record_class.table_name)
 
           query = array_of_value_hashes.map do |values|
-            insert_manager = Arel::InsertManager.new(ActiveRecord::Base)
+            insert_manager = Arel::InsertManager.new()
             insert_manager.into(table)
             insert_manager.insert(values.map do |key, value|
               [table[key], value]
