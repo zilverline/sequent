@@ -44,7 +44,11 @@ module Sequent
             end
             insert_manager.into(table)
             insert_manager.insert(values.map do |key, value|
-              [table[key], table.type_cast_for_database(key, value)]
+              if ActiveRecord::VERSION::MAJOR <= 4
+                [table[key], value]
+              else
+                [table[key], table.type_cast_for_database(key, value)]
+              end
             end)
             insert_manager.to_sql
           end.join(";")
