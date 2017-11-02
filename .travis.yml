@@ -2,6 +2,7 @@ language: ruby
 env:
   matrix:
     - "ACTIVE_STAR_VERSION='~> 4.2'"
+    - "ACTIVE_STAR_VERSION='~> 5.0.0'"
     - "ACTIVE_STAR_VERSION='~> 5.1.0'"
   global:
     - CC_TEST_REPORTER_ID=90d155b5365c78e09124561d299cb88a6da9ea595e3d2f7c2cff68dfb5100599
@@ -10,10 +11,6 @@ env:
 rvm:
   - 2.2.2
   - 2.3.4
-matrix:
-  exclude:
-    - rvm: 2.1.5
-      env: "ACTIVE_STAR_VERSION='~> 5.1.0'"
 addons:
   postgresql: "9.3"
 before_script:
