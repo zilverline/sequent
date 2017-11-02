@@ -33,7 +33,7 @@ end
 
 class TestMigration < MigrationClass
   def change
-    create_table "ar_session_tests" do |t|
+    create_table "ar_session_tests", id: false do |t|
       t.string "name", null: false
       t.string "initials", default: [], array:true
     end
