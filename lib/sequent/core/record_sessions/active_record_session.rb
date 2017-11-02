@@ -34,7 +34,7 @@ module Sequent
         end
 
         def create_records(record_class, array_of_value_hashes)
-          table = Arel::Table.new(record_class.table_name)
+          table = record_class.arel_table
 
           query = array_of_value_hashes.map do |values|
             if ActiveRecord::VERSION::MAJOR <= 4
@@ -44,7 +44,7 @@ module Sequent
             end
             insert_manager.into(table)
             insert_manager.insert(values.map do |key, value|
-              [table[key], value]
+              [table[key], table.type_cast_for_database(key, value)]
             end)
             insert_manager.to_sql
           end.join(";")
