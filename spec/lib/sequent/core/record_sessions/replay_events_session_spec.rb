@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'sequent/support'
+require_relative '../../migration_class'
 
 class MockEvent < Sequent::Core::Event
   def initialize
@@ -224,12 +225,6 @@ describe Sequent::Core::RecordSessions::ReplayEventsSession do
     before :each do
       File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|
         f.write <<EOF
-if ActiveRecord::VERSION::MAJOR <= 4
-  MigrationClass = ActiveRecord::Migration
-else
-  MigrationClass = ActiveRecord::Migration['4.2']
-end
-
 class TestMigration < MigrationClass
   def change
     create_table "ar_session_tests", id: false do |t|
