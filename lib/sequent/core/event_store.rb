@@ -9,19 +9,6 @@ module Sequent
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
 
-      class PublishEventError < RuntimeError
-        attr_reader :event_handler_class, :event
-
-        def initialize(event_handler_class, event)
-          @event_handler_class = event_handler_class
-          @event = event
-        end
-
-        def message
-          "Event Handler: #{@event_handler_class.inspect}\nEvent: #{@event.inspect}\nCause: #{cause.inspect}"
-        end
-      end
-
       class OptimisticLockingError < RuntimeError
       end
 
@@ -39,7 +26,7 @@ module Sequent
       end
 
       attr_accessor :configuration
-      def_delegators :@configuration, :stream_record_class, :event_record_class, :snapshot_event_class, :event_handlers
+      def_delegators :@configuration, :stream_record_class, :event_record_class, :snapshot_event_class
 
       def initialize(configuration = Sequent.configuration)
         self.configuration = configuration
@@ -55,7 +42,7 @@ module Sequent
       #
       def commit_events(command, streams_with_events)
         store_events(command, streams_with_events)
-        publish_events(streams_with_events.flat_map { |_, events| events }, event_handlers)
+        publish_events(streams_with_events.flat_map { |_, events| events })
       end
 
       ##
@@ -105,7 +92,7 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote snapshot_event_class
       def replay_events
         warn "[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`"
         events = yield.map { |event_hash| deserialize_event(event_hash) }
-        publish_events(events, event_handlers)
+        publish_events(events)
       end
 
       ##
@@ -123,7 +110,7 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote snapshot_event_class
         ids_replayed = []
         cursor.each_row(block_size: block_size).each do |record|
           event = deserialize_event(record)
-          publish_events([event], event_handlers)
+          publish_events([event])
           progress += 1
           ids_replayed << record['id']
           if progress % block_size == 0
@@ -190,17 +177,8 @@ SELECT aggregate_id
         @event_types.fetch_or_store(event_type) { |k| Class.const_get(k) }
       end
 
-      def publish_events(events, event_handlers)
-        return if configuration.disable_event_handlers
-        event_handlers.each do |handler|
-          events.each do |event|
-            begin
-              handler.handle_message event
-            rescue
-              raise PublishEventError.new(handler.class, event)
-            end
-          end
-        end
+      def publish_events(events)
+        configuration.event_publisher.publish_events(events)
       end
 
       def store_events(command, streams_with_events = [])

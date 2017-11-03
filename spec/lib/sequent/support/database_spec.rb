@@ -1,5 +1,6 @@
 require 'spec_helper'
 require_relative '../migration_class'
+require 'tmpdir'
 
 require 'sequent/support'
 require 'tmpdir' # ruby 2.2.2 fails on Dir.tmpdir when not requiring
