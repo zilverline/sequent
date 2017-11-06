@@ -1,4 +1,5 @@
 require 'spec_helper'
+require_relative '../migration_class'
 require 'tmpdir'
 
 require 'sequent/support'
@@ -83,12 +84,6 @@ describe Sequent::Support::Database do
       it 'runs pending migrations' do
         File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|
           f.write <<EOF
-if ActiveRecord::VERSION::MAJOR <= 4
-  MigrationClass = ActiveRecord::Migration
-else
-  MigrationClass = ActiveRecord::Migration['4.2']
-end
-
 class TestMigration < MigrationClass
   def change
     create_table "my_table", id: false do |t|

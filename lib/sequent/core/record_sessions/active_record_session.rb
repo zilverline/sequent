@@ -3,6 +3,7 @@ require 'active_record'
 module Sequent
   module Core
     module RecordSessions
+
       #
       # Session objects are used to update view state
       #
@@ -34,13 +35,13 @@ module Sequent
         end
 
         def create_records(record_class, array_of_value_hashes)
-          table = Arel::Table.new(record_class.table_name)
+          table = record_class.arel_table
 
           query = array_of_value_hashes.map do |values|
-            insert_manager = Arel::InsertManager.new(ActiveRecord::Base)
+            insert_manager = new_insert_manager
             insert_manager.into(table)
             insert_manager.insert(values.map do |key, value|
-              [table[key], value]
+              convert_to_values(key, table, value)
             end)
             insert_manager.to_sql
           end.join(";")
@@ -106,8 +107,22 @@ module Sequent
           record_class.unscoped.new(values)
         end
 
-      end
+        def new_insert_manager
+          if ActiveRecord::VERSION::MAJOR <= 4
+            Arel::InsertManager.new(ActiveRecord::Base)
+          else
+            Arel::InsertManager.new
+          end
+        end
 
+        def convert_to_values(key, table, value)
+          if ActiveRecord::VERSION::MAJOR <= 4
+            [table[key], value]
+          else
+            [table[key], table.type_cast_for_database(key, value)]
+          end
+        end
+      end
     end
   end
 end

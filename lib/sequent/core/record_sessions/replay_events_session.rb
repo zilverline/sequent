@@ -1,5 +1,6 @@
 require 'set'
 require 'active_record'
+require 'csv'
 
 module Sequent
   module Core
@@ -291,10 +292,8 @@ module Sequent
               csv = CSV.new("")
               column_names = clazz.column_names.reject { |name| name == "id" }
               records.each do |obj|
-                begin
-                  csv << column_names.map do |column_name|
-                    @column_cache[clazz.name][column_name].type_cast_for_database(obj[column_name])
-                  end
+                csv << column_names.map do |column_name|
+                  ActiveRecord::Base.connection.type_cast(obj[column_name], @column_cache[clazz.name][column_name])
                 end
               end
 
@@ -315,7 +314,7 @@ module Sequent
                 prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
                 records.each do |r|
                   values = column_names.map do |column_name|
-                    @column_cache[clazz.name][column_name].type_cast_for_database(r[column_name.to_sym])
+                    ActiveRecord::Base.connection.type_cast(r[column_name.to_sym], @column_cache[clazz.name][column_name])
                   end
                   inserts << values
                 end

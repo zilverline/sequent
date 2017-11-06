@@ -1,4 +1,6 @@
 require 'spec_helper'
+require 'sequent/support'
+require_relative '../../migration_class'
 
 class MockEvent < Sequent::Core::Event
   def initialize
@@ -195,6 +197,63 @@ describe Sequent::Core::RecordSessions::ReplayEventsSession do
         object = session.get_record!(record_class, {id: 1, sequence_number: 99})
         expect(object.id).to eq 1
         expect(object.sequence_number).to eq 99
+      end
+    end
+  end
+
+  context 'committing' do
+    class ArSessionTest < ActiveRecord::Base;
+    end
+
+    let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
+    let(:database_name) { Sequent.new_uuid }
+    let(:db_config) do
+      {'adapter' => 'postgresql',
+        'host' => 'localhost',
+        'database' => database_name}
+    end
+    let(:database) { Sequent::Support::Database.new }
+    let(:session) { Sequent::Core::RecordSessions::ReplayEventsSession.new(insert_csv_size) }
+
+    before do
+      Sequent::Support::Database.create!(db_config)
+      Sequent::Support::Database.establish_connection(db_config)
+    end
+
+    after { Sequent::Support::Database.drop!(db_config) }
+
+    before :each do
+      File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|
+        f.write <<EOF
+class TestMigration < MigrationClass
+  def change
+    create_table "ar_session_tests", id: false do |t|
+      t.string "name", null: false
+      t.string "initials", default: [], array:true
+    end
+  end
+end
+EOF
+        f.flush
+        database.migrate(migrations_path, verbose: false)
+      end
+    end
+
+    context 'csv' do
+      let(:insert_csv_size) { 0 }
+      it 'commits a session' do
+        session.create_record(ArSessionTest, {name: 'ben', initials: ['b']})
+
+        expect { session.commit }.to change { ArSessionTest.count }.by(1)
+      end
+    end
+
+    context 'batch inserts' do
+      let(:insert_csv_size) { 1 }
+      it 'commits a session' do
+        session.create_record(ArSessionTest, {name: 'ben', initials: ['b']})
+
+        expect { session.commit }.to change { ArSessionTest.count }.by(1)
       end
     end
   end
