@@ -20,16 +20,14 @@ module Sequent
       include Sequent::Core::Helpers::SelfApplier,
               Sequent::Core::Helpers::UuidHelper
 
-      attr_accessor :repository
-
-      def initialize(repository = Sequent.configuration.aggregate_repository)
-        @repository = repository
-      end
-
       protected
 
+      def repository
+        Sequent.configuration.aggregate_repository
+      end
+
       def do_with_aggregate(command, clazz = nil, aggregate_id = nil)
-        aggregate = @repository.load_aggregate(aggregate_id.nil? ? command.aggregate_id : aggregate_id, clazz)
+        aggregate = repository.load_aggregate(aggregate_id.nil? ? command.aggregate_id : aggregate_id, clazz)
         yield aggregate if block_given?
       end
     end

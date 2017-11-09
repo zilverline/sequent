@@ -5,7 +5,7 @@ require_relative 'core/aggregate_repository'
 
 module Sequent
   class Configuration
-    attr_reader :aggregate_repository
+    attr_accessor :aggregate_repository
 
     attr_accessor :event_store,
                   :command_service,
@@ -41,8 +41,9 @@ module Sequent
       self.command_filters = []
       self.event_handlers = []
 
-      self.event_store = Sequent::Core::EventStore.new(self)
-      self.command_service = Sequent::Core::CommandService.new(self)
+      self.aggregate_repository = Sequent::Core::AggregateRepository.new
+      self.event_store = Sequent::Core::EventStore.new
+      self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
       self.stream_record_class = Sequent::Core::StreamRecord
       self.snapshot_event_class = Sequent::Core::SnapshotEvent
@@ -50,12 +51,6 @@ module Sequent
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
       self.event_publisher = Sequent::Core::EventPublisher.new
       self.disable_event_handlers = false
-    end
-
-    def event_store=(event_store)
-      @event_store = event_store
-      @aggregate_repository = Sequent::Core::AggregateRepository.new(event_store)
-      self.command_handlers.each { |c| c.repository = @aggregate_repository }
     end
   end
 end

@@ -43,11 +43,11 @@ module Sequent
       extend ActiveRecord::ConnectionAdapters::Quoting
 
       ORDERED_BY_STREAM = lambda do |event_store|
-        event_records = quote_table_name(event_store.event_record_class.table_name)
-        stream_records = quote_table_name(event_store.stream_record_class.table_name)
-        snapshot_event_type = quote(event_store.snapshot_event_class)
+        event_records = quote_table_name(Sequent.configuration.event_record_class.table_name)
+        stream_records = quote_table_name(Sequent.configuration.stream_record_class.table_name)
+        snapshot_event_type = quote(Sequent.configuration.snapshot_event_class)
 
-        event_store.event_record_class
+        Sequent.configuration.event_record_class
           .select("event_type, event_json")
           .joins("INNER JOIN #{stream_records} ON #{event_records}.stream_record_id = #{stream_records}.id")
           .where("event_type <> #{snapshot_event_type}")

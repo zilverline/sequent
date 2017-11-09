@@ -297,7 +297,7 @@ describe Sequent::Core::EventStore do
 
     it "publishes all events" do
       replay_counter = ReplayCounter.new
-      event_store.configuration.event_handlers << replay_counter
+      Sequent.configuration.event_handlers << replay_counter
       event_store.replay_events_from_cursor(
         block_size: 2,
         get_events: get_events_cursor,

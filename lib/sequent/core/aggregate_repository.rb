@@ -16,8 +16,6 @@ module Sequent
       # Key used in thread local
       AGGREGATES_KEY = 'Sequent::Core::AggregateRepository::aggregates'.to_sym
 
-      attr_reader :event_store
-
       class NonUniqueAggregateId < StandardError
         def initialize(existing, new)
           super "Duplicate aggregate #{new} with same key as existing #{existing}"
@@ -28,10 +26,6 @@ module Sequent
         def initialize(id)
           super "Aggregate with id #{id} not found"
         end
-      end
-
-      def initialize(event_store)
-        @event_store = event_store
       end
 
       # Adds the given aggregate to the repository (or unit of work).
@@ -80,7 +74,7 @@ module Sequent
         _aggregates = aggregates.values_at(*_aggregate_ids).compact
         _query_ids = _aggregate_ids - _aggregates.map(&:id)
 
-        _aggregates += @event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
+        _aggregates += Sequent.configuration.event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end
@@ -104,7 +98,7 @@ module Sequent
       ##
       # Returns whether the event store has an aggregate with the given id
       def contains_aggregate?(aggregate_id)
-        @event_store.stream_exists?(aggregate_id)
+        Sequent.configuration.event_store.stream_exists?(aggregate_id)
       end
 
       # Gets all uncommitted_events from the 'registered' aggregates
@@ -136,7 +130,7 @@ module Sequent
       end
 
       def store_events(command, streams_with_events)
-        @event_store.commit_events(command, streams_with_events)
+        Sequent.configuration.event_store.commit_events(command, streams_with_events)
       end
     end
   end
