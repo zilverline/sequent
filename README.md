@@ -42,41 +42,40 @@ Our folder structure for this example is as follows:
 First setup the `Gemfile`
 
 ```ruby
-    source "https://rubygems.org"
+source "https://rubygems.org"
 
-    # let's use the latest and greatest
-    gem 'sequent', git: 'git@github.com:zilverline/sequent.git'
+# let's use the latest and greatest
+gem 'sequent', git: 'https://github.com/zilverline/sequent'
 
-    group :test do
-      gem 'rspec'
-    end
+group :test do
+  gem 'rspec'
+end
 ```
 
-In `spec/spec_helper.rb` add the necessary plumbing code to be able to test. The helpers
-provided by sequent expect an `@event_store`, `@repository` to exist in the tests.
+In `spec/spec_helper.rb` add the necessary plumbing code to be able to test.
 
 ```ruby
-# spec/spec_helper.rb
 require 'bundler/setup'
 Bundler.setup
 
 require 'sequent/test'
 
+# setup sequent
+# Always use the fake event store in this case
+Sequent.configuration.event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+
 RSpec.configure do |config|
   config.include Sequent::Test::CommandHandlerHelpers
 
   config.before :each do
-    @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
-    @repository = Sequent::Core::AggregateRepository.new(@event_store)
-    @repository.clear
+    Sequent.configuration.aggregate_repository.clear
   end
 end
 ```
 
 In `spec/account_spec.rb` the actual tests for our domain are added. The first test will be to
 add an account. In eventsourced system we typically test this by checking which Events will occur
-after a certain Command is executed. The `when_command `helper provided by sequent expect an `@command_handler`
-variable to exist.
+after a certain Command is executed.
 
 ```ruby
 # spec/account_spec.rb
@@ -87,7 +86,7 @@ describe 'Account' do
   let(:aggregate_id) { Sequent.new_uuid }
 
   before :each do
-    @command_handler = AccountCommandHandler.new
+    Sequent.configuration.command_handlers = [AccountCommandHandler.new]
   end
 
   it 'creates an account' do
@@ -143,28 +142,25 @@ class AccountCommandHandler < Sequent::Core::BaseCommandHandler
 end
 ```
 
-Now when we run the spec: `rspec` and it will succeed.
-
-## More examples
-
-See the [sequent example app](https://github.com/zilverline/sequent-examples)
+Now when we run the spec: `rspec` and it will succeed. You can see the source of this
+and other examples at [sequent example app](https://github.com/zilverline/sequent-examples)
 
 # The Database
 
-The database is actually split in 2 parts. The Eventstore and the View schema. The eventstore is where all events are stored.
+The database is actually split in 2 parts. The event store and the View schema. The event store is where all events are stored.
 
 ## Eventstore
 
-Sequent uses a Postgres database with the eventstore schema. The current schema is maintained in `db/sequent_schema.rb`.
+Sequent uses a Postgres database for the event store schema. The current schema is maintained in `db/sequent_schema.rb`.
 
 It is strongly recommended to copy this schema into your first migration and use migrations to keep it up to date. You can use ActiveRecord migrations
-with Sequent and provides a task to run them (see section on Rake Tasks).
+with Sequent. Sequent provides a rake task to run them (see section on [Rake Tasks](#rake-tasks-for-migrations)).
 
 If you have trouble migrating from an older schema, please let us know. We'll be glad to help out.
 
 ## View Schema
 
-Besides the event store database schema your app needs view projections. Projections are versioned and kept in a different database schema, but in
+Besides the event store your app needs view projections. Projections are versioned and kept in a different database schema, but in
 the same database.
 
 Sequent adds support to maintain both schemas in the same database. Set the `schema_search_path` in your database config to your event store schema and
@@ -173,20 +169,28 @@ your view projection schema, respectively. E.g. 'event_store, view_1'.
 The view schema is not maintained through migrations but instead is rebuild from recorded events. Therefore, there are no migrations on the view schema.
 Its schema should be provided as a schema definition (e.g. in `db/view_schema.rb`).
 
-To load the view schema in a different database schema use the `Sequent::Support::ViewSchema` extension of `ActiveRecord::Schema` to define it.
-
 For example:
 
 ```ruby
-Sequent::Support::ViewSchema.define(view_projection: Sequent::Support::ViewProjection.new(..)) do
-  create_table 'accounts' do |t|
-    t.string 'name', null: false
-    t.string 'email', null: false
-  end
+require 'sequent/support'
+
+VIEW_PROJECTION = Sequent::Support::ViewProjection.new(
+  name: "view",
+  version: VERSION,
+  definition: "db/view_schema.rb",
+  event_handlers: [
+    MyProjector.new,
+  ]
+)
+# in db/view_schema.rb
+Sequent::Support::ViewSchema.define(view_projection: VIEW_PROJECTION) do
+  create_table :foos
 end
 ```
 
 The support module is not required with sequent automatically. Require `sequent/support` to enable it.
+
+See for instance the [sinatra example](https://github.com/zilverline/sequent-examples/tree/master/sinatra) in the `sequent-examples` projects
 
 ## Rake Tasks for migrations
 
@@ -196,7 +200,12 @@ the following to your `Rakefile`.
 ```ruby
 begin
   require 'sequent/rake/tasks'
-  Sequent::Rake::Tasks.new({db_config_supplier: YAML.load_file('db/database.yml'), environment: ENV['RACK_ENV'] || 'development'}).register!
+  Sequent::Rake::Tasks.new({
+    db_config_supplier: YAML.load_file('db/database.yml'),
+    environment: ENV['RACK_ENV'] || 'development',
+    view_projection: VIEW_PROJECTION,
+    event_store_schema: 'event_store'
+  }).register!
 rescue LoadError
   puts 'Sequent tasks are not available'
 end
@@ -214,90 +223,40 @@ And you're all set to use the Rake tasks (see `rake -T` for a description).
 
 ## Upgrading to a new view schema version
 
+The simplest way of upgrading to a new view schema is to use Sequent's `view_schema:build` Rake task:
+
+0. Upgrade the `version` of you `ViewProjection`
 1. Install new version of you app on the server
-2. Create new view schema in the database
-3. Set application in maintenance mode
-4. Replay all events
-5. Switch to new version
-6. Maintenance mode off
+2. Set application in maintenance mode
+3. `bundle exec rake view_schema:build`
+4. Switch to new version of your app
+5. Maintenance mode off
 
-To support deploying sequent provides the following methods in the `EventStore`
+This works fine, but if you have high availability requirements, or millions of events you
+probably don't want to rebuild the entire view schema all the time.
 
-`Sequent::Core::Eventstore.replay_events_from_cursor(block_size: 2000, get_events:, on_progress: )`
+## Custom view schema
 
-Sequent uses the `postgresql_cursor` gem for iterating through large result sets. The `block_size`
-param is passed to the `each_row` method and denotes the number of rows to fetch per db block fetch.
-The `get_events` is an `ActiveRecord::Relation` containing the stream of events. Typically this is ordered
-per aggregate per sequence number. The `on_progress` parameter is a block that is called after the number
-of rows in `block_size` are processed and at the end of the method. By default the `on_progress` just
-prints the progress to `STDOUT`
-
-So a very simple replay of all events:
-
-```ruby
-all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
-Sequent::Core::Eventstore.replay_events_from_cursor(
-  block_size: 2000,
-  get_events: all_events,
-)
-```
-
-This strategy is fine when you don't have many events and it is okay to have downtime when doing a view schema upgrade.
-
-## Upgrading to a new view schema version with virtually no downtime
-
-Since the view schema's can always be regenerated from events
-we can deploy and run migrations for a new version of a Sequent powered app with virtually
-no downtime since we can do the generation of the new view schema in the background.
-
-1. Install new version of your app on the server
-2. Create new view schema in the database
-3. Replay all events in the new view schema while the current version of you app is running
-4. When all events are replayed set application set application in maintenance mode
-5. Get new events since 3.
-6. Switch to new version
-7. Maintenance mode off
-
-To support this way of deploying sequent we can use the `on_progress` parameter of
-the `EventStore.replay_events_from_cursor` method.
-
-As we read earlier the `on_progress` parameter is a block that is called after the number
-of rows in `block_size` are processed and at the end of the method. It takes 3 parameters
-of which the last is the ids of the `EventRecord` replayed. We need to keep track of this
-during step 3 so in step 5 we can query all events expect for those events. We can not
-simply keep track of the last id replayed since sequences in postgres can be out of order.
-
-Replay of all events (step 3):
-
-```ruby
-Sequent::Core::EventRecord.connection.execute('create table replay_ids(event_id numeric)')
-all_events = Sequent::Core::EventRecord.order('aggregate_id asc, sequence_number asc')
-Sequent::Core::Eventstore.replay_events_from_cursor(
-  block_size: 2000,
-  get_events: all_events,
-  on_progress: ->(progress, done, ids_replayed) {
-
-  }
-)
-```
-
+If you don't want to use the `ViewProjection` provided by Sequent you are free to implement
+your own way of creating your view schema. To support this Sequent provides
+the `Sequent::Core::Eventstore.replay_events_from_cursor` method if you ever need to rebuild your view schema.
 
 # Reference Guide
 
 Sequent provides the following concepts from a CQRS and an event sourced application:
 
-* Commands
-* CommandService
-* CommandHandlers
-* AggregateRepository
-* Events
-* EventHandlers
-* Projectors
-* Workflows
-* EventStore
-* Aggregates
-* ValueObjects
-* Snapshotting
+* [Commands](#commands)
+* [CommandService](#commandservice)
+* [CommandHandlers](#commandhandlers)
+* [AggregateRepository](#aggregaterepository)
+* [Events](#events)
+* [EventHandlers](#eventhandlers)
+* [Projectors](#projectors)
+* [Workflows](#workflows)
+* [EventStore](#eventstore)
+* [Aggregates](#aggregates)
+* [ValueObjects](#valueobjects)
+* [Snapshotting](#snapshotting)
 
 ## Commands
 Commands are the instructions typically initiated by the users, for instance by submitting forms.
