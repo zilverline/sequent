@@ -2,6 +2,7 @@ require_relative 'core/core'
 require_relative 'util/util'
 require_relative 'migrations/migrations'
 require_relative 'configuration'
+require_relative 'generator'
 
 require 'logger'
 
