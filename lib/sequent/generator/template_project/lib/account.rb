@@ -35,3 +35,18 @@ class AccountCommandHandler < Sequent::Core::BaseCommandHandler
     repository.add_aggregate Account.new(command)
   end
 end
+
+# event handler
+class AccountProjector < Sequent::Core::Projector
+  on AccountCreated do |event|
+    create_record(AccountRecord, aggregate_id: event.aggregate_id)
+  end
+
+  on AccountNameChanged do |event|
+    update_all_records(AccountRecord, {aggregate_id: event.aggregate_id}, name: event.name)
+  end
+end
+
+# projection
+class AccountRecord < ActiveRecord::Base
+end

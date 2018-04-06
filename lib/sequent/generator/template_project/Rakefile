@@ -1,0 +1,9 @@
+require './my_app'
+require 'sequent/rake/tasks'
+
+Sequent::Rake::Tasks.new({
+  db_config_supplier: MyApp::DB_CONFIG,
+  environment: ENV['RACK_ENV'] || 'development',
+  view_projection: MyApp::VIEW_PROJECTION,
+  event_store_schema: 'event_store'
+}).register!

@@ -1,0 +1,16 @@
+database: &database
+  adapter: postgresql
+  host: localhost
+  port: 5432
+  timeout: 5000
+  schema_search_path: "event_store, <%= MyApp::VIEW_PROJECTION.schema_name %>"
+
+development:
+  <<: *database
+  pool: 5
+  database: my_app_development
+
+test:
+  <<: *database
+  pool: 5
+  database: my_app_test

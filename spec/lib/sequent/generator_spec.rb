@@ -5,9 +5,10 @@ describe Sequent::Generator do
   let(:tmp_path) { 'tmp/sequent-generator-spec' }
 
   around do |example|
+    FileUtils.rmtree(tmp_path)
     FileUtils.mkdir_p(tmp_path)
     Dir.chdir(tmp_path) { example.run }
-    FileUtils.rmtree(tmp_path)
+    # FileUtils.rmtree(tmp_path)
   end
 
   subject(:execute) { Sequent::Generator.new('blog').execute }
@@ -23,7 +24,22 @@ describe Sequent::Generator do
 
   it 'has working example with specs' do
     execute
-    system 'cd blog  && rspec spec'
+
+    system 'bash', '-c', <<~SCRIPT
+      set -xe
+      source ~/.bash_profile
+      export RACK_ENV=test
+      cd blog
+      rbenv install --skip-existing
+      echo $PATH
+      rbenv local
+      ruby -v
+      gem install bundler
+      bundle install --gemfile=./Gemfile
+      bundle exec rake db:drop db:create db:migrate view_schema:build
+      bundle exec rspec spec
+    SCRIPT
+
     expect($?.to_i).to eq(0)
   end
 end
