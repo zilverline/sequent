@@ -1,5 +1,6 @@
 require 'fileutils'
 require 'active_support'
+require 'active_support/core_ext/string'
 
 module Sequent
   class Generator
@@ -33,8 +34,14 @@ module Sequent
     end
 
     def replace_app_name
-      `find #{name} -type f | xargs sed -i '' 's/MyApp/#{name_camelized}/g'`
-      `find #{name} -type f | xargs sed -i '' 's/my_app/#{name_underscored}/g'`
+      files = Dir["./#{name}/**/*"].select { |f| File.file?(f) }
+
+      files.each do |filename|
+        contents = File.read(filename)
+        contents.gsub!('my_app', name_underscored)
+        contents.gsub!('MyApp', name_camelized)
+        File.open(filename, 'w') { |f| f.puts contents }
+      end
     end
   end
 end
