@@ -36,7 +36,7 @@ describe Sequent::Generator do
     execute
 
     Bundler.with_clean_env do
-      system 'bash', '-ce', <<~SCRIPT
+      system 'bash', '-cex', <<~SCRIPT
         cd blog
         export RACK_ENV=test
         source ~/.bash_profile
