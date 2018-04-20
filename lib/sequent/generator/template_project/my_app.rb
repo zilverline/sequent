@@ -11,7 +11,7 @@ module MyApp
     version: VERSION,
     definition: 'db/view_schema.rb',
     event_handlers: [
-      AccountProjector.new
+      Account::Projector.new
     ]
   )
 
