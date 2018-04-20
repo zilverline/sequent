@@ -25,21 +25,20 @@ describe Sequent::Generator do
   it 'has working example with specs' do
     execute
 
-    system 'bash', '-c', <<~SCRIPT
-      set -xe
-      source ~/.bash_profile
-      export RACK_ENV=test
-      cd blog
-      rbenv install --skip-existing
-      echo $PATH
-      rbenv local
-      ruby -v
-      gem install bundler
-      bundle install --gemfile=./Gemfile
-      bundle exec rake db:drop db:create db:migrate view_schema:build
-      bundle exec rspec spec
-    SCRIPT
+    Bundler.with_clean_env do
+      system 'bash', '-ce', <<~SCRIPT
+        cd blog
+        export RACK_ENV=test
+        source ~/.bash_profile
+        rbenv shell $(cat ./.ruby-version)
+        rbenv install --skip-existing
+        gem install bundler
+        bundle install
+        bundle exec rake db:drop db:create db:migrate view_schema:build
+        bundle exec rspec spec
+      SCRIPT
 
-    expect($?.to_i).to eq(0)
+      expect($?.to_i).to eq(0)
+    end
   end
 end
