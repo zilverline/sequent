@@ -34,6 +34,7 @@ module Sequent
 
     def replace_app_name
       `find #{name} -type f | xargs sed -i '' 's/MyApp/#{name_camelized}/g'`
+      `find #{name} -type f | xargs sed -i '' 's/my_app/#{name_underscored}/g'`
     end
   end
 end

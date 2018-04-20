@@ -26,7 +26,10 @@ describe Sequent::Generator do
     execute
     expect(File.exist?('blog/my_app.rb')).to be_falsey
     expect(File.exist?('blog/blog.rb')).to be_truthy
+    expect(File.read('blog/blog.rb')).to_not include('module MyApp')
     expect(File.read('blog/blog.rb')).to include('module Blog')
+    expect(File.read('blog/Rakefile')).to_not include("require './my_app'")
+    expect(File.read('blog/Rakefile')).to include("require './blog'")
   end
 
   it 'has working example with specs' do
@@ -37,8 +40,12 @@ describe Sequent::Generator do
         cd blog
         export RACK_ENV=test
         source ~/.bash_profile
-        rbenv shell $(cat ./.ruby-version)
-        rbenv install --skip-existing
+
+        if which rbenv; then
+          rbenv shell $(cat ./.ruby-version)
+          rbenv install --skip-existing
+        fi
+
         gem install bundler
         bundle install
         bundle exec rake db:drop db:create db:migrate view_schema:build
