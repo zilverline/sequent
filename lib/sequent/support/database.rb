@@ -26,6 +26,21 @@ module Sequent
         ActiveRecord::Base.connection_pool.disconnect!
       end
 
+      def self.with_schema_search_path(search_path, db_config, env = ENV['RACK_ENV'])
+        disconnect!
+        original_search_paths = db_config['schema_search_path'].dup
+        ActiveRecord::Base.configurations[env.to_s] = db_config.stringify_keys
+        db_config['schema_search_path'] = search_path
+        ActiveRecord::Base.establish_connection db_config
+
+        yield
+
+      ensure
+        disconnect!
+        db_config['schema_search_path'] = original_search_paths
+        establish_connection(db_config)
+      end
+
       def schema_exists?(schema)
         ActiveRecord::Base.connection.execute(
           "SELECT schema_name FROM information_schema.schemata WHERE schema_name like '#{schema}'"

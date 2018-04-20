@@ -2,6 +2,40 @@ require_relative 'helpers/self_applier'
 
 module Sequent
   module Core
+
+    module Migratable
+      module ClassMethods
+        def manages_tables(*tables)
+          @managed_tables = tables
+        end
+
+        def managed_tables
+          @managed_tables
+        end
+      end
+
+      def self.projectors
+        Sequent.configuration.event_handlers.select { |x| x.is_a? Migratable }.map(&:class)
+      end
+
+      def self.included(host_class)
+        host_class.extend(ClassMethods)
+      end
+
+      def self.none
+        []
+      end
+
+      def self.all
+        Migratable.projectors
+      end
+
+      def managed_tables
+        self.class.managed_tables
+      end
+
+    end
+
     # EventHandlers listen to events and handle them according to their responsibility.
     #
     # Examples:
@@ -37,6 +71,7 @@ module Sequent
     class BaseEventHandler
       extend Forwardable
       include Helpers::SelfApplier
+      include Migratable
 
       def initialize(record_session = Sequent::Core::RecordSessions::ActiveRecordSession.new)
         @record_session = record_session

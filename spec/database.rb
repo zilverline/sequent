@@ -1,13 +1,19 @@
 require 'active_record'
 
 module Database
-  def self.establish_connection
+  def self.test_config
+    {
+      adapter: "postgresql",
+      host: "localhost",
+      username: "sequent",
+      password: "",
+      database: "sequent_spec_db"
+    }.stringify_keys
+  end
+
+  def self.establish_connection(config = test_config)
     ActiveRecord::Base.establish_connection(
-      :adapter  => "postgresql",
-      :host     => "localhost",
-      :username => "sequent",
-      :password => "",
-      :database => "sequent_spec_db"
+      config
     )
   end
 end

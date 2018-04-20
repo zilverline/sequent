@@ -2,9 +2,20 @@ require_relative 'core/event_store'
 require_relative 'core/command_service'
 require_relative 'core/transactions/no_transactions'
 require_relative 'core/aggregate_repository'
+require_relative 'core/record_sessions/active_record_session'
+require 'logger'
 
 module Sequent
   class Configuration
+
+    DEFAULT_VERSIONS_TABLE_NAME = 'sequent_versions'
+    DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
+    DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
+    DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
+    MIGRATIONS_CLASS_NAME = 'Sequent::ViewSchema::Migrations'
+    DEFAULT_REPLAY_EVENTS_SESSION_CLASS = Sequent::Core::RecordSessions::ActiveRecordSession
+    DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
+
     attr_accessor :aggregate_repository
 
     attr_accessor :event_store,
@@ -23,6 +34,17 @@ module Sequent
     attr_accessor :uuid_generator
 
     attr_accessor :disable_event_handlers
+
+    attr_accessor :logger
+
+    attr_accessor :versions_table_name,
+                  :replayed_ids_table_name,
+                  :migration_sql_files_directory,
+                  :view_schema_name,
+                  :replay_events_session_class,
+                  :number_of_replay_processes
+
+    attr_reader :migrations_class_name
 
     def self.instance
       @instance ||= new
@@ -51,6 +73,23 @@ module Sequent
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
       self.event_publisher = Sequent::Core::EventPublisher.new
       self.disable_event_handlers = false
+      self.versions_table_name = DEFAULT_VERSIONS_TABLE_NAME
+      self.replayed_ids_table_name = DEFAULT_REPLAYED_IDS_TABLE_NAME
+      self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
+      self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
+      self.migrations_class_name = MIGRATIONS_CLASS_NAME
+      self.replay_events_session_class = DEFAULT_REPLAY_EVENTS_SESSION_CLASS
+      self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
+      self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
     end
+
+    def migrations_class_name=(class_name)
+      migration_class = Class.const_get(class_name)
+      fail ArgumentError.new("#{migration_class} must respond_to class method versions") unless migration_class.respond_to?(:versions)
+      fail ArgumentError.new("#{migration_class} must respond_to class method version") unless migration_class.respond_to?(:version)
+      fail ArgumentError.new("#{migration_class} must extend Sequent::ViewSchema::Migrations") unless migration_class <= Sequent::ViewSchema::Migrations
+      @migrations_class_name = class_name
+    end
+
   end
 end
