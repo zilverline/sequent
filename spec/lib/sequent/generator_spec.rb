@@ -22,6 +22,13 @@ describe Sequent::Generator do
     expect(FileUtils.cmp('blog/Gemfile', '../../lib/sequent/generator/template_project/Gemfile')).to be_truthy
   end
 
+  it 'names the app' do
+    execute
+    expect(File.exist?('blog/my_app.rb')).to be_falsey
+    expect(File.exist?('blog/blog.rb')).to be_truthy
+    expect(File.read('blog/blog.rb')).to include('module Blog')
+  end
+
   it 'has working example with specs' do
     execute
 
