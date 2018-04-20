@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+command = ARGV[0].to_s.strip
+name = ARGV[1].to_s.strip
+
+nextsteps = <<~NEXTSTEPS
+
+  Success!
+
+  Your brand spanking new sequent app is waiting for you in:
+    #{File.expand_path(name, __dir__)}
+
+  To finish setting up your app:
+    cd #{name}
+    bundle install
+    bundle exec rake db:create db:migrate view_schema:build
+
+  Run the example specs:
+    RACK_ENV=test bundle exec rake db:create db:migrate view_schema:build
+    bundle exec rspec spec
+
+  For more information see:
+    sequent.io
+
+  Happy coding!
+
+NEXTSTEPS
+
+require_relative '../lib/sequent/generator'
+
+abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
+abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty?
+
+case command
+  when 'new'
+    Sequent::Generator.new(name).execute
+    puts nextsteps
+  else
+    abort("Unknown command #{command}. Try `sequent new myapp`")
+end

@@ -1,3 +1,5 @@
+require 'fileutils'
+
 module Sequent
   class Generator
     attr_reader :name

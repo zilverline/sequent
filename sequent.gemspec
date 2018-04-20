@@ -9,6 +9,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Lars Vonk", "Bob Forma", "Erik Rozendaal"]
   s.email       = ["lars.vonk@gmail.com", "bforma@zilverline.com", "erozendaal@zilverline.com"]
   s.files       = Dir["lib/**/*", "db/**/*"]
+  s.executables << 'sequent'
   s.homepage    =
     'https://github.com/zilverline/sequent'
   s.license       = 'MIT'
