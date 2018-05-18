@@ -3,7 +3,7 @@ module Sequent
     ##
     # Use in tests
     #
-    # This provides a nice DSL for generating streams of events. FactoryGirl is required when using this helper.
+    # This provides a nice DSL for generating streams of events. FactoryBot is required when using this helper.
     #
     # Example for Rspec config
     #
@@ -19,7 +19,7 @@ module Sequent
     #   s.owner_joined_group owner_aggregate_id: 'Y'
     # end
     #
-    # Methods on `s` will be FactoryGirl factories. All arguments will be passed on to FactoryGirl's build method.
+    # Methods on `s` will be FactoryBot factories. All arguments will be passed on to FactoryBot's build method.
     # Aggregate ids and sequence numbers will be set automatically.
     #
     # The example above can also be written as follows:
@@ -43,7 +43,7 @@ module Sequent
 
         def method_missing(name, *args, &block)
           args = prepare_arguments(args)
-          @events << FactoryGirl.build(name, *args, &block)
+          @events << FactoryBot.build(name, *args, &block)
         end
 
       private
@@ -69,9 +69,9 @@ module Sequent
       end
 
       def self.included(spec)
-        require 'factory_girl'
+        require 'factory_bot'
       rescue LoadError
-        raise ArgumentError, "Factory girl is required to use the event stream helpers"
+        raise ArgumentError, "Factory bot is required to use the event stream helpers"
       end
     end
   end
