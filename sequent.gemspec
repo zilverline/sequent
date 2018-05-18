@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
     'https://github.com/zilverline/sequent'
   s.license       = 'MIT'
 
-  active_star_version = ENV['ACTIVE_STAR_VERSION'] || ['>= 4.0', '< 5.2']
+  active_star_version = ENV['ACTIVE_STAR_VERSION'] || ['>= 5.0', '< 5.2']
 
   s.add_dependency              'activerecord', active_star_version
   s.add_dependency              'activemodel', active_star_version

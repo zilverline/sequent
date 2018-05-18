@@ -1,7 +1,6 @@
 language: ruby
 env:
   matrix:
-    - "ACTIVE_STAR_VERSION='~> 4.2'"
     - "ACTIVE_STAR_VERSION='~> 5.0.0'"
     - "ACTIVE_STAR_VERSION='~> 5.1.0'"
   global:
