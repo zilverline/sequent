@@ -467,7 +467,7 @@ require 'sequent/test'
 RSpec.configure do |c|
   c.include Sequent::Test::CommandHandlerHelpers
   c.include Sequent::Test::WorkflowHelpers
-  c.include Sequent::Test::EventStreamHelpers # FactoryGirl is required for these helpers.
+  c.include Sequent::Test::EventStreamHelpers # FactoryBot is required for these helpers.
 end
 ```
 
