@@ -24,6 +24,7 @@ module Sequent
       ##
       # @param env The string representing the current environment. E.g. "development", "production"
       def initialize(env)
+        warn '[DEPRECATED] Use of MigrateEvents is deprecated and will be removed from future version. Please use Sequent::Migrations::ViewSchema instead. See the changelog on how to update.'
         @env = env
       end
 
