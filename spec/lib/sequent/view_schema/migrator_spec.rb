@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'active_support/hash_with_indifferent_access'
 require_relative '../../../fixtures/db/1/classes'
 
 describe Sequent::ViewSchema::Migrator do

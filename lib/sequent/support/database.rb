@@ -1,3 +1,5 @@
+require 'active_support/hash_with_indifferent_access'
+
 module Sequent
   module Support
     # Offers support operations for a postgres database.
