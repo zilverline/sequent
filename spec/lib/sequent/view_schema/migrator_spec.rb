@@ -238,9 +238,6 @@ describe Sequent::ViewSchema::Migrator do
 
         migrator.migrate_online
 
-        p table_name_account: AccountRecord.table_name
-        p table_name_message: MessageRecord.table_name
-
         expect(AccountRecord.count).to eq (1)
         expect(MessageRecord.count).to eq (1)
       end
