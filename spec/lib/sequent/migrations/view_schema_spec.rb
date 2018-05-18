@@ -2,11 +2,11 @@ require 'spec_helper'
 require 'active_support/hash_with_indifferent_access'
 require_relative '../../../fixtures/db/1/classes'
 
-describe Sequent::ViewSchema::Migrator do
+describe Sequent::Migrations::ViewSchema do
 
   let(:view_schema) { 'test_view_schema' }
   let(:opts) { {db_config: db_config} }
-  let(:migrator) { Sequent::ViewSchema::Migrator.new(opts) }
+  let(:migrator) { Sequent::Migrations::ViewSchema.new(opts) }
   let(:db_config) { ActiveSupport::HashWithIndifferentAccess.new(Database.test_config.merge(schema_search_path: "#{view_schema},public")).stringify_keys }
 
   before :each do
@@ -19,7 +19,7 @@ describe Sequent::ViewSchema::Migrator do
     exec_sql("drop table if exists #{Sequent.configuration.versions_table_name} cascade")
     exec_sql("delete from #{Sequent.configuration.event_record_class.table_name}")
 
-    class SpecMigrations < Sequent::ViewSchema::Migrations
+    class SpecMigrations < Sequent::Migrations::Projectors
         def self.versions
           {
             '1' => [AccountProjector, MessageProjector]
@@ -73,7 +73,7 @@ describe Sequent::ViewSchema::Migrator do
     context 'same version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::ViewSchema::Versions.create!(version: new_version)
+        Sequent::Migrations::ViewSchema::Versions.create!(version: new_version)
       end
 
       it 'does nothing if already on the correct version' do
@@ -86,9 +86,9 @@ describe Sequent::ViewSchema::Migrator do
     context 'lower version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::ViewSchema::Versions.create!(version: 2)
+        Sequent::Migrations::ViewSchema::Versions.create!(version: 2)
 
-        class SpecMigrations < Sequent::ViewSchema::Migrations
+        class SpecMigrations < Sequent::Migrations::Projectors
           def self.version
             1
           end
@@ -134,12 +134,12 @@ describe Sequent::ViewSchema::Migrator do
         expect(MessageRecord.count).to eq 1
         expect(MessageRecord.table_name).to eq 'message_records_1'
 
-        expect(Sequent::ViewSchema::ReplayedIds.pluck(:event_id)).to match_array Sequent.configuration.event_record_class.pluck(:id)
+        expect(Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id)).to match_array Sequent.configuration.event_record_class.pluck(:id)
       end
 
       context 'specific projectors' do
         before :each do
-          class SpecMigrations < Sequent::ViewSchema::Migrations
+          class SpecMigrations < Sequent::Migrations::Projectors
             def self.versions
               {
                 '1' => [AccountProjector]
@@ -164,7 +164,7 @@ describe Sequent::ViewSchema::Migrator do
           expect(MessageRecord.table_name).to eq 'message_records'
           expect(ActiveRecord::Base.connection).to_not have_view_schema_table('message_records_1')
 
-          expect(Sequent::ViewSchema::ReplayedIds.pluck(:event_id)).to match_array Sequent.configuration.event_record_class.where(aggregate_id: [account_1, account_2]).pluck(:id)
+          expect(Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id)).to match_array Sequent.configuration.event_record_class.where(aggregate_id: [account_1, account_2]).pluck(:id)
         end
       end
 
@@ -179,7 +179,7 @@ describe Sequent::ViewSchema::Migrator do
         expect { migrator.migrate_online }.to raise_error(Parallel::UndumpableException)
 
         expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records_1')
-        expect(Sequent::ViewSchema::ReplayedIds.count).to eq 0
+        expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
       end
     end
   end
@@ -202,7 +202,7 @@ describe Sequent::ViewSchema::Migrator do
     context 'same version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::ViewSchema::Versions.create!(version: new_version)
+        Sequent::Migrations::ViewSchema::Versions.create!(version: new_version)
       end
 
       it 'does nothing if already on the correct version' do
@@ -215,9 +215,9 @@ describe Sequent::ViewSchema::Migrator do
     context 'lower version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::ViewSchema::Versions.create!(version: 2)
+        Sequent::Migrations::ViewSchema::Versions.create!(version: 2)
 
-        class SpecMigrations < Sequent::ViewSchema::Migrations
+        class SpecMigrations < Sequent::Migrations::Projectors
           def self.version
             1
           end
@@ -263,7 +263,7 @@ describe Sequent::ViewSchema::Migrator do
       it 'sets the new version' do
         migrator.migrate_offline
 
-        expect(Sequent::ViewSchema::Versions.maximum(:version)).to eq new_version
+        expect(Sequent::Migrations::ViewSchema::Versions.maximum(:version)).to eq new_version
       end
 
       it 'ensures the "normal" table_names are set' do
@@ -280,7 +280,7 @@ describe Sequent::ViewSchema::Migrator do
 
       it 'fails when migrate_online was not called prior to migrate_offline' do
         migrator.create_view_schema_if_not_exists
-        expect { migrator.migrate_offline }.to raise_error Sequent::ViewSchema::MigrationError
+        expect { migrator.migrate_offline }.to raise_error Sequent::Migrations::MigrationError
       end
 
       it 'stops and does a rollback' do
@@ -295,7 +295,7 @@ describe Sequent::ViewSchema::Migrator do
 
         expect(ActiveRecord::Base.connection).to_not have_view_schema_table('message_records')
         expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records')
-        expect(Sequent::ViewSchema::ReplayedIds.count).to eq 0
+        expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
       end
 
       context 'with an existing view schema' do
@@ -314,7 +314,7 @@ describe Sequent::ViewSchema::Migrator do
         end
 
         it 'keeps the old state' do
-          class SpecMigrations < Sequent::ViewSchema::Migrations
+          class SpecMigrations < Sequent::Migrations::Projectors
             def self.versions
               {
                 '1' => [AccountProjector, MessageProjector],
@@ -340,8 +340,8 @@ describe Sequent::ViewSchema::Migrator do
           expect(ActiveRecord::Base.connection).to_not have_view_schema_table('message_records_2')
           expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records_2')
 
-          expect(Sequent::ViewSchema::ReplayedIds.count).to eq 0
-          expect(Sequent::ViewSchema::Versions.maximum(:version)).to eq 1
+          expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
+          expect(Sequent::Migrations::ViewSchema::Versions.maximum(:version)).to eq 1
 
           expect(AccountRecord.count).to eq (1)
           expect(MessageRecord.count).to eq (1)

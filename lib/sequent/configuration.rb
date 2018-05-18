@@ -12,7 +12,7 @@ module Sequent
     DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
-    MIGRATIONS_CLASS_NAME = 'Sequent::ViewSchema::Migrations'
+    MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
     DEFAULT_REPLAY_EVENTS_SESSION_CLASS = Sequent::Core::RecordSessions::ActiveRecordSession
     DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
 
@@ -87,21 +87,19 @@ module Sequent
       fail ArgumentError.new('table_name can not be nil') unless table_name
 
       @replayed_ids_table_name = table_name
-      Sequent::ViewSchema::ReplayedIds.table_name = table_name
+      Sequent::Migrations::ViewSchema::ReplayedIds.table_name = table_name
     end
 
     def versions_table_name=(table_name)
       fail ArgumentError.new('table_name can not be nil') unless table_name
 
       @versions_table_name = table_name
-      Sequent::ViewSchema::Versions.table_name = table_name
+      Sequent::Migrations::ViewSchema::Versions.table_name = table_name
     end
 
     def migrations_class_name=(class_name)
       migration_class = Class.const_get(class_name)
-      fail ArgumentError.new("#{migration_class} must respond_to class method versions") unless migration_class.respond_to?(:versions)
-      fail ArgumentError.new("#{migration_class} must respond_to class method version") unless migration_class.respond_to?(:version)
-      fail ArgumentError.new("#{migration_class} must extend Sequent::ViewSchema::Migrations") unless migration_class <= Sequent::ViewSchema::Migrations
+      fail ArgumentError.new("#{migration_class} must extend Sequent::Migrations::Projectors") unless migration_class <= Sequent::Migrations::Projectors
       @migrations_class_name = class_name
     end
 

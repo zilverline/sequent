@@ -5,19 +5,19 @@ require_relative '../support/database'
 require_relative '../sequent'
 require_relative '../util/timer'
 require_relative '../util/printer'
-require_relative 'migrations'
+require_relative './projectors'
 
 module Sequent
-  module ViewSchema
+  module Migrations
     class MigrationError < RuntimeError; end
 
-    class Versions < ActiveRecord::Base; end
+    class ViewSchema
 
-    class ReplayedIds < ActiveRecord::Base; end
-
-    class Migrator
       include Sequent::Util::Timer
       include Sequent::Util::Printer
+
+      class Versions < ActiveRecord::Base; end
+      class ReplayedIds < ActiveRecord::Base; end
 
       LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE = 3
 
