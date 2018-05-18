@@ -6,7 +6,7 @@ describe Sequent::ViewSchema::Migrator do
   let(:view_schema) { 'test_view_schema' }
   let(:opts) { {db_config: db_config} }
   let(:migrator) { Sequent::ViewSchema::Migrator.new(opts) }
-  let(:db_config) { Database.test_config.merge(schema_search_path: "#{view_schema},public").stringify_keys }
+  let(:db_config) { ActiveSupport::HashWithIndifferentAccess.new(Database.test_config.merge(schema_search_path: "#{view_schema},public")).stringify_keys }
 
   before :each do
     Sequent.configure do |config|

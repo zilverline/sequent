@@ -29,7 +29,7 @@ module Sequent
       def self.with_schema_search_path(search_path, db_config, env = ENV['RACK_ENV'])
         disconnect!
         original_search_paths = db_config['schema_search_path'].dup
-        ActiveRecord::Base.configurations[env.to_s] = db_config.stringify_keys
+        ActiveRecord::Base.configurations[env.to_s] = ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
         db_config['schema_search_path'] = search_path
         ActiveRecord::Base.establish_connection db_config
 
