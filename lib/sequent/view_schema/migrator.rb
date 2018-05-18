@@ -11,13 +11,9 @@ module Sequent
   module ViewSchema
     class MigrationError < RuntimeError; end
 
-    class Versions < ActiveRecord::Base
-      self.table_name = Sequent.configuration.versions_table_name
-    end
+    class Versions < ActiveRecord::Base; end
 
-    class ReplayedIds < ActiveRecord::Base
-      self.table_name = Sequent.configuration.replayed_ids_table_name
-    end
+    class ReplayedIds < ActiveRecord::Base; end
 
     class Migrator
       include Sequent::Util::Timer
@@ -35,6 +31,21 @@ module Sequent
 
       def current_version
         Versions.order('version desc').limit(1).first&.version || 0
+      end
+
+      # Method mostly used in tests to just create the view tables
+      def create_view_tables
+        create_view_schema_if_not_exists
+        in_view_schema do
+          Sequent::Core::Migratable.all.flat_map(&:managed_tables).each do |table|
+            statements = sql_file_to_statements("#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.sql") { |raw_sql| raw_sql.remove('%SUFFIX%') }
+            statements.each { |statement| exec_sql(statement) }
+          end
+        end
+      end
+
+      def replay_all!
+        replay!(Sequent::Core::Migratable.all, replay_session)
       end
 
       def create_view_schema_if_not_exists

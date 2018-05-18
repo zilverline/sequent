@@ -37,14 +37,14 @@ module Sequent
 
     attr_accessor :logger
 
-    attr_accessor :versions_table_name,
-                  :replayed_ids_table_name,
-                  :migration_sql_files_directory,
+    attr_accessor :migration_sql_files_directory,
                   :view_schema_name,
                   :replay_events_session_class,
                   :number_of_replay_processes
 
-    attr_reader :migrations_class_name
+    attr_reader :migrations_class_name,
+                :versions_table_name,
+                :replayed_ids_table_name
 
     def self.instance
       @instance ||= new
@@ -81,6 +81,20 @@ module Sequent
       self.replay_events_session_class = DEFAULT_REPLAY_EVENTS_SESSION_CLASS
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
+    end
+
+    def replayed_ids_table_name=(table_name)
+      fail ArgumentError.new('table_name can not be nil') unless table_name
+
+      @replayed_ids_table_name = table_name
+      Sequent::ViewSchema::ReplayedIds.table_name = table_name
+    end
+
+    def versions_table_name=(table_name)
+      fail ArgumentError.new('table_name can not be nil') unless table_name
+
+      @versions_table_name = table_name
+      Sequent::ViewSchema::Versions.table_name = table_name
     end
 
     def migrations_class_name=(class_name)
