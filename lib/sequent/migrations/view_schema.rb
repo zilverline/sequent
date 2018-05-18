@@ -11,15 +11,40 @@ module Sequent
   module Migrations
     class MigrationError < RuntimeError; end
 
+
+    ##
+    # Responsible for migration of Projectors between view schema versions.
+    #
+    # A Projector needs migration when for instance:
+    #
+    # - New columns are added
+    # - Structure is changed
+    #
+    # To maintain your migrations you need to:
+    # 1. Create a class that extends `Sequent::Migrations::Projectors` and specify in `Sequent.configuration.migrations_class_name`
+    # 2. Define per version which Projectors you want to migrate
+    #    See the definition of `Sequent::Migrations::Projectors.versions` and `Sequent::Migrations::Projectors.version`
+    # 3. Specify in Sequent where your sql files reside (Sequent.configuration.migration_sql_files_directory)
+    # 4. Ensure that you add %SUFFIX% to each name that needs to be unique in postgres (like TABLE names, INDEX names, PRIMARY KEYS)
+    #    E.g. `create table foo%SUFFIX% (id serial NOT NULL, CONSTRAINT foo_pkey%SUFFIX% PRIMARY KEY (id))`
+    #
     class ViewSchema
+
+      # Corresponds with the index on aggregate_id column in the event_records table
+      #
+      # Since we replay in batches of the first 3 chars of the uuid we created an index on
+      # these 3 characters. Hence the name ;-)
+      #
+      # This also means that the online replay is divided up into 16**3 groups
+      # This might seem a lot for starting event store, but when you will get more
+      # events, you will see that this is pretty good partitioned.
+      LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE = 3
 
       include Sequent::Util::Timer
       include Sequent::Util::Printer
 
       class Versions < ActiveRecord::Base; end
       class ReplayedIds < ActiveRecord::Base; end
-
-      LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE = 3
 
       attr_reader :view_schema, :db_config, :logger
 
@@ -29,11 +54,17 @@ module Sequent
         @logger = Sequent.logger
       end
 
+      ##
+      # Returns the current version from the database
       def current_version
         Versions.order('version desc').limit(1).first&.version || 0
       end
 
-      # Method mostly used in tests to just create the view tables
+      ##
+      # Utility method that creates all tables in the view schema
+      #
+      # This method is mainly useful in test scenario to just create
+      # the entire view schema without replaying the events
       def create_view_tables
         create_view_schema_if_not_exists
         in_view_schema do
@@ -44,10 +75,18 @@ module Sequent
         end
       end
 
+      ##
+      # Utility method that replays events for all managed_tables from all Sequent::Core::Projector's
+      #
+      # This method is mainly useful in test scenario's
       def replay_all!
         replay!(Sequent::Core::Migratable.all, replay_session)
       end
 
+      ##
+      # Utility method that creates the view_schema and the meta data tables
+      #
+      # This method is mainly useful during an initial setup of the view schema
       def create_view_schema_if_not_exists
         exec_sql(%Q{CREATE SCHEMA IF NOT EXISTS #{view_schema}})
         in_view_schema do
@@ -56,6 +95,20 @@ module Sequent
         end
       end
 
+      ##
+      # First part of a view schema migration
+      #
+      # Call this method while your application is running.
+      # The online part consists of:
+      #
+      # 1. Ensure any previous migrations are cleaned up
+      # 2. Create new tables for the Projectors which need to be migrated to the new version
+      #   These tables will be called `table_name_VERSION`.
+      # 3. Replay all events to populate the tables
+      #   It keeps track of all events that are already replayed.
+      #
+      # If anything fails an exception is raised and everything is rolled back
+      #
       def migrate_online
         ensure_version_correct!
 
@@ -76,6 +129,25 @@ module Sequent
         raise e
       end
 
+      ##
+      # Last part of a view schema migration
+      #
+      # +You have to ensure no events are being added to the event store while this method is running.+
+      # For instance put your application in maintenance mode.
+      #
+      # The offline part consists of:
+      #
+      # 1. Replay all events not yet replayed since #migration_online
+      # 2. Within a single transaction do:
+      # 2.1 Rename current tables with the +current version+ as SUFFIX
+      # 2.2 Rename the new tables and remove the +new version+ suffix
+      # 2.3 Add the new version in the +Versions+ table
+      # 3. Performs cleanup of replayed event ids
+      #
+      # If anything fails an exception is raised and everything is rolled back
+      #
+      # When this method succeeds you can safely start the application from Sequent's point of view.
+      #
       def migrate_offline
         return if Sequent.new_version == current_version
 
@@ -130,6 +202,7 @@ module Sequent
 
         fail ArgumentError.new("new_version [#{new_version}] must be greater or equal to current_version [#{current_version}]") if new_version < current_version
       end
+
       def replay!(projectors, session, exclude_ids: false, group_exponent: 3)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
