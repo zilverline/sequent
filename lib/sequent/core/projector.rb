@@ -105,7 +105,8 @@ module Sequent
         # Returns the last record given a where
         :last_record,
         # Just executes the given sql
-        :execute_sql
+        :execute_sql,
+        :commit
 
     end
   end
