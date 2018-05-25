@@ -249,7 +249,11 @@ module Sequent
           get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
           on_progress: on_progress
         )
+
         replay_persistor.commit
+
+        # Also commit all specific declared replay persistors on projectors.
+        Sequent.configuration.event_handlers.select { |e| e.class.replay_persistor }.each(&:commit)
       end
 
       def rollback_migration
