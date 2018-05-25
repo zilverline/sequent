@@ -78,9 +78,9 @@ module Sequent
       ##
       # Utility method that replays events for all managed_tables from all Sequent::Core::Projector's
       #
-      # This method is mainly useful in test scenario's
+      # This method is mainly useful in test scenario's or development tasks
       def replay_all!
-        replay!(Sequent::Core::Migratable.all, replay_session)
+        replay!(Sequent::Core::Migratable.all, Sequent.configuration.online_replay_persistor_class.new)
       end
 
       ##
@@ -123,7 +123,7 @@ module Sequent
             table.reset_column_information
           end
         end
-        replay!(projectors_to_migrate, replay_session)
+        replay!(projectors_to_migrate, Sequent.configuration.online_replay_persistor_class.new)
       rescue Exception => e
         rollback_migration
         raise e
@@ -161,7 +161,7 @@ module Sequent
           end
         end
         # 1 replay events not yet replayed
-        replay!(projectors_to_migrate, Sequent::Core::RecordSessions::ActiveRecordSession.new, exclude_ids: true, group_exponent: 1)
+        replay!(projectors_to_migrate, Sequent.configuration.offline_replay_persistor_class.new, exclude_ids: true, group_exponent: 1)
 
         in_view_schema do
           ActiveRecord::Base.transaction do
@@ -203,11 +203,11 @@ module Sequent
         fail ArgumentError.new("new_version [#{new_version}] must be greater or equal to current_version [#{current_version}]") if new_version < current_version
       end
 
-      def replay!(projectors, session, exclude_ids: false, group_exponent: 3)
+      def replay!(projectors, replay_persistor, exclude_ids: false, group_exponent: 3)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
         event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
-        with_sequent_config(session, projectors) do
+        with_sequent_config(replay_persistor, projectors) do
           logger.info "Start replaying events"
 
           time("#{16**group_exponent} groups replayed") do
@@ -222,7 +222,7 @@ module Sequent
               begin
                 @connected ||= establish_connection
                 time("Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed") do
-                  replay_events(aggregate_prefixes, event_types, exclude_ids, false, &insert_ids)
+                  replay_events(aggregate_prefixes, event_types, exclude_ids, false, replay_persistor, &insert_ids)
                 end
                 nil
               rescue => e
@@ -238,13 +238,13 @@ module Sequent
         end
       end
 
-      def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, print_on_error, &on_progress)
+      def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, print_on_error, replay_persistor, &on_progress)
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
           get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
           on_progress: on_progress
         )
-        replay_session.commit if replay_session.respond_to? :commit
+        replay_persistor.commit if replay_persistor.respond_to? :commit
       rescue => e
         if print_on_error
           logger.error "Replaying failed for ids: ^#{aggregate_prefixes.first} - #{aggregate_prefixes.last}"
@@ -320,18 +320,12 @@ module Sequent
         end
       end
 
-      def with_sequent_config(session, projectors, &block)
+      def with_sequent_config(replay_persistor, projectors, &block)
         old_config = Sequent.configuration
 
         config = Sequent.configuration.dup
 
-        replay_projectors = projectors.map do |projector_class|
-          if projector_class.respond_to?(:replay_session)
-            projector_class.new(projector_class.replay_session)
-          else
-            projector_class.new(session)
-          end
-        end
+        replay_projectors = projectors.map { |projector_class| projector_class.new(projector_class.replay_persistor || replay_persistor) }
         config.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
         config.event_handlers = replay_projectors
 
@@ -340,10 +334,6 @@ module Sequent
         block.call
       ensure
         Sequent::Configuration.restore(old_config)
-      end
-
-      def replay_session
-        @session ||= Sequent.configuration.replay_events_session_class.new
       end
 
       def event_stream(aggregate_prefixes, event_types, exclude_already_replayed)

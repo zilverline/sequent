@@ -2,7 +2,7 @@ require_relative 'core/event_store'
 require_relative 'core/command_service'
 require_relative 'core/transactions/no_transactions'
 require_relative 'core/aggregate_repository'
-require_relative 'core/record_sessions/active_record_session'
+require_relative 'core/persistors/active_record_persistor'
 require 'logger'
 
 module Sequent
@@ -10,11 +10,17 @@ module Sequent
 
     DEFAULT_VERSIONS_TABLE_NAME = 'sequent_versions'
     DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
+
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
+
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
+
     MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
-    DEFAULT_REPLAY_EVENTS_SESSION_CLASS = Sequent::Core::RecordSessions::ActiveRecordSession
+
     DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
+
+    DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
+    DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
 
     attr_accessor :aggregate_repository
 
@@ -39,7 +45,8 @@ module Sequent
 
     attr_accessor :migration_sql_files_directory,
                   :view_schema_name,
-                  :replay_events_session_class,
+                  :offline_replay_persistor_class,
+                  :online_replay_persistor_class,
                   :number_of_replay_processes
 
     attr_reader :migrations_class_name,
@@ -78,8 +85,11 @@ module Sequent
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
       self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
       self.migrations_class_name = MIGRATIONS_CLASS_NAME
-      self.replay_events_session_class = DEFAULT_REPLAY_EVENTS_SESSION_CLASS
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
+
+      self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
+      self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
+
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
     end
 

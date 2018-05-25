@@ -1,6 +1,6 @@
 require_relative 'sequent_oj'
 require_relative 'helpers/helpers'
-require_relative 'record_sessions/record_sessions'
+require_relative 'persistors/persistors'
 require_relative 'transactions/transactions'
 require_relative 'event'
 require_relative 'aggregate_repository'
