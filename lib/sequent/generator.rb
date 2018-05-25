@@ -4,12 +4,8 @@ require 'active_support/core_ext/string'
 
 module Sequent
   class Generator
-    attr_reader :name, :name_underscored, :name_camelized
-
-    def initialize(name)
-      @name = name
-      @name_underscored = name.underscore
-      @name_camelized = name.camelize
+    def initialize(path_or_name)
+      @path_or_name = path_or_name
     end
 
     def execute
@@ -22,19 +18,19 @@ module Sequent
     private
 
     def make_directory
-      FileUtils.mkdir_p(name)
+      FileUtils.mkdir_p(path)
     end
 
     def copy_files
-      FileUtils.copy_entry(File.expand_path('generator/template_project', __dir__), name)
+      FileUtils.copy_entry(File.expand_path('generator/template_project', __dir__), path)
     end
 
     def rename_app_file
-      FileUtils.mv("#{name}/my_app.rb", "#{name}/#{name_underscored}.rb")
+      FileUtils.mv("#{path}/my_app.rb", "#{path}/#{name_underscored}.rb")
     end
 
     def replace_app_name
-      files = Dir["./#{name}/**/*"].select { |f| File.file?(f) }
+      files = Dir["#{path}/**/*"].select { |f| File.file?(f) }
 
       files.each do |filename|
         contents = File.read(filename)
@@ -42,6 +38,22 @@ module Sequent
         contents.gsub!('MyApp', name_camelized)
         File.open(filename, 'w') { |f| f.puts contents }
       end
+    end
+
+    def path
+      @path ||= File.expand_path(@path_or_name)
+    end
+
+    def name
+      @name ||= File.basename(path)
+    end
+
+    def name_underscored
+      @name_underscored ||= name.underscore
+    end
+
+    def name_camelized
+      @name_camelized ||= name.camelize
     end
   end
 end

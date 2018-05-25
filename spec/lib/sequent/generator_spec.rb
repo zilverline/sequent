@@ -8,13 +8,23 @@ describe Sequent::Generator do
     FileUtils.rmtree(tmp_path)
     FileUtils.mkdir_p(tmp_path)
     Dir.chdir(tmp_path) { example.run }
-    # FileUtils.rmtree(tmp_path)
   end
 
-  subject(:execute) { Sequent::Generator.new('blog').execute }
+  let(:arg) { 'blog' }
+  let(:path) { File.expand_path(arg) }
+  subject(:execute) { Sequent::Generator.new(arg).execute }
 
   it 'creates a directory with the given name' do
-    expect { subject }.to change { File.directory?('blog') }.from(false).to(true)
+    expect { subject }.to change { File.directory?(path) }.from(false).to(true)
+  end
+
+  context 'with an absolute path' do
+    let(:arg) { '~/tmp/non_existent_thingy' }
+    before { FileUtils.rmtree(path) }
+
+    it 'creates a directory on the absolute path' do
+      expect { subject }.to change { File.directory?(path) }.from(false).to(true)
+    end
   end
 
   it 'copies the generator files' do
