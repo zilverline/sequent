@@ -1,14 +1,22 @@
 require 'set'
 require 'active_record'
 require 'csv'
+require_relative './persistor'
 
 module Sequent
   module Core
-    module RecordSessions
+    module Persistors
       #
-      # Session objects are used to update view state
+      # The ReplayOptimizedPostgresPersistor is optimized for bulk loading records in a Postgres database.
       #
-      # The ReplayEventsSession is optimized for bulk loading records in a Postgres database using CSV import.
+      # Depending on the amount of records it uses CSV import, otherwise statements are batched
+      # using normal sql.
+      #
+      # Rebuilding the view state (or projection) of an aggregate typically consists
+      # of an initial insert and then many updates and maybe a delete. With a normal Persistor (like ActiveRecordPersistor)
+      # each action is executed to the database. This persitor creates an inmemory store first and finally flushes
+      # the in memory store to the database. This can significantly reduces the amount of queries to the database.
+      # E.g. 1 insert, 6 updates is only a single insert using this Persistor.
       #
       # After lot of experimenting this turned out to be the fastest way to to bulk inserts in the database.
       # You can tweak the amount of records in the CSV via +insert_with_csv_size+ before
@@ -19,7 +27,7 @@ module Sequent
       #
       # Example:
       #
-      #   class InvoiceEventHandler < Sequent::Core::Projector
+      #   class InvoiceProjector < Sequent::Core::Projector
       #     on RecipientMovedEvent do |event|
       #       update_all_records InvoiceRecord, recipient_id: event.recipient.aggregate_id do |record|
       #         record.recipient_street = record.recipient.street
@@ -31,11 +39,12 @@ module Sequent
       #
       # Example:
       #
-      #   ReplayEventsSession.new(
+      #   ReplayOptimizedPostgresPersistor.new(
       #     50,
       #     {InvoiceRecord => [[:recipient_id]]}
       #   )
-      class ReplayEventsSession
+      class ReplayOptimizedPostgresPersistor
+        include Persistor
 
         attr_reader :record_store
         attr_accessor :insert_with_csv_size
@@ -186,7 +195,7 @@ module Sequent
               end
             EOD
             eval("#{class_def}")
-            struct_class = ReplayEventsSession.const_get(struct_class_name)
+            struct_class = ReplayOptimizedPostgresPersistor.const_get(struct_class_name)
             self.class.struct_cache[struct_class_name] = struct_class
           end
           record = struct_class.new.set_values(values)

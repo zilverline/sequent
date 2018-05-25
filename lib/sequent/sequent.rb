@@ -1,22 +1,15 @@
-require_relative 'core/core'
-require_relative 'util/util'
-require_relative 'migrations/migrations'
 require_relative 'configuration'
+require_relative 'core/event'
+require_relative 'core/command'
+require_relative 'core/base_command_handler'
+require_relative 'core/aggregate_root'
+require_relative 'core/projector'
+require_relative 'core/workflow'
 require_relative 'generator'
-
-require 'logger'
 
 module Sequent
   def self.new_uuid
     Sequent.configuration.uuid_generator.uuid
-  end
-
-  def self.logger
-    @logger ||= Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
-  end
-
-  def self.logger=(logger)
-    @logger = logger
   end
 
   def self.configure
@@ -31,4 +24,24 @@ module Sequent
   def self.command_service
     configuration.command_service
   end
+
+  def self.new_version
+    migration_class.version
+  end
+
+  def self.migration_class
+    Class.const_get(configuration.migrations_class_name)
+  end
+
+  def self.logger
+    configuration.logger
+  end
+
+  # Shortcut classes for easy usage
+  Event = Sequent::Core::Event
+  Command = Sequent::Core::Command
+  CommandHandler = Sequent::Core::BaseCommandHandler
+  AggregateRoot = Sequent::Core::AggregateRoot
+  Projector = Sequent::Core::Projector
+  Workflow = Sequent::Core::Workflow
 end

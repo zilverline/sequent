@@ -4,8 +4,4 @@ Gemfile.lock
 .idea
 pkg
 tmp/*
-<<<<<<< HEAD
-.vscode/
-=======
 .vscode
->>>>>>> Modified gitignore

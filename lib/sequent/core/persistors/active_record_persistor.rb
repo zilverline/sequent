@@ -1,15 +1,21 @@
 require 'active_record'
+require_relative './persistor'
 
 module Sequent
   module Core
-    module RecordSessions
+    module Persistors
 
       #
-      # Session objects are used to update view state
+      # The ActiveRecordPersistor uses ActiveRecord to update the projection
       #
-      # The ActiveRecordSession object can be used when you use ActiveRecord as view state store.
+      # This is the default persistor in Sequent, but when your event store
+      # is growing it is not the best choice as persistor while rebuilding
+      # a projection when migrating to a new version of that projection.
       #
-      class ActiveRecordSession
+      # Please see the +ReplayOptimizedPostgresPersistor+ as alternative
+      # for migrating projections to a new version.
+      class ActiveRecordPersistor
+        include Persistor
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
           record = record_class.unscoped.where(where_clause).first
@@ -21,10 +27,6 @@ module Sequent
                                      record.respond_to?(:sequence_number=)
           record.sequence_number = event.sequence_number if update_sequence_number
           record.save!
-        end
-
-        def execute(statement)
-          ActiveRecord::Base.connection.execute(statement)
         end
 
         def create_record(record_class, values)
@@ -46,7 +48,7 @@ module Sequent
             insert_manager.to_sql
           end.join(";")
 
-          execute(query)
+          execute_sql(query)
         end
 
         def create_or_update_record(record_class, values, created_at = Time.now)
@@ -101,6 +103,14 @@ module Sequent
           record_class.unscoped.where(where_clause).last
         end
 
+        def execute_sql(statement)
+          ActiveRecord::Base.connection.execute(statement)
+        end
+
+        def commit
+          # noop
+        end
+
         private
 
         def new_record(record_class, values)
@@ -108,19 +118,11 @@ module Sequent
         end
 
         def new_insert_manager
-          if ActiveRecord::VERSION::MAJOR <= 4
-            Arel::InsertManager.new(ActiveRecord::Base)
-          else
-            Arel::InsertManager.new
-          end
+          Arel::InsertManager.new
         end
 
         def convert_to_values(key, table, value)
-          if ActiveRecord::VERSION::MAJOR <= 4
-            [table[key], value]
-          else
-            [table[key], table.type_cast_for_database(key, value)]
-          end
+          [table[key], table.type_cast_for_database(key, value)]
         end
       end
     end

@@ -2,9 +2,26 @@ require_relative 'core/event_store'
 require_relative 'core/command_service'
 require_relative 'core/transactions/no_transactions'
 require_relative 'core/aggregate_repository'
+require_relative 'core/persistors/active_record_persistor'
+require 'logger'
 
 module Sequent
   class Configuration
+
+    DEFAULT_VERSIONS_TABLE_NAME = 'sequent_versions'
+    DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
+
+    DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
+
+    DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
+
+    MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
+
+    DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
+
+    DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
+    DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
+
     attr_accessor :aggregate_repository
 
     attr_accessor :event_store,
@@ -23,6 +40,18 @@ module Sequent
     attr_accessor :uuid_generator
 
     attr_accessor :disable_event_handlers
+
+    attr_accessor :logger
+
+    attr_accessor :migration_sql_files_directory,
+                  :view_schema_name,
+                  :offline_replay_persistor_class,
+                  :online_replay_persistor_class,
+                  :number_of_replay_processes
+
+    attr_reader :migrations_class_name,
+                :versions_table_name,
+                :replayed_ids_table_name
 
     def self.instance
       @instance ||= new
@@ -51,6 +80,38 @@ module Sequent
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
       self.event_publisher = Sequent::Core::EventPublisher.new
       self.disable_event_handlers = false
+      self.versions_table_name = DEFAULT_VERSIONS_TABLE_NAME
+      self.replayed_ids_table_name = DEFAULT_REPLAYED_IDS_TABLE_NAME
+      self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
+      self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
+      self.migrations_class_name = MIGRATIONS_CLASS_NAME
+      self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
+
+      self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
+      self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
+
+      self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
     end
+
+    def replayed_ids_table_name=(table_name)
+      fail ArgumentError.new('table_name can not be nil') unless table_name
+
+      @replayed_ids_table_name = table_name
+      Sequent::Migrations::ViewSchema::ReplayedIds.table_name = table_name
+    end
+
+    def versions_table_name=(table_name)
+      fail ArgumentError.new('table_name can not be nil') unless table_name
+
+      @versions_table_name = table_name
+      Sequent::Migrations::ViewSchema::Versions.table_name = table_name
+    end
+
+    def migrations_class_name=(class_name)
+      migration_class = Class.const_get(class_name)
+      fail ArgumentError.new("#{migration_class} must extend Sequent::Migrations::Projectors") unless migration_class <= Sequent::Migrations::Projectors
+      @migrations_class_name = class_name
+    end
+
   end
 end

@@ -3,7 +3,7 @@ module Sequent
     module Helpers
       ##
       # Creates ability to use DSL like:
-      # class MyEventHandler < Sequent::Core::BaseEventHandler
+      # class MyEventHandler < Sequent::Core::Projector
       #
       #   on MyEvent do |event|
       #     do_some_logic

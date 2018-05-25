@@ -1,2 +1,0 @@
-require_relative 'active_record_session'
-require_relative 'replay_events_session'
