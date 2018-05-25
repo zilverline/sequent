@@ -1,4 +1,4 @@
-class AddEventStore < ActiveRecord::Migration[4.2]
+class AddEventStore < ActiveRecord::Migration[5.0]
   def up
     create_table "event_records", :force => true do |t|
       t.string "aggregate_id", :null => false
