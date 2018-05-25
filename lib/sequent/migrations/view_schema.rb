@@ -244,7 +244,7 @@ module Sequent
           get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
           on_progress: on_progress
         )
-        replay_persistor.commit if replay_persistor.respond_to? :commit
+        replay_persistor.commit
       end
 
       def rollback_migration
