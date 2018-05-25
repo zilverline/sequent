@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'fileutils'
 
-describe Sequent::Generator do
+describe Sequent::Generator::Project do
   let(:tmp_path) { 'tmp/sequent-generator-spec' }
 
   around do |example|
@@ -12,7 +12,7 @@ describe Sequent::Generator do
 
   let(:arg) { 'blog' }
   let(:path) { File.expand_path(arg) }
-  subject(:execute) { Sequent::Generator.new(arg).execute }
+  subject(:execute) { Sequent::Generator::Project.new(arg).execute }
 
   it 'creates a directory with the given name' do
     expect { subject }.to change { File.directory?(path) }.from(false).to(true)

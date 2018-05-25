@@ -19,6 +19,9 @@ nextsteps = <<~NEXTSTEPS
     RACK_ENV=test bundle exec rake db:create db:migrate view_schema:build
     bundle exec rspec spec
 
+  To generate new aggregates use:
+    sequent generate <aggregate_name>. e.g. sequent generate address
+
   For more information see:
     sequent.io
 
@@ -33,8 +36,11 @@ abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty
 
 case command
   when 'new'
-    Sequent::Generator.new(name).execute
+    Sequent::Generator::Project.new(name).execute
     puts nextsteps
+  when 'generate'
+    Sequent::Generator::Aggregate.new(name).execute
+    puts "#{name} aggregate has been generated"
   else
     abort("Unknown command #{command}. Try `sequent new myapp`")
 end
