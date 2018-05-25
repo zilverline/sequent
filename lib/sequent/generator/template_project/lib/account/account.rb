@@ -1,4 +1,4 @@
-class Account < Sequent::Core::AggregateRoot
+class Account < AggregateRoot
   def initialize(command)
     super(command.aggregate_id)
     apply AccountAdded

@@ -1,6 +1,6 @@
-class TemplateAggregateAdded < Sequent::Core::Event
+class TemplateAggregateAdded < Event
 end
 
-class TemplateAggregateNameChanged < Sequent::Core::Event
+class TemplateAggregateNameChanged < Event
   attrs name: String
 end

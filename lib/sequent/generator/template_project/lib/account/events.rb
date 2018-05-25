@@ -1,6 +1,6 @@
-class AccountAdded < Sequent::Core::Event
+class AccountAdded < Event
 end
 
-class AccountNameChanged < Sequent::Core::Event
+class AccountNameChanged < Event
   attrs name: String
 end

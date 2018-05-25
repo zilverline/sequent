@@ -1,4 +1,4 @@
-class TemplateAggregateCommandHandler < Sequent::Core::BaseCommandHandler
+class TemplateAggregateCommandHandler < BaseCommandHandler
   on AddTemplateAggregate do |command|
     repository.add_aggregate TemplateAggregate.new(command)
   end

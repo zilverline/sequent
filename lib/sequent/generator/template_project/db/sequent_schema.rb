@@ -21,11 +21,11 @@ ActiveRecord::Schema.define do
 CREATE UNIQUE INDEX unique_event_per_aggregate ON event_records (
   aggregate_id,
   sequence_number,
-  (CASE event_type WHEN 'Sequent::Core::SnapshotEvent' THEN 0 ELSE 1 END)
+  (CASE event_type WHEN 'SnapshotEvent' THEN 0 ELSE 1 END)
 )
 }
   execute %Q{
-CREATE INDEX snapshot_events ON event_records (aggregate_id, sequence_number DESC) WHERE event_type = 'Sequent::Core::SnapshotEvent'
+CREATE INDEX snapshot_events ON event_records (aggregate_id, sequence_number DESC) WHERE event_type = 'SnapshotEvent'
 }
   add_index "event_records", ["command_record_id"], :name => "index_event_records_on_command_record_id"
   add_index "event_records", ["event_type"], :name => "index_event_records_on_event_type"
