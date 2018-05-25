@@ -222,7 +222,7 @@ module Sequent
               begin
                 @connected ||= establish_connection
                 time("Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed") do
-                  replay_events(aggregate_prefixes, event_types, exclude_ids, false, replay_persistor, &insert_ids)
+                  replay_events(aggregate_prefixes, event_types, exclude_ids, replay_persistor, &insert_ids)
                 end
                 nil
               rescue => e
@@ -238,20 +238,13 @@ module Sequent
         end
       end
 
-      def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, print_on_error, replay_persistor, &on_progress)
+      def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, replay_persistor, &on_progress)
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
           get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
           on_progress: on_progress
         )
         replay_persistor.commit if replay_persistor.respond_to? :commit
-      rescue => e
-        if print_on_error
-          logger.error "Replaying failed for ids: ^#{aggregate_prefixes.first} - #{aggregate_prefixes.last}"
-          logger.error "+++++++++++++++ ERROR +++++++++++++++"
-          recursively_print(e)
-        end
-        raise e
       end
 
       def rollback_migration
