@@ -2,8 +2,6 @@ require 'fileutils'
 require 'active_support'
 require 'active_support/core_ext/string'
 
-class TargetAlreadyExists < StandardError; end
-
 module Sequent
   module Generator
     class Project
