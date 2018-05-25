@@ -1,4 +1,10 @@
 require_relative 'configuration'
+require_relative 'core/event'
+require_relative 'core/command'
+require_relative 'core/base_command_handler'
+require_relative 'core/aggregate_root'
+require_relative 'core/projector'
+require_relative 'core/workflow'
 
 module Sequent
   def self.new_uuid
@@ -29,4 +35,12 @@ module Sequent
   def self.logger
     configuration.logger
   end
+
+  # Shortcut classes for easy usage
+  Event = Sequent::Core::Event
+  Command = Sequent::Core::Command
+  CommandHandler = Sequent::Core::BaseCommandHandler
+  AggregateRoot = Sequent::Core::AggregateRoot
+  Projector = Sequent::Core::Projector
+  Workflow = Sequent::Core::Workflow
 end
