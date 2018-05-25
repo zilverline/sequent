@@ -1,1 +1,1 @@
-MigrationClass = ActiveRecord::Migration['4.2']
+MigrationClass = ActiveRecord::Migration[5.0]

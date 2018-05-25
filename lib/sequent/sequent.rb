@@ -5,6 +5,7 @@ require_relative 'core/base_command_handler'
 require_relative 'core/aggregate_root'
 require_relative 'core/projector'
 require_relative 'core/workflow'
+require_relative 'generator'
 
 module Sequent
   def self.new_uuid
