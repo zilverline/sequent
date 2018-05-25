@@ -163,7 +163,7 @@ describe Sequent::Core::EventStore do
   end
 
   describe 'error handling for publishing events' do
-    class RecordingHandler < Sequent::Core::BaseEventHandler
+    class RecordingHandler < Sequent::Core::Projector
       attr_reader :recorded_events
 
       def initialize
@@ -176,7 +176,7 @@ describe Sequent::Core::EventStore do
       end
     end
 
-    class FailingHandler < Sequent::Core::BaseEventHandler
+    class FailingHandler < Sequent::Core::Projector
       Error = Class.new(RuntimeError)
 
       on MyEvent do |_|
@@ -324,7 +324,7 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  class ReplayCounter < Sequent::Core::BaseEventHandler
+  class ReplayCounter < Sequent::Core::Projector
     attr_reader :replay_count
 
     def initialize

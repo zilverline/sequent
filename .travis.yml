@@ -12,13 +12,13 @@ rvm:
   - 2.4.4
   - 2.5.1
 addons:
-  postgresql: "9.3"
+  postgresql: "9.6"
 before_script:
   - psql -c 'CREATE USER sequent NOSUPERUSER NOCREATEDB NOCREATEROLE;' -U postgres
   - psql -c 'CREATE DATABASE sequent_spec_db OWNER sequent;' -U postgres
   - bundle exec rake db:create
-  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-  - chmod +x ./cc-test-reporter
+#  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+#  - chmod +x ./cc-test-reporter
 script:
   - bundle exec rspec
-  - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_RUBY_VERSION" == "2.2.2" ] && [ "$ACTIVE_STAR_VERSION" == "~> 5.1.0" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
+#  - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_RUBY_VERSION" == "2.2.2" ] && [ "$ACTIVE_STAR_VERSION" == "~> 5.1.0" ]; then ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT; fi
