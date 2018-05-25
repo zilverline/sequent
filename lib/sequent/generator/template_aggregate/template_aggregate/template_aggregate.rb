@@ -1,4 +1,4 @@
-class TemplateAggregate < AggregateRoot
+class TemplateAggregate < Sequent::AggregateRoot
   def initialize(command)
     super(command.aggregate_id)
     apply TemplateAggregateAdded

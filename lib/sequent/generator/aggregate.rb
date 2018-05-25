@@ -17,7 +17,7 @@ module Sequent
         ensure_not_used!
         copy_files
         rename_files
-        replace_app_name
+        replace_template_aggregate
       end
 
       private
@@ -34,7 +34,7 @@ module Sequent
         FileUtils.mv("#{path}/#{name_underscored}/template_aggregate.rb", "#{path}/#{name_underscored}/#{name_underscored}.rb")
       end
 
-      def replace_app_name
+      def replace_template_aggregate
         files = Dir["#{path}/**/*"].select { |f| File.file?(f) }
 
         files.each do |filename|
