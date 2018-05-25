@@ -2,6 +2,7 @@ require 'sequent'
 require 'sequent/support'
 require 'erb'
 require_relative 'lib/account'
+require_relative 'app/projectors/account_projector'
 
 module MyApp
   VERSION = 1
@@ -11,7 +12,7 @@ module MyApp
     version: VERSION,
     definition: 'db/view_schema.rb',
     event_handlers: [
-      Account::Projector.new
+      AccountProjector.new
     ]
   )
 

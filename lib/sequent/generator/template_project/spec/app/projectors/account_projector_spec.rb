@@ -1,12 +1,12 @@
-require_relative '../spec_helper'
-require_relative '../../lib/account'
+require_relative '../../spec_helper'
+require_relative '../../../app/projectors/account_projector'
 
-describe Account::Projector do
+describe AccountProjector do
   let(:aggregate_id) { Sequent.new_uuid }
-  let(:account_projector) { Account::Projector.new }
+  let(:account_projector) { AccountProjector.new }
 
-  context Account::AccountAdded do
-    let(:account_created) { Account::AccountAdded.new(aggregate_id: aggregate_id, sequence_number: 1) }
+  context AccountAdded do
+    let(:account_created) { AccountAdded.new(aggregate_id: aggregate_id, sequence_number: 1) }
 
     it 'creates a projection' do
       account_projector.handle_message(account_created)
@@ -16,10 +16,10 @@ describe Account::Projector do
     end
   end
 
-  context Account::AccountNameChanged do
-    let(:account_created) { Account::AccountAdded.new(aggregate_id: aggregate_id, sequence_number: 1) }
+  context AccountNameChanged do
+    let(:account_created) { AccountAdded.new(aggregate_id: aggregate_id, sequence_number: 1) }
     let(:account_name_changed) do
-      Account::AccountNameChanged.new(aggregate_id: aggregate_id, name: 'ben', sequence_number: 2)
+      AccountNameChanged.new(aggregate_id: aggregate_id, name: 'ben', sequence_number: 2)
     end
 
     before { account_projector.handle_message(account_created) }
