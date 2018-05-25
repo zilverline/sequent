@@ -75,36 +75,19 @@ module Sequent
       end
 
       def_delegators :@persistor,
-        # Updates the view state
         :update_record,
-        # Create a single record in the view state
         :create_record,
-        # Creates multiple records at once in the view state
         :create_records,
-        # Creates or updates a record in the view state.
         :create_or_update_record,
-        # Gets a record from the view state, fails if it not exists
         :get_record!,
-        # Gets a record from the view state, returns +nil+ if it not exists
         :get_record,
-        # Deletes all records given a where
         :delete_all_records,
-        # Updates all record given a where and an update clause
         :update_all_records,
-        # Decide for yourself what to do with the records
-        # @deprecated
         :do_with_records,
-        # Decide for yourself what to do with a single record
-        # @deprecated
         :do_with_record,
-        # Delete a single record
-        # @deprecated
         :delete_record,
-        # Find records given a where
         :find_records,
-        # Returns the last record given a where
         :last_record,
-        # Just executes the given sql
         :execute_sql,
         :commit
 
