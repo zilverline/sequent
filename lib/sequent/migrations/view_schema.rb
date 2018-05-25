@@ -153,13 +153,8 @@ module Sequent
 
         ensure_version_correct!
 
-        for_each_table_to_migrate do |table|
-          unless table.table_name.end_with?("_#{Sequent.new_version}")
-            table.table_name = "#{table.table_name}_#{Sequent.new_version}"
-            table.reset_column_information
-            fail MigrationError.new("Table #{table.table_name} does not exist. Did you run migrate_online first?") unless table.table_exists?
-          end
-        end
+        set_table_names_to_new_version
+
         # 1 replay events not yet replayed
         replay!(projectors_to_migrate, Sequent.configuration.offline_replay_persistor_class.new, exclude_ids: true, group_exponent: 1)
 
@@ -189,6 +184,16 @@ module Sequent
       end
 
       private
+      def set_table_names_to_new_version
+        for_each_table_to_migrate do |table|
+          unless table.table_name.end_with?("_#{Sequent.new_version}")
+            table.table_name = "#{table.table_name}_#{Sequent.new_version}"
+            table.reset_column_information
+            fail MigrationError.new("Table #{table.table_name} does not exist. Did you run migrate_online first?") unless table.table_exists?
+          end
+        end
+      end
+
       def reset_table_names
         for_each_table_to_migrate do |table|
           table.table_name = table.table_name.gsub("_#{Sequent.new_version}", "")
