@@ -5,7 +5,7 @@ require_relative '../../migration_class'
 
 class ArSessionTest < ActiveRecord::Base; end
 
-describe Sequent::Core::RecordSessions::ActiveRecordSession do
+describe Sequent::Core::Persistors::ActiveRecordPersistor do
   let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
   let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
@@ -41,7 +41,7 @@ EOF
 
   end
 
-  let(:session) { Sequent::Core::RecordSessions::ActiveRecordSession.new }
+  let(:session) { Sequent::Core::Persistors::ActiveRecordPersistor.new }
 
   context 'create_records' do
     it 'can insert records by batch' do

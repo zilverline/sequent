@@ -1,13 +1,20 @@
 require 'active_record'
+require 'active_support/hash_with_indifferent_access'
 
 module Database
-  def self.establish_connection
+  def self.test_config
+    ActiveSupport::HashWithIndifferentAccess.new({
+      adapter: "postgresql",
+      host: "localhost",
+      username: "sequent",
+      password: "",
+      database: "sequent_spec_db"
+    }).stringify_keys
+  end
+
+  def self.establish_connection(config = test_config)
     ActiveRecord::Base.establish_connection(
-      :adapter  => "postgresql",
-      :host     => "localhost",
-      :username => "sequent",
-      :password => "",
-      :database => "sequent_spec_db"
+      config
     )
   end
 end
