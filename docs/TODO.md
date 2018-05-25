@@ -2,7 +2,8 @@ Introduction:
 
 * [x] Getting started
 * [ ] Modelling the domain
-* [ ] Managing the database
+* [ ] Migrations and database management
+* [ ] Creating a web app
 
 Concepts:
 
@@ -10,11 +11,11 @@ Concepts:
 * [ ] Command handlers
 * [ ] Aggregates
 * [ ] Events
+* [ ] Projectors
 
-Advanced usage:
+Advanced topics:
 
 * [x] Manual setup guide
-
-Recipes:
-
-* [ ] Async workflows (DelayedJob)
+* [ ] Snapshotting
+* [ ] Async workflows
+* [ ] GDPR compliancy

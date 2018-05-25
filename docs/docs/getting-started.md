@@ -36,6 +36,7 @@ Before you install Sequent, you should check to make sure that your system has t
 #### Ruby
 
 Verify that you have a current version of Ruby installed:
+
 ```
 $ ruby -v
 ruby 2.5.0p0 (2017-12-25 revision 61468) [x86_64-darwin17]
@@ -111,7 +112,7 @@ Your Sequent app is ready to rock!
 
 ## Hello, Sequent!
 
-Sequent does not care how you show the app to your users. As such a real "hello world" is outside the scope of this
+Sequent does not come with a web framework included. We'll look into bringing it all together in a later guide. As such a real "hello world" is outside the scope of this
 guide. What we can do is demonstrate our business logic is working. We'll examine our example domain in a minute.
 Let's first take a look at our (generated) specs:
 
@@ -122,6 +123,10 @@ Now we run the specs to ensure we have a working system:
 
 ```
 $ bundle exec rspec
+...
+
+Finished in 0.2 seconds (files took 1.4 seconds to load)
+3 examples, 0 failures
 ```
 
-If the specs are green you are ready to continue.
+The specs are green and we are ready to dive into the domain! Let's continue with: [2. Modelling the domain](/docs/getting-started.html)

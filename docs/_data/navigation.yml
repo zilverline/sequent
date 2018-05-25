@@ -9,8 +9,8 @@ docs:
     children:
       - title: "1. Getting started"
         url: /docs/getting-started.html
-      - title: "2. Modelling your domain"
-        url: /docs/modelling-your-domain.html
+      - title: "2. Modelling the domain"
+        url: /docs/modelling-the-domain.html
 
   - title: Advanced topics
     children:
