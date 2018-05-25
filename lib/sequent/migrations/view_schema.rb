@@ -211,17 +211,17 @@ module Sequent
       def replay!(projectors, replay_persistor, exclude_ids: false, group_exponent: 3)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
-        event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
         with_sequent_config(replay_persistor, projectors) do
           logger.info "Start replaying events"
 
           time("#{16**group_exponent} groups replayed") do
+            event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
-            @connected = false
 
             number_of_groups = 16**group_exponent
             groups = groups_of_aggregate_id_prefixes(number_of_groups)
 
+            @connected = false
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
             result = Parallel.map_with_index(groups, in_processes: Sequent.configuration.number_of_replay_processes) do |aggregate_prefixes, index|
               begin
