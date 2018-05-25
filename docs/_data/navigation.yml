@@ -1,0 +1,18 @@
+main:
+  - title: "News"
+    url: /news
+  - title: "<small>by Zilverline</small>"
+    url: https://www.zilverline.com/
+
+docs:
+  - title: Introduction
+    children:
+      - title: "1. Getting started"
+        url: /docs/getting-started.html
+      - title: "2. Modelling the domain"
+        url: /docs/modelling-the-domain.html
+
+  - title: Advanced topics
+    children:
+      - title: "Manual start guide"
+        url: /docs/manual-start-guide.html
