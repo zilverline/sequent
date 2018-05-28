@@ -15,24 +15,24 @@ New to Sequent? [Getting Started](/docs/getting-started.html) the place to start
 ## Concepts
 
 ### AggregateRoot
-An [AggregateRoot](/docs/concepts.html#AggregateRoot) is the class that encapsulates your domain logic. Your aggregates form the heart of your application.
+An [AggregateRoot](/docs/concepts.html#aggregateroot) is the class that encapsulates your domain logic. Your aggregates form the heart of your application.
 
 
 ### Event
-[Events](/docs/concepts.html#Event) are domain events that are significant to your domain. An AggregateRoot is basically a stream of Events.
+[Events](/docs/concepts.html#event) are domain events that are significant to your domain. An AggregateRoot is basically a stream of Events.
 
 
 ### Command
-[Commands](/docs/concepts.html#Command) form the API of your domain.
+[Commands](/docs/concepts.html#command) form the API of your domain.
 
 ### CommandHandler
-Commands are handled by [CommmandHandlers](/docs/concepts.html#CommandHandler). Based on the incoming Command the CommandHandler decides what to do.
+Commands are handled by [CommmandHandlers](/docs/concepts.html#commandhandler). Based on the incoming Command the CommandHandler decides what to do.
 
 ### Projector
-[Projectors](/docs/concepts.html#Projector) respond to Events. They are responsible for update the Projections in the view schema.
+[Projectors](/docs/concepts.html#projector) respond to Events. They are responsible for update the Projections in the view schema.
 
 ### Workflow
-[Workflows](/docs/concepts.html#Workflow) also respond to Events. They are typically used for anything else you want to do with events. (E.g. execute another command).
+[Workflows](/docs/concepts.html#workflow) also respond to Events. They are typically used for anything else you want to do with events. (E.g. execute another command).
 
 
 ## Further reading
