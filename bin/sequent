@@ -20,10 +20,10 @@ def new_project(args)
     To finish setting up your app:
       cd #{name}
       bundle install
-      bundle exec rake db:create db:migrate view_schema:build
+      RACK_ENV=development bundle exec rake sequent:db:create
 
     Run the example specs:
-      RACK_ENV=test bundle exec rake db:create db:migrate view_schema:build
+      RACK_ENV=test bundle exec rake sequent:db:create
       bundle exec rspec spec
 
     To generate new aggregates use:

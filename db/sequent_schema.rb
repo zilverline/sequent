@@ -10,14 +10,6 @@ ActiveRecord::Schema.define do
     t.integer "stream_record_id", :null => false
   end
 
-  create_table "command_records", :force => true do |t|
-    t.string "user_id"
-    t.string "aggregate_id"
-    t.string "command_type", :null => false
-    t.text "command_json", :null => false
-    t.datetime "created_at", :null => false
-  end
-
   execute %Q{
 CREATE UNIQUE INDEX unique_event_per_aggregate ON event_records (
   aggregate_id,
@@ -28,9 +20,18 @@ CREATE UNIQUE INDEX unique_event_per_aggregate ON event_records (
   execute %Q{
 CREATE INDEX snapshot_events ON event_records (aggregate_id, sequence_number DESC) WHERE event_type = 'Sequent::Core::SnapshotEvent'
 }
+
   add_index "event_records", ["command_record_id"], :name => "index_event_records_on_command_record_id"
   add_index "event_records", ["event_type"], :name => "index_event_records_on_event_type"
   add_index "event_records", ["created_at"], :name => "index_event_records_on_created_at"
+
+  create_table "command_records", :force => true do |t|
+    t.string "user_id"
+    t.string "aggregate_id"
+    t.string "command_type", :null => false
+    t.text "command_json", :null => false
+    t.datetime "created_at", :null => false
+  end
 
   create_table "stream_records", :force => true do |t|
     t.datetime "created_at", :null => false
