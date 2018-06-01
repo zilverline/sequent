@@ -26,6 +26,10 @@ docs:
         url: /docs/concepts.html#projector
       - title: "6. Workflow"
         url: /docs/concepts.html#workflow
+      - title: "7. AggregateRepository"
+        url: /docs/concepts.html#aggregaterepository
+      - title: "6. CommandService"
+        url: /docs/concepts.html#commandservice
 
   - title: Advanced topics
     children:
