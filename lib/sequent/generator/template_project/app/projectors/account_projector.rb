@@ -1,7 +1,7 @@
 require_relative '../records/account_record'
 require_relative '../../lib/account/events'
 
-class AccountProjector < Sequent::Core::Projector
+class AccountProjector < Sequent::Projector
   on AccountAdded do |event|
     create_record(AccountRecord, aggregate_id: event.aggregate_id)
   end
