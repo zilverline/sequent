@@ -51,6 +51,7 @@ module Sequent
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
                   :database_config_directory,
+                  :event_store_schema_name
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -87,6 +88,7 @@ module Sequent
       self.replayed_ids_table_name = DEFAULT_REPLAYED_IDS_TABLE_NAME
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
       self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
+      self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
       self.migrations_class_name = MIGRATIONS_CLASS_NAME
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
 
