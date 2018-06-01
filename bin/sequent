@@ -1,46 +1,64 @@
 #!/usr/bin/env ruby
-
-command = ARGV[0].to_s.strip
-name = ARGV[1].to_s.strip
-
-nextsteps = <<~NEXTSTEPS
-
-  Success!
-
-  Your brand spanking new sequent app is waiting for you in:
-    #{File.expand_path(name, __dir__)}
-
-  To finish setting up your app:
-    cd #{name}
-    bundle install
-    bundle exec rake db:create db:migrate view_schema:build
-
-  Run the example specs:
-    RACK_ENV=test bundle exec rake db:create db:migrate view_schema:build
-    bundle exec rspec spec
-
-  To generate new aggregates use:
-    sequent generate <aggregate_name>. e.g. sequent generate address
-
-  For more information see:
-    sequent.io
-
-  Happy coding!
-
-NEXTSTEPS
-
 require_relative '../lib/sequent/generator'
 
+command = ARGV[0].to_s.strip
+args = ARGV[1..10].map(&:to_s).map(&:strip)
 abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
-abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty?
+
+def new_project(args)
+  name, _ = args
+  abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty?
+
+  Sequent::Generator::Project.new(name).execute
+  puts <<~NEXTSTEPS
+
+    Success!
+
+    Your brand spanking new sequent app is waiting for you in:
+      #{File.expand_path(name, __dir__)}
+
+    To finish setting up your app:
+      cd #{name}
+      bundle install
+      bundle exec rake db:create db:migrate view_schema:build
+
+    Run the example specs:
+      RACK_ENV=test bundle exec rake db:create db:migrate view_schema:build
+      bundle exec rspec spec
+
+    To generate new aggregates use:
+      sequent generate <aggregate_name>. e.g. sequent generate address
+
+    For more information see:
+      sequent.io
+
+    Happy coding!
+
+  NEXTSTEPS
+end
+
+def generate(args)
+  entity, _ = args
+  abort('Please specify a command. i.e. `sequent g aggregate user`') if entity.empty?
+
+  case entity
+    when 'aggregate'
+      _, aggregate_name = args
+      abort('Please specify a aggregate name. i.e. `sequent g aggregate user`') if !aggregate_name || aggregate_name.empty?
+
+      Sequent::Generator::Aggregate.new(aggregate_name).execute
+      puts "#{aggregate_name} aggregate has been generated"
+    else
+      abort("Unknown argument #{entity} for `generate`. Try `sequent g aggregate user`")
+  end
+end
 
 case command
-  when 'new'
-    Sequent::Generator::Project.new(name).execute
-    puts nextsteps
-  when 'generate'
-    Sequent::Generator::Aggregate.new(name).execute
-    puts "#{name} aggregate has been generated"
-  else
-    abort("Unknown command #{command}. Try `sequent new myapp`")
+when 'new'
+  new_project(args)
+when 'generate', 'g'
+  generate(args)
+else
+  abort("Unknown command #{command}. Try `sequent new myapp`")
 end
+
