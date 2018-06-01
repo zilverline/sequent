@@ -12,6 +12,25 @@ docs:
       - title: "2. Modelling the domain"
         url: /docs/modelling-the-domain.html
 
+  - title: Concepts
+    children:
+      - title: "1. AggregateRoot"
+        url: /docs/concepts.html#aggregateroot
+      - title: "2. Event"
+        url: /docs/concepts.html#event
+      - title: "3. Command"
+        url: /docs/concepts.html#command
+      - title: "4. CommandHandler"
+        url: /docs/concepts.html#commandhandler
+      - title: "5. Projector"
+        url: /docs/concepts.html#projector
+      - title: "6. Workflow"
+        url: /docs/concepts.html#workflow
+      - title: "7. AggregateRepository"
+        url: /docs/concepts.html#aggregaterepository
+      - title: "6. CommandService"
+        url: /docs/concepts.html#commandservice
+
   - title: Advanced topics
     children:
       - title: "Manual start guide"
