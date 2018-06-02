@@ -40,11 +40,13 @@ keep track of the order in which Events occured and need to be replayed.
 ### Saving an AggregateRoot
 
 To save an AggregateRoot you need to use the [AggregateRepository](#aggregaterepository). This is available
-via `Sequent.configuration.aggregate_repository`. Typically you will save an AggregateRoot in your [CommandHandler](#commandhandler).
+via `Sequent.aggregate_repository`. Typically you will save an AggregateRoot in your [CommandHandler](#commandhandler).
 
 ```ruby
   # Save an AggregateRoot in the event store
-  Sequent.configuration.aggregate_repository.add_aggregate(User.new(Sequent.new_uuid))
+  Sequent.aggregate_repository.add_aggregate(
+    User.new(Sequent.new_uuid)
+  )
 ```
 
 
@@ -54,12 +56,12 @@ To access and do something with an AggregateRoot you need to load it from the da
 
 ```ruby
   # Load an AggregateRoot from the event store
-  Sequent.configuration.aggregate_repository.load_aggregate(user_id)
+  Sequent.aggregate_repository.load_aggregate(user_id)
 ```
 
 ### Changing an AggregateRoot
 
-To make changes or do something useful with the AggregateRoot you need to define methods and ultimatly apply Events.
+To make changes or do something useful with an AggregateRoot you need to define methods and ultimately apply Events.
 
 For instance to set the name of the `User` we add to the User:
 
@@ -77,8 +79,8 @@ class User < Sequent::AggregateRoot
 end
 ```
 
-It is important to note that the state is set on the **on block of the Event and not in the method itself**.
-We need to set it in the event blocks since when we retrieve the AggregateRoot from the event store
+It is important to note that the state is set in the **on block of the Event and not in the method itself**.
+We need to set it in the event blocks since when we load the AggregateRoot from the event store
 we want the same state. So in the method you will:
 
 
@@ -87,8 +89,9 @@ we want the same state. So in the method you will:
 
 In the event handling block you will **only set the new state**.
 
-When you think of this it makes complete sense since over time domain logic can change, but what happened in the past did happen.
-New domain logic has no influence over this.
+When you think of this it makes sense, since over time domain logic can change, but what happened in the still happened.
+Even if the current business logic would not allow this. So new business logic should never interfere with rebuilding the
+state from past events.
 
 
 ### Deleting an AggregateRoot
@@ -190,14 +193,14 @@ for defining your attribtutes.
 1. Keep Events small.
 2. When an attribute changes use the same event.
 This makes it easier to keep track of state changes for instance in Projectors or Workflows etc.
-3. Keep events as flat as possible. Be cautious with using ValueObjects.
+3. Keep events as flat as possible. Overly nested ValueObject might seem to remove duplication, but is not always practical in usage.
 
 ## Command
 
 Commands form the API of your domain. They are simple data objects
 with descriptive names describing the intent of your command. E.g. `CreateUser` or `SendInvoice`.
-Commands inherit from `Sequent::Command`. Like [Events](#event) there can be seen as structs. Additionally
-you typically add [Validations](#validations) to commands to ensure correctness. Sequent uses
+Commands inherit from `Sequent::Command`. Like [Events](#event) they can be seen as structs. Additionally
+you can add [Validations](#validations) to commands to ensure correctness. Sequent uses
 [ActiveModel::Validations](http://api.rubyonrails.org/classes/ActiveModel/Validations.html)
 to enable validations.
 
@@ -232,8 +235,8 @@ end
 
 The `Sequent::CommandHandler` exposes two convenience methods:
 
-1) `repository`, a shorthand for Sequent.configuration.aggregate_repository
-2) `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
+1. `repository`, a shorthand for Sequent.configuration.aggregate_repository
+2. `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
 
 A CommandHandler can respond to multiple commands:
 
@@ -271,7 +274,7 @@ end
 
 :point_right: Tips
 
-1) If you use rspec you can test your CommandHandler easily by including the `Sequent::Test::CommandHandlerHelpers` in your rspec config.
+1. If you use rspec you can test your CommandHandler easily by including the `Sequent::Test::CommandHandlerHelpers` in your rspec config.
 You can then test your CommandHandlers via the stanza:
 
 ```ruby
