@@ -12,6 +12,26 @@ module Sequent
     Sequent.configuration.uuid_generator.uuid
   end
 
+  #
+  # Setup Sequent.
+  #
+  # Setup is typically called in an +initializer+ or setup phase of your application.
+  # A minimal setup could look like this:
+  #
+  #   Sequent.configure do |config|
+  #     config.event_handlers = [
+  #       MyProjector.new,
+  #       AnotherProjector.new,
+  #       MyWorkflow.new,
+  #     ]
+  #
+  #     config.command_handlers = [
+  #       MyCommandHandler.new,
+  #     ]
+  #
+  #   end
+  #
+  #
   def self.configure
     yield Configuration.instance
   end
@@ -33,8 +53,14 @@ module Sequent
     Class.const_get(configuration.migrations_class_name)
   end
 
+  # Short hand for Sequent.configuration.logger
   def self.logger
     configuration.logger
+  end
+
+  # Short hand for Sequent.configuration.aggregate_repository
+  def self.aggregate_repository
+    configuration.aggregate_repository
   end
 
   # Shortcut classes for easy usage
