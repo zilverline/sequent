@@ -3,6 +3,7 @@ require 'rake'
 require 'rake/tasklib'
 
 require 'sequent/support'
+require 'sequent/migrations/view_schema'
 
 module Sequent
   module Rake
@@ -38,6 +39,37 @@ module Sequent
               Sequent::Support::Database.drop!(db_config)
             end
 
+          end
+
+          namespace :migrate do
+            desc 'Prints the current version in the database'
+            task :current_version do
+              ensure_rack_env_set!
+
+              Sequent::Support::Database.connect!(@env)
+
+              puts "Current version in the database is: #{Sequent::Migrations::ViewSchema::Versions.maximum(:version)}"
+            end
+
+            desc 'Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.'
+            task :online do
+              ensure_rack_env_set!
+
+              db_config = Sequent::Support::Database.read_config(@env)
+              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
+
+              view_schema.migrate_online
+            end
+
+            desc 'Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.'
+            task :offline do
+              ensure_rack_env_set!
+
+              db_config = Sequent::Support::Database.read_config(@env)
+              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
+
+              view_schema.migrate_offline
+            end
           end
         end
       end
