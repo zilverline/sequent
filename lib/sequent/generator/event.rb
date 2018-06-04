@@ -22,13 +22,13 @@ module Sequent
 
       private
 
-      def add_event_to_aggregate
+      def append_event
         File.open("#{path_to_dir}/events.rb", "a") do |f|
           f << "\n"
           if attrs.any?
             f << "class #{event} < Sequent::Event\n"
             attrs.each do |name, type|
-              f << "  attrs #{name.downcase}: #{type.capitalize}\n"
+              f << "  attrs #{name.downcase}: #{type.downcase.capitalize}\n"
             end
             f << "end"
           else
@@ -36,6 +36,24 @@ module Sequent
           end
           f << "\n"
         end
+      end
+
+      def append_event_to_domain
+        File.open("#{path_to_dir}/#{name_underscored}.rb", 'r+') do |file|
+          lines = file.each_line.to_a
+          target_index = lines.find_index("end\n")
+          lines[target_index] = "\n"
+          lines[target_index+1] = "  on #{event} do |event|\n"
+          lines[target_index+2] = "  end\n"
+          lines[target_index+3] = "end\n"
+          file.rewind
+          file.write(lines.join)
+        end
+      end
+
+      def add_event_to_aggregate
+        append_event
+        append_event_to_domain
       end
 
       def path

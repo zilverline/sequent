@@ -19,9 +19,10 @@ describe Sequent::Generator::Event do
     FileUtils.rmtree(tmp_path)
   end
 
-  it 'adds the event' do
+  it 'adds the event and handlers' do
     execute
     expect(File.read('lib/address/events.rb')).to include("StreetSet")
     expect(File.read('lib/address/events.rb')).to include("attrs street: String")
+    expect(File.read('lib/address/address.rb')).to include("StreetSet")
   end
 end

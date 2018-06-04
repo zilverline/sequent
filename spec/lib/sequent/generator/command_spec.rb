@@ -19,9 +19,10 @@ describe Sequent::Generator::Command do
     FileUtils.rmtree(tmp_path)
   end
 
-  it 'adds the command' do
+  it 'adds the command and handlers' do
     execute
     expect(File.read('lib/address/commands.rb')).to include("SetStreet")
     expect(File.read('lib/address/commands.rb')).to include("attrs street: String")
+    expect(File.read('lib/address/address_command_handler.rb')).to include("SetStreet")
   end
 end
