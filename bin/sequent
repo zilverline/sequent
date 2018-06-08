@@ -16,7 +16,9 @@ def new_project(args)
     To finish setting up your app:
       cd #{name}
       bundle install
-      RACK_ENV=development bundle exec rake sequent:db:create
+      bundle exec rake sequent:db:create
+      bundle exec rake sequent:migrate:online
+      bundle exec rake sequent:migrate:offline
 
     Run the example specs:
       RACK_ENV=test bundle exec rake sequent:db:create

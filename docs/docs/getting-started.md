@@ -12,16 +12,16 @@ Sequent uses design patterns from DDD (Domain-Driven Design) like CQRS and Event
 
 Sequent is a CQRS and Event Sourcing framework for Ruby. It enables you to capture all changes to an application state as a sequence of events, rather than just storing the current state. This has some advantages:
 
-* Time travel back to any prior state. i.e. for debugging.
-* Get auditability and traceability for free.
-* Backfill new tables/columns by replaying existing events.
-* Easy to reason about events with other stakeholders (Ubiquitous Language)
+- Time travel back to any prior state. i.e. for debugging.
+- Get auditability and traceability for free.
+- Backfill new tables/columns by replaying existing events.
+- Easy to reason about events with other stakeholders (Ubiquitous Language)
 
 To read up on some of these concepts we recommend Martin Fowler's wiki:
 
-* [CQRS (Command Query Responsibility Segregation)](https://martinfowler.com/bliki/CQRS.html)
-* [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
-* [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html)
+- [CQRS (Command Query Responsibility Segregation)](https://martinfowler.com/bliki/CQRS.html)
+- [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html)
 
 ## Creating a new Sequent project
 
@@ -95,7 +95,9 @@ $ ls -1
 Gemfile
 Gemfile.lock
 Rakefile
+app
 blog.rb
+config
 db
 lib
 spec
@@ -105,7 +107,9 @@ Now let's finish our setup by installing the gems and preparing the database:
 
 ```
 bundle install
-bundle exec rake db:create db:migrate view_schema:build
+bundle exec rake sequent:db:create
+bundle exec rake sequent:migrate:online
+bundle exec rake sequent:migrate:offline
 ```
 
 Your Sequent app is ready to rock!
@@ -116,8 +120,8 @@ Sequent does not come with a web framework included. We'll look into bringing it
 guide. What we can do is demonstrate our business logic is working. We'll examine our example domain in a minute.
 Let's first take a look at our (generated) specs:
 
-* `spec/account/command_spec.rb`: Here we test that when a command is given, certain events will occur.
-* `spec/account/projector_spec.rb`: Here we test that when an event occurs, the projector updates the view records.
+- `spec/account/command_spec.rb`: Here we test that when a command is given, certain events will occur.
+- `spec/account/projector_spec.rb`: Here we test that when an event occurs, the projector updates the view records.
 
 Now we run the specs to ensure we have a working system:
 
