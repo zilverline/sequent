@@ -1,10 +1,6 @@
 #!/usr/bin/env ruby
 require_relative '../lib/sequent/generator'
 
-command = ARGV[0].to_s.strip
-args = ARGV[1..10].map(&:to_s).map(&:strip)
-abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
-
 def new_project(args)
   name, _ = args
   abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty?
@@ -53,6 +49,10 @@ def generate(args)
   end
 end
 
+command = ARGV[0].to_s.strip
+abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
+args = ARGV[1..10].map(&:to_s).map(&:strip)
+
 case command
 when 'new'
   new_project(args)
@@ -61,4 +61,3 @@ when 'generate', 'g'
 else
   abort("Unknown command #{command}. Try `sequent new myapp`")
 end
-
