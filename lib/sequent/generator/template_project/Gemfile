@@ -3,7 +3,7 @@ ruby "2.5.1"
 
 gem 'rake'
 # let's use the latest and greatest
-gem 'sequent', git: 'https://github.com/zilverline/sequent'
+gem 'sequent', git: 'https://github.com/zilverline/sequent', branch: 'sequent-30'
 
 group :test do
   gem 'rspec'
