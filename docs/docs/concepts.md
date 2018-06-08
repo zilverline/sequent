@@ -9,11 +9,9 @@ In event sourcing state changes are described by [Events](#event). Everytime you
 change the state of an object an Event must be applied. Sequent takes care of storing and
 loading the events in the database. In Sequent AggregateRoot's extend from `Sequent::AggregateRoot`.
 
-:exclamation: Important:
-
-1. An AggregateRoot should **not depend** on the state of another AggregateRoot. The event stream
+**Important**: An AggregateRoot should **not depend** on the state of another AggregateRoot. The event stream
 of an AggregateRoot must contain all events necessary to rebuild its state.
-
+{: .notice--warning}
 
 ### Creating an AggregateRoot
 
@@ -130,10 +128,9 @@ end
 ```
 
 
-:point_up: Recommendations:
-
-1. Ensure you only apply **valid** state. We found defensive programming in your AggregateRoot to be very helpful.
-
+**Recommendations:**
+Ensure you only apply **valid** state. We found defensive programming in your AggregateRoot to be very helpful.
+{: .notice--info}
 
 ## Event
 
@@ -188,12 +185,15 @@ end
 Out of the box Sequent provides a whole set of [Types](#types) you can use
 for defining your attribtutes.
 
-:point_up: Recommendations:
-
-1. Keep Events small.
-2. When an attribute changes use the same event.
-This makes it easier to keep track of state changes for instance in Projectors or Workflows etc.
-3. Keep events as flat as possible. Overly nested ValueObject might seem to remove duplication, but is not always practical in usage.
+<div class="notice--info">
+<strong>Recommendations:</strong>
+  <ul>
+    <li>Keep Events small.</li>
+    <li>When an attribute changes use the same event.
+        This makes it easier to keep track of state changes for instance in Projectors or Workflows etc.</li>
+    <li>Keep events as flat as possible. Overly nested ValueObject might seem to remove duplication, but is not always practical in usage.</li>
+  </ul>
+</div>
 
 ## Command
 
@@ -271,10 +271,19 @@ class UserCommandHandler < Sequent::CommandHandler
 end
 ```
 
+To use CommandHandlers in your project you need to add them to the Sequent configuration
 
-:point_right: Tips
+```ruby
+  Sequent.configure do |config|
+    config.command_handlers = [
+      UserCommandHandler.new
+    ]
+  end
+```
 
-1. If you use rspec you can test your CommandHandler easily by including the `Sequent::Test::CommandHandlerHelpers` in your rspec config.
+**Tip:** If you use rspec you can test your CommandHandler easily by including the `Sequent::Test::CommandHandlerHelpers` in your rspec config.
+{: .notice--success}
+
 You can then test your CommandHandlers via the stanza:
 
 ```ruby
@@ -329,6 +338,15 @@ A Projector is used in two different stages in your application.
   be finished yet rebuilding. In Sequent we replay on a **per aggregate**
   basis.
 
+To use Projectors in your project you need to add them to the Sequent configuration
+
+```ruby
+  Sequent.configure do |config|
+    config.event_handlers = [
+      UserProjector.new
+    ]
+  end
+```
 
 ### Creating a Record
 
@@ -398,12 +416,11 @@ class UserProjector < Sequent::Projector
 end
 ```
 
-:point_right: **Tip**
-
-You can access all `attrs` from an Event via the `attributes` method. This returns a `Hash` on
+**Tip**:You can access all `attrs` from an Event via the `attributes` method. This returns a `Hash` on
 which you can call `slice` which returns a `Hash` containing the key value pairs of the
 keys you requested. This is extra handy of the name in the `attrs` are the same as the column
 names in your table definition.
+{: .notice--success}
 
 ### Deleting a record
 
@@ -442,8 +459,228 @@ end
 ```
 
 ## Workflow
+
+Workflows can be used to do other stuff based on [Events](#event) then updating a Projection. Typical
+tasks run by Workflows are:
+
+1) Execute other [Commands](#command)
+2) Schedule something to run in the background
+
+In Sequent Workflows are committed in the same transaction as committing the Events.
+
+Since Workflows have nothing to do with Projections they do **not** run when doing a [Migration](#migrations).
+
+To use Workflows in your project you need to add them to the Sequent configuration
+
+```ruby
+Sequent.configure do |config|
+  config.event_handlers = [
+    SendEmailWorkflow.new,
+  ]
+end
+```
+
+A Workflow responds to Event basically the same as Projectors do. For instance a Workflow
+that will schedule a background Job using [DelayedJob](https://github.com/collectiveidea/delayed_job)
+can look like this:
+
+```ruby
+class SendEmailWorkflow < Sequent::Workflow
+  on UserCreated do |event|
+    Delayed::Job.enqueue(event)
+  end
+end
+
+
+class UserJob
+  def initialize(event)
+    @event = event
+  end
+
+  def perform
+    ExternalService.send_email_to_user('Welcome User!', event.user_email_address)
+  end
+end
+```
+
+
 ## AggregateRepository
+
+The AggregateRepository is the interface for accessing Aggregates in the EventStore.
+
+It is typically used in [CommandHandlers](#commandhandler) to load and add [AggregateRoots](#aggregateroot).
+
+You can access the AggregateRepository via `Sequent.aggregate_repository`
+
 ## CommandService
+
+The CommandService is the interface to schedule commands in Sequent. To execute a [Command](#command)
+pass it to the CommandService. For instance from a Sinatra controller:
+
+```ruby
+class Users < Sinatra::Base
+  post '/create' do
+    Sequent.command_service.execute_commands CreateUser.new(
+      aggregate_id: Sequent.new_uuid,
+      name: params[:name]
+    )
+  end
+end
+```
+
 ## ValueObject
+
+ValueObjects are convenience objects that can be used to group certain attributes that
+are always used together in for instance commands. ValueObjects can be nested.
+A ValueObject must inherit from `Sequent::Core::ValueObject`.
+
+An example of a ValueObject is for instance an address.
+
+```ruby
+class Address < Sequent::Core::ValueObject
+  attrs line_1: String, line_2: String, city: String, country_code: String
+  validates_presence_of: :line_1, :city, :country_code
+end
+```
+
 ## Types
+
+In Sequent events are stored as JSON in the event store. To be able to serialize and deserialize to the correct
+types you are required to specify the type of an attribute.
+
+This also gives Sequent the possibility to check if the attributes
+in for instance the [Commands](#command) and [ValueObject](#valueobject) are of the correct type.
+
+Out of the box Sequent supports the following types:
+
+1. String: `attrs name: String`
+2. Integer: `attrs counter: Integer`
+3. Date: `attrs created_at: Date`
+4. DateTime: `attrs created_at: DateTime`
+5. Boolean: `attrs confirmed: Boolean`
+6. Symbol: `attrs user_type: Symbol`
+7. Custom ValueObjects: `attrs address: Address`
+8. Lists: `attrs names: array(String)`
+
 ## Validations
+
+Sequent uses [ActiveModel::Validations](http://api.rubyonrails.org/classes/ActiveModel/Validations.html)
+for validating things like [Commands](#commands) and [ValueObjects](#valueobject).
+
+For an in depth explanation of AvtiveModel validations please checkout their website.
+
+Sequent already adds validations checking if the attribute is of the correct type
+by default when you declare something an `Integer`, `Date`, `DateTime`, `Boolean` or as a custom `ValueObject`.
+
+## Migrations
+
+When you want to add or change Projections you need to migrate your view model.
+The view model is **not** maintained via ActiveRecord's migrations. Reason for
+this is that the ActiveRecord's model does not fit an event sourced application since the view model
+is just an view on your events. This means we can just add or change new [Projectors](#projectors)
+and rebuild the view model from the Events.
+
+### How migrations work in Sequent.
+
+To minize downtime in a Sequent application a migration is executed in two parts:
+
+1. `bundle exec rake sequent::migrate::online`: Migrate while the application is running
+2. `bundle exec rake sequent::migrate::offline`: Migrate last part when the application is down
+
+#### Online migration
+
+When creating new Projections Sequent is able to build up the new Projections
+from [Events](#event) while the application is running. Sequent keeps track
+of which Events are being replayed. The new Projections
+are created in the view schema under unique names not visible
+to the running app.
+
+#### Offline migration
+
+When the online migration part is done you need to run the offline migration part.
+It is possible (highly likely) that new Events are being committed to the
+event store during the migration online part. These new Events need to be
+replayed by running `bundle exec rake sequent:migrate:offline`.
+
+In order to ensure all events are replayed this part should only be run
+after you put you application in maintenance mode and **ensure that no new Events are inserted in the event store**.
+{: .notice--danger}
+
+### Adding a migration
+
+So a Migration in Sequent consists of:
+
+1. Change or add Projectors
+2. Change or add the corresponding sql files and its corresponding Records
+3. Increase the version and add the Projectors that need to be rebuild in
+the class configured in `Sequent.configuration.migrations_class_name`.
+
+#### SQL files
+
+A minimal SQL file looks like this:
+
+```sql
+CREATE TABLE account_records%SUFFIX% (
+  id serial NOT NULL,
+  aggregate_id uuid NOT NULL,
+  CONSTRAINT account_records_pkey%SUFFIX% PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX unique_aggregate_id%SUFFIX% ON account_records%SUFFIX% USING btree (aggregate_id);
+```
+
+Please note that the usage of the **%SUFFIX%** placeholder. This needs to be added
+to all names that are required to be unique in postgres. These are for instance:
+
+- table names
+- constraint names
+- index names
+
+The **%SUFFIX%** placeholder garantuees the uniqueness of names during the migration
+
+#### Increase version number
+
+In Sequent migrations are declared in your `Sequent.configuration.migrations_class_name`
+
+```ruby
+VIEW_SCHEMA_VERSION = 1
+
+class Migrations < Sequent::Migrations::Projectors
+  def self.version
+    VIEW_SCHEMA_VERSION
+  end
+
+  def self.versions
+    {
+      '1' => [
+        UserProjector,
+      ]
+    }
+  end
+end
+```
+
+To migrate add Projectors you need to rebuild and increase the version number:
+
+You only need to add the Projectors to need to rebuild.
+
+```ruby
+VIEW_SCHEMA_VERSION = 2
+
+class Migrations < Sequent::Migrations::Projectors
+  def self.version
+    VIEW_SCHEMA_VERSION
+  end
+
+  def self.versions
+    {
+      '1' => [
+        UserProjector,
+      ],
+      '2' => [
+        AccountProjector,
+      ]
+    }
+  end
+end
+```

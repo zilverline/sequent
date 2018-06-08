@@ -28,8 +28,16 @@ docs:
         url: /docs/concepts.html#workflow
       - title: "7. AggregateRepository"
         url: /docs/concepts.html#aggregaterepository
-      - title: "6. CommandService"
+      - title: "8. CommandService"
         url: /docs/concepts.html#commandservice
+      - title: "9. ValueObject"
+        url: /docs/concepts.html#valueobject
+      - title: "10. Types"
+        url: /docs/concepts.html#type
+      - title: "11. Validations"
+        url: /docs/concepts.html#validations
+      - title: "11. Migrations"
+        url: /docs/concepts.html#migrations
 
   - title: Advanced topics
     children:

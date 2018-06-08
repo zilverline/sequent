@@ -10,7 +10,7 @@ module Sequent
     # queried for uncommitted events. After persisting these events
     # the uncommitted events are cleared from the aggregate.
     #
-    # The repository is keeps track of the Unit-Of-Work per thread,
+    # The repository keeps track of the Unit-Of-Work per thread,
     # so can be shared between threads.
     class AggregateRepository
       # Key used in thread local
