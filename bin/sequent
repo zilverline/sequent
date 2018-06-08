@@ -94,4 +94,3 @@ when 'generate', 'g'
 else
   abort("Unknown command #{command}. Try `sequent new myapp`")
 end
-

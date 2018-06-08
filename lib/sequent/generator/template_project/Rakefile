@@ -1,9 +1,12 @@
-require './my_app'
-require 'sequent/rake/tasks'
+ENV['RACK_ENV'] ||= 'development'
 
-Sequent::Rake::Tasks.new({
-  db_config_supplier: MyApp::DB_CONFIG,
-  environment: ENV['RACK_ENV'] || 'development',
-  view_projection: MyApp::VIEW_PROJECTION,
-  event_store_schema: 'event_store'
-}).register!
+require './my_app'
+require 'sequent/rake/migration_tasks'
+
+Sequent::Rake::MigrationTasks.new.register_tasks!
+
+task "sequent:migrate:init" => [:db_connect]
+
+task "db_connect" do
+  Sequent::Support::Database.connect!(ENV['RACK_ENV'])
+end

@@ -58,7 +58,10 @@ describe Sequent::Generator::Project do
 
         gem install bundler
         bundle install
-        bundle exec rake db:drop db:create db:migrate view_schema:build
+        bundle exec rake sequent:db:drop
+        bundle exec rake sequent:db:create
+        bundle exec rake sequent:migrate:online
+        bundle exec rake sequent:migrate:offline
         bundle exec rspec spec
       SCRIPT
 

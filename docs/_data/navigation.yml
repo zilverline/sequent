@@ -1,18 +1,41 @@
 main:
-  - title: "News"
-    url: /news
-  - title: "<small>by Zilverline</small>"
+  - title: "<small>Powered by Zilverline</small>"
     url: https://www.zilverline.com/
 
 docs:
   - title: Introduction
     children:
-      - title: "1. Getting started"
+      - title: "1.1 Getting started"
         url: /docs/getting-started.html
-      - title: "2. Modelling the domain"
+      - title: "1.2 Modelling the domain"
         url: /docs/modelling-the-domain.html
 
-  - title: Advanced topics
+  - title: Concepts
     children:
-      - title: "Manual start guide"
-        url: /docs/manual-start-guide.html
+      - title: "1. AggregateRoot"
+        url: /docs/concepts/aggregate-root.html
+      - title: "2. Event"
+        url: /docs/concepts/event.html
+      - title: "3. Command"
+        url: /docs/concepts/command.html
+      - title: "4. CommandHandler"
+        url: /docs/concepts/command-handler.html
+      - title: "5. Projector"
+        url: /docs/concepts/projector.html
+      - title: "6. Workflow"
+        url: /docs/concepts/workflow.html
+      - title: "7. AggregateRepository"
+        url: /docs/concepts/aggregate-repository.html
+      - title: "8. CommandService"
+        url: /docs/concepts/command-service.html
+      - title: "9. ValueObject"
+        url: /docs/concepts/value-object.html
+      - title: "10. Types"
+        url: /docs/concepts/types.html
+      - title: "11. Validations"
+        url: /docs/concepts/validations.html
+      - title: "12. Migrations"
+        url: /docs/concepts/migrations.html
+      - title: "13. Snapshotting"
+        url: /docs/concepts/snapshotting.html
+
