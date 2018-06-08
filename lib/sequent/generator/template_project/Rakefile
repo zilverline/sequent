@@ -1,6 +1,5 @@
 ENV['RACK_ENV'] ||= 'development'
 
-require './db/migrations'
 require './my_app'
 require 'sequent/rake/migration_tasks'
 
