@@ -8,7 +8,7 @@
 
 See the official site at https://www.sequent.io/
 
-New to Sequent? [http://localhost:4000/docs/getting-started.html](Getting started) is the place to be!
+New to Sequent? [Getting Started](https://www.sequent.io/docs/getting-started.html) is the place to be!
 
 ## Contributing
 
@@ -32,6 +32,10 @@ bundle exec rake db:create
 ```
 
 The data in this database is deleted every time you run the specs!
+
+## Changelog
+
+The most notable changes can be found in the [Changelog](CHANGELOG.md)
 
 ## License
 
