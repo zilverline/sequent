@@ -7,7 +7,7 @@ docs:
     children:
       - title: "1.1 Getting started"
         url: /docs/getting-started.html
-      - title: "1.2. Modelling the domain"
+      - title: "1.2 Modelling the domain"
         url: /docs/modelling-the-domain.html
 
   - title: Concepts
