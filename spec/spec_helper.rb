@@ -1,6 +1,8 @@
 require 'bundler/setup'
 Bundler.setup
 
+ENV['RACK_ENV'] ||= 'test'
+
 require 'rspec/collection_matchers'
 require_relative '../lib/sequent'
 require 'simplecov'

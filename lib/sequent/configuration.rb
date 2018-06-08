@@ -12,8 +12,10 @@ module Sequent
     DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
 
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
+    DEFAULT_DATABASE_CONFIG_DIRECTORY = 'db'
 
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
+    DEFAULT_EVENT_STORE_SCHEMA_NAME= 'sequent_schema'
 
     MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
 
@@ -47,7 +49,9 @@ module Sequent
                   :view_schema_name,
                   :offline_replay_persistor_class,
                   :online_replay_persistor_class,
-                  :number_of_replay_processes
+                  :number_of_replay_processes,
+                  :database_config_directory,
+                  :event_store_schema_name
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -84,11 +88,13 @@ module Sequent
       self.replayed_ids_table_name = DEFAULT_REPLAYED_IDS_TABLE_NAME
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
       self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
+      self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
       self.migrations_class_name = MIGRATIONS_CLASS_NAME
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
 
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
+      self.database_config_directory = DEFAULT_DATABASE_CONFIG_DIRECTORY
 
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
     end
