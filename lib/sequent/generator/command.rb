@@ -39,7 +39,7 @@ module Sequent
       def find_target_cursor_position(ast)
         return unless ast.children.any?
 
-        ast.children.reverse.map do |child|
+        ast.children.map do |child|
           return if child.class.to_s != "Parser::AST::Node"
           return child.loc.expression.end_pos if child.type.to_s == 'block'
           find_target_cursor_position(child)
