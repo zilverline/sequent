@@ -20,7 +20,13 @@ module Sequent
         @options = DEFAULT_OPTIONS.merge(options)
       end
 
+      def display_deprecation_warning
+        warn '[DEPRECATED] Sequent::Rake::Tasks is deprecated. Please use Sequent::Rake::MigrationTasks tasks instead.'
+      end
+
       def register!
+        display_deprecation_warning
+
         register_db_tasks!
         register_view_schema_tasks!
       end
@@ -29,6 +35,8 @@ module Sequent
         namespace :db do
           desc 'Create the database'
           task :create do
+            display_deprecation_warning
+
             current_environments.each do |env|
               env_db = db_config(env)
               puts "Create database #{env_db['database']}"
@@ -38,6 +46,8 @@ module Sequent
 
           desc 'Drop the database'
           task :drop do
+            display_deprecation_warning
+
             current_environments.each do |env|
               env_db = db_config(env)
               puts "Drop database #{env_db['database']}"
@@ -52,6 +62,8 @@ module Sequent
 
           desc 'Migrate the database'
           task migrate: :establish_connection do
+            display_deprecation_warning
+
             database.create_schema!(options.fetch(:event_store_schema))
             database.migrate(options.fetch(:migrations_path))
           end
@@ -62,6 +74,8 @@ module Sequent
         namespace :view_schema do
           desc 'Build the view schema'
           task build: :'db:establish_connection' do
+            display_deprecation_warning
+
             if database.schema_exists?(view_projection.schema_name)
               puts "View version #{view_projection.version} already exists; no need to build it"
             else
@@ -72,6 +86,8 @@ module Sequent
 
           desc 'Drop the view schema'
           task drop: :'db:establish_connection' do
+            display_deprecation_warning
+
             database.drop_schema!(view_projection.schema_name)
           end
         end

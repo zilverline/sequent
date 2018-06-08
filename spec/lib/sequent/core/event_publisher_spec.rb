@@ -42,7 +42,7 @@ describe Sequent::Core::EventPublisher do
     end
   end
 
-  class TestEventHandler < Sequent::Core::BaseEventHandler
+  class TestEventHandler < Sequent::Core::Projector
     def initialize(*args)
       @sequence_numbers = []
       super(*args)

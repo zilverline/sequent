@@ -119,9 +119,9 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuratio
 
       PRINT_PROGRESS = lambda do |progress, done, _|
         if done
-          puts "Done replaying #{progress} events"
+          Sequent.logger.debug "Done replaying #{progress} events"
         else
-          puts "Replayed #{progress} events"
+          Sequent.logger.debug "Replayed #{progress} events"
         end
       end
 
