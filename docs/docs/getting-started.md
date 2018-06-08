@@ -133,4 +133,4 @@ Finished in 0.2 seconds (files took 1.4 seconds to load)
 3 examples, 0 failures
 ```
 
-The specs are green and we are ready to dive into the domain! Let's continue with: [2. Modelling the domain](/docs/getting-started.html)
+The specs are green and we are ready to dive into the domain! Let's continue with: [1.2 Modelling the domain](/docs/modelling-the-domain.html)
