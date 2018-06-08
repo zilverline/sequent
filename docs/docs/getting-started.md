@@ -37,7 +37,7 @@ Before you install Sequent, you should check to make sure that your system has t
 
 Verify that you have a current version of Ruby installed:
 
-```
+```bash
 $ ruby -v
 ruby 2.5.0p0 (2017-12-25 revision 61468) [x86_64-darwin17]
 ```
@@ -48,7 +48,7 @@ Sequent require Ruby version 2.3.7 or later. If the version number returned is l
 
 You will also need to have the PostgreSQL database server installed. Verify that you have a current version of PostgresQL installed:
 
-```
+```bash
 $ pg_config --version
 PostgreSQL 9.4.14
 ```
@@ -59,13 +59,13 @@ Sequent requires PostgreSQL version 9.4 or later. For installation instructions 
 
 Install Sequent using RubyGems:
 
-```
+```bash
 $ gem install sequent
 ```
 
 Verify that sequent was installed correctly by running the command:
 
-```
+```bash
 $ sequent
 Please specify a command. i.e. `sequent new myapp`
 ```
@@ -74,7 +74,7 @@ Please specify a command. i.e. `sequent new myapp`
 
 Sequent offers generators to help you develop your application without having to set up the plumbing of the system yourself. We can generate a new Sequent application using `sequent`:
 
-```
+```bash
 $ sequent new blog
 
 Success!
@@ -84,13 +84,13 @@ Success!
 
 This will create your new Sequent application in the `blog` directory and guide you toward your next steps. Don't rush in yet, we will follow these steps in a minute. Let's switch to the blog application folder:
 
-```
+```bash
 $ cd blog
 ```
 
 We can see the `blog` directory was generated with a number of files and folders that form the basic structure of a sequent application:
 
-```
+```bash
 $ ls -1
 Gemfile
 Gemfile.lock
@@ -105,7 +105,7 @@ spec
 
 Now let's finish our setup by installing the gems and preparing the database:
 
-```
+```bash
 bundle install
 bundle exec rake sequent:db:create
 bundle exec rake sequent:migrate:online
@@ -125,7 +125,7 @@ Let's first take a look at our (generated) specs:
 
 Now we run the specs to ensure we have a working system:
 
-```
+```bash
 $ bundle exec rspec
 ...
 
