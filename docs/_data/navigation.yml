@@ -1,45 +1,41 @@
 main:
-  - title: "News"
-    url: /news
-  - title: "<small>by Zilverline</small>"
+  - title: "<small>Powered by Zilverline</small>"
     url: https://www.zilverline.com/
 
 docs:
   - title: Introduction
     children:
-      - title: "1. Getting started"
+      - title: "1.1 Getting started"
         url: /docs/getting-started.html
-      - title: "2. Modelling the domain"
+      - title: "1.2. Modelling the domain"
         url: /docs/modelling-the-domain.html
 
   - title: Concepts
     children:
       - title: "1. AggregateRoot"
-        url: /docs/concepts.html#aggregateroot
+        url: /docs/concepts/aggregate-root.html
       - title: "2. Event"
-        url: /docs/concepts.html#event
+        url: /docs/concepts/event.html
       - title: "3. Command"
-        url: /docs/concepts.html#command
+        url: /docs/concepts/command.html
       - title: "4. CommandHandler"
-        url: /docs/concepts.html#commandhandler
+        url: /docs/concepts/command-handler.html
       - title: "5. Projector"
-        url: /docs/concepts.html#projector
+        url: /docs/concepts/projector.html
       - title: "6. Workflow"
-        url: /docs/concepts.html#workflow
+        url: /docs/concepts/workflow.html
       - title: "7. AggregateRepository"
-        url: /docs/concepts.html#aggregaterepository
+        url: /docs/concepts/aggregate-repository.html
       - title: "8. CommandService"
-        url: /docs/concepts.html#commandservice
+        url: /docs/concepts/command-service.html
       - title: "9. ValueObject"
-        url: /docs/concepts.html#valueobject
+        url: /docs/concepts/value-object.html
       - title: "10. Types"
-        url: /docs/concepts.html#type
+        url: /docs/concepts/types.html
       - title: "11. Validations"
-        url: /docs/concepts.html#validations
-      - title: "11. Migrations"
-        url: /docs/concepts.html#migrations
+        url: /docs/concepts/validations.html
+      - title: "12. Migrations"
+        url: /docs/concepts/migrations.html
+      - title: "13. Migrations"
+        url: /docs/concepts/snapshotting.html
 
-  - title: Advanced topics
-    children:
-      - title: "Manual start guide"
-        url: /docs/manual-start-guide.html
