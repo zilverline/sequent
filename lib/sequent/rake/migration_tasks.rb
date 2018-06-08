@@ -12,10 +12,13 @@ module Sequent
 
       def register_tasks!
         namespace :sequent do
+          desc 'Rake task that runs before all sequent rake tasks. Hook applications can use to for instance run other rake tasks.'
+          task :init
+
           namespace :db do
 
             desc 'Create the database for the current env'
-            task :create do
+            task :create => ['sequent:init'] do
               ensure_rack_env_set!
               sequent_schema = File.join(Sequent.configuration.database_config_directory, "#{Sequent.configuration.event_store_schema_name}.rb")
 
@@ -30,7 +33,7 @@ module Sequent
             end
 
             desc 'Drops the database for the current env'
-            task :drop, [:production] do |_t, args|
+            task :drop, [:production] => ['sequent:init'] do |_t, args|
               ensure_rack_env_set!
 
               fail "Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[production]" if @env == 'production' && args[:production] != 'production'
@@ -42,8 +45,11 @@ module Sequent
           end
 
           namespace :migrate do
+            desc 'Rake task that runs before all migrate rake tasks. Hook applications can use to for instance run other rake tasks.'
+            task :init
+
             desc 'Prints the current version in the database'
-            task :current_version do
+            task :current_version => ['sequent:init', :init] do
               ensure_rack_env_set!
 
               Sequent::Support::Database.connect!(@env)
@@ -52,7 +58,7 @@ module Sequent
             end
 
             desc 'Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.'
-            task :online do
+            task :online => ['sequent:init', :init] do
               ensure_rack_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -62,7 +68,7 @@ module Sequent
             end
 
             desc 'Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.'
-            task :offline do
+            task :offline => ['sequent:init', :init] do
               ensure_rack_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
