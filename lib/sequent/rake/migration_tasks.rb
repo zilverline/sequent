@@ -77,6 +77,26 @@ module Sequent
               view_schema.migrate_offline
             end
           end
+
+          namespace :snapshots do
+            desc 'Rake task that runs before all snapshots rake tasks. Hook applications can use to for instance run other rake tasks.'
+            task :init
+
+            task :set_snapshot_threshold, [:aggregate_type,:threshold] => ['sequent:init', :init] do
+              aggregate_type = args['aggregate_type']
+              threshold = args['threshold']
+
+              fail ArgumentError.new('usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]') unless aggregate_type
+              fail ArgumentError.new('usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]') unless threshold
+
+              execute "UPDATE #{Sequent.configuration.stream_record_class} SET snapshot_threshold = #{threshold.to_i} WHERE aggregate_type = '#{aggregate_type}'"
+            end
+
+            task :delete_all => ['sequent:init', :init] do
+              result = ActiveRecord::Base.connection.execute("DELETE FROM #{Sequent.configuration.event_record_class.table_name} WHERE event_type = 'Sequent::Core::SnapshotEvent'")
+              Sequent.logger.info "Deleted #{result.cmd_tuples} aggregate snapshots from the event store"
+            end
+          end
         end
       end
 

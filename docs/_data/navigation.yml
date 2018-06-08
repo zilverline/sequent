@@ -36,6 +36,6 @@ docs:
         url: /docs/concepts/validations.html
       - title: "12. Migrations"
         url: /docs/concepts/migrations.html
-      - title: "13. Migrations"
+      - title: "13. Snapshotting"
         url: /docs/concepts/snapshotting.html
 
