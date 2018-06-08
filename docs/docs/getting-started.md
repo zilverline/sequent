@@ -120,8 +120,8 @@ Sequent does not come with a web framework included. We'll look into bringing it
 guide. What we can do is demonstrate our business logic is working. We'll examine our example domain in a minute.
 Let's first take a look at our (generated) specs:
 
-- `spec/account/command_spec.rb`: Here we test that when a command is given, certain events will occur.
-- `spec/account/projector_spec.rb`: Here we test that when an event occurs, the projector updates the view records.
+- `spec/lib/post/post_command_handler_spec.rb`: Here we test that when a command is given, certain events will occur.
+- `spec/app/projectors/post_projector_spec.rb`: Here we test that when an event occurs, the projector updates the view records.
 
 Now we run the specs to ensure we have a working system:
 
