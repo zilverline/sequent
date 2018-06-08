@@ -1,6 +1,6 @@
 Sequent.configure do |config|
   config.command_handlers = [
-    AccountCommandHandler
+    AccountCommandHandler.new
   ]
 
   config.event_handlers = [
