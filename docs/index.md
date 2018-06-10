@@ -10,46 +10,14 @@ You can use it with Rails, Sinatra or whatever framework you like.
 
 There are several guides available
 
-## Getting Started
+## Getting Started Guide
 
 New to Sequent? [Getting Started](/docs/getting-started.html) is the place to start.
 
-## Concepts
+## Concepts Guide
 
-### AggregateRoot
-
-An [AggregateRoot](/docs/concepts/aggregate-root.html) is the class that encapsulates your domain logic. Your aggregates form the heart of your application.
-
-### Event
-
-[Events](/docs/concepts/event.html) are domain events that are significant to your domain. An AggregateRoot is basically a stream of Events.
-
-### Command
-
-[Commands](/docs/concepts/command.html) form the API of your domain. They are simple data objects
-with descriptive names describing the intent of your command. E.g. `SendInvoice`.
-
-### CommandHandler
-
-Commands are handled by [CommandHandlers](/docs/concepts/command-handler.html). Based on the incoming Command the CommandHandler decides what to do.
-
-### Projector
-
-[Projectors](/docs/concepts/projector.html) listen to Events. They are responsible for update the Projections in the view schema.
-
-### Workflow
-
-[Workflows](/docs/concepts/workflow.html) also listen to Events. They are typically used for anything else you want to do with events. (E.g. execute another command).
-
-### AggregateRepository
-
-The [AggregateRepository](/docs/concepts/aggregate-repository.html) is the interface to the event store. Use this object to load and store AggregateRoots.
-
-### CommandService
-
-The [CommandService](/docs/concepts/command-service.html) is the interface for executing commands. The CommandService will than call you CommandHandlers in order to get things done.
-
-The [CommandService](/docs/concepts.html#commandservice) is the interface for executing commands. The CommandService will than call you CommandHandlers in order to get things done.
+The [Concepts Guide](/docs/concepts.html) provides an in-depth explanation of the
+several concepts and building blocks used in Sequent.
 
 ## Further reading
 

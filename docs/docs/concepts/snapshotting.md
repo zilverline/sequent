@@ -31,7 +31,7 @@ namespace :snapshot do
 end
 ```
 
-**Important:** When you enable snapshotting you **must** delete all snapshots on each deploy. The AggregateRoot root state is dumped in the database if in the new version you change the class definition the snapshotted state can not be loaded.
+**Important:** When you enable snapshotting you **must** delete all snapshots on each deploy. The AggregateRoot root state is dumped in the database. If in the new version the class definition of the AggregateRoots is changed the snapshotted state can not be loaded.
 {: .notice--danger}
 
 To delete all snapshots do you can execute `bundle exec rake sequent:snapshotting::delete_all`.
