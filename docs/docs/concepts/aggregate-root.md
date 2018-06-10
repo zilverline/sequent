@@ -7,7 +7,7 @@ In event sourcing state changes are described by [Events](event.html). Everytime
 change the state of an object an Event must be applied. Sequent takes care of storing and
 loading the events in the database. In Sequent AggregateRoot's extend from `Sequent::AggregateRoot`.
 
-**Important**: An AggregateRoot should **not depend** on the state of another AggregateRoot. The event stream
+**Important**: An AggregateRoot should **not depend** on the state of other AggregateRoots. The event stream
 of an AggregateRoot must contain all events necessary to rebuild its state.
 {: .notice--warning}
 
@@ -80,15 +80,13 @@ We need to set it in the event blocks since when we load the AggregateRoot from 
 we want the same state. So in the method you will:
 
 
-1. Execute domain logic (typically guards and/or calculating new state)
+1. Execute domain logic (like guards and/or calculating new state)
 2. Apply new Events
 
 In the event handling block you will **only set the new state**.
 
-When you think of this it makes sense, since over time domain logic can change, but what happened in the still happened.
-Even if the current business logic would not allow this. So new business logic should never interfere with rebuilding the
-state from past events.
-
+When you think of this from an event sourced point of view it makes sense.
+Domain logic can change over time, but that should not affect existing Events.
 
 ## Deleting an AggregateRoot
 
@@ -109,9 +107,9 @@ class User < Sequent::AggregateRoot
 end
 ```
 
-Typically [Projectors](projector.html) will respond to this type of Event by deleting or marking a Projection as deleted.
+[Projectors](projector.html) will respond to this type of Event by for instance deleting or marking a Projection as deleted.
 
-We can then add a guard to methods that check that the user is not deleted before applying events:
+We can also add guards to methods for instance to check whether a User is not deleted before applying events:
 
 ```ruby
 class User < Sequent::AggregateRoot

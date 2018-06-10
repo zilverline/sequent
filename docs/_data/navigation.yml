@@ -10,7 +10,8 @@ docs:
       - title: "1.2 Modelling the domain"
         url: /docs/modelling-the-domain.html
 
-  - title: Concepts
+  - title: Concepts Guide
+    url: /docs/concepts.html
     children:
       - title: "1. AggregateRoot"
         url: /docs/concepts/aggregate-root.html

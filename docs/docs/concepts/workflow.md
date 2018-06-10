@@ -2,17 +2,17 @@
 title: Workflow
 ---
 
-Workflows can be used to do other stuff based on [Events](event.html) then updating a Projection. Typical
+Workflows can be used to do other stuff (then updating a Projection) based on [Events](event.html). Common
 tasks run by Workflows are:
 
-1) Execute other [Commands](command.html)
-2) Schedule something to run in the background
+1. Execute other [Commands](command.html)
+2. Schedule something to run in the background
 
 In Sequent Workflows are committed in the same transaction as committing the Events.
 
 Since Workflows have nothing to do with Projections they do **not** run when doing a [Migration](migrations.html).
 
-To use Workflows in your project you need to add them to the Sequent configuration
+To use Workflows in your project you need to add them to your Sequent configuration:
 
 ```ruby
 Sequent.configure do |config|

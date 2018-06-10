@@ -20,14 +20,14 @@ To minize downtime in a Sequent application a migration is executed in two parts
 When creating new Projections Sequent is able to build up the new Projections
 from [Events](event.html) while the application is running. Sequent keeps track
 of which Events are being replayed. The new Projections
-are created in the view schema under unique names not visible
+are created in the view schema under unique names, not visible
 to the running app.
 
 ## Offline migration
 
 When the online migration part is done you need to run the offline migration part.
 It is possible (highly likely) that new Events are being committed to the
-event store during the migration online part. These new Events need to be
+event store during the online migration part. These new Events need to be
 replayed by running `bundle exec rake sequent:migrate:offline`.
 
 In order to ensure all events are replayed this part should only be run
@@ -39,7 +39,7 @@ after you put you application in maintenance mode and **ensure that no new Event
 So a Migration in Sequent consists of:
 
 1. Change or add Projectors
-2. Change or add the corresponding sql files and its corresponding Records
+2. Change or add the corresponding SQL files and its corresponding Records
 3. Increase the version and add the Projectors that need to be rebuild in
 the class configured in `Sequent.configuration.migrations_class_name`.
 
@@ -64,7 +64,7 @@ to all names that are required to be unique in postgres. These are for instance:
 - constraint names
 - index names
 
-The **%SUFFIX%** placeholder garantuees the uniqueness of names during the migration
+The **%SUFFIX%** placeholder garantuees the uniqueness of names during the migration.
 
 ## Increase version number
 
@@ -90,7 +90,7 @@ end
 
 To migrate add Projectors you need to rebuild and increase the version number:
 
-You only need to add the Projectors to need to rebuild.
+You only need to add the Projectors that need to be rebuild.
 
 ```ruby
 VIEW_SCHEMA_VERSION = 2
