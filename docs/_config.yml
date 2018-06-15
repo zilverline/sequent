@@ -25,7 +25,7 @@ url: "https://www.sequent.io" # the base hostname & protocol for your site, e.g.
 
 # Build settings
 markdown: kramdown
-theme: "minimal-mistakes-jekyll"
+remote_theme: "mmistakes/minimal-mistakes"
 minimal_mistakes_skin: "mint" # "default", "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum" "sunrise"
 plugins:
   - jekyll-feed
@@ -65,6 +65,3 @@ defaults:
       share: false
       sidebar:
         nav: "docs"
-
-sass:
-  style: compressed
