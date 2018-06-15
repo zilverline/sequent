@@ -55,6 +55,7 @@ end
 We only need the `publication_date` attribute. Commands always target an aggregate, so we already know what to change by its `aggregate_id`. We could set a `publish` flag, but the event already communicates this intent.
 
 _Learn all about commands in the [Command](/docs/concepts/command.html) concept guide._
+{: .notice}
 
 ### Handling our new command
 
@@ -83,6 +84,7 @@ end
 Sequent retrieves the post for us and we call the (to be defined) `publish` method on the returned `Post` instance.
 
 _Learn all about command handlers in the [CommandHandler](/docs/concepts/command-handler.html) concept guide._
+{: .notice}
 
 ### The Aggregate Root
 
@@ -112,3 +114,4 @@ end
 ```
 
 _Learn all about aggregate roots in the [AggregateRoot](/docs/concepts/aggregate-root.html) concept guide._
+{: .notice}
