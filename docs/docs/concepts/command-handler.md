@@ -17,11 +17,10 @@ class UserCommandHandler < Sequent::CommandHandler
 end
 ```
 
-
 The `Sequent::CommandHandler` exposes two convenience methods:
 
-1. `repository`, a shorthand for Sequent.configuration.aggregate_repository
-2. `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
+1.  `repository`, a shorthand for Sequent.configuration.aggregate_repository
+2.  `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
 
 A CommandHandler can respond to multiple commands:
 
@@ -74,7 +73,7 @@ To use CommandHandlers in your project you need to add them to your Sequent conf
 You can then test your CommandHandlers via the stanza:
 
 ```ruby
-it 'creates a user` do
+it 'creates a user' do
   given_command CreateUser.new(args)
   then_events UserCreated
 end
