@@ -70,4 +70,5 @@ module Sequent
   AggregateRoot = Sequent::Core::AggregateRoot
   Projector = Sequent::Core::Projector
   Workflow = Sequent::Core::Workflow
+  ValueObject = Sequent::Core::ValueObject
 end
