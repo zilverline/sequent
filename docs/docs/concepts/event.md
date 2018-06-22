@@ -36,13 +36,12 @@ class UserNameSet < Sequent::Event
 end
 ```
 
-
 The `attrs` will respect inheritance hierachies.
 
 You can also use [ValueObject](value-object.html) in Events.
 
 ```ruby
-class Name < Sequent::Core::ValueObject
+class Name < Sequent::ValueObject
   attrs firstname: String, lastname: String
 end
 
