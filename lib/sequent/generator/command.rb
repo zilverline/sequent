@@ -78,21 +78,11 @@ module Sequent
       end
 
       def command_template
-        ERB.new <<~EOF
-
-          class <%= command %> < Sequent::Command
-            <% attrs.each do |name, type| %>attrs <%= name.downcase %>: <%= type.downcase.capitalize %><% end %>
-          end
-        EOF
+        ERB.new(File.read(File.join( File.dirname(__FILE__), 'template_command.erb' )))
       end
 
       def command_handler_template
-        ERB.new <<~EOF
-          \n
-            on <%= command %> do |command|
-
-            end
-        EOF
+        ERB.new(File.read(File.join( File.dirname(__FILE__), 'template_command_handler.erb' )))
       end
     end
   end

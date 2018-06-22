@@ -41,7 +41,7 @@ end
 def generate_aggregate(args)
   _args = args.dup
   aggregate_name = _args.shift
-  abort('Please specify an aggregate name. i.e. `sequent g aggregate user`') if !aggregate_name || aggregate_name.empty?
+  abort('Please specify an aggregate name. i.e. `sequent g aggregate user`') unless args_valid?(aggregate_name)
 
   Sequent::Generator::Aggregate.new(aggregate_name).execute
   puts "#{aggregate_name} aggregate has been generated"
@@ -53,7 +53,7 @@ def generate_command(args)
   command_name = _args.shift
   attrs = _args
 
-  abort('Please specify an aggregate name and command name. i.e. `sequent g command user AddUser`') if !aggregate_name || !command_name || aggregate_name.empty? || command_name.empty?
+  abort('Please specify an aggregate name and command name. i.e. `sequent g command user AddUser`') unless args_valid?(aggregate_name, command_name)
   Sequent::Generator::Command.new(aggregate_name, command_name, attrs).execute
   puts "#{command_name} command has been added to #{aggregate_name}"
 end
@@ -64,7 +64,7 @@ def generate_event(args)
   event_name = _args.shift
   attrs = _args
 
-  abort('Please specify an aggregate name and event name. i.e. `sequent g event user AddUser`') if !aggregate_name || !event_name || aggregate_name.empty? || event_name.empty?
+  abort('Please specify an aggregate name and event name. i.e. `sequent g event user AddUser`') unless args_valid?(aggregate_name, event_name)
   Sequent::Generator::Event.new(aggregate_name, event_name, attrs).execute
   puts "#{event_name} event has been added to #{aggregate_name}"
 end
@@ -84,6 +84,10 @@ def generate(args)
     else
       abort("Unknown argument #{entity} for `generate`. Try `sequent g aggregate user`")
   end
+end
+
+def args_valid?(*args)
+  args.all? { |arg| arg && !arg.empty?}
 end
 
 case command
