@@ -87,7 +87,7 @@ def generate(args)
 end
 
 def args_valid?(*args)
-  args.all? { |arg| arg && !arg.empty?}
+  args.all?(&:present?)
 end
 
 case command
