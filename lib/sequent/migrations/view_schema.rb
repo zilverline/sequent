@@ -110,6 +110,8 @@ module Sequent
       # If anything fails an exception is raised and everything is rolled back
       #
       def migrate_online
+        return if Sequent.new_version == current_version
+
         ensure_version_correct!
 
         in_view_schema do
