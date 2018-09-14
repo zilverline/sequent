@@ -7,6 +7,7 @@ describe Sequent::Core::EventPublisher do
   class EventAdded < Sequent::Core::Event; end
   class TriggerTestCase < Sequent::Core::Command; end
   class TriggerOtherAggregate < Sequent::Core::Command; end
+  class TestRecord; end
 
   class TestAggregate < Sequent::Core::AggregateRoot
     def trigger_other_aggregate(aggregate_id)
@@ -43,6 +44,8 @@ describe Sequent::Core::EventPublisher do
   end
 
   class TestEventHandler < Sequent::Core::Projector
+    manages_tables TestRecord
+
     def initialize(*args)
       @sequence_numbers = []
       super(*args)
