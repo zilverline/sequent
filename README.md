@@ -6,9 +6,9 @@
 
 ## Getting started
 
-See the official site at https://www.sequent.io/
+See the official site at http://www.sequent.io/
 
-New to Sequent? [Getting Started](https://www.sequent.io/docs/getting-started.html) is the place to be!
+New to Sequent? [Getting Started](http://www.sequent.io/docs/getting-started.html) is the place to be!
 
 ## Contributing
 
