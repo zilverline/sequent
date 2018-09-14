@@ -109,8 +109,10 @@ Now let's finish our setup by installing the gems and preparing the database:
 bundle install
 bundle exec rake sequent:db:create
 RACK_ENV=test bundle exec rake sequent:db:create
+bundle exec rake sequent:db:create_view_schema
 bundle exec rake sequent:migrate:online
 bundle exec rake sequent:migrate:offline
+
 ```
 
 Your Sequent app is ready to rock!
