@@ -18,12 +18,16 @@ Fork and send pull requests
 
 See the official site at https://www.sequent.io/
 
-Want to help improve the documentation? You can start the documentation locally via:
+Want to help improve the documentation? Please let us know how we can improve by [creating an issue](https://github.com/zilverline/sequent/issues/new)
+
+If you want to help write the documentation fork and send pull request.
+
+You can start the documentation locally via:
 
 ```
 cd docs
 bundle install
-bunel exec jekyll serve
+bundle exec jekyll serve
 ```
 
 Open [localhost:4000](localhost:4000)
