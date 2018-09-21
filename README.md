@@ -6,13 +6,27 @@
 
 ## Getting started
 
-See the official site at http://www.sequent.io/
+See the official site at https://www.sequent.io/
 
 New to Sequent? [Getting Started](http://www.sequent.io/docs/getting-started.html) is the place to be!
 
 ## Contributing
 
 Fork and send pull requests
+
+## Documentation
+
+See the official site at https://www.sequent.io/
+
+Want to help improve the documentation? You can start the documentation locally via:
+
+```
+cd docs
+bundle install
+bunel exec jekyll serve
+```
+
+Open [localhost:4000](localhost:4000)
 
 ## Releasing
 
