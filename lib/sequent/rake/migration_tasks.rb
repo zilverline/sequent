@@ -17,7 +17,7 @@ module Sequent
 
           namespace :db do
 
-            desc 'Create the database for the current env'
+            desc 'Creates the database and initializes the event_store schema for the current env'
             task :create => ['sequent:init'] do
               ensure_rack_env_set!
 
@@ -37,7 +37,7 @@ module Sequent
               Sequent::Support::Database.drop!(db_config)
             end
 
-            desc 'Create the view schema for the current env'
+            desc 'Creates the view schema for the current env'
             task :create_view_schema => ['sequent:init'] do
               ensure_rack_env_set!
 
@@ -46,7 +46,7 @@ module Sequent
               Sequent::Migrations::ViewSchema.new(db_config: db_config).create_view_schema_if_not_exists
             end
 
-            desc 'Create the event_store schema for the current env'
+            desc 'Creates the event_store schema for the current env'
             task :create_event_store => ['sequent:init'] do
               ensure_rack_env_set!
               db_config = Sequent::Support::Database.read_config(@env)
