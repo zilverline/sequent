@@ -42,6 +42,14 @@ module Sequent
               Sequent::Support::Database.drop!(db_config)
             end
 
+            desc 'Create the view schema for the current env'
+            task :create_view_schema => ['sequent:init'] do
+              ensure_rack_env_set!
+
+              db_config = Sequent::Support::Database.read_config(@env)
+              Sequent::Support::Database.establish_connection(db_config)
+              Sequent::Migrations::ViewSchema.new(db_config: db_config).create_view_schema_if_not_exists
+            end
           end
 
           namespace :migrate do
