@@ -112,7 +112,14 @@ RACK_ENV=test bundle exec rake sequent:db:create
 bundle exec rake sequent:db:create_view_schema
 bundle exec rake sequent:migrate:online
 bundle exec rake sequent:migrate:offline
+```
 
+If your database already exists and you just need to create the event_store schema and the view_schema then do:
+```bash
+bundle exec rake sequent:db:create_event_store
+bundle exec rake sequent:db:create_view_schema
+bundle exec rake sequent:migrate:online
+bundle exec rake sequent:migrate:offline
 ```
 
 Your Sequent app is ready to rock!
