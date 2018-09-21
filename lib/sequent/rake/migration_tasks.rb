@@ -20,16 +20,11 @@ module Sequent
             desc 'Create the database for the current env'
             task :create => ['sequent:init'] do
               ensure_rack_env_set!
-              sequent_schema = File.join(Sequent.configuration.database_config_directory, "#{Sequent.configuration.event_store_schema_name}.rb")
-
-              fail "File #{sequent_schema} does not exist. Check your Sequent configuration." unless File.exists?(sequent_schema)
 
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.create!(db_config)
 
-              Sequent::Support::Database.establish_connection(db_config)
-              Sequent::Support::Database.create_schema(Sequent.configuration.event_store_schema_name)
-              load(sequent_schema)
+              create_event_store(db_config)
             end
 
             desc 'Drops the database for the current env'
@@ -49,6 +44,27 @@ module Sequent
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.establish_connection(db_config)
               Sequent::Migrations::ViewSchema.new(db_config: db_config).create_view_schema_if_not_exists
+            end
+
+            desc 'Create the event_store schema for the current env'
+            task :create_event_store => ['sequent:init'] do
+              ensure_rack_env_set!
+              db_config = Sequent::Support::Database.read_config(@env)
+              create_event_store(db_config)
+            end
+
+            def create_event_store(db_config)
+              event_store_schema = Sequent.configuration.event_store_schema_name
+              sequent_schema = File.join(Sequent.configuration.database_config_directory, "#{event_store_schema}.rb")
+              fail "File #{sequent_schema} does not exist. Check your Sequent configuration." unless File.exists?(sequent_schema)
+
+              Sequent::Support::Database.establish_connection(db_config)
+              fail "Schema #{event_store_schema} already exists in the database" if Sequent::Support::Database.schema_exists?(event_store_schema)
+
+              Sequent::Support::Database.create_schema(event_store_schema)
+              Sequent::Support::Database.with_schema_search_path(event_store_schema, db_config, @env) do
+                load(sequent_schema)
+              end
             end
           end
 
