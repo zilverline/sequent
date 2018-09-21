@@ -31,7 +31,7 @@ module Sequent
             task :drop, [:production] => ['sequent:init'] do |_t, args|
               ensure_rack_env_set!
 
-              fail "Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[production]" if @env == 'production' && args[:production] != 'production'
+              fail "Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[yes_drop_production]" if @env == 'production' && args[:production] != 'yes_drop_production'
 
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.drop!(db_config)
