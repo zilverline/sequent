@@ -16,8 +16,8 @@ creating a User from a webapplication as example:
 3. The CommandService [validates](concepts/validations.html) the Command
 4. When the Command is valid the CommandService calls the registered [CommandHandlers](concepts/command-handler.html)
 5. The CommandHandler creates the User as [AggregateRoot](concepts/aggregate-root.html) and stores it in the EventStore using the [AggregateRepository](concepts/aggregate-repository.html)
-6. When the CommandHandler is finished the CommandService queries all affected AggregateRoots for new [Event](concepts/events.html) and stores them in the EventStore
-7. All Events are propagated to registered [Projectors](concepts/projectors.html)
+6. When the CommandHandler is finished the CommandService queries all affected AggregateRoots for new [Event](concepts/event.html) and stores them in the EventStore
+7. All Events are propagated to registered [Projectors](concepts/projector.html)
 8. The Projectors update their Projections accordingly.
 
 **Good to know:** Points 1,2,5,8 are the steps you as programmer need to implement. Sequent takes case of the rest.
