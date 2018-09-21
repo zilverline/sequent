@@ -9,6 +9,8 @@ docs:
         url: /docs/getting-started.html
       - title: "1.2 Modelling the domain"
         url: /docs/modelling-the-domain.html
+      - title: "1.3 Building a web application"
+        url: /docs/building-a-web-application.html
 
   - title: Concepts Guide
     url: /docs/concepts.html
