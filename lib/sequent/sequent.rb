@@ -5,6 +5,7 @@ require_relative 'core/base_command_handler'
 require_relative 'core/aggregate_root'
 require_relative 'core/projector'
 require_relative 'core/workflow'
+require_relative 'core/value_object'
 require_relative 'generator'
 
 module Sequent
@@ -70,4 +71,5 @@ module Sequent
   AggregateRoot = Sequent::Core::AggregateRoot
   Projector = Sequent::Core::Projector
   Workflow = Sequent::Core::Workflow
+  ValueObject = Sequent::Core::ValueObject
 end

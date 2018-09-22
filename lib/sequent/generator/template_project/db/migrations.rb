@@ -10,7 +10,7 @@ class Migrations < Sequent::Migrations::Projectors
   def self.versions
     {
       '1' => [
-        AccountProjector
+        PostProjector
       ]
     }
   end

@@ -42,6 +42,8 @@ module Sequent
     # Example of updating view state, in this case the InvoiceRecord table representing an Invoice
     #
     #   class InvoiceProjector < Sequent::Core::Projector
+    #     manages_tables InvoiceRecord
+    #
     #     on InvoiceCreated do |event|
     #       create_record(
     #         InvoiceRecord,
@@ -66,7 +68,9 @@ module Sequent
       include Helpers::SelfApplier
       include Migratable
 
+
       def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
+        ensure_valid!
         @persistor = persistor
       end
 
@@ -91,6 +95,10 @@ module Sequent
         :execute_sql,
         :commit
 
+      private
+      def ensure_valid!
+        fail "A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?" if self.class.managed_tables.nil? || self.class.managed_tables.empty?
+      end
     end
   end
 end

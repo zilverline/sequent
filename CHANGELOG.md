@@ -2,18 +2,13 @@
 
 The most notable changes are:
 
-## Addition of more sophisticated way of replaying. See the docs on how to configure.
-
-## Dropped support for AR < 5.0
-
-## Deprecated MigrateEvents as strategy for event migration
-
-## Renamed Sequent::Core::BaseEventHandler to Sequent::Core::Projector
-
-## Renamed Sequent::Core::Sessions::ActiveRecordSession to Sequent::Core::Persistors::ActiveRecordPersistor
-
-## Renamed Sequent::Core::Sessions::ReplayEventsSession to Sequent::Core::Persistors::ReplayOptimzedPostgresPersistor
-
+- Added [extensive documentation](www.sequent.io/docs) for Sequent.
+- Addition of more sophisticated way of replaying. See the documentation on how to configure.
+- Dropped support for AR < 5.0
+- Deprecated MigrateEvents as strategy for event migration
+- Renamed Sequent::Core::BaseEventHandler to Sequent::Core::Projector
+- Renamed Sequent::Core::Sessions::ActiveRecordSession to Sequent::Core::Persistors::ActiveRecordPersistor
+- Renamed Sequent::Core::Sessions::ReplayEventsSession to Sequent::Core::Persistors::ReplayOptimzedPostgresPersistor
 
 # Upgrading to 2.0 from 1.0
 

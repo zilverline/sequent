@@ -163,7 +163,9 @@ describe Sequent::Core::EventStore do
   end
 
   describe 'error handling for publishing events' do
+    class TestRecord; end
     class RecordingHandler < Sequent::Core::Projector
+      manages_tables TestRecord
       attr_reader :recorded_events
 
       def initialize
@@ -176,7 +178,9 @@ describe Sequent::Core::EventStore do
       end
     end
 
+    class TestRecord; end
     class FailingHandler < Sequent::Core::Projector
+      manages_tables TestRecord
       Error = Class.new(RuntimeError)
 
       on MyEvent do |_|

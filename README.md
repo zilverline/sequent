@@ -8,11 +8,29 @@
 
 See the official site at https://www.sequent.io/
 
-New to Sequent? [http://localhost:4000/docs/getting-started.html](Getting started) is the place to be!
+New to Sequent? [Getting Started](http://www.sequent.io/docs/getting-started.html) is the place to be!
 
 ## Contributing
 
 Fork and send pull requests
+
+## Documentation
+
+See the official site at https://www.sequent.io/
+
+Want to help improve the documentation? Please let us know how we can improve by [creating an issue](https://github.com/zilverline/sequent/issues/new)
+
+If you want to help write the documentation fork and send pull request.
+
+You can start the documentation locally via:
+
+```
+cd docs
+bundle install
+bundle exec jekyll serve
+```
+
+Open [localhost:4000](localhost:4000)
 
 ## Releasing
 
@@ -32,6 +50,10 @@ bundle exec rake db:create
 ```
 
 The data in this database is deleted every time you run the specs!
+
+## Changelog
+
+The most notable changes can be found in the [Changelog](CHANGELOG.md)
 
 ## License
 

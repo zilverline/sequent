@@ -2,8 +2,8 @@
 title: CommandHandler
 ---
 
-CommandHandlers respond to certain [Commands](command.html). Commands handlers inherit from `Sequent::CommandHandler`.
-To respond to a certain Command a CommandHandler needs to register a block containing the action to be taken.
+CommandHandlers respond to certain [Commands](command.html). CommandHandlers inherit from `Sequent::CommandHandler`.
+To respond to a certain [Command](command.html) a CommandHandler needs to register a block containing the action to be taken.
 
 ```ruby
 class UserCommandHandler < Sequent::CommandHandler
@@ -17,11 +17,10 @@ class UserCommandHandler < Sequent::CommandHandler
 end
 ```
 
-
 The `Sequent::CommandHandler` exposes two convenience methods:
 
-1. `repository`, a shorthand for Sequent.configuration.aggregate_repository
-2. `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
+1.  `repository`, a shorthand for Sequent.configuration.aggregate_repository
+2.  `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
 
 A CommandHandler can respond to multiple commands:
 
@@ -56,7 +55,7 @@ class UserCommandHandler < Sequent::CommandHandler
 end
 ```
 
-To use CommandHandlers in your project you need to add them to the Sequent configuration
+To use CommandHandlers in your project you need to add them to your Sequent configuration.
 
 ```ruby
   Sequent.configure do |config|
@@ -66,13 +65,15 @@ To use CommandHandlers in your project you need to add them to the Sequent confi
   end
 ```
 
+### Testing your CommandHandlers
+
 **Tip:** If you use rspec you can test your CommandHandler easily by including the `Sequent::Test::CommandHandlerHelpers` in your rspec config.
 {: .notice--success}
 
 You can then test your CommandHandlers via the stanza:
 
 ```ruby
-it 'creates a user` do
+it 'creates a user' do
   given_command CreateUser.new(args)
   then_events UserCreated
 end

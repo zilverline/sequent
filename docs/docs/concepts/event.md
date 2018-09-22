@@ -2,12 +2,13 @@
 title: Event
 ---
 
-An Event describes something that happened. Typically they are named in passed tense. E.g. `UserCreated`.
-You can think of an Event as a simple Struct. In Sequent Events subclass from `Sequent::Event`.
-By subclasses from `Sequent::Event` you get 2 extra attributes `aggregate_id` and `sequence_number`.
+An Event describes something that happened. They are named in passed tense. For instance `UserCreated`.
+In Sequent Events are simple data objects with logical names describing what happened.
+In Sequent Events subclass from `Sequent::Event`.
+By subclassing from `Sequent::Event` you get 2 extra attributes: `aggregate_id` and `sequence_number`.
 Both form the unique key of an Event.
 
-For example:
+An example of an Event in Sequent:
 
 ```ruby
 class UserNameSet < Sequent::Event
@@ -30,18 +31,17 @@ You can also use `attrs` multiple times like
 
 ```ruby
 class UserNameSet < Sequent::Event
-  attrs name: String
+  attrs firstname: String
   attrs lastname: String
 end
 ```
-
 
 The `attrs` will respect inheritance hierachies.
 
 You can also use [ValueObject](value-object.html) in Events.
 
 ```ruby
-class Name < Sequent::Core::ValueObject
+class Name < Sequent::ValueObject
   attrs firstname: String, lastname: String
 end
 

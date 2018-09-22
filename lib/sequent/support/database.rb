@@ -73,10 +73,14 @@ module Sequent
         establish_connection(db_config)
       end
 
-      def schema_exists?(schema)
+      def self.schema_exists?(schema)
         ActiveRecord::Base.connection.execute(
           "SELECT schema_name FROM information_schema.schemata WHERE schema_name like '#{schema}'"
         ).count == 1
+      end
+
+      def schema_exists?(schema)
+        self.class.schema_exists?(schema)
       end
 
       def create_schema!(schema)
@@ -93,7 +97,12 @@ module Sequent
 
       def migrate(migrations_path, verbose: true)
         ActiveRecord::Migration.verbose = verbose
-        ActiveRecord::Migrator.migrate(migrations_path)
+        if ActiveRecord::VERSION::MAJOR >= 5 && ActiveRecord::VERSION::MINOR >= 2
+          ActiveRecord::MigrationContext.new([migrations_path]).up
+        else
+          ActiveRecord::Migrator.migrate(migrations_path)
+        end
+
       end
     end
   end

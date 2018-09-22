@@ -101,6 +101,11 @@ describe Sequent::Migrations::ViewSchema do
     end
 
     context 'higher version' do
+      before :each do
+        migrator.create_view_schema_if_not_exists
+        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+      end
+
       it 'creates the new view tables with the version as suffix' do
         migrator.migrate_online
 
@@ -171,6 +176,10 @@ describe Sequent::Migrations::ViewSchema do
     end
 
     context 'error handling' do
+      before :each do
+        migrator.create_view_schema_if_not_exists
+        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+      end
       it 'stops and cleans up' do
         # force and error on replay by violating unique index in account_records
         account_id = Sequent.new_uuid
@@ -234,6 +243,9 @@ describe Sequent::Migrations::ViewSchema do
       let(:message_id) { Sequent.new_uuid }
 
       before :each do
+        migrator.create_view_schema_if_not_exists
+        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+
         insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
         insert_events('Message', [MessageCreated.new(aggregate_id: message_id, sequence_number: 1)])
 
@@ -278,8 +290,12 @@ describe Sequent::Migrations::ViewSchema do
     context 'error handling' do
       let(:account_id) { Sequent.new_uuid }
 
-      it 'fails when migrate_online was not called prior to migrate_offline' do
+      before :each do
         migrator.create_view_schema_if_not_exists
+        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+      end
+
+      it 'fails when migrate_online was not called prior to migrate_offline' do
         expect { migrator.migrate_offline }.to raise_error Sequent::Migrations::MigrationError
       end
 
