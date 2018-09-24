@@ -346,6 +346,7 @@ module Sequent
         event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
         event_stream = event_stream.where("substring(aggregate_id::varchar from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)", aggregate_prefixes)
         event_stream = event_stream.where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)") if exclude_already_replayed
+        event_stream = event_stream.where("event_records.created_at > ?", 1.day.ago) if exclude_already_replayed
         event_stream.order('sequence_number ASC').select('id, event_type, event_json, sequence_number')
       end
 
