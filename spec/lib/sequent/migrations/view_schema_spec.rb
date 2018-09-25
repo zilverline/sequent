@@ -287,6 +287,10 @@ describe Sequent::Migrations::ViewSchema do
       end
 
       context 'offline replaying with older events' do
+        after :each do
+          Timecop.return
+        end
+
         it 'does not replay events older than 1 day' do
           Timecop.freeze(1.week.ago)
 
