@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'timecop'
 require 'active_support/hash_with_indifferent_access'
 require_relative '../../../fixtures/db/1/classes'
 
@@ -285,6 +286,30 @@ describe Sequent::Migrations::ViewSchema do
         expect(MessageRecord.table_name).to eq 'message_records'
       end
 
+      context 'offline replaying with older events' do
+        after :each do
+          Timecop.return
+        end
+
+        it 'does not replay events older than 1 day' do
+          Timecop.freeze(1.week.ago)
+
+          old_account_id = Sequent.new_uuid
+          old_account_created = AccountCreated.new(aggregate_id: old_account_id, sequence_number: 1)
+          insert_events('Account', [old_account_created])
+
+          Timecop.return
+
+          new_account_id = Sequent.new_uuid
+          new_account_created = AccountCreated.new(aggregate_id: new_account_id, sequence_number: 1)
+          insert_events('Account', [new_account_created])
+
+          migrator.migrate_offline
+
+          expect(AccountRecord.pluck(:aggregate_id)).to_not include(old_account_id)
+          expect(AccountRecord.pluck(:aggregate_id)).to include(new_account_id)
+        end
+      end
     end
 
     context 'error handling' do

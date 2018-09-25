@@ -34,6 +34,9 @@ In order to ensure all events are replayed this part should only be run
 after you put you application in maintenance mode and **ensure that no new Events are inserted in the event store**.
 {: .notice--danger}
 
+To minimize downtime when replaying offline the event stream is scoped to the last 24 hours.
+{: .notice--info}
+
 ## Adding a migration
 
 So a Migration in Sequent consists of:

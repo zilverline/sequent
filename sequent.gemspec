@@ -30,6 +30,7 @@ Gem::Specification.new do |s|
   s.add_dependency              'thread_safe', '~> 0.3.5'
   s.add_dependency              'parallel', '~> 1.12.1'
   s.add_development_dependency  'rspec', '~> 3.2'
+  s.add_development_dependency  'timecop', '~> 0.9'
   s.add_development_dependency  'rspec-mocks', '~> 3.2'
   s.add_development_dependency  'rspec-collection_matchers', '~> 1.1'
   s.add_development_dependency  'rake', '~> 10.4'
