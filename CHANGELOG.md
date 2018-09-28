@@ -1,4 +1,11 @@
-# Upgrading to 3.0 from 2.0
+# Changelog 3.1
+
+The most notable changes are:
+- Added more documentation on [https://www.sequent.io](https://www.sequent.io)
+- Added support for AR 5.2
+- Added rake task to support installation on existing databases
+
+# Changelog 3.0
 
 The most notable changes are:
 
@@ -10,7 +17,7 @@ The most notable changes are:
 - Renamed Sequent::Core::Sessions::ActiveRecordSession to Sequent::Core::Persistors::ActiveRecordPersistor
 - Renamed Sequent::Core::Sessions::ReplayEventsSession to Sequent::Core::Persistors::ReplayOptimzedPostgresPersistor
 
-# Upgrading to 2.0 from 1.0
+# Changelog 2.0
 
 The most notable changes are:
 
