@@ -1,9 +1,9 @@
-require_relative 'helpers/self_applier'
+require_relative 'helpers/message_handler'
 
 module Sequent
   module Core
     class Workflow
-      include Helpers::SelfApplier
+      include Helpers::MessageHandler
 
       def execute_commands(*commands)
         Sequent.configuration.command_service.execute_commands(*commands)

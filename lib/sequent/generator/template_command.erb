@@ -1,0 +1,4 @@
+
+class <%= command %> < Sequent::Command
+  <% attrs.each do |name, type| %>attrs <%= name.downcase %>: <%= type.downcase.capitalize %><% end %>
+end

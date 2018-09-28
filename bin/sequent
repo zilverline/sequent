@@ -1,8 +1,13 @@
 #!/usr/bin/env ruby
 require_relative '../lib/sequent/generator'
 
+command = ARGV[0].to_s.strip
+args = ARGV[1..-1].map(&:to_s).map(&:strip)
+abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
+
 def new_project(args)
-  name, _ = args
+  _args = args.dup
+  name = _args.shift
   abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty?
 
   Sequent::Generator::Project.new(name).execute
@@ -15,8 +20,8 @@ def new_project(args)
 
     To finish setting up your app:
       cd #{name}
-      bundle install
       bundle exec rake sequent:db:create
+      bundle exec rake sequent:db:create_view_schema
       bundle exec rake sequent:migrate:online
       bundle exec rake sequent:migrate:offline
 
@@ -28,32 +33,64 @@ def new_project(args)
       sequent generate <aggregate_name>. e.g. sequent generate address
 
     For more information see:
-      sequent.io
+      https://www.sequent.io
 
     Happy coding!
 
   NEXTSTEPS
 end
 
+def generate_aggregate(args)
+  _args = args.dup
+  aggregate_name = _args.shift
+  abort('Please specify an aggregate name. i.e. `sequent g aggregate user`') unless args_valid?(aggregate_name)
+
+  Sequent::Generator::Aggregate.new(aggregate_name).execute
+  puts "#{aggregate_name} aggregate has been generated"
+end
+
+def generate_command(args)
+  _args = args.dup
+  aggregate_name = _args.shift
+  command_name = _args.shift
+  attrs = _args
+
+  abort('Please specify an aggregate name and command name. i.e. `sequent g command user AddUser`') unless args_valid?(aggregate_name, command_name)
+  Sequent::Generator::Command.new(aggregate_name, command_name, attrs).execute
+  puts "#{command_name} command has been added to #{aggregate_name}"
+end
+
+def generate_event(args)
+  _args = args.dup
+  aggregate_name = _args.shift
+  event_name = _args.shift
+  attrs = _args
+
+  abort('Please specify an aggregate name and event name. i.e. `sequent g event user AddUser`') unless args_valid?(aggregate_name, event_name)
+  Sequent::Generator::Event.new(aggregate_name, event_name, attrs).execute
+  puts "#{event_name} event has been added to #{aggregate_name}"
+end
+
 def generate(args)
-  entity, _ = args
+  _args = args.dup
+  entity = _args.shift
   abort('Please specify a command. i.e. `sequent g aggregate user`') if entity.empty?
 
   case entity
     when 'aggregate'
-      _, aggregate_name = args
-      abort('Please specify a aggregate name. i.e. `sequent g aggregate user`') if !aggregate_name || aggregate_name.empty?
-
-      Sequent::Generator::Aggregate.new(aggregate_name).execute
-      puts "#{aggregate_name} aggregate has been generated"
+      generate_aggregate(_args)
+    when 'command'
+      generate_command(_args)
+    when 'event'
+      generate_event(_args)
     else
       abort("Unknown argument #{entity} for `generate`. Try `sequent g aggregate user`")
   end
 end
 
-command = ARGV[0].to_s.strip
-abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
-args = ARGV[1..10].map(&:to_s).map(&:strip)
+def args_valid?(*args)
+  args.all?(&:present?)
+end
 
 case command
 when 'new'
