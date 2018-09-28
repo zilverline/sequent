@@ -3,7 +3,7 @@ module Sequent
     module Helpers
       ##
       # Creates ability to use DSL like:
-      # class MyEventHandler < Sequent::Core::Projector
+      # class MyProjector < Sequent::Projector
       #
       #   on MyEvent do |event|
       #     do_some_logic
@@ -11,10 +11,10 @@ module Sequent
       # end
       #
       # You typically do not need to include this module in your classes. If you extend from
-      # Sequent::Core::AggregateRoot, Sequent::Core::Projector, Sequent::Core::Workflow or Sequent::Core::BaseCommandHandler
+      # Sequent::AggregateRoot, Sequent::Projector, Sequent::Workflow or Sequent::CommandHandler
       # you will get this functionality for free.
       #
-      module SelfApplier
+      module MessageHandler
 
         module ClassMethods
           def on(*message_classes, &block)

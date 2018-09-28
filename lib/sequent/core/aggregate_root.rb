@@ -1,5 +1,5 @@
 require 'base64'
-require_relative 'helpers/self_applier'
+require_relative 'helpers/message_handler'
 require_relative 'stream_record'
 
 module Sequent
@@ -32,7 +32,7 @@ module Sequent
     # +load_from_history+ functionality to be loaded_from_history, meaning a stream of events.
     #
     class AggregateRoot
-      include Helpers::SelfApplier
+      include Helpers::MessageHandler
       include SnapshotConfiguration
 
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream

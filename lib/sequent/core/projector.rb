@@ -1,4 +1,4 @@
-require_relative 'helpers/self_applier'
+require_relative 'helpers/message_handler'
 require_relative './persistors/active_record_persistor'
 
 module Sequent
@@ -65,7 +65,7 @@ module Sequent
     #
     class Projector
       extend Forwardable
-      include Helpers::SelfApplier
+      include Helpers::MessageHandler
       include Migratable
 
 
