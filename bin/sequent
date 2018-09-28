@@ -2,8 +2,10 @@
 require_relative '../lib/sequent/generator'
 
 command = ARGV[0].to_s.strip
-args = ARGV[1..-1].map(&:to_s).map(&:strip)
 abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
+abort('Please specify a command. i.e. `sequent new myapp`') if ARGV[1..-1].empty?
+
+args = ARGV[1..-1].map(&:to_s).map(&:strip)
 
 def new_project(args)
   _args = args.dup
