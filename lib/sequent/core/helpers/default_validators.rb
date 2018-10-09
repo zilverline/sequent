@@ -3,9 +3,18 @@ module Sequent
     module Helpers
       class DefaultValidators
         VALIDATORS = {
-          Integer => ->(klass, field) { klass.validates_numericality_of field, only_integer: true, allow_nil: true, allow_blank: true },
-          Date => ->(klass, field) { klass.validates field, "sequent::Core::Helpers::Date" => true },
-          DateTime => ->(klass, field) { klass.validates field, "sequent::Core::Helpers::DateTime" => true }
+          Integer => ->(klass, field) do
+            klass.validates_numericality_of field, only_integer: true, allow_nil: true, allow_blank: true
+          end,
+          Date => ->(klass, field) do
+            klass.validates field, "sequent::Core::Helpers::Date" => true
+          end,
+          DateTime => ->(klass, field) do
+            klass.validates field, "sequent::Core::Helpers::DateTime" => true
+          end,
+          Boolean => -> (klass, field) do
+            klass.validates field, "sequent::Core::Helpers::Boolean" => true
+          end
         }
 
         def self.for(type)
