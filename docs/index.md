@@ -8,18 +8,36 @@ to help you learn and develop CQRS / ES applications in Ruby (using Sequent).
 Sequent **focusses** on the **domain logic** of your application. It is web framework agnostic.
 You can use it with Rails, Sinatra or whatever framework you like.
 
-There are several guides available
+## Tutorials
 
-## Getting Started Guide
+There are several tutorials available:
 
-New to Sequent? [Getting Started](/docs/getting-started.html) is the place to start.
+### 1. Getting Started
 
-## Concepts Guide
+New to Sequent? The [getting started guide](/docs/getting-started.html) is the place to be!
 
-The [Concepts Guide](/docs/concepts.html) provides an in-depth explanation of the
-several concepts and building blocks used in Sequent.
+### 2. Modelling the domain
+
+In this guide we will use the Sequent concepts and create and code a first domain model
+of our blog application. Go checkout the [modelling the domain guide](/docs/modelling-the-domain.html)
+for step by step tutorial to create an app from scatch.
+
+### 3. Building a web-application
+
+In the [building a web-application guide](/docs/building-a-web-application.html) we continue with the
+application created in the modelling the domain guide and add a web interface for it using the Sinatra
+web framework.
+
+### 4. TODO: Finishing the webapplication
+
+## Guides
+
+Next to the tutorials there is the [concept guide](/docs/concepts.html) to provide and
+in-depth explanation of the several concepts (like `AggregateRoot`, `Event`, `Command` etc) used in Sequent.
 
 ## Further reading
+
+There is a lot more information available on CQRS and event sourcing:
 
 - [Event sourcing](http://martinfowler.com/eaaDev/EventSourcing.html)
 - [Lars and Bob's presentation at GOTO Amsterdam](http://gotocon.com/dl/goto-amsterdam-2013/slides/BobForma_and_LarsVonk_EventSourcingInProductionSystems.pdf)
