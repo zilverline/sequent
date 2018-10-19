@@ -90,6 +90,22 @@ describe Sequent::Core::AggregateRoot do
     end
   end
 
+  context 'AutosetAttributes' do
+    require_relative 'fixtures'
+
+    it 'autosets attributes' do
+      subject = PersonAggregate.new('1')
+
+      subject.set_name('kim', 'bos')
+      expect(subject.first_name).to eq 'kim'
+      expect(subject.last_name).to eq 'bos'
+
+      subject.set_name('bos', 'kim')
+      expect(subject.first_name).to eq 'bos'
+      expect(subject.last_name).to eq 'kim'
+    end
+  end
+
   context 'apply_if_changed' do
     require_relative 'fixtures'
 

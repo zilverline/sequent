@@ -1,9 +1,11 @@
 require 'base64'
 require_relative 'helpers/message_handler'
+require_relative 'helpers/autoset_attributes'
 require_relative 'stream_record'
 
 module Sequent
   module Core
+
     module SnapshotConfiguration
       module ClassMethods
         ##
@@ -33,6 +35,7 @@ module Sequent
     #
     class AggregateRoot
       include Helpers::MessageHandler
+      include Helpers::AutosetAttributes
       include SnapshotConfiguration
 
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
