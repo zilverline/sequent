@@ -11,6 +11,13 @@ loading the events in the database. In Sequent AggregateRoot's extend from `Sequ
 of an AggregateRoot must contain all events necessary to rebuild its state.
 {: .notice--warning}
 
+There are several things you can do with an AggregateRoot:
+
+- [Creating an AggregateRoot](#creating-an-aggregateroot)
+- [Saving an AggregateRoot](#saving-an-aggregateroot)
+- [Loading an AggregateRoot](#loading-an-aggregateroot)
+- [Changing an AggregateRoot](#changing-an-aggregateroot)
+
 ## Creating an AggregateRoot
 
 To create an AggregateRoot you do:
@@ -52,12 +59,12 @@ To access and do something with an AggregateRoot you need to load it from the da
 
 ```ruby
   # Load an AggregateRoot from the event store
-  Sequent.aggregate_repository.load_aggregate(user_id)
+  user = Sequent.aggregate_repository.load_aggregate(user_id)
 ```
 
 ## Changing an AggregateRoot
 
-To make changes or do something useful with an AggregateRoot you need to define methods and ultimately apply Events.
+To make changes and to do something useful with an AggregateRoot you need to define methods and ultimately apply Events.
 
 For instance to set the name of the `User` we add to the User:
 
@@ -79,9 +86,12 @@ It is important to note that the state is set in the **on block of the Event and
 We need to set it in the event blocks since when we load the AggregateRoot from the event store
 we want the same state. So in the method you will:
 
-
 1. Execute domain logic (like guards and/or calculating new state)
 2. Apply new Events
+
+**Important**: You don't have to call **save** or **update** on an AggregateRoot. This is done implicitely by loading
+it into memory and applying events.
+{: .notice--warning}
 
 In the event handling block you will **only set the new state**.
 
