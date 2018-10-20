@@ -44,6 +44,12 @@ plugins:
 #   - vendor/gems/
 #   - vendor/ruby/
 
+analytics:
+  provider: "google-gtag"
+  google:
+    tracking_id: "UA-3378004-10"
+    anonymize_ip: true
+
 defaults:
   # _posts
   - scope:

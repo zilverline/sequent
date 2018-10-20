@@ -14,7 +14,7 @@ end
 ```
 
 
-You then also need to update the existing `StreamRecord`'s in the database to ensure they are also eligible for snapshotting.
+You then also need to update the existing [StreamRecord's](event_store.html#stream_records) in the database to ensure they are also eligible for snapshotting.
 This can be done via `bundle exec rake sequent:snapshotting:set_snapshot_threshold[Usernames,100]`.
 
 After this snapshots can be taken with the `SnapshotCommand`. For example by a Rake task.
@@ -31,7 +31,7 @@ namespace :snapshot do
 end
 ```
 
-**Important:** When you enable snapshotting you **must** delete all snapshots on each deploy. The AggregateRoot root state is dumped in the database. If in the new version the class definition of the AggregateRoots is changed the snapshotted state can not be loaded.
+**Important:** When you enable snapshotting you **must** delete all snapshots after each deploy. The AggregateRoot root state is dumped in the database. If in the new version the class definition of the AggregateRoots is changed the snapshotted state can not be loaded.
 {: .notice--danger}
 
 To delete all snapshots do you can execute `bundle exec rake sequent:snapshotting::delete_all`.

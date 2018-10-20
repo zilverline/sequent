@@ -41,4 +41,6 @@ docs:
         url: /docs/concepts/migrations.html
       - title: "13. Snapshotting"
         url: /docs/concepts/snapshotting.html
+      - title: "14. EventStore"
+        url: /docs/concepts/event_store.html
 
