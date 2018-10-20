@@ -1,9 +1,11 @@
 require 'base64'
 require_relative 'helpers/message_handler'
+require_relative 'helpers/autoset_attributes'
 require_relative 'stream_record'
 
 module Sequent
   module Core
+
     module SnapshotConfiguration
       module ClassMethods
         ##
@@ -33,6 +35,7 @@ module Sequent
     #
     class AggregateRoot
       include Helpers::MessageHandler
+      include Helpers::AutosetAttributes
       include SnapshotConfiguration
 
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
@@ -102,6 +105,30 @@ module Sequent
         apply_event(event)
         @uncommitted_events << event
       end
+
+      # Only apply the event if one of the attributes of the event changed
+      #
+      # on NameSet do |event|
+      #   @first_name = event.first_name
+      #   @last_name = event.last_name
+      # end
+      #
+      # # The event is applied
+      # apply_if_changed NameSet, first_name: 'Ben', last_name: 'Vonk'
+      #
+      # # This event is not applied
+      # apply_if_changed NameSet, first_name: 'Ben', last_name: 'Vonk'
+      #
+      def apply_if_changed(event_class, args = {})
+        if args.empty?
+          apply event_class
+        elsif self.class
+             .event_attribute_keys(event_class)
+             .any? { |k| instance_variable_get(:"@#{k.to_s}") != args[k.to_sym] }
+          apply event_class, args
+        end
+      end
+
     end
   end
 end

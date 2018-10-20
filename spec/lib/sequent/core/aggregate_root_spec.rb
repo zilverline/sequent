@@ -89,4 +89,45 @@ describe Sequent::Core::AggregateRoot do
       expect(restored.event_count).to eq 1
     end
   end
+
+  context 'AutosetAttributes' do
+    require_relative 'fixtures'
+
+    it 'autosets attributes' do
+      subject = PersonAggregate.new('1')
+
+      subject.set_name('kim', 'bos')
+      expect(subject.first_name).to eq 'kim'
+      expect(subject.last_name).to eq 'bos'
+
+      subject.set_name('bos', 'kim')
+      expect(subject.first_name).to eq 'bos'
+      expect(subject.last_name).to eq 'kim'
+    end
+  end
+
+  context 'apply_if_changed' do
+    require_relative 'fixtures'
+
+    it 'only applies the event if one of the attributes changes' do
+      subject = PersonAggregate.new('1')
+      subject.clear_events
+
+      subject.set_name_if_changed('kim', 'bos')
+      subject.set_name_if_changed('kim', 'bos')
+      expect(subject.uncommitted_events).to have(1).item
+
+      subject = PersonAggregate.new('1')
+      subject.clear_events
+      subject.set_name_if_changed('kim', 'bos')
+      subject.set_name_if_changed('kim2', 'bos')
+      expect(subject.uncommitted_events).to have(2).items
+
+      subject = PersonAggregate.new('1')
+      subject.clear_events
+      subject.set_name_if_changed('kim', 'bos')
+      subject.set_name_if_changed('kim', 'bos2')
+      expect(subject.uncommitted_events).to have(2).items
+    end
+  end
 end
