@@ -62,3 +62,13 @@ for defining your attribtutes.
     <li>Keep events as flat as possible. Overly nested ValueObject might seem to remove duplication, but is not always practical in usage.</li>
   </ul>
 </div>
+
+
+**Renaming Events**: When running in production and you decide to rename an Event you **must** also
+update all [EventRecords](event_store.html#event_records) for this Event's type.
+{: .notice--warning}
+
+**Renaming attributes in Events**: Since Events are stored as JSON in the EventStore renaming
+attributes in Events will break deserializing. If you want to change an attributes name
+anyway ensure you also update all Events in your EventStore as well.
+{: .notice--warning}

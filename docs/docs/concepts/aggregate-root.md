@@ -11,6 +11,10 @@ loading the events in the database. In Sequent AggregateRoot's extend from `Sequ
 of an AggregateRoot must contain all events necessary to rebuild its state.
 {: .notice--warning}
 
+**Renaming AggregateRoot**: When running in production and you decide to rename an AggregateRoot you **must** also
+update all [StreamRecords](event_store.html#stream_records) for this AggregateRoot's type.
+{: .notice--warning}
+
 There are several things you can do with an AggregateRoot:
 
 - [Creating an AggregateRoot](#creating-an-aggregateroot)
