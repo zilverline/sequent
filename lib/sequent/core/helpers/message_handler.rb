@@ -3,22 +3,42 @@ module Sequent
     module Helpers
       ##
       # Creates ability to use DSL like:
-      # class MyProjector < Sequent::Projector
       #
-      #   on MyEvent do |event|
-      #     do_some_logic
+      #   class MyProjector < Sequent::Projector
+      #
+      #     on MyEvent do |event|
+      #       @foo = event.foo
+      #     end
+      #
       #   end
-      # end
       #
-      # You typically do not need to include this module in your classes. If you extend from
-      # Sequent::AggregateRoot, Sequent::Projector, Sequent::Workflow or Sequent::CommandHandler
-      # you will get this functionality for free.
+      # If you extend from +Sequent::AggregateRoot+, +Sequent::Projector+, +Sequent::Workflow+
+      # or +Sequent::CommandHandler+ you will get this functionality
+      # for free.
+      #
+      # It is possible to register multiple handler blocks in the same +MessageHandler+
+      #
+      #   class MyProjector < Sequent::Projector
+      #
+      #     on MyEvent do |event|
+      #       @foo = event.foo
+      #     end
+      #
+      #     on MyEvent, OtherEvent do |event|
+      #       @bar = event.bar
+      #     end
+      #
+      #   end
+      #
+      # The order of which handler block is executed first is not guaranteed.
       #
       module MessageHandler
-
         module ClassMethods
           def on(*message_classes, &block)
-            message_classes.each { |message_class| message_mapping[message_class] = block }
+            message_classes.each do |message_class|
+              message_mapping[message_class] ||= []
+              message_mapping[message_class] << block
+            end
           end
 
           def message_mapping
@@ -35,8 +55,8 @@ module Sequent
         end
 
         def handle_message(message)
-          handler = self.class.message_mapping[message.class]
-          self.instance_exec(message, &handler) if handler
+          handlers = self.class.message_mapping[message.class]
+          handlers.each { |handler| self.instance_exec(message, &handler) } if handlers
         end
       end
     end
