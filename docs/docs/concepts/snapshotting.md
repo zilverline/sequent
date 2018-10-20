@@ -14,7 +14,7 @@ end
 ```
 
 
-You then also need to update the existing `StreamRecord`'s in the database to ensure they are also eligible for snapshotting.
+You then also need to update the existing [StreamRecord's](event_store.html#stream_records) in the database to ensure they are also eligible for snapshotting.
 This can be done via `bundle exec rake sequent:snapshotting:set_snapshot_threshold[Usernames,100]`.
 
 After this snapshots can be taken with the `SnapshotCommand`. For example by a Rake task.

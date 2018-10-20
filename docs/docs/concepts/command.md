@@ -16,6 +16,8 @@ class CreateUser < Sequent::Command
 end
 ```
 
+Commands, like Events, are also stored in the [EventStore](event_store.html#command_records).
+
 In building a web application you typically bind your html form to a Command. You then have to pass
 it into the [CommandService](command-service.html). The CommandService will only execute valid Commands.
 When a Command **is not valid** a `Sequent::Core::CommandNotValid` will be raised containing the validation `errors`.

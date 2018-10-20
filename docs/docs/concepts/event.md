@@ -6,7 +6,7 @@ An Event describes something that happened. They are named in passed tense. For 
 In Sequent Events are simple data objects with logical names describing what happened.
 In Sequent Events subclass from `Sequent::Event`.
 By subclassing from `Sequent::Event` you get 2 extra attributes: `aggregate_id` and `sequence_number`.
-Both form the unique key of an Event.
+Both form the unique key of an Event. Events are stored in the [EventStore](event_store.html#event_records).
 
 An example of an Event in Sequent:
 
