@@ -417,10 +417,12 @@ In `app/views/authors/index.erb`
 </html>
 ```
 
-So that's it for this duide. In this guide we learned:
+So that's it for this guide. In this guide we learned:
 
 1. How to use Sequent in a Sinatra web application
 2. Add a Projector and Migration
 3. Use the Projector to display data in the web application
 
 The full sourcecode of this guide is available here: [sequent-examples](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application)
+
+We will continue with this app in the [Finishing the web application](/docs/finishing-the-web-application.html) guide.
