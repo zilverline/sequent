@@ -1,9 +1,8 @@
 ---
-sidebar: false
 title: Sequent 3.0
 ---
 
-Sequent is a CQRS and event sourcing framework (ES) written in Ruby. This site is intended
+Sequent is an opinionated CQRS and event sourcing framework (ES) written in Ruby. This site is intended
 to help you learn and develop CQRS / ES applications in Ruby (using Sequent).
 Sequent **focusses** on the **domain logic** of your application. It is web framework agnostic.
 You can use it with Rails, Sinatra or whatever framework you like.
