@@ -27,11 +27,13 @@ In the [building a web-application guide](/docs/building-a-web-application.html)
 application created in the modelling the domain guide and add a web interface for it using the Sinatra
 web framework.
 
-### 4. TODO: Finishing the webapplication
+### 4. Finishing the webapplication
+In the [finishing the web-application guide](/docs/finishing-the-web-application.html) we continue with
+the blog application and add form validation and let the Author's add Posts.
 
 ## Guides
 
-Next to the tutorials there is the [concept guide](/docs/concepts.html) to provide and
+Next to the tutorials there is the [Reference Guide](/docs/concepts.html) to provide and
 in-depth explanation of the several concepts (like `AggregateRoot`, `Event`, `Command` etc) used in Sequent.
 
 ## Further reading

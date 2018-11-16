@@ -3,8 +3,19 @@ title: AggregateRoot
 ---
 
 An AggregateRoot is the class that encapsulates your domain or business logic. Your aggregates form the heart of your application.
-In event sourcing state changes are described by [Events](event.html). Everytime you want to
-change the state of an object an Event must be applied. Sequent takes care of storing and
+In event sourcing state changes are described by [Events](event.html). All Events of a particular AggregateRoot are called an [EventStream](event_stream.html). An EventStream is an immutable ordered list of Events.
+Therefor the state of an AggregateRoot is the result of applying all Events for that AggregateRoot.
+
+For example the EventStream of an AggregateRoot called User can be:
+```ruby
+UserCreated.new(id: '1', sequence_number: 1)
+UserNameSet.new(id: '1', sequence_number: 2, name: 'Ben')
+UserNameSet.new(id: '1', sequence_number: 3, name: 'Kim')
+```
+
+The `id` is the ID of the AggregateRoot (normally this would be a UUID, but for readability it is simple string). The `sequence_number` defines the order of the EventStream. The `name` is the attribute we want to set. In this example the `name` in the current state of the AggregateRoot would be `Kim`.
+
+Everytime you want to change the state of an object an Event must be applied. Sequent takes care of storing and
 loading the events in the database. In Sequent AggregateRoot's extend from `Sequent::AggregateRoot`.
 
 **Important**: An AggregateRoot should **not depend** on the state of other AggregateRoots. The event stream

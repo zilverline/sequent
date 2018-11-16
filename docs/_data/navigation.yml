@@ -16,7 +16,7 @@ docs:
       - title: "1.4 Finishing the web application"
         url: /docs/finishing-the-web-application.html
 
-  - title: Concepts Guide
+  - title: Reference Guide
     url: /docs/concepts.html
     children:
       - title: "1. AggregateRoot"
@@ -45,6 +45,8 @@ docs:
         url: /docs/concepts/migrations.html
       - title: "13. Snapshotting"
         url: /docs/concepts/snapshotting.html
-      - title: "14. EventStore"
+      - title: "14. EventStream"
+        url: /docs/concepts/event_stream.html
+      - title: "15. EventStore"
         url: /docs/concepts/event_store.html
 

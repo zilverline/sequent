@@ -1,9 +1,9 @@
 ---
-title: Concepts Guide
+title: Reference Guide
 ---
 
-This guide gives an overview of the concepts which from the foundation of Sequent.
-Most of these Concepts are not specific to Sequent, but applicable to all
+This guide gives an overview of the concepts which form the foundation of Sequent.
+Most of these concepts are not specific to Sequent, but applicable to all
 CQRS and event sourced applications.
 
 ## Basic flow
@@ -38,8 +38,13 @@ This is basically how you do stuff in Sequent. Please checkout all concepts to g
 - [Snapshotting](concepts/snapshotting.html)
 - [CommandService](concepts/command-service.html)
 
-## Concepts mostly used by clients of you application
+## Concepts mostly used by clients, like a webapp, of your application
 
 - [Projectors](concepts/projector.html)
 - [Workflow](concepts/workflow.html)
 - [Migrations](concepts/migrations.html)
+
+## In depth details
+
+- [Snapshotting](concepts/snapshotting.html))
+- [EventStore](concepts/event_store.html))
