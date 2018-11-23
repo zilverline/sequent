@@ -40,6 +40,7 @@ This is basically how you do stuff in Sequent. Please checkout all concepts to g
 
 ## Concepts mostly used by clients, like a webapp, of your application
 
+- [Configuration](concepts/configuration.html)
 - [Projectors](concepts/projector.html)
 - [Workflow](concepts/workflow.html)
 - [Migrations](concepts/migrations.html)

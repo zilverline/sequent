@@ -49,4 +49,5 @@ docs:
         url: /docs/concepts/event_stream.html
       - title: "15. EventStore"
         url: /docs/concepts/event_store.html
-
+      - title: "16. Configuration"
+        url: /docs/concepts/configuration.html
