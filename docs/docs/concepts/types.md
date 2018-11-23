@@ -8,6 +8,9 @@ types you are required to specify the type of an attribute.
 This also gives Sequent the possibility to check if the attributes
 in for instance the [Commands](command.html) and [ValueObject](value-object.html) are of the correct type.
 
+Before a Command is executed the [CommandService](command-service.html) ensures
+that the attributes are validated and parsed to the correct types if necessary.
+
 Out of the box Sequent supports the following types:
 
 1. [String](#string)
@@ -17,6 +20,9 @@ Out of the box Sequent supports the following types:
 1. [Symbol](#symbol)
 1. [ValueObjects](#valueobjects)
 1. [Lists](#lists)
+1. [Sequent::Secret](#sequentsecret)
+1. [BigDecimal](#bigdecimal)
+
 
 ### String
 
@@ -69,7 +75,6 @@ automatically when a Command is passed to the CommandService.
 
 Usage `attrs user_type: Symbol`
 
-
 ## ValueObjects
 
 Usage: `attrs address: Address`
@@ -83,3 +88,47 @@ Usage: `attrs names: array(String)`
 
 Lists can be List or any Type described here.
 
+## Sequent::Secret
+
+Usage: `attrs password: Sequent::Secret`
+
+This is a special type designed to work with user input (HTML forms).
+
+It will irreversibly hash the attribute that is of type `Sequent::Secret` using bcrypt.
+
+You can use this type as follows:
+
+```ruby
+class CreateUser < Sequent::Command
+  validates_presence_of :email, :password
+
+  attrs email: String, password: Sequent::Secret
+end
+
+post '/create' do
+  create_user = CreateUser.new(
+    aggregate_id: 'id',
+    email: params[:email],
+    password: params[:password],
+  )
+
+  Sequent.command_service.execute_commands create_user
+end
+
+class UserCommandHandler < Sequent::CommandHandler
+  on CreateUser do |command|
+    # 1. password is now of type Sequent::Secret
+    # 2. the password is encrypted
+
+  end
+end
+```
+
+**There is no need to use this in Events since those should always contain the hashed secret.**
+Events can store these values in plain Strings
+
+## BigDecimal
+
+Usage: `attrs amount: BigDecimal`
+
+Ruby's BigDecimal. **No special validations are added by default.** The value is passed to `BigDecimal.new(value)` as is.
