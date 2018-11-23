@@ -80,7 +80,7 @@ module Sequent
       self.event_record_class = Sequent::Core::EventRecord
       self.stream_record_class = Sequent::Core::StreamRecord
       self.snapshot_event_class = Sequent::Core::SnapshotEvent
-      self.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
+      self.transaction_provider = Sequent::Core::Transactions::ActiveRecordTransactionProvider.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
       self.event_publisher = Sequent::Core::EventPublisher.new
       self.disable_event_handlers = false
