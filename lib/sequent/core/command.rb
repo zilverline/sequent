@@ -16,6 +16,7 @@ module Sequent
               Sequent::Core::Helpers::EqualSupport,
               Sequent::Core::Helpers::ParamSupport,
               Sequent::Core::Helpers::Mergable
+      include ActiveModel::Validations::Callbacks
       include Sequent::Core::Helpers::TypeConversionSupport
 
       attrs created_at: DateTime

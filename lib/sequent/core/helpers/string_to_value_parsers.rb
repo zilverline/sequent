@@ -14,7 +14,8 @@ module Sequent
           ::Boolean => ->(value) { parse_to_bool(value) },
           ::Date => ->(value) { parse_to_date(value) },
           ::DateTime => ->(value) { parse_to_date_time(value) },
-          ::Sequent::Core::Helpers::ArrayWithType => ->(values, type_in_array) { parse_array(values, type_in_array) }
+          ::Sequent::Core::Helpers::ArrayWithType => ->(values, type_in_array) { parse_array(values, type_in_array) },
+          ::Sequent::Core::Helpers::Secret => ->(value) { Sequent::Core::Helpers::Secret.new(value).encrypt },
         }
 
         def self.parse_to_integer(value)
