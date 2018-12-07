@@ -1,3 +1,8 @@
+require_relative 'string_validator'
+require_relative 'boolean_validator'
+require_relative 'date_time_validator'
+require_relative 'date_validator'
+
 module Sequent
   module Core
     module Helpers
@@ -14,6 +19,9 @@ module Sequent
           end,
           Boolean => -> (klass, field) do
             klass.validates field, "sequent::Core::Helpers::Boolean" => true
+          end,
+          String => -> (klass, field) do
+            klass.validates field, "sequent::Core::Helpers::String" => true
           end
         }
 
