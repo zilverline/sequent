@@ -5,6 +5,9 @@ main:
 docs:
   - title: Home
     url: "/"
+    children:
+      - title: "Source code"
+        url: "https://github.com/zilverline/sequent"
   - title: Introduction
     children:
       - title: "1.1 Getting started"
