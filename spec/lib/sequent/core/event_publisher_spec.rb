@@ -21,8 +21,8 @@ describe Sequent::Core::EventPublisher do
 
   class TestCommandHandler < Sequent::Core::BaseCommandHandler
     on TriggerTestCase do |command|
-      agg1 = TestAggregate.new(aggregate_id: Sequent.new_uuid)
-      agg2 = TestAggregate.new(aggregate_id: Sequent.new_uuid)
+      agg1 = TestAggregate.new(Sequent.new_uuid)
+      agg2 = TestAggregate.new(Sequent.new_uuid)
 
       agg1.trigger_other_aggregate(agg2.id)
       agg2.add_event

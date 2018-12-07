@@ -4,9 +4,13 @@ module Sequent
   module Core
     module Helpers
       class ValueValidators
+        INVALID_STRING_CHARS = [
+          "\u0000",
+        ]
+
         VALIDATORS = {
           ::Symbol => ->(_) { true },
-          ::String => ->(value) { value.nil? || value.is_a?(String) },
+          ::String => ->(value) { valid_string?(value) },
           ::Integer => ->(value) { valid_integer?(value) },
           ::Boolean => ->(value) { valid_bool?(value) },
           ::Date => ->(value) { valid_date?(value) },
@@ -34,6 +38,11 @@ module Sequent
         def self.valid_date_time?(value)
           return true if value.blank?
           value.is_a?(DateTime) || !!DateTime.iso8601(value.dup) rescue false
+        end
+
+        def self.valid_string?(value)
+          return true if value.nil?
+          value.is_a?(String) && !INVALID_STRING_CHARS.any? { |invalid_char| value.include?(invalid_char) }
         end
 
         def self.for(klass)
