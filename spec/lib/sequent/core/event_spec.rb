@@ -55,7 +55,7 @@ describe Sequent::Core::Event do
     person = Person.new({name: "foo"})
     person.valid?
     event = TestEventEvent.new(
-      aggregate_id: 123, organization_id: "bar", sequence_number: 7, owner: person
+      aggregate_id: '123', organization_id: "bar", sequence_number: 7, owner: person
     )
     json = Sequent::Core::Oj.dump(event)
     other = TestEventEvent.deserialize_from_json(Sequent::Core::Oj.strict_load(json))
@@ -65,7 +65,7 @@ describe Sequent::Core::Event do
   it "is be able to converted from and to json with a date" do
     today = Date.today
     event = EventWithDate.new(
-      aggregate_id: 123, organization_id: "bar", sequence_number: 7, date_of_birth: today
+      aggregate_id: '123', organization_id: "bar", sequence_number: 7, date_of_birth: today
     )
     other = EventWithDate.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(other).to eq event
@@ -73,13 +73,13 @@ describe Sequent::Core::Event do
 
   it "fails when converting to and from Json when type is not supported" do
     event = EventWithUnknownAttributeType.new(
-      aggregate_id: 123, organization_id: "bar", sequence_number: 7, name: FooType.new
+      aggregate_id: '123', organization_id: "bar", sequence_number: 7, name: FooType.new
     )
     expect { EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))) }.to raise_exception(NoMethodError)
   end
 
   it "converts symbols" do
-    event = EventWithSymbol.new(aggregate_id: 123, sequence_number: 7, organization_id: "bar", status: :foo)
+    event = EventWithSymbol.new(aggregate_id: '123', sequence_number: 7, organization_id: "bar", status: :foo)
     other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
   end
@@ -91,7 +91,7 @@ describe Sequent::Core::Event do
   end
 
   it "deserializes nil symbols" do
-    event = EventWithSymbol.new(aggregate_id: 123, organization_id: "bar", sequence_number: 7)
+    event = EventWithSymbol.new(aggregate_id: '123', organization_id: "bar", sequence_number: 7)
     other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
     expect(event).to eq other
   end

@@ -6,7 +6,7 @@ end
 
 class String
   def self.deserialize_from_json(value)
-    value
+    value&.to_s
   end
 end
 

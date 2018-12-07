@@ -28,7 +28,7 @@ Out of the box Sequent supports the following types:
 
 Usage: `attrs name: String`
 
-Valid strings are `nil` or of type `String`.
+Valid strings are `nil` and anything that can be `to_s`-ed.
 There are some invalid characters like `"\0000"` postgres can't handle.
 
 When a String is considered invalid the error code `invalid_string` is
