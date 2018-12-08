@@ -7,7 +7,7 @@ module Sequent
       class StringToValueParsers
         PARSERS = {
           ::Symbol => ->(value) { Symbol.deserialize_from_json(value) },
-          ::String => ->(value) { value },
+          ::String => ->(value) { value&.to_s },
           ::Integer => ->(value) { parse_to_integer(value) },
           ::BigDecimal => ->(value) { parse_to_bigdecimal(value) },
           ::Float => ->(value) { parse_to_float(value) },

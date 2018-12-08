@@ -9,11 +9,11 @@ describe Sequent::Core::Helpers::StringValidator do
     attrs name: String
   end
 
-  it 'Strings must be of type String' do
+  it 'Anything that can be to_s-ed is a valid string' do
     command = StringValidatorCommand.new(name: 1)
-
-    expect(command.valid?).to_not be_truthy
-    expect(command.errors[:name]).to_not be_empty
+    command.valid?
+    expect(command.errors[:name]).to be_empty
+    expect(command.valid?).to be_truthy
   end
 
   it 'String can be nil' do
