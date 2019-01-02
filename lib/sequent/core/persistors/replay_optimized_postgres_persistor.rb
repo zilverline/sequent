@@ -172,7 +172,7 @@ module Sequent
 
         def create_record(record_class, values)
           column_names = record_class.column_names
-          values = record_class.column_defaults.merge(values)
+          values = record_class.column_defaults.with_indifferent_access.merge(values)
           values.merge!(updated_at: values[:created_at]) if column_names.include?("updated_at")
           struct_class_name = "#{record_class.to_s}Struct"
           if self.class.struct_cache.has_key?(struct_class_name)
