@@ -300,9 +300,9 @@ module Sequent
             if records.size > @insert_with_csv_size
               csv = CSV.new("")
               column_names = clazz.column_names.reject { |name| name == "id" }
-              records.each do |obj|
+              records.each do |record|
                 csv << column_names.map do |column_name|
-                  ActiveRecord::Base.connection.type_cast(obj[column_name], @column_cache[clazz.name][column_name])
+                  cast_value_to_column_type(clazz, column_name, record)
                 end
               end
 
@@ -321,9 +321,9 @@ module Sequent
                 inserts = []
                 column_names = clazz.column_names.reject { |name| name == "id" }
                 prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
-                records.each do |r|
+                records.each do |record|
                   values = column_names.map do |column_name|
-                    ActiveRecord::Base.connection.type_cast(r[column_name.to_sym], @column_cache[clazz.name][column_name])
+                    cast_value_to_column_type(clazz, column_name, record)
                   end
                   inserts << values
                 end
@@ -341,6 +341,12 @@ module Sequent
         def clear
           @record_store.clear
           @record_index.clear
+        end
+
+        private
+
+        def cast_value_to_column_type(clazz, column_name, record)
+          ActiveRecord::Base.connection.type_cast(record[column_name.to_sym], @column_cache[clazz.name][column_name])
         end
       end
     end

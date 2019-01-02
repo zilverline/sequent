@@ -202,8 +202,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   end
 
   context 'committing' do
-    class ArSessionTest < ActiveRecord::Base;
-    end
+    class ArSessionTest < ActiveRecord::Base; end
 
     let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
     let(:database_name) { Sequent.new_uuid }
@@ -230,6 +229,8 @@ class TestMigration < MigrationClass
     create_table "ar_session_tests", id: false do |t|
       t.string "name", null: false
       t.string "initials", default: [], array:true
+      t.timestamp "created_at", null: false
+      t.timestamp "updated_at", null: false
     end
   end
 end
@@ -241,19 +242,41 @@ EOF
 
     context 'csv' do
       let(:insert_csv_size) { 0 }
-      it 'commits a persistor' do
-        persistor.create_record(ArSessionTest, {name: 'ben', initials: ['b']})
+      let(:values) { {name: 'ben', initials: ['b'], created_at: DateTime.now} }
 
-        expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+      context 'values as with_indifferent_access' do
+        it 'commits a persistor' do
+          persistor.create_record(ArSessionTest, values.with_indifferent_access)
+          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+        end
+      end
+
+      context 'values as normal hashes' do
+        it 'commits a persistor' do
+          persistor.create_record(ArSessionTest, values)
+          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+        end
       end
     end
 
     context 'batch inserts' do
       let(:insert_csv_size) { 1 }
-      it 'commits a persistor' do
-        persistor.create_record(ArSessionTest, {name: 'ben', initials: ['b']})
+      let(:values) { {name: 'ben', initials: ['b'], created_at: DateTime.now} }
 
-        expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+      context 'values as with_indifferent_access' do
+        it 'commits a persistor' do
+          persistor.create_record(ArSessionTest, values.with_indifferent_access)
+
+          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+        end
+      end
+
+      context 'values as normal hashess' do
+        it 'commits a persistor' do
+          persistor.create_record(ArSessionTest, values)
+
+          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+        end
       end
     end
   end
