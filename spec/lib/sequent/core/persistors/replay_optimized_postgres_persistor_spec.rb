@@ -1,5 +1,7 @@
 require 'spec_helper'
 require 'sequent/support'
+require 'tmpdir'
+
 require_relative '../../migration_class'
 
 class MockEvent < Sequent::Core::Event
@@ -202,7 +204,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   end
 
   context 'committing' do
-    class ArSessionTest < ActiveRecord::Base; end
+    class ReplayOptimizedPostgresTest < ActiveRecord::Base; end
 
     let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
     let(:database_name) { Sequent.new_uuid }
@@ -226,7 +228,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         f.write <<EOF
 class TestMigration < MigrationClass
   def change
-    create_table "ar_session_tests", id: false do |t|
+    create_table "replay_optimized_postgres_tests", id: false do |t|
       t.string "name", null: false
       t.string "initials", default: [], array:true
       t.timestamp "created_at", null: false
@@ -246,15 +248,15 @@ EOF
 
       context 'values as with_indifferent_access' do
         it 'commits a persistor' do
-          persistor.create_record(ArSessionTest, values.with_indifferent_access)
-          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+          persistor.create_record(ReplayOptimizedPostgresTest, values.with_indifferent_access)
+          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
 
       context 'values as normal hashes' do
         it 'commits a persistor' do
-          persistor.create_record(ArSessionTest, values)
-          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+          persistor.create_record(ReplayOptimizedPostgresTest, values)
+          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
     end
@@ -265,17 +267,17 @@ EOF
 
       context 'values as with_indifferent_access' do
         it 'commits a persistor' do
-          persistor.create_record(ArSessionTest, values.with_indifferent_access)
+          persistor.create_record(ReplayOptimizedPostgresTest, values.with_indifferent_access)
 
-          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
 
       context 'values as normal hashess' do
         it 'commits a persistor' do
-          persistor.create_record(ArSessionTest, values)
+          persistor.create_record(ReplayOptimizedPostgresTest, values)
 
-          expect { persistor.commit }.to change { ArSessionTest.count }.by(1)
+          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
     end
