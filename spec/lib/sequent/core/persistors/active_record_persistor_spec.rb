@@ -1,9 +1,9 @@
 require 'spec_helper'
-
+require 'tmpdir'
 require 'sequent/support'
 require_relative '../../migration_class'
 
-class ArSessionTest < ActiveRecord::Base; end
+class ActiveRecordPersistorTest < ActiveRecord::Base; end
 
 describe Sequent::Core::Persistors::ActiveRecordPersistor do
   let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
@@ -28,9 +28,11 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
       f.write <<EOF
 class TestMigration < MigrationClass
   def change
-    create_table "ar_session_tests", id: false do |t|
+    create_table "active_record_persistor_tests", id: false do |t|
       t.string "name", null: false
       t.string "initials", default: [], array:true
+      t.timestamp "created_at", null: false
+      t.timestamp "updated_at", null: false
     end
   end
 end
@@ -41,27 +43,34 @@ EOF
 
   end
 
-  let(:session) { Sequent::Core::Persistors::ActiveRecordPersistor.new }
+  let(:persistor) { Sequent::Core::Persistors::ActiveRecordPersistor.new }
 
   context 'create_records' do
-    it 'can insert records by batch' do
-      expect { session.create_records(ArSessionTest, [{name: 'kim'}, {name: 'ben'}]) }.to change { ArSessionTest.count }.by(2)
+    it 'inserts records by batch' do
+      expect {
+        persistor.create_records(ActiveRecordPersistorTest, [
+          {name: 'kim', created_at: DateTime.now, updated_at: DateTime.now},
+          {name: 'ben', created_at: DateTime.now, updated_at: DateTime.now}
+        ])
+      }.to change { ActiveRecordPersistorTest.count }.by(2)
     end
 
     it 'can insert array values' do
-      expect { session.create_records(ArSessionTest, [{name: 'john', initials: ['j', 'f']}]) }.to change { ArSessionTest.count }.by(1)
+      expect {
+        persistor.create_records(ActiveRecordPersistorTest, [
+          {name: 'john', initials: ['j', 'f'], created_at: DateTime.now, updated_at: DateTime.now}
+        ])
+      }.to change { ActiveRecordPersistorTest.count }.by(1)
     end
   end
 
   context 'update_all_records' do
     it 'can updates records by batch' do
-      session.create_record(ArSessionTest, {name: 'kim', initials: ['j', 'j']})
+      persistor.create_record(ActiveRecordPersistorTest, {name: 'kim', initials: ['j', 'j']})
 
-      session.update_all_records(ArSessionTest, {name: 'kim'}, {initials: ['k', 'k']})
+      persistor.update_all_records(ActiveRecordPersistorTest, {name: 'kim'}, {initials: ['k', 'k']})
 
-      expect(session.get_record(ArSessionTest, {name: 'kim'}).initials).to eq ['k', 'k']
+      expect(persistor.get_record(ActiveRecordPersistorTest, {name: 'kim'}).initials).to eq ['k', 'k']
     end
   end
-
 end
-
