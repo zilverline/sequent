@@ -94,7 +94,7 @@ describe Sequent::Core::AggregateRepository do
     it 'clears unit of work when no uncommitted events' do
       repository.add_aggregate aggregate
 
-      expect { repository.clear! }.to_not raise_error Sequent::Core::AggregateRepository::HasUncommittedEvents
+      expect { repository.clear! }.to_not raise_error
       expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_nil
     end
   end
@@ -121,9 +121,7 @@ describe Sequent::Core::AggregateRepository do
     another = DummyAggregate.new(aggregate.id)
 
     repository.add_aggregate aggregate
-    expect { repository.add_aggregate another }.to raise_error { |error|
-                                                      expect(error).to be_a Sequent::Core::AggregateRepository::NonUniqueAggregateId
-                                                    }
+    expect { repository.add_aggregate another }.to raise_error Sequent::Core::AggregateRepository::NonUniqueAggregateId
   end
 
   it "should indicate if a aggregate exists" do
