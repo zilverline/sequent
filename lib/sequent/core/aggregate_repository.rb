@@ -28,6 +28,8 @@ module Sequent
         end
       end
 
+      class HasUncommittedEvents < StandardError; end
+
       # Adds the given aggregate to the repository (or unit of work).
       #
       # Only when +commit+ is called all aggregates in the unit of work are 'processed'
@@ -121,6 +123,14 @@ module Sequent
       # Clears the Unit of Work.
       def clear
         Thread.current[AGGREGATES_KEY] = nil
+      end
+
+      # Clears the Unit of Work.
+      #
+      # A +HasUncommittedEvents+ is raised when there are uncommitted_events in the Unit of Work.
+      def clear!
+        fail HasUncommittedEvents if aggregates.values.any? { |x| !x.uncommitted_events.empty? }
+        clear
       end
 
       private
