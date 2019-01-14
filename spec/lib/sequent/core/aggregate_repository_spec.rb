@@ -32,7 +32,9 @@ describe Sequent::Core::AggregateRepository do
 
   before do
     Sequent.configuration.event_store = event_store
+    repository.clear
   end
+
   let(:event_store) { double }
   let(:repository) { Sequent.configuration.aggregate_repository }
   let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
@@ -80,6 +82,23 @@ describe Sequent::Core::AggregateRepository do
     expect(aggregate.uncommitted_events).to be_empty
   end
 
+  context 'clear!' do
+    it 'fails when uncommitted events are present' do
+      repository.add_aggregate aggregate
+      aggregate.uncommitted_events = [:event]
+
+      expect { repository.clear! }.to raise_error Sequent::Core::AggregateRepository::HasUncommittedEvents
+      expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to_not be_nil
+    end
+
+    it 'clears unit of work when no uncommitted events' do
+      repository.add_aggregate aggregate
+
+      expect { repository.clear! }.to_not raise_error
+      expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_nil
+    end
+  end
+
   it "should return aggregates from the identity map after loading from the event store" do
     allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([[aggregate.event_stream, [:events]]]).once
     allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
@@ -102,9 +121,7 @@ describe Sequent::Core::AggregateRepository do
     another = DummyAggregate.new(aggregate.id)
 
     repository.add_aggregate aggregate
-    expect { repository.add_aggregate another }.to raise_error { |error|
-                                                      expect(error).to be_a Sequent::Core::AggregateRepository::NonUniqueAggregateId
-                                                    }
+    expect { repository.add_aggregate another }.to raise_error Sequent::Core::AggregateRepository::NonUniqueAggregateId
   end
 
   it "should indicate if a aggregate exists" do

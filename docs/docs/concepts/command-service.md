@@ -17,6 +17,9 @@ end
 ```
 
 
+By default all Commands passed into the CommandService are executed in a single transaction.
+When something fails and an Exception is raised and the transaction is rolled back.
+
 Commands are executed in the order in which they are scheduled. For instance
 if you schedule new Commands in a [Workflow](workflow.html) running in the foreground
 it will be added to the queue of Commands. For instance:
@@ -42,4 +45,3 @@ The order in which Commands and Events are "executed" is:
 - `c2`
 - `c3`
 - `e1`
-
