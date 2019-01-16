@@ -7,7 +7,7 @@ to help you learn and develop CQRS / ES applications in Ruby (using Sequent).
 Sequent **focusses** on the **domain logic** of your application. It is web framework agnostic.
 You can use it with Rails, Sinatra or whatever framework you like.
 
-**Important:** The enitre documentation applies to the **master**
+**Important:** The entire documentation applies to the **master**
 branch
 {: .notice--danger}
 
