@@ -17,6 +17,8 @@ module Sequent
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
         self.command_json = Sequent::Core::Oj.dump(command.attributes)
+        self.event_aggregate_id = command.event_aggregate_id if command.respond_to? :event_aggregate_id
+        self.event_sequence_number = command.event_sequence_number if command.respond_to? :event_sequence_number
       end
     end
 
@@ -25,6 +27,8 @@ module Sequent
       include SerializesCommand
 
       self.table_name = "command_records"
+
+      belongs_to :event_record, foreign_key: 'event_aggregate_id', primary_key: 'aggregate_id', optional: true
 
       validates_presence_of :command_type, :command_json
 
