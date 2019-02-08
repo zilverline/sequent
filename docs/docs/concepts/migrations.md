@@ -5,7 +5,7 @@ title: Migrations
 When you want to add or change Projections you need to migrate your view model.
 The view model is **not** maintained via ActiveRecord's migrations. Reason for
 this is that the ActiveRecord's model does not fit an event sourced application since the view model
-is just an view on your events. This means we can just add or change new [Projectors](projector.html)
+is just a view on your events. This means we can just add or change new [Projectors](projector.html)
 and rebuild the view model from the Events.
 
 ## How migrations work in Sequent.
