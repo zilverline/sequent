@@ -25,7 +25,7 @@ end
 class BigDecimal
   def self.deserialize_from_json(value)
     return nil if value.nil?
-    BigDecimal.new(value)
+    BigDecimal(value)
   end
 end
 

@@ -68,7 +68,7 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
     it 'parses to a BigDecimal' do
       command = CommandWithBigDecimal.new(value: '10.10')
       command = command.parse_attrs_to_correct_types
-      expect(command.value).to eq BigDecimal.new('10.10')
+      expect(command.value).to eq BigDecimal('10.10')
     end
   end
 
