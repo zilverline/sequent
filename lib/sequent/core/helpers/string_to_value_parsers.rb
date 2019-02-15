@@ -24,7 +24,7 @@ module Sequent
         end
 
         def self.parse_to_bigdecimal(value)
-          BigDecimal.new(value) unless value.blank?
+          BigDecimal(value) unless value.blank?
         end
 
         def self.parse_to_float(value)
