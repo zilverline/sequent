@@ -28,7 +28,7 @@ module Sequent
 
       self.table_name = "command_records"
 
-      belongs_to :event_record, foreign_key: 'event_aggregate_id', primary_key: 'aggregate_id', optional: true
+      belongs_to :event_record, -> { where(sequence_number: self.event_sequence_number) }, foreign_key: 'event_aggregate_id', primary_key: 'aggregate_id', optional: true
       has_many :event_records
 
       validates_presence_of :command_type, :command_json
