@@ -33,6 +33,13 @@ module Sequent
 
       validates_presence_of :command_type, :command_json
 
+      def parent
+        event_record
+      end
+
+      def children
+        event_records
+      end
     end
   end
 end

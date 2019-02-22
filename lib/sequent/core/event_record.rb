@@ -79,10 +79,18 @@ module Sequent
 
       belongs_to :stream_record
       belongs_to :command_record
+      has_many :command_records, foreign_key: 'event_aggregate_id'
 
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
-    end
 
+      def parent
+        command_record
+      end
+
+      def children
+        command_records
+      end
+    end
   end
 end

@@ -42,8 +42,8 @@ The `command_records` table contains all [Commands](command.html) that are succe
 `user_id`               | The id of the user that executed this command. This is also optional. If your command has a `user_id` attribute this will be set.
 `command_type`          | The `class` name of the Command
 `command_json`          | The Command serialized as json
-`event_aggregate_id`    | The aggregate id of the `event_record` that "caused" this event. This is optional and is filled when a command is executed as a side effect of an event (Through workflows for instance)
-`event_sequence_number` | The sequence number of the `event_record` that "caused" this event. This is optional and is filled when a command is executed as a side effect of an event (Through workflows for instance)
+`event_aggregate_id`    | The aggregate id of the `event_record` that "caused" this command. This is optional and is filled when a command is executed as a side effect of an event (Through workflows for instance)
+`event_sequence_number` | The sequence number of the `event_record` that "caused" this command. This is optional and is filled when a command is executed as a side effect of an event (Through workflows for instance)
 `created_at`            | The datetime this Command was constructed
 
 ## stream_records
