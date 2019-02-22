@@ -28,13 +28,12 @@ module Sequent
 
       self.table_name = "command_records"
 
-      belongs_to :event_record, -> { where(sequence_number: self.event_sequence_number) }, foreign_key: 'event_aggregate_id', primary_key: 'aggregate_id', optional: true
       has_many :event_records
 
       validates_presence_of :command_type, :command_json
 
       def parent
-        event_record
+        EventRecord.find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
       end
 
       def children
@@ -42,7 +41,7 @@ module Sequent
       end
 
       def origin
-        parent ? find_origin(parent) : self
+        parent.present? ? find_origin(parent) : self
       end
 
       def find_origin(record)

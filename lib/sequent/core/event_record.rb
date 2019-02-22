@@ -79,7 +79,6 @@ module Sequent
 
       belongs_to :stream_record
       belongs_to :command_record
-      has_many :command_records, -> { where(event_sequence_number: self.sequence_number) }, foreign_key: 'event_aggregate_id', primary_key: 'aggregate_id'
 
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
@@ -89,11 +88,11 @@ module Sequent
       end
 
       def children
-        command_records
+        CommandRecord.where(event_aggregate_id: aggregate_id, event_sequence_number: sequence_number)
       end
 
       def origin
-        parent ? find_origin(parent) : self
+        parent.present? ? find_origin(parent) : self
       end
 
       def find_origin(record)
