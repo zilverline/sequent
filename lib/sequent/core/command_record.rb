@@ -40,6 +40,15 @@ module Sequent
       def children
         event_records
       end
+
+      def origin
+        find_origin(parent)
+      end
+
+      def find_origin(record)
+        return find_origin(record.parent) if record.parent.present?
+        record
+      end
     end
   end
 end
