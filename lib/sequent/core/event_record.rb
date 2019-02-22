@@ -93,7 +93,7 @@ module Sequent
       end
 
       def origin
-        find_origin(parent)
+        parent ? find_origin(parent) : self
       end
 
       def find_origin(record)
