@@ -9,6 +9,11 @@ module Sequent
           end
         end
 
+        def after_commit
+          ActiveRecord::Base.after_commit do
+            yield
+          end
+        end
       end
 
     end
