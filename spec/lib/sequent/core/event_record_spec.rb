@@ -86,6 +86,20 @@ describe Sequent::Core::EventRecord do
         record.event = event
         expect(record.organization_id).to eq('organization-id')
       end
+
+      it "invokes 'after_serialization' hook" do
+        event_record_hooks = spy(:event_record_hooks)
+        Sequent.configuration.event_record_hooks_class = event_record_hooks
+
+        event = ExampleEvent.new(
+          aggregate_id: 'aggregate-id',
+          sequence_number: 1
+        )
+
+        record = ExampleRecord.new
+        record.event = event
+        expect(event_record_hooks).to have_received(:after_serialization).with(record, event)
+      end
     end
   end
 end

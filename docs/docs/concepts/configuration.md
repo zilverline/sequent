@@ -105,6 +105,7 @@ For the most recent possibilities please check the `Sequent::Configuration` impl
 |event_record_class|The [class](event_store.html) mapped to the `event_records`|`Sequent::Core::EventRecord`|
 |stream_record_class|The [class](event_store.html) mapped to the `stream_records` table|`Sequent::Core::StreamRecord`|
 |snapshot_event_class|The event class marking something as a [Snapshot event](snapshotting.html)|`Sequent::Core::SnapshotEvent`|
+|event_record_hooks_class|The class with EventRecord life cycle hooks|`Sequent::Core::EventRecordHooks`|
 |transaction_provider|The transaction provider used by the [CommandService](command-service.html)|`Sequent::Core::Transactions::ActiveRecordTransactionProvider.new`|
 |event_publisher|The EventPublisher used by the [EventStore](event_store.html).|`Sequent::Core::EventPublisher.new`|
 |command_handlers|The list of [CommandHandlers](command-handler.html)|Empty|
