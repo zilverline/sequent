@@ -16,8 +16,14 @@ module Sequent
       # back when there is an exception. Useful if your background
       # jobs processor is not using the same database connection
       # to enqueue jobs.
-      def after_commit(&block)
+      def after_commit(ignore_errors: false, &block)
         Sequent.configuration.transaction_provider.after_commit &block
+      rescue StandardError => error
+        if ignore_errors
+          Sequent.logger.warn("An exception was raised in an after_commit hook: #{error}, #{error.inspect}")
+        else
+          raise error
+        end
       end
     end
   end

@@ -69,3 +69,7 @@ It will run only and only if the transaction commits. Note that if you execute a
 synchronously but in a separate transaction. It will not be able to rollback the first one, resulting in some
 Events to be commited and some other not. Only use `after_commit` if it is the intended behaviour.
 
+**Handling Exceptions**: If an exception within an `after_commit` is not handled by the worker, it will stop
+calling the other registered hooks. Make sure that you **rescue exceptions** and handle them properly. If you can
+afford to ignore the errors and want to make sure all hooks are called, you can pass `ignore_errors: true` as a parameter.
+{: .notice--warning}
