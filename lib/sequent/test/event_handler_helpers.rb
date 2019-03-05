@@ -27,6 +27,21 @@ module Sequent
     # end
     module WorkflowHelpers
 
+      class FakeTransactionProvider
+        def initialize
+          @after_commit_blocks = []
+        end
+
+        def transactional
+          yield
+          @after_commit_blocks.each(&:call)
+        end
+
+        def after_commit(&block)
+          @after_commit_blocks << block
+        end
+      end
+
       class FakeCommandService
         attr_reader :recorded_commands
 
@@ -66,8 +81,12 @@ module Sequent
 
       def self.included(spec)
         spec.let(:fake_command_service) { FakeCommandService.new }
+        spec.let(:fake_transaction_provider) { FakeTransactionProvider.new }
         spec.before do
-          Sequent.configure { |c| c.command_service = fake_command_service }
+          Sequent.configure do |c|
+            c.command_service = fake_command_service
+            c.transaction_provider = fake_transaction_provider
+          end
         end
       end
     end
