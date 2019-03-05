@@ -5,11 +5,6 @@ module Sequent
     class Workflow
       include Helpers::MessageHandler
 
-      def self.on(*args, after_commit: false, &block)
-        block = Proc.new { after_commit &block } if after_commit
-        super(*args, block)
-      end
-
       def execute_commands(*commands)
         Sequent.configuration.command_service.execute_commands(*commands)
       end
