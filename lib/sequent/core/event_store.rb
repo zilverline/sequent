@@ -187,18 +187,11 @@ SELECT aggregate_id
             event_stream.stream_record_id = stream_record.id
           end
           uncommitted_events.map do |event|
-            values = {
-              command_record_id: command_record.id,
-              stream_record_id: event_stream.stream_record_id,
-              aggregate_id: event.aggregate_id,
-              sequence_number: event.sequence_number,
-              event_type: event.class.name,
-              event_json: Sequent.configuration.event_record_class.serialize_to_json(event),
-              created_at: event.created_at
-            }
-            values = values.merge(organization_id: event.organization_id) if event.respond_to?(:organization_id)
-
-            Sequent.configuration.event_record_class.new(values)
+            Sequent.configuration.event_record_class.new.tap do |record|
+              record.command_record_id = command_record.id
+              record.stream_record_id = event_stream.stream_record_id
+              record.event = event
+            end
           end
         end
         connection = Sequent.configuration.event_record_class.connection
