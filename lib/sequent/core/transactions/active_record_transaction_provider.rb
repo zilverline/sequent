@@ -13,7 +13,7 @@ module Sequent
         end
 
         def after_commit(&block)
-          Thread.current[:after_commit_queue] << block
+          after_commit_queue << block
         end
 
         private
