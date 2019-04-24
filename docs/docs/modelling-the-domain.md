@@ -174,7 +174,7 @@ class Usernames < Sequent::AggregateRoot
   ID = "85507d60-8645-4a8a-bdb8-3a9c86a0c635"
 
   def self.instance(id = ID)
-    repository.load_aggregate(id)
+    Sequent.configuration.aggregate_repository.load_aggregate(id)
   rescue Sequent::Core::AggregateRepository::AggregateNotFound
     usernames = Usernames.new(aggregate_id: id)
     Sequent.aggregate_repository.add_aggregate(usernames)
