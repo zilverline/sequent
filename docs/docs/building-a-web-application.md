@@ -65,7 +65,7 @@ The `get '/'` will serve a signup/signin form. This form ties the `AddAuthor` co
 
 First we change the `get '/'` to serve us an `erb` with a html form that allows us to post a form with the `name` and `email` that the `AddAuthor` command requires.
 
-The erb `in app/view/index.erb`:
+The erb `in app/views/index.erb`:
 
 ```ruby
 <html>
