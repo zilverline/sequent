@@ -70,6 +70,7 @@ The erb `in app/view/index.erb`:
 ```ruby
 <html>
   <body>
+    <pre><%= flash.inspect %></pre>
     <form method="post" action="/authors">
       <div>
         <label for="name">Name</label>
