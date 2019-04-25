@@ -278,6 +278,13 @@ class AuthorProjector < Sequent::Projector
 end
 ```
 
+And don't forget to ensure it's being required.
+
+`blog.rb`
+``` ruby
+require_relative 'app/projectors/author_projector'
+```
+
 **4. Update Sequent configuration**
 Then we can add this projector to our Sequent config `config/initializers/sequent.rb`
 
