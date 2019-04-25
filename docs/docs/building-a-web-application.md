@@ -185,7 +185,7 @@ end
 
 After we restart the app and fill in a name and email let's see what happens.
 
-`Succes!`
+`Success!`
 
 Yeah! We succesfully transformed a html form to a `Command` and executed it.
 
