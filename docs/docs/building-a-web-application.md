@@ -106,7 +106,7 @@ post '/authors' do
   Sequent.command_service.execute_commands *command
 
   flash[:notice] = 'Account created'
-  redirect "/authors/id/#{author_id}"
+  redirect "/"
 end
 ```
 
