@@ -176,7 +176,7 @@ class Usernames < Sequent::AggregateRoot
   def self.instance(id = ID)
     Sequent.configuration.aggregate_repository.load_aggregate(id)
   rescue Sequent::Core::AggregateRepository::AggregateNotFound
-    usernames = Usernames.new(aggregate_id: id)
+    usernames = Usernames.new(id)
     Sequent.aggregate_repository.add_aggregate(usernames)
     usernames
   end
@@ -329,11 +329,11 @@ class AuthorCreated < Sequent::Event
 end
 
 class AuthorNameSet < Sequent::Event
-
+  attrs name: String
 end
 
 class AuthorEmailSet < Sequent::Event
-
+  attrs email: String
 end
 ```
 

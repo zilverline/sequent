@@ -70,6 +70,7 @@ The erb `in app/views/index.erb`:
 ```ruby
 <html>
   <body>
+    <pre><%= flash.inspect %></pre>
     <form method="post" action="/authors">
       <div>
         <label for="name">Name</label>
@@ -106,7 +107,7 @@ post '/authors' do
   Sequent.command_service.execute_commands *command
 
   flash[:notice] = 'Account created'
-  redirect "/authors/id/#{author_id}"
+  redirect "/"
 end
 ```
 
@@ -185,7 +186,7 @@ end
 
 After we restart the app and fill in a name and email let's see what happens.
 
-`Succes!`
+`Success!`
 
 Yeah! We succesfully transformed a html form to a `Command` and executed it.
 
@@ -275,6 +276,13 @@ class AuthorProjector < Sequent::Projector
     )
   end
 end
+```
+
+And don't forget to ensure it's being required.
+
+`blog.rb`
+``` ruby
+require_relative 'app/projectors/author_projector'
 ```
 
 **4. Update Sequent configuration**
