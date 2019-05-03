@@ -1,9 +1,23 @@
 require_relative 'helpers/message_handler'
+require_relative 'current_event'
 
 module Sequent
   module Core
     class Workflow
       include Helpers::MessageHandler
+
+      def self.on(*message_classes, &block)
+        decorated_block = ->(event) do
+          begin
+            old_event = CurrentEvent.current
+            CurrentEvent.current = event
+            self.instance_exec(event, &block)
+          ensure
+            CurrentEvent.current = old_event
+          end
+        end
+        super(*message_classes, &decorated_block)
+      end
 
       def execute_commands(*commands)
         Sequent.configuration.command_service.execute_commands(*commands)

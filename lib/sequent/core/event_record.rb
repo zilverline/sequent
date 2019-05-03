@@ -82,7 +82,23 @@ module Sequent
 
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
-    end
 
+      def parent
+        command_record
+      end
+
+      def children
+        CommandRecord.where(event_aggregate_id: aggregate_id, event_sequence_number: sequence_number)
+      end
+
+      def origin
+        parent.present? ? find_origin(parent) : self
+      end
+
+      def find_origin(record)
+        return find_origin(record.parent) if record.parent.present?
+        record
+      end
+    end
   end
 end

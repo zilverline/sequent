@@ -17,6 +17,8 @@ module Sequent
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
         self.command_json = Sequent::Core::Oj.dump(command.attributes)
+        self.event_aggregate_id = command.event_aggregate_id if command.respond_to? :event_aggregate_id
+        self.event_sequence_number = command.event_sequence_number if command.respond_to? :event_sequence_number
       end
     end
 
@@ -26,8 +28,26 @@ module Sequent
 
       self.table_name = "command_records"
 
+      has_many :event_records
+
       validates_presence_of :command_type, :command_json
 
+      def parent
+        EventRecord.find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
+      end
+
+      def children
+        event_records
+      end
+
+      def origin
+        parent.present? ? find_origin(parent) : self
+      end
+
+      def find_origin(record)
+        return find_origin(record.parent) if record.parent.present?
+        record
+      end
     end
   end
 end

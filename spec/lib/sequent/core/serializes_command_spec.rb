@@ -8,7 +8,9 @@ describe Sequent::Core::SerializesCommand do
                   :created_at,
                   :user_id,
                   :command_type,
-                  :command_json
+                  :command_json,
+                  :event_aggregate_id,
+                  :event_sequence_number
 
   end
 

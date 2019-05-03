@@ -71,7 +71,7 @@ module Sequent
     #   command = Command.from_params(params)
     #
     class Command < BaseCommand
-      attrs aggregate_id: String, user_id: String
+      attrs aggregate_id: String, user_id: String, event_aggregate_id: String, event_sequence_number: Integer
 
       def initialize(args = {})
         raise ArgumentError, "Missing aggregate_id" if args[:aggregate_id].nil?
