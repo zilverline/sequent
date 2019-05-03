@@ -5,13 +5,13 @@ describe Sequent::Core::SerializesCommand do
   class RecordMock
     include Sequent::Core::SerializesCommand
     attr_accessor :aggregate_id,
-                  :created_at,
-                  :user_id,
-                  :command_type,
-                  :command_json,
-                  :event_aggregate_id,
-                  :event_sequence_number
-
+      :created_at,
+      :user_id,
+      :command_type,
+      :command_json,
+      :event_aggregate_id,
+      :event_sequence_number,
+      :organization_id
   end
 
   class RecordValueObject < Sequent::Core::ValueObject
@@ -19,13 +19,13 @@ describe Sequent::Core::SerializesCommand do
   end
 
   class RecordCommand < Sequent::Core::Command
-    attrs value: RecordValueObject
+    attrs value: RecordValueObject, organization_id: String
   end
 
   let(:value_object) { RecordValueObject.new }
   let(:command) { RecordCommand.new(aggregate_id: "1",
-                                    user_id: "ben en kim",
-                                    value: value_object) }
+    user_id: "ben en kim",
+    value: value_object) }
 
   describe ".command" do
     it 'only serializes declared attrs' do
@@ -39,5 +39,40 @@ describe Sequent::Core::SerializesCommand do
       expect(payload["value"]).to_not have_key("errors")
       expect(payload["value"]).to have_key("value")
     end
+
+    describe 'optional fields' do
+      class MyRecord
+        include Sequent::Core::SerializesCommand
+        attr_accessor :aggregate_id,
+          :created_at,
+          :user_id,
+          :command_type,
+          :command_json
+
+        def initialize(aggregate_id, created_at, user_id, command_type, command_json)
+          @aggregate_id = aggregate_id
+          @created_at = created_at
+          @user_id = user_id
+          @command_type = command_type
+          @command_json = command_json
+        end
+      end
+
+      let(:record) {
+        MyRecord.new(
+          Sequent.new_uuid,
+          DateTime.now,
+          Sequent.new_uuid,
+          RecordCommand.name,
+          {}
+        )
+      }
+
+      it 'should not fail' do
+        record.command=command
+      end
+
+    end
   end
+
 end
