@@ -1,6 +1,12 @@
+# Changelog 3.2
+
+Introduces optional `event_aggregate_id` and `event_sequence_number` columns to the `command_records` table.
+This enables keeping track of events causing commands in workflows.
+
 # Changelog 3.1
 
 The most notable changes are:
+
 - Added more documentation on [https://www.sequent.io](https://www.sequent.io)
 - Added support for AR 5.2
 - Added rake task to support installation on existing databases
@@ -21,7 +27,7 @@ The most notable changes are:
 
 The most notable changes are:
 
-##  Addition of the queue-based command and event handling.
+## Addition of the queue-based command and event handling.
 
 To illustrate the difference see example below:
 
@@ -41,6 +47,7 @@ execute_commands(c1, c2)
 ```
 
 Prior to version 1.1 the order is as follows:
+
 - `c1`
 - `c3`
 - `c2`
@@ -49,11 +56,11 @@ Prior to version 1.1 the order is as follows:
 As you can see command `c3` is executed before `c2` although `c2` was scheduled before `c3`.
 
 As of version 1.1 the order will be:
+
 - `c1`
 - `c2`
 - `c3`
 - `e1`
-
 
 Commands and events are added to the queues as they occur and than handled in that order. If you have
 never had workflows scheduling new commands in the foreground nothing changes. If you have used workflows
@@ -62,6 +69,7 @@ in the foreground the order will be different, so ensure your system still behav
 The `Sequent::Core::EventStore::PublishEventError` is renamed to `Sequent::Core::EventPublisher::PublishEventError`
 
 ## Global sequent config
+
 Another possible breaking change is the way the config is setup. The sequent config now global, so some sequent classes
 in the config do not take parameters anymore. You will need to change your sequent config, and will have affect
 on your tests.
