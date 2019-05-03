@@ -1,16 +1,14 @@
 require 'spec_helper'
 
 class TestCommandHandler < Sequent::CommandHandler
-  class DummyCommand < Sequent::Core::Command;
-  end
+  class DummyCommand < Sequent::Core::Command; end
 
   class DummyBaseCommand < Sequent::Core::BaseCommand
     attrs mandatory_string: String
     validates_presence_of :mandatory_string
   end
 
-  class NotHandledCommand < Sequent::Core::Command;
-  end
+  class NotHandledCommand < Sequent::Core::Command; end
 
   class WithIntegerCommand < Sequent::Core::BaseCommand
     attrs value: Integer
