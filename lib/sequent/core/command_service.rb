@@ -1,4 +1,5 @@
 require_relative 'transactions/no_transactions'
+require_relative 'current_event'
 
 module Sequent
   module Core
@@ -21,6 +22,12 @@ module Sequent
       # * If the command is valid all +command_handlers+ that +handles_message?+ is invoked
       # * The +repository+ commits the command and all uncommitted_events resulting from the command
       def execute_commands(*commands)
+        commands.each do |command|
+          if command.respond_to?(:event_aggregate_id) && CurrentEvent.current
+            command.event_aggregate_id = CurrentEvent.current.aggregate_id
+            command.event_sequence_number = CurrentEvent.current.sequence_number
+          end
+        end
         commands.each { |command| command_queue.push(command) }
         process_commands
       end
