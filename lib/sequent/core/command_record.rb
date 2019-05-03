@@ -13,12 +13,21 @@ module Sequent
       def command=(command)
         self.created_at = command.created_at
         self.aggregate_id = command.aggregate_id if command.respond_to? :aggregate_id
-        self.organization_id = command.organization_id if command.respond_to? :organization_id
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
         self.command_json = Sequent::Core::Oj.dump(command.attributes)
-        self.event_aggregate_id = command.event_aggregate_id if command.respond_to? :event_aggregate_id
-        self.event_sequence_number = command.event_sequence_number if command.respond_to? :event_sequence_number
+
+        # optional attributes (here for historic reasons)
+        # this should be moved to a configurable CommandSerializer
+        self.organization_id = command.organization_id if serialize_attribute?(command, :organization_id)
+        self.event_aggregate_id = command.event_aggregate_id if serialize_attribute?(command, :event_aggregate_id)
+        self.event_sequence_number = command.event_sequence_number if serialize_attribute?(command, :event_sequence_number)
+      end
+
+      private
+
+      def serialize_attribute?(command, attribute)
+        [self, command].all? { |obj| obj.respond_to?(attribute) }
       end
     end
 
