@@ -5,7 +5,7 @@ This enables keeping track of events causing commands in workflows.
 
 To add these columns to an existing event store you can use this sql to add them:
 
-Please not these sql statements use the `uuid` type for `aggregate_id`.
+Please note these sql statements use the `uuid` type for `aggregate_id`.
 
 ```
 ALTER TABLE command_records ADD COLUMN event_aggregate_id uuid;
