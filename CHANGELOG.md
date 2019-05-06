@@ -3,6 +3,16 @@
 Introduces optional `event_aggregate_id` and `event_sequence_number` columns to the `command_records` table.
 This enables keeping track of events causing commands in workflows.
 
+To add these columns to an existing event store you can use this sql to add them:
+
+Please note these sql statements use the `uuid` type for `aggregate_id`.
+
+```
+ALTER TABLE command_records ADD COLUMN event_aggregate_id uuid;
+ALTER TABLE command_records ADD COLUMN event_sequence_number integer;
+CREATE INDEX CONCURRENTLY index_command_records_on_event ON command_records(event_aggregate_id, event_sequence_number);
+```
+
 # Changelog 3.1
 
 The most notable changes are:
