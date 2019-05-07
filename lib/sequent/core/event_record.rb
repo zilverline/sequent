@@ -72,7 +72,7 @@ module Sequent
       end
     end
 
-    class EventRecord < ActiveRecord::Base
+    class EventRecord < Sequent::ApplicationRecord
       include SerializesEvent
 
       self.table_name = "event_records"

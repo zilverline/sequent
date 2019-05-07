@@ -1,7 +1,7 @@
 require 'active_record'
 
-class AccountRecord < ActiveRecord::Base; end
-class MessageRecord < ActiveRecord::Base; end
+class AccountRecord < Sequent::ApplicationRecord; end
+class MessageRecord < Sequent::ApplicationRecord; end
 
 class Account < Sequent::Core::AggregateRoot; end
 class AccountCreated < Sequent::Core::Event; end

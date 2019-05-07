@@ -307,7 +307,7 @@ module Sequent
               end
 
               buf = ''
-              conn = ActiveRecord::Base.connection.raw_connection
+              conn = Sequent::ApplicationRecord.connection.raw_connection
               copy_data = StringIO.new csv.string
               conn.transaction do
                 conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
@@ -346,7 +346,7 @@ module Sequent
         private
 
         def cast_value_to_column_type(clazz, column_name, record)
-          ActiveRecord::Base.connection.type_cast(record[column_name.to_sym], @column_cache[clazz.name][column_name])
+          Sequent::ApplicationRecord.connection.type_cast(record[column_name.to_sym], @column_cache[clazz.name][column_name])
         end
       end
     end

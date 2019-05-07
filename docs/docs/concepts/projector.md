@@ -8,7 +8,7 @@ describe the Projections. In Sequent Projectors inherit from `Sequent::Projector
 in a Projection you need 3 things in `Sequent`:
 
 1. A Projector. Responsible for creating Projections. We are discussing Projectors in this chapter.
-2. A Record class. This is a normal `ActiveRecord::Base` class. In Sequent Records can **only be updated/created/deleted
+2. A Record class. This is a `Sequent::ApplicationRecord` class, subclassing  `ActiveRecord::Base`. In Sequent Records can **only be updated/created/deleted
     inside Projectors**. The rest of the application needs to regard these objects as **read-only**.
     This however is **not enforced** in Sequent.
 3. A SQL file. The SQL contains the table definition in which the Record will be stored. Please checkout the chapter

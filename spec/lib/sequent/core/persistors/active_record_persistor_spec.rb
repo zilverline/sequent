@@ -3,7 +3,7 @@ require 'tmpdir'
 require 'sequent/support'
 require_relative '../../migration_class'
 
-class ActiveRecordPersistorTest < ActiveRecord::Base; end
+class ActiveRecordPersistorTest < Sequent::ApplicationRecord; end
 
 describe Sequent::Core::Persistors::ActiveRecordPersistor do
   let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
@@ -15,7 +15,7 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
   end
   before do
     Sequent::Support::Database.create!(db_config)
-    Sequent::Support::Database.establish_connection(db_config)
+    ActiveRecord::Base.establish_connection(db_config)
   end
   after { Sequent::Support::Database.drop!(db_config) }
 

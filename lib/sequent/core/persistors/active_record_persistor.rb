@@ -104,7 +104,7 @@ module Sequent
         end
 
         def execute_sql(statement)
-          ActiveRecord::Base.connection.execute(statement)
+          Sequent::ApplicationRecord.connection.execute(statement)
         end
 
         def commit

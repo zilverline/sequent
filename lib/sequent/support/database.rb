@@ -66,7 +66,6 @@ module Sequent
         ActiveRecord::Base.establish_connection db_config
 
         yield
-
       ensure
         disconnect!
         db_config['schema_search_path'] = original_search_paths
@@ -102,7 +101,6 @@ module Sequent
         else
           ActiveRecord::Migrator.migrate(migrations_path)
         end
-
       end
     end
   end

@@ -4,7 +4,7 @@ module Sequent
 
       class ActiveRecordTransactionProvider
         def transactional
-          ActiveRecord::Base.transaction(requires_new: true) do
+          Sequent::ApplicationRecord.transaction(requires_new: true) do
             yield
           end
           after_commit_queue.each &:call

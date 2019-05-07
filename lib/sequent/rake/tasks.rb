@@ -57,7 +57,7 @@ module Sequent
 
           task :establish_connection do
             env_db = db_config(options.fetch(:environment))
-            Sequent::Support::Database.establish_connection(env_db)
+            ActiveRecord::Base.establish_connection(env_db)
           end
 
           desc 'Migrate the database'

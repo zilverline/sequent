@@ -1,2 +1,2 @@
-class PostRecord < ActiveRecord::Base
+class PostRecord < Sequent::ApplicationRecord
 end

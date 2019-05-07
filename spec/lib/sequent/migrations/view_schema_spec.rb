@@ -38,7 +38,7 @@ describe Sequent::Migrations::ViewSchema do
     it 'creates the schema if not exists' do
       migrator.create_view_schema_if_not_exists
 
-      expect(ActiveRecord::Base.connection).to have_schema(view_schema)
+      expect(Sequent::ApplicationRecord.connection).to have_schema(view_schema)
     end
 
     it 'creates the migration table' do
@@ -51,7 +51,7 @@ describe Sequent::Migrations::ViewSchema do
       migrator.create_view_schema_if_not_exists
       migrator.create_view_schema_if_not_exists
 
-      expect(ActiveRecord::Base.connection).to have_schema(view_schema)
+      expect(Sequent::ApplicationRecord.connection).to have_schema(view_schema)
     end
 
   end
@@ -110,8 +110,8 @@ describe Sequent::Migrations::ViewSchema do
       it 'creates the new view tables with the version as suffix' do
         migrator.migrate_online
 
-        expect(ActiveRecord::Base.connection).to have_view_schema_table('account_records_1')
-        expect(ActiveRecord::Base.connection).to have_view_schema_table('message_records_1')
+        expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records_1')
+        expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records_1')
       end
 
       it 'cleans old migration tables before migrating' do
@@ -122,8 +122,8 @@ describe Sequent::Migrations::ViewSchema do
 
         migrator.migrate_online
 
-        expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records_0')
-        expect(ActiveRecord::Base.connection).to have_view_schema_table('account_records_1')
+        expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_0')
+        expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records_1')
       end
 
       it 'replays the data and keeps track of the migrated ids' do
@@ -168,7 +168,7 @@ describe Sequent::Migrations::ViewSchema do
           expect(AccountRecord.count).to eq 2
 
           expect(MessageRecord.table_name).to eq 'message_records'
-          expect(ActiveRecord::Base.connection).to_not have_view_schema_table('message_records_1')
+          expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_1')
 
           expect(Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id)).to match_array Sequent.configuration.event_record_class.where(aggregate_id: [account_1, account_2]).pluck(:id)
         end
@@ -188,7 +188,7 @@ describe Sequent::Migrations::ViewSchema do
 
         expect { migrator.migrate_online }.to raise_error(Parallel::UndumpableException)
 
-        expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records_1')
+        expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_1')
         expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
       end
     end
@@ -334,8 +334,8 @@ describe Sequent::Migrations::ViewSchema do
 
         expect { migrator.migrate_offline }.to raise_error(Parallel::UndumpableException)
 
-        expect(ActiveRecord::Base.connection).to_not have_view_schema_table('message_records')
-        expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records')
+        expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records')
+        expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records')
         expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
       end
 
@@ -369,8 +369,8 @@ describe Sequent::Migrations::ViewSchema do
           end
           migrator.migrate_online
 
-          expect(ActiveRecord::Base.connection).to have_view_schema_table('message_records_2')
-          expect(ActiveRecord::Base.connection).to have_view_schema_table('account_records_2')
+          expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records_2')
+          expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records_2')
 
           account_id_2 = Sequent.new_uuid
           # force and error on replay by violating unique index in account_records
@@ -378,8 +378,8 @@ describe Sequent::Migrations::ViewSchema do
 
           expect { migrator.migrate_offline }.to raise_error(Parallel::UndumpableException)
 
-          expect(ActiveRecord::Base.connection).to_not have_view_schema_table('message_records_2')
-          expect(ActiveRecord::Base.connection).to_not have_view_schema_table('account_records_2')
+          expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_2')
+          expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_2')
 
           expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
           expect(Sequent::Migrations::ViewSchema::Versions.maximum(:version)).to eq 1

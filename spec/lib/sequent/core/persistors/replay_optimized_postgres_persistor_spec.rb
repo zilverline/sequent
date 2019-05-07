@@ -204,7 +204,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   end
 
   context 'committing' do
-    class ReplayOptimizedPostgresTest < ActiveRecord::Base; end
+    class ReplayOptimizedPostgresTest < Sequent::ApplicationRecord; end
 
     let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
     let(:database_name) { Sequent.new_uuid }
