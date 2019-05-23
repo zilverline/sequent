@@ -29,7 +29,7 @@ class BigDecimal
   end
 end
 
-class Boolean
+module Boolean
   def self.deserialize_from_json(value)
     value.nil? ? nil : (value.present? ? value : false)
   end
