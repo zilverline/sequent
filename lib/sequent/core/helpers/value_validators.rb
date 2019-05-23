@@ -43,8 +43,7 @@ module Sequent
         def self.valid_string?(value)
           return true if value.nil?
           value.to_s && !INVALID_STRING_CHARS.any? { |invalid_char| value.to_s.include?(invalid_char) }
-        rescue => e
-          p foo: e
+        rescue
           false
         end
 
