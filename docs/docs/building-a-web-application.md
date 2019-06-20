@@ -144,8 +144,8 @@ class Database
     def establish_connection(env = ENV['RACK_ENV'])
       config = database_config(env)
       yield(config) if block_given?
-      ActiveRecord::Base.configurations[env.to_s] = config.stringify_keys
-      ActiveRecord::Base.establish_connection config
+      Sequent::ApplicationRecord.configurations[env.to_s] = config.stringify_keys
+      Sequent::ApplicationRecord.establish_connection config
     end
   end
 end
@@ -177,7 +177,7 @@ class Web < Sinatra::Base
   ...
 
   after do
-    ActiveRecord::Base.clear_active_connections!
+    Sequent::ApplicationRecord.clear_active_connections!
   end
 
   ...
@@ -222,7 +222,7 @@ Since we are using `ActiveRecord` we need to create the `AuthorRecord`
 
 `app/records/author_record.rb`
 ```ruby
-class AuthorRecord < ActiveRecord::Base
+class AuthorRecord < Sequent::ApplicationRecord
 end
 ```
 

@@ -43,8 +43,8 @@ module Sequent
       include Sequent::Util::Timer
       include Sequent::Util::Printer
 
-      class Versions < ActiveRecord::Base; end
-      class ReplayedIds < ActiveRecord::Base; end
+      class Versions < Sequent::ApplicationRecord; end
+      class ReplayedIds < Sequent::ApplicationRecord; end
 
       attr_reader :view_schema, :db_config, :logger
 
@@ -161,7 +161,7 @@ module Sequent
         replay!(projectors_to_migrate, Sequent.configuration.offline_replay_persistor_class.new, exclude_ids: true, group_exponent: 1)
 
         in_view_schema do
-          ActiveRecord::Base.transaction do
+          Sequent::ApplicationRecord.transaction do
             for_each_table_to_migrate do |table|
               current_table_name = table.table_name.gsub("_#{Sequent.new_version}", "")
               # 2 Rename old table
@@ -360,7 +360,7 @@ module Sequent
       end
 
       def exec_sql(sql)
-        ActiveRecord::Base.connection.execute(sql)
+        Sequent::ApplicationRecord.connection.execute(sql)
       end
     end
   end

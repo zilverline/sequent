@@ -13,7 +13,7 @@ module Sequent
       end
     end
 
-    class StreamRecord < ActiveRecord::Base
+    class StreamRecord < Sequent::ApplicationRecord
 
       self.table_name = "stream_records"
 

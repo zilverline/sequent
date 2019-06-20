@@ -117,7 +117,7 @@ module Sequent
             end
 
             task :delete_all => ['sequent:init', :init] do
-              result = ActiveRecord::Base.connection.execute("DELETE FROM #{Sequent.configuration.event_record_class.table_name} WHERE event_type = 'Sequent::Core::SnapshotEvent'")
+              result = Sequent::ApplicationRecord.connection.execute("DELETE FROM #{Sequent.configuration.event_record_class.table_name} WHERE event_type = 'Sequent::Core::SnapshotEvent'")
               Sequent.logger.info "Deleted #{result.cmd_tuples} aggregate snapshots from the event store"
             end
           end

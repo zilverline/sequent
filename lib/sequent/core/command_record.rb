@@ -32,7 +32,7 @@ module Sequent
     end
 
     # For storing Sequent::Core::Command in the database using active_record
-    class CommandRecord < ActiveRecord::Base
+    class CommandRecord < Sequent::ApplicationRecord
       include SerializesCommand
 
       self.table_name = "command_records"

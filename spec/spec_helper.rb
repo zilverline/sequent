@@ -11,7 +11,7 @@ SimpleCov.start if ENV["COVERAGE"]
 
 require_relative 'database'
 Database.establish_connection
-ActiveRecord::Base.connection.execute("TRUNCATE command_records, stream_records CASCADE")
+Sequent::ApplicationRecord.connection.execute("TRUNCATE command_records, stream_records CASCADE")
 
 RSpec.configure do |c|
   c.before do
@@ -19,7 +19,7 @@ RSpec.configure do |c|
   end
 
   def exec_sql(sql)
-    ActiveRecord::Base.connection.execute(sql)
+    Sequent::ApplicationRecord.connection.execute(sql)
   end
 
   def insert_events(aggregate_type, events)

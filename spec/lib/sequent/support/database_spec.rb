@@ -35,9 +35,9 @@ describe Sequent::Support::Database do
         Sequent::Support::Database.drop!(db_config)
       end
 
-      it 'connects the ActiveRecord::Base pool' do
+      it 'connects the Sequent::ApplicationRecord pool' do
         Sequent::Support::Database.establish_connection(db_config)
-        expect(ActiveRecord::Base.connection).to be_active
+        expect(Sequent::ApplicationRecord.connection).to be_active
       end
     end
   end
@@ -102,7 +102,7 @@ EOF
   end
 
   def database_exists?
-    results = ActiveRecord::Base.connection.select_all %Q(
+    results = Sequent::ApplicationRecord.connection.select_all %Q(
 SELECT 1 FROM pg_database
  WHERE datname = '#{database_name}'
 )
@@ -110,7 +110,7 @@ SELECT 1 FROM pg_database
   end
 
   def table_exists?(table_name)
-    results = ActiveRecord::Base.connection.select_all %Q(
+    results = Sequent::ApplicationRecord.connection.select_all %Q(
 SELECT 1 FROM pg_tables
  WHERE tablename = '#{table_name}'
 )
