@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'timecop'
 require 'active_support/hash_with_indifferent_access'
-require_relative '../../../fixtures/db/1/classes'
+require_relative '../fixtures/spec_migrations'
 
 describe Sequent::Migrations::ViewSchema do
 
@@ -11,6 +11,7 @@ describe Sequent::Migrations::ViewSchema do
   let(:db_config) { ActiveSupport::HashWithIndifferentAccess.new(Database.test_config.merge(schema_search_path: "#{view_schema},public")).stringify_keys }
 
   before :each do
+    SpecMigrations.reset
     Sequent.configure do |config|
       config.view_schema_name = view_schema
     end
@@ -19,18 +20,6 @@ describe Sequent::Migrations::ViewSchema do
     exec_sql("drop schema if exists #{view_schema} cascade")
     exec_sql("drop table if exists #{Sequent.configuration.versions_table_name} cascade")
     exec_sql("delete from #{Sequent.configuration.event_record_class.table_name}")
-
-    class SpecMigrations < Sequent::Migrations::Projectors
-        def self.versions
-          {
-            '1' => [AccountProjector, MessageProjector]
-          }
-        end
-
-        def self.version
-          1
-        end
-      end
   end
 
   context '#create_view_schema_if_not_exists' do
@@ -53,7 +42,6 @@ describe Sequent::Migrations::ViewSchema do
 
       expect(Sequent::ApplicationRecord.connection).to have_schema(view_schema)
     end
-
   end
 
   context '#migrate_online' do
@@ -88,12 +76,7 @@ describe Sequent::Migrations::ViewSchema do
       before do
         migrator.create_view_schema_if_not_exists
         Sequent::Migrations::ViewSchema::Versions.create!(version: 2)
-
-        class SpecMigrations < Sequent::Migrations::Projectors
-          def self.version
-            1
-          end
-        end
+        SpecMigrations.version = 1
       end
 
       it 'fails' do
@@ -145,13 +128,9 @@ describe Sequent::Migrations::ViewSchema do
 
       context 'specific projectors' do
         before :each do
-          class SpecMigrations < Sequent::Migrations::Projectors
-            def self.versions
-              {
-                '1' => [AccountProjector]
-              }
-            end
-          end
+          SpecMigrations.versions = {
+            '1' => [AccountProjector]
+          }
         end
 
         it 'only migrates the tables for the projector to migrate' do
@@ -226,12 +205,7 @@ describe Sequent::Migrations::ViewSchema do
       before do
         migrator.create_view_schema_if_not_exists
         Sequent::Migrations::ViewSchema::Versions.create!(version: 2)
-
-        class SpecMigrations < Sequent::Migrations::Projectors
-          def self.version
-            1
-          end
-        end
+        SpecMigrations.version = 1
       end
 
       it 'fails' do
@@ -355,18 +329,12 @@ describe Sequent::Migrations::ViewSchema do
         end
 
         it 'keeps the old state' do
-          class SpecMigrations < Sequent::Migrations::Projectors
-            def self.versions
+          SpecMigrations.versions =
               {
                 '1' => [AccountProjector, MessageProjector],
                 '2' => [AccountProjector, MessageProjector],
               }
-            end
-
-            def self.version
-              2
-            end
-          end
+          SpecMigrations.version = 2
           migrator.migrate_online
 
           expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records_2')
