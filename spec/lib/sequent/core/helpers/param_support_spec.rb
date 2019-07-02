@@ -15,7 +15,7 @@ describe Sequent::Core::Helpers::ParamSupport do
   end
 
   it "can translate nested objects from and into params" do
-    house = House.new(person: ben)
+    house = House.new(owner: ben)
     expect(House.from_params(house.as_params)).to eq(house)
   end
 

@@ -1,11 +1,11 @@
 require 'spec_helper'
 
 class Country < Sequent::Core::ValueObject
-  attrs name: String
+  attrs name: String, code: String
 end
 
 class Address < Sequent::Core::ValueObject
-  attrs street: String, country: Country
+  attrs street: String, country: Country, city: String, postal_code: String
 end
 
 class CountryList < Sequent::Core::ValueObject
@@ -66,7 +66,7 @@ describe Sequent::Core::ValueObject do
 
   it 'is be possible to make params of a value object' do
     address = Address.new({:street => 'Foo 12', country: country})
-    expect(address.as_params).to eq HashWithIndifferentAccess.new(street: 'Foo 12', country: country.as_params)
+    expect(address.as_params).to eq HashWithIndifferentAccess.new(street: 'Foo 12', country: country.as_params, city: nil, postal_code: nil)
   end
 
   it 'should be able to create value objects from params' do

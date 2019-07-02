@@ -3,7 +3,7 @@ require 'spec_helper'
 describe Sequent::Core::AggregateRoot do
 
   class TestEvent < Sequent::Core::Event
-    attrs field: String
+    attrs field: String, organization_id: String
   end
 
   class TestAggregateRoot < Sequent::Core::AggregateRoot
