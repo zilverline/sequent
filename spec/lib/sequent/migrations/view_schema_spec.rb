@@ -117,11 +117,11 @@ describe Sequent::Migrations::ViewSchema do
 
         migrator.migrate_online
 
-        expect(AccountRecord.count).to eq 2
         expect(AccountRecord.table_name).to eq 'account_records_1'
+        expect(AccountRecord.count).to eq 2
 
-        expect(MessageRecord.count).to eq 1
         expect(MessageRecord.table_name).to eq 'message_records_1'
+        expect(MessageRecord.count).to eq 1
 
         expect(Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id)).to match_array Sequent.configuration.event_record_class.pluck(:id)
       end
@@ -153,6 +153,29 @@ describe Sequent::Migrations::ViewSchema do
         end
       end
 
+      context 'only alter_tables' do
+        before do
+          Sequent.configure do |config|
+            config.migration_sql_files_directory = 'spec/fixtures/db/1'
+          end
+          migrator.migrate_online # to version 1
+          migrator.migrate_offline # to version 1
+        end
+
+        let(:new_migrator) { Sequent::Migrations::ViewSchema.new(opts) }
+
+        it 'does not replay with only alter tables' do
+          Sequent.configure do |config|
+            config.migration_sql_files_directory = 'spec/fixtures/db/2'
+          end
+          SpecMigrations.copy_and_add('2',[Sequent::Migrations.alter_table(AccountRecord)])
+          SpecMigrations.version = 2
+
+          expect(new_migrator).to_not receive(:replay!)
+
+          new_migrator.migrate_online
+        end
+      end
     end
 
     context 'error handling' do
@@ -316,6 +339,7 @@ describe Sequent::Migrations::ViewSchema do
       context 'with an existing view schema' do
         let(:account_id) { Sequent.new_uuid }
         let(:message_id) { Sequent.new_uuid }
+        let(:next_migration) { Sequent::Migrations::ViewSchema.new(opts) }
 
         before :each do
           insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
@@ -335,7 +359,7 @@ describe Sequent::Migrations::ViewSchema do
                 '2' => [AccountProjector, MessageProjector],
               }
           SpecMigrations.version = 2
-          migrator.migrate_online
+          next_migration.migrate_online
 
           expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records_2')
           expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records_2')
@@ -344,7 +368,7 @@ describe Sequent::Migrations::ViewSchema do
           # force and error on replay by violating unique index in account_records
           insert_events('Account', [AccountCreated.new(aggregate_id: account_id_2, sequence_number: 2), AccountCreated.new(aggregate_id: account_id_2, sequence_number: 3)])
 
-          expect { migrator.migrate_offline }.to raise_error(Parallel::UndumpableException)
+          expect { next_migration.migrate_offline }.to raise_error(Parallel::UndumpableException)
 
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_2')
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_2')
@@ -357,6 +381,26 @@ describe Sequent::Migrations::ViewSchema do
           expect(AccountRecord.table_name).to eq 'account_records'
           expect(MessageRecord.table_name).to eq 'message_records'
         end
+
+        context 'only alter_tables' do
+
+          it 'only adds the colum to the table' do
+            expect(AccountRecord).to_not have_column('foobar')
+
+            Sequent.configure do |config|
+              config.migration_sql_files_directory = 'spec/fixtures/db/2'
+            end
+            SpecMigrations.copy_and_add('2', [Sequent::Migrations.alter_table(AccountRecord)])
+            SpecMigrations.version = 2
+
+            expect(next_migration).to_not receive(:replay!)
+
+            next_migration.migrate_offline
+
+            expect(AccountRecord).to have_column('foobar')
+          end
+        end
+
       end
     end
   end

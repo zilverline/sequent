@@ -58,3 +58,14 @@ RSpec::Matchers.define :have_view_schema_table do |expected|
     %Q{expected view schema tables:\n  #{tables.join("\n  ")}\nto contain:\n  #{expected}}
   end
 end
+
+RSpec::Matchers.define :have_column do |expected|
+  match do |record_class|
+    record_class.reset_column_information
+    expect(record_class.column_names).to include(expected)
+  end
+
+  # failure_message do |_actual|
+  #   %Q{expected view schema tables:\n  #{tables.join("\n  ")}\nto contain:\n  #{expected}}
+  # end
+end

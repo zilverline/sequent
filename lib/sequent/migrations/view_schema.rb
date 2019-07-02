@@ -6,11 +6,13 @@ require_relative '../sequent'
 require_relative '../util/timer'
 require_relative '../util/printer'
 require_relative './projectors'
+require_relative 'planner'
+require_relative 'executor'
+require_relative 'sql'
 
 module Sequent
   module Migrations
     class MigrationError < RuntimeError; end
-
 
     ##
     # Responsible for migration of Projectors between view schema versions.
@@ -29,7 +31,6 @@ module Sequent
     #    E.g. `create table foo%SUFFIX% (id serial NOT NULL, CONSTRAINT foo_pkey%SUFFIX% PRIMARY KEY (id))`
     #
     class ViewSchema
-
       # Corresponds with the index on aggregate_id column in the event_records table
       #
       # Since we replay in batches of the first 3 chars of the uuid we created an index on
@@ -42,6 +43,7 @@ module Sequent
 
       include Sequent::Util::Timer
       include Sequent::Util::Printer
+      include Sql
 
       class Versions < Sequent::ApplicationRecord; end
       class ReplayedIds < Sequent::ApplicationRecord; end
@@ -95,6 +97,14 @@ module Sequent
         end
       end
 
+      def plan
+        @plan ||= Planner.new(Sequent.migration_class.versions).plan(current_version, Sequent.new_version)
+      end
+
+      def executor
+        @executor ||= Executor.new
+      end
+
       ##
       # First part of a view schema migration
       #
@@ -118,14 +128,12 @@ module Sequent
           truncate_replay_ids_table!
 
           drop_old_tables(Sequent.new_version)
-          for_each_table_to_migrate do |table|
-            statements = sql_file_to_statements("#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.sql") { |raw_sql| raw_sql.gsub('%SUFFIX%', "_#{Sequent.new_version}") }
-            statements.each { |statement| exec_sql(statement) }
-            table.table_name = "#{table.table_name}_#{Sequent.new_version}"
-            table.reset_column_information
-          end
+          executor.execute_online(plan)
         end
-        replay!(projectors_to_migrate, Sequent.configuration.online_replay_persistor_class.new)
+
+        if plan.projectors.any?
+          replay!(Sequent.configuration.online_replay_persistor_class.new)
+        end
       rescue Exception => e
         rollback_migration
         raise e
@@ -155,28 +163,20 @@ module Sequent
 
         ensure_version_correct!
 
-        set_table_names_to_new_version
+        executor.set_table_names_to_new_version(plan)
 
         # 1 replay events not yet replayed
-        replay!(projectors_to_migrate, Sequent.configuration.offline_replay_persistor_class.new, exclude_ids: true, group_exponent: 1)
+        replay!(Sequent.configuration.offline_replay_persistor_class.new, exclude_ids: true, group_exponent: 1) if plan.projectors.any?
 
         in_view_schema do
           Sequent::ApplicationRecord.transaction do
-            for_each_table_to_migrate do |table|
-              current_table_name = table.table_name.gsub("_#{Sequent.new_version}", "")
-              # 2 Rename old table
-              exec_sql("ALTER TABLE IF EXISTS #{current_table_name} RENAME TO #{current_table_name}_#{current_version}")
-              # 3 Rename new table
-              exec_sql("ALTER TABLE #{table.table_name} RENAME TO #{current_table_name}")
-              # Use new table from now on
-              table.table_name = current_table_name
-              table.reset_column_information
-            end
-            # 4. Create migration record
+            # 2.1, 2.2
+            executor.execute_offline(plan, current_version)
+            # 2.3 Create migration record
             Versions.create!(version: Sequent.new_version)
           end
 
-          # 5. Truncate replayed ids
+          # 3. Truncate replayed ids
           truncate_replay_ids_table!
         end
         logger.info "Migrated to version #{Sequent.new_version}"
@@ -186,41 +186,29 @@ module Sequent
       end
 
       private
-      def set_table_names_to_new_version
-        for_each_table_to_migrate do |table|
-          unless table.table_name.end_with?("_#{Sequent.new_version}")
-            table.table_name = "#{table.table_name}_#{Sequent.new_version}"
-            table.reset_column_information
-            fail MigrationError.new("Table #{table.table_name} does not exist. Did you run migrate_online first?") unless table.table_exists?
-          end
-        end
-      end
 
-      def reset_table_names
-        for_each_table_to_migrate do |table|
-          table.table_name = table.table_name.gsub("_#{Sequent.new_version}", "")
-          table.reset_column_information
-        end
-      end
 
       def ensure_version_correct!
         create_view_schema_if_not_exists
         new_version = Sequent.new_version
 
         fail ArgumentError.new("new_version [#{new_version}] must be greater or equal to current_version [#{current_version}]") if new_version < current_version
+
       end
 
-      def replay!(projectors, replay_persistor, exclude_ids: false, group_exponent: 3)
+      def replay!(replay_persistor, exclude_ids: false, group_exponent: 3)
+        projectors = plan.projectors
+
         logger.info "group_exponent: #{group_exponent.inspect}"
 
         with_sequent_config(replay_persistor, projectors) do
           logger.info "Start replaying events"
 
-          time("#{16**group_exponent} groups replayed") do
+          time("#{16 ** group_exponent} groups replayed") do
             event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
 
-            number_of_groups = 16**group_exponent
+            number_of_groups = 16 ** group_exponent
             groups = groups_of_aggregate_id_prefixes(number_of_groups)
 
             @connected = false
@@ -264,7 +252,7 @@ module Sequent
         drop_old_tables(Sequent.new_version)
 
         truncate_replay_ids_table!
-        reset_table_names
+        executor.reset_table_names(plan)
       end
 
       def truncate_replay_ids_table!
@@ -272,7 +260,7 @@ module Sequent
       end
 
       def groups_of_aggregate_id_prefixes(number_of_groups)
-        all_prefixes = (0...16**LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE).to_a.map { |i| i.to_s(16) } # first x digits of hex
+        all_prefixes = (0...16 ** LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE).to_a.map { |i| i.to_s(16) } # first x digits of hex
         all_prefixes = all_prefixes.map { |s| s.length == 3 ? s : "#{"0" * (3 - s.length)}#{s}" }
 
         logger.info "Number of groups #{number_of_groups}"
@@ -280,29 +268,13 @@ module Sequent
         logger.debug "Prefixes: #{all_prefixes.length}"
         fail "Can not have more groups #{number_of_groups} than number of prefixes #{all_prefixes.length}" if number_of_groups > all_prefixes.length
 
-        all_prefixes.each_slice(all_prefixes.length/number_of_groups).to_a
-      end
-
-      def for_each_table_to_migrate
-        projectors_to_migrate.flat_map(&:managed_tables).each do |managed_table|
-          yield(managed_table)
-        end
-      end
-
-      def projectors_to_migrate
-        Sequent.migration_class.projectors_between(current_version, Sequent.new_version)
+        all_prefixes.each_slice(all_prefixes.length / number_of_groups).to_a
       end
 
       def in_view_schema
         Sequent::Support::Database.with_schema_search_path(view_schema, db_config) do
           yield
         end
-      end
-
-      def sql_file_to_statements(file_location)
-        raw_sql_string = File.read(file_location, encoding: 'bom|utf-8')
-        sql_string = yield(raw_sql_string)
-        sql_string.split(/;$/).reject { |statement| statement.remove("\n").blank? }
       end
 
       def drop_old_tables(new_version)
@@ -357,10 +329,6 @@ module Sequent
 
       def establish_connection
         Sequent::Support::Database.establish_connection(db_config)
-      end
-
-      def exec_sql(sql)
-        Sequent::ApplicationRecord.connection.execute(sql)
       end
     end
   end
