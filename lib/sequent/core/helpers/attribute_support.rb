@@ -73,7 +73,6 @@ EOS
             class_eval <<EOS
                def update_all_attributes_from_json(attrs)
                  super if defined?(super)
-                 ensure_known_attributes(attrs)
                  #{@types.map { |attribute, type|
               "@#{attribute} = #{type}.deserialize_from_json(attrs['#{attribute}'])"
             }.join("\n           ")}
@@ -162,7 +161,7 @@ EOS
         end
 
         def ensure_known_attributes(attrs)
-          unknowns = attrs.keys.map(&:to_s) - self.attributes.keys.map(&:to_s) - ['aggregate_id']
+          unknowns = attrs.keys.map(&:to_s) - self.attributes.keys.map(&:to_s) - %w[aggregate_id sequence_number user_id event_aggregate_id event_sequence_number]
           raise UnknownAttributeError.new("#{self.class.name} does not specify attrs: #{unknowns.join(", ")}") if unknowns.any?
         end
       end
