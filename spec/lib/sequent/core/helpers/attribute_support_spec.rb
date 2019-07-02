@@ -20,13 +20,15 @@ describe Sequent::Core::Helpers::AttributeSupport do
       validates_presence_of :sub_message
     end
     
-    class TestValueObject < Sequent::Core::ValueObject
+    class SomeEvent < Sequent::Core::Event
       attrs message: String
     end
 
     it "raises on unknown attrs" do
-      expect { TestValueObject.new(message: 'hello', something: 'this should raise', something_else: 'and this') }
-        .to raise_error(Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError, 'TestValueObject does not specify attrs: something, something_else')
+      expect { SomeEvent.new(message: 'hello', something: 'this should raise', something_else: 'and this') }.to raise_error(
+        Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError,
+        'SomeEvent does not specify attrs: something, something_else'
+      )
     end
 
     it "returns validation errors as hash" do
