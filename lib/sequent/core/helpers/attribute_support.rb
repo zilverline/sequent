@@ -20,6 +20,8 @@ module Sequent
       # get this functionality for free.
       #
       module AttributeSupport
+        class UnknownAttributeError < StandardError; end
+
         # module containing class methods to be added
         module ClassMethods
 
@@ -60,6 +62,7 @@ module Sequent
             class_eval <<EOS
               def update_all_attributes(attrs)
                 super if defined?(super)
+                ensure_known_attributes(attrs)
                 #{@types.map { |attribute, _|
               "@#{attribute} = attrs[:#{attribute}]"
             }.join("\n            ")}
@@ -70,6 +73,7 @@ EOS
             class_eval <<EOS
                def update_all_attributes_from_json(attrs)
                  super if defined?(super)
+                 ensure_known_attributes(attrs)
                  #{@types.map { |attribute, type|
               "@#{attribute} = #{type}.deserialize_from_json(attrs['#{attribute}'])"
             }.join("\n           ")}
@@ -157,9 +161,11 @@ EOS
           prefix ? HashWithIndifferentAccess[result.map { |k, v| ["#{prefix}_#{k}", v] }] : result
         end
 
+        def ensure_known_attributes(attrs)
+          unknowns = attrs.keys.map(&:to_s) - self.attributes.keys.map(&:to_s) - ['aggregate_id']
+          raise UnknownAttributeError.new("#{self.class.name} does not specify attrs: #{unknowns.join(", ")}") if unknowns.any?
+        end
       end
-
-
     end
   end
 end

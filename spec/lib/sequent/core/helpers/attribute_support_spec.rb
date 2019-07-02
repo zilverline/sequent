@@ -19,6 +19,15 @@ describe Sequent::Core::Helpers::AttributeSupport do
       attrs sub_message: String
       validates_presence_of :sub_message
     end
+    
+    class TestValueObject < Sequent::Core::ValueObject
+      attrs message: String
+    end
+
+    it "raises on unknown attrs" do
+      expect { TestValueObject.new(message: 'hello', something: 'this should raise', something_else: 'and this') }
+        .to raise_error(Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError, 'TestValueObject does not specify attrs: something, something_else')
+    end
 
     it "returns validation errors as hash" do
       subject = NestedTestClass.new
