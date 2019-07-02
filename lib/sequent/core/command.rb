@@ -19,7 +19,7 @@ module Sequent
       include ActiveModel::Validations::Callbacks
       include Sequent::Core::Helpers::TypeConversionSupport
 
-      attrs created_at: DateTime
+      attrs aggregate_id: String, created_at: DateTime
 
       def initialize(args = {})
         update_all_attributes args

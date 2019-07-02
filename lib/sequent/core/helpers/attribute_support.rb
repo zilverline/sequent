@@ -161,7 +161,7 @@ EOS
         end
 
         def ensure_known_attributes(attrs)
-          unknowns = attrs.keys.map(&:to_s) - self.attributes.keys.map(&:to_s) - %w[aggregate_id sequence_number user_id event_aggregate_id event_sequence_number]
+          unknowns = attrs.keys.map(&:to_s) - self.class.types.keys.map(&:to_s)
           raise UnknownAttributeError.new("#{self.class.name} does not specify attrs: #{unknowns.join(", ")}") if unknowns.any?
         end
       end
