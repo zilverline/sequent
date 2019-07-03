@@ -4,13 +4,13 @@ require 'sequent/test/event_handler_helpers'
 describe Sequent::Core::Workflow do
   include Sequent::Test::WorkflowHelpers
 
-  class CreateNotification < Sequent::Core::BaseCommand; end
+  class CreateNotification < Sequent::Command; end
 
   class UserWasRegistered < Sequent::Core::Event
     attrs email: String
   end
 
-  class SendWelcomeEmail < Sequent::Core::BaseCommand
+  class SendWelcomeEmail < Sequent::Command
     attrs email: String
   end
 
