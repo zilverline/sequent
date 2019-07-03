@@ -19,7 +19,7 @@ describe Sequent::Core::Workflow do
       execute_commands CreateNotification.new(aggregate_id: e.aggregate_id)
 
       after_commit do
-        execute_commands SendWelcomeEmail.new(email: e.email)
+        execute_commands SendWelcomeEmail.new(aggregate_id: e.aggregate_id, email: e.email)
       end
     end
   end
@@ -34,6 +34,7 @@ describe Sequent::Core::Workflow do
       when_event UserWasRegistered.new(aggregate_id: 'user', sequence_number: 1, email: 'user@example.com')
       then_commands notification_command
     end
+
     then_commands notification_command, email_command
   end
 end
