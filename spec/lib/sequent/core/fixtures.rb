@@ -16,6 +16,10 @@ class PersonAggregate < Sequent::Core::AggregateRoot
     apply NameSet, first_name: first_name, last_name: last_name
   end
 
+  def set_name_with_unknown_event_attribute
+    apply NameSet, does_not_exist: 'test'
+  end
+
   def set_name_if_changed(first_name, last_name)
     apply_if_changed NameSet, first_name: first_name, last_name: last_name
   end
