@@ -161,6 +161,8 @@ EOS
         end
 
         def ensure_known_attributes(attrs)
+          return unless Sequent.configuration.strict_check_attributes_on_apply_events
+
           unknowns = attrs.keys.map(&:to_s) - self.class.types.keys.map(&:to_s)
           raise UnknownAttributeError.new("#{self.class.name} does not specify attrs: #{unknowns.join(", ")}") if unknowns.any?
         end
