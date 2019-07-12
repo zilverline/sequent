@@ -15,21 +15,46 @@ module Sequent
     class MigrationError < RuntimeError; end
 
     ##
-    # Responsible for migration of Projectors between view schema versions.
+    # ViewSchema is used for migration of you view_schema. For instance
+    # when you create new Projectors or change existing Projectors.
     #
-    # A Projector needs migration when for instance:
+    # The following migrations are supported:
     #
-    # - New columns are added
-    # - Structure is changed
+    # - ReplayTable (Projector migrations)
+    # - AlterTable (For instance if you introduce a new column)
     #
     # To maintain your migrations you need to:
     # 1. Create a class that extends `Sequent::Migrations::Projectors` and specify in `Sequent.configuration.migrations_class_name`
-    # 2. Define per version which Projectors you want to migrate
+    # 2. Define per version which migrations you want to execute
     #    See the definition of `Sequent::Migrations::Projectors.versions` and `Sequent::Migrations::Projectors.version`
     # 3. Specify in Sequent where your sql files reside (Sequent.configuration.migration_sql_files_directory)
     # 4. Ensure that you add %SUFFIX% to each name that needs to be unique in postgres (like TABLE names, INDEX names, PRIMARY KEYS)
     #    E.g. `create table foo%SUFFIX% (id serial NOT NULL, CONSTRAINT foo_pkey%SUFFIX% PRIMARY KEY (id))`
+    # 5. If you want to run an `alter_table` migration ensure that
+    #   a sql file named `table_name_VERSION.sql` exists.
     #
+    # Example:
+    #
+    # class AppMigrations < Sequent::Migrations::Projectors
+    #   def self.version
+    #     '3'
+    #   end
+    #
+    #   def self.versions
+    #     {
+    #       '1' => [Sequent.all_projectors],
+    #       '2' => [
+    #         UserProjector,
+    #         InvoiceProjector,
+    #       ],
+    #       '3' => [
+    #         Sequent::Migrations.alter_table(UserRecord)
+    #       ]
+    #
+    #     }
+    #   end
+    #
+    # end
     class ViewSchema
       # Corresponds with the index on aggregate_id column in the event_records table
       #

@@ -2,6 +2,11 @@ require_relative 'sql'
 
 module Sequent
   module Migrations
+
+    ##
+    # The executor is the implementation of the 3-phase deploy in Sequent.
+    # is responsible for executing the `Planner::Plan`.
+    #
     class Executor
       include Sql
 

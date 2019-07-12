@@ -57,6 +57,12 @@ module Sequent
         def replay_table(name)
           ReplayTable.new(name)
         end
+
+        # Short hand for Sequent::Core::Migratable.all
+        def all_projectors
+          Sequent::Core::Migratable.all
+        end
+
       end
 
       def self.included(base)
