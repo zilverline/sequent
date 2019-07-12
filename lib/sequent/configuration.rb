@@ -26,6 +26,8 @@ module Sequent
 
     DEFAULT_EVENT_RECORD_HOOKS_CLASS = Sequent::Core::EventRecordHooks
 
+    DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS = false
+
     attr_accessor :aggregate_repository
 
     attr_accessor :event_store,
@@ -49,6 +51,7 @@ module Sequent
 
     attr_accessor :logger
 
+
     attr_accessor :migration_sql_files_directory,
                   :view_schema_name,
                   :offline_replay_persistor_class,
@@ -56,6 +59,8 @@ module Sequent
                   :number_of_replay_processes,
                   :database_config_directory,
                   :event_store_schema_name
+
+    attr_accessor :strict_check_attributes_on_apply_events
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -101,6 +106,7 @@ module Sequent
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
       self.database_config_directory = DEFAULT_DATABASE_CONFIG_DIRECTORY
+      self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
     end

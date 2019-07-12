@@ -3,7 +3,7 @@ require 'spec_helper'
 describe Sequent::Core::AggregateRoot do
 
   class TestEvent < Sequent::Core::Event
-    attrs field: String
+    attrs field: String, organization_id: String
   end
 
   class TestAggregateRoot < Sequent::Core::AggregateRoot
@@ -128,6 +128,23 @@ describe Sequent::Core::AggregateRoot do
       subject.set_name_if_changed('kim', 'bos')
       subject.set_name_if_changed('kim', 'bos2')
       expect(subject.uncommitted_events).to have(2).items
+    end
+  end
+
+  context 'strict_check_attributes_on_apply_events' do
+    require_relative 'fixtures'
+    before do
+      Sequent.configure do |c|
+        c.strict_check_attributes_on_apply_events = true
+      end
+    end
+
+    it 'fails when calling apply with unknown attributes' do
+      subject = PersonAggregate.new('1')
+      subject.clear_events
+      expect {
+        subject.set_name_with_unknown_event_attribute
+      }.to raise_error(Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError)
     end
   end
 end

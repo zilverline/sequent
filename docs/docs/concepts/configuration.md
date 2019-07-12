@@ -120,6 +120,7 @@ For the most recent possibilities please check the `Sequent::Configuration` impl
 |number_of_replay_processes|The [number of process](#number_of_replay_processes) used while offline migration|`4`|
 |database_config_directory|The directory in which db config can be found|`db`|
 |event_store_schema_name|The name of the db schema in which the [EventStore](event_store.html) is installed|`sequent_schema`|
+|strict_check_attributes_on_apply_events|Whether or not sequent should fail on calling `apply` with invalid attributes.|`false`. Will be enabled by default in the next major release.|
 |migrations_class_name|The name of the [class](#minimum-configuration) containing the migrations|Empty|
 |versions_table_name|The name of the table in which Sequent checks which [migration version](migrations.html) is currently active|`sequent_versions`|
 |replayed_ids_table_name|The name of the table in which Sequent keeps track of which events are already replayed during a [migration](migrations.html)|`sequent_replayed_ids`|
