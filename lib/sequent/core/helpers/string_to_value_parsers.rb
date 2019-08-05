@@ -14,6 +14,7 @@ module Sequent
           ::Boolean => ->(value) { parse_to_bool(value) },
           ::Date => ->(value) { parse_to_date(value) },
           ::DateTime => ->(value) { parse_to_date_time(value) },
+          ::Hash => ->(value) { parse_to_hash(value) },
           ::Sequent::Core::Helpers::ArrayWithType => ->(values, type_in_array) { parse_array(values, type_in_array) },
           ::Sequent::Core::Helpers::Secret => ->(value) { Sequent::Core::Helpers::Secret.new(value).encrypt },
         }
@@ -46,6 +47,12 @@ module Sequent
 
         def self.parse_to_date_time(value)
           value.is_a?(DateTime) ? value : DateTime.deserialize_from_json(value)
+        end
+
+        def self.parse_to_hash(value)
+          fail "invalid value for hash(): \"#{value}\"" unless value.is_a?(Hash)
+
+          value.is_a?(Hash) ? value : Hash.deserialize_from_json(value)
         end
 
         def self.parse_array(values, type_in_array)

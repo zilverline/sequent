@@ -264,6 +264,47 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
   end
 
+  context Hash do
+    class CommandWithHash < Sequent::Core::BaseCommand
+      attrs value: Hash
+    end
+
+    it "parses to a Hash" do
+      command = CommandWithHash.new(value: {'a': 'b'})
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq({'a': 'b'})
+    end
+
+    it "converts keys to strings, and leaves values as-is" do
+      command = CommandWithHash.new(value: {a: 10})
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq({'a': 10})
+    end
+
+    it "supports arrays as values" do
+      command = CommandWithHash.new(value: {a: [1, 2, 3]})
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq({'a': [1, 2, 3]})
+    end
+
+    it "handles an empty hash" do
+      command = CommandWithHash.new(value: {})
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to eq({})
+    end
+
+    it "handles nil" do
+      command = CommandWithHash.new(value: nil)
+      command = command.parse_attrs_to_correct_types
+      expect(command.value).to be_nil
+    end
+
+    it "fails for a non-hash value" do
+      command = CommandWithHash.new(value: "string")
+      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for hash(): "string"}
+    end
+  end
+
   context Array do
     class CommandWithArray < Sequent::Core::BaseCommand
       attrs values: array(Integer)
