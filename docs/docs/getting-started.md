@@ -39,10 +39,10 @@ Verify that you have a current version of Ruby installed:
 
 ```bash
 $ ruby -v
-ruby 2.5.0p0 (2017-12-25 revision 61468) [x86_64-darwin17]
+ruby 2.5.3p105 (2017-12-25 revision 61468) [x86_64-darwin17]
 ```
 
-Sequent require Ruby version 2.5.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
+Sequent requires Ruby version 2.5.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
 
 #### Postgres
 
@@ -50,10 +50,10 @@ You will also need to have the PostgreSQL database server installed. Verify that
 
 ```bash
 $ pg_config --version
-PostgreSQL 9.4.14
+PostgreSQL 11.2
 ```
 
-Sequent requires PostgreSQL version 9.4 or later. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org)
+Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org)
 
 #### Sequent
 

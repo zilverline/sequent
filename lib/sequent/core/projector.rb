@@ -11,7 +11,26 @@ module Sequent
         end
 
         def managed_tables
-          @managed_tables
+          @managed_tables || managed_tables_from_superclass
+        end
+
+        def manages_no_tables
+          @manages_no_tables = true
+          manages_tables *[]
+        end
+
+        def manages_no_tables?
+          !!@manages_no_tables || manages_no_tables_from_superclass?
+        end
+
+        private
+
+        def managed_tables_from_superclass
+          self.superclass.managed_tables if self.superclass.respond_to?(:managed_tables)
+        end
+
+        def manages_no_tables_from_superclass?
+          self.superclass.manages_no_tables? if self.superclass.respond_to?(:manages_no_tables?)
         end
       end
 
@@ -96,7 +115,10 @@ module Sequent
         :commit
 
       private
+
       def ensure_valid!
+        return if self.class.manages_no_tables?
+
         fail "A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?" if self.class.managed_tables.nil? || self.class.managed_tables.empty?
       end
     end

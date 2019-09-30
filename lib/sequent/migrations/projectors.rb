@@ -1,18 +1,19 @@
+require_relative 'planner'
 module Sequent
   module Migrations
     class Projectors
       def self.versions
-        fail "Define your own Sequent::Migrations::Projectors class that extends this class and implements this method"
+        fail "Define your own Sequent::Migrations::List class that extends this class and implements this method"
       end
 
       def self.version
-        fail "Define your own Sequent::Migrations::Projectors class that extends this class and implements this method"
+        fail "Define your own Sequent::Migrations::List class that extends this class and implements this method"
       end
 
-      def self.projectors_between(old, new)
-        versions.values_at(*Range.new(old + 1, new).to_a.map(&:to_s)).compact.flatten.uniq
+      def self.migrations_between(old, new)
+        Planner.new(versions).plan(old, new)
       end
     end
+
   end
 end
-

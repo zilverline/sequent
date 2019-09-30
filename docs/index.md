@@ -1,5 +1,5 @@
 ---
-title: Sequent 3.0
+title: Sequent 4.0
 ---
 
 Sequent is an opinionated CQRS and event sourcing framework (ES) written in Ruby. This site is intended

@@ -8,11 +8,15 @@ class AccountCreated < Sequent::Core::Event; end
 
 class Message < Sequent::Core::AggregateRoot; end
 class MessageCreated < Sequent::Core::Event; end
+
+class ItemRecord < ActiveRecord::Base; end
+class LineItemRecord < ActiveRecord::Base; end
+
 class MessageSet < Sequent::Core::Event
   attrs message: String
 end
 
-class AccountProjector < Sequent::Core::Projector
+class AccountProjector < Sequent::Projector
   manages_tables AccountRecord
 
   on AccountCreated do |event|
@@ -20,7 +24,7 @@ class AccountProjector < Sequent::Core::Projector
   end
 end
 
-class MessageProjector < Sequent::Core::Projector
+class MessageProjector < Sequent::Projector
   manages_tables MessageRecord
 
   on MessageCreated do |event|
@@ -34,4 +38,8 @@ class MessageProjector < Sequent::Core::Projector
       event.attributes.slice(:message)
     )
   end
+end
+
+class ItemProjector < Sequent::Projector
+  manages_tables ItemRecord, LineItemRecord
 end
