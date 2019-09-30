@@ -103,8 +103,10 @@ module Sequent
               alter_table_sql_file_name = "#{Sequent.configuration.migration_sql_files_directory}/#{migration.table_name}_#{version}.sql"
               fail "Missing file #{alter_table_sql_file_name} to apply for version #{version}" unless File.exist?(alter_table_sql_file_name)
               migration.copy(version)
-            else
+            elsif migration < Sequent::Projector
               migration.managed_tables.map { |table| ReplayTable.create(table, version) }
+            else
+              fail "Unknown Migration #{migration}"
             end
           end
 
