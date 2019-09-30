@@ -7,32 +7,32 @@ describe Sequent::Core::Event do
   end
 
   class TestEventEvent < Sequent::Core::Event
-    attrs name: String, date_time: DateTime, owner: Person
+    attrs organization_id: String, name: String, date_time: DateTime, owner: Person
   end
 
   class EventWithDate < Sequent::Core::Event
-    attrs date_of_birth: Date
+    attrs date_of_birth: Date, organization_id: String
   end
 
   class FooType;
   end
   class EventWithUnknownAttributeType < Sequent::Core::Event
-    attrs name: FooType
+    attrs name: FooType, organization_id: String
   end
 
   class EventWithSymbol < Sequent::Core::Event
-    attrs status: Symbol
+    attrs status: Symbol, organization_id: String
   end
 
   class EventWithFloat < Sequent::Core::Event
     attrs latitude: Float, longitude: Float
   end
 
-  it "does not include aggregate_id, sequence_number and organization_id in payload" do
+  it "does not include aggregate_id and sequence_number in payload" do
     expect(
       TestEventEvent.new(
         {aggregate_id: 123, sequence_number: 7, organization_id: "bar", name: "foo"}
-      ).payload).to eq({ name: "foo", date_time: nil, owner: nil })
+      ).payload).to eq({ name: "foo", date_time: nil, owner: nil, organization_id: "bar" })
   end
 
   it "deserializes DateTime using iso8601" do
@@ -75,7 +75,8 @@ describe Sequent::Core::Event do
     event = EventWithUnknownAttributeType.new(
       aggregate_id: '123', organization_id: "bar", sequence_number: 7, name: FooType.new
     )
-    expect { EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))) }.to raise_exception(NoMethodError)
+    expect { EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))) }
+      .to raise_exception(NoMethodError)
   end
 
   it "converts symbols" do

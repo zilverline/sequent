@@ -1,5 +1,6 @@
 require 'active_record'
 require_relative 'sequent_oj'
+require_relative '../application_record.rb'
 
 module Sequent
   module Core

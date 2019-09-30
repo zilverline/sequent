@@ -492,9 +492,35 @@ class Usernames < Sequent::AggregateRoot
 end
 ```
 
-The last thing we need to do is refactor the `PostCommandHandler` to use not the Author name, but `aggregate_id` of the `Author`.
+The last thing we need to do is refactor out `Author` name, and instead use the `Author` `aggregate_id`.
 
-In `lib/post/commands.rb` change
+In `spec/lib/post/post_command_handler_spec.rb`:
+
+```ruby
+let(:aggregate_id) { Sequent.new_uuid }
+let(:author_aggregate_id) { Sequent.new_uuid }
+
+# ...
+
+it 'creates a post' do
+  when_command AddPost.new(aggregate_id: aggregate_id, author_aggregate_id: author_aggregate_id, title: 'My first blogpost', content: 'Hello World!')
+  then_events(
+    PostAdded.new(aggregate_id: aggregate_id, sequence_number: 1),
+    PostAuthorChanged.new(aggregate_id: aggregate_id, sequence_number: 2, author_aggregate_id: author_aggregate_id),
+    PostTitleChanged,
+    PostContentChanged
+  )
+end
+```
+
+Running the test, it now fails:
+
+```ruby
+Sequent::Core::CommandNotValid:
+  Invalid command AddPost 3123758b-b847-4451-b524-885c4d04d7b7, errors: {:author=>["can't be blank"]}
+```
+
+We need to update the presence validation in `AddPost`. Edit `lib/post/commands.rb`:
 
 ```ruby
 class AddPost < Sequent::Command
@@ -503,14 +529,15 @@ class AddPost < Sequent::Command
 end
 ```
 
-In `lib/post/events.rb` change
+Running the test again reveals a problem in the `Post` aggregate root:
 
 ```ruby
-class PostAuthorChanged < Sequent::Event
-  attrs author_aggregate_id: String
-end
-```
+Failure/Error: apply PostAuthorChanged, author: command.author
 
+NoMethodError:
+  undefined method `author' for #<AddPost:0x00007f8509073ee8>
+# ./lib/post/post.rb:5:in `initialize'
+```
 
 In `lib/post/post.rb` change
 
@@ -523,14 +550,10 @@ class Post < Sequent::AggregateRoot
     apply PostTitleChanged, title: command.title
     apply PostContentChanged, content: command.content
   end
-
-  on PostAuthorChanged do |event|
-    @author_aggregate_id = event.author_aggregate_id
-  end
 end
 ```
 
-So to sum up this guide we have done:
+And we're back to passing tests. To sum up this guide we have done:
 
 1. Explored the generated `Post` AggregateRoot.
 2. Added new functionality to publish a `Post`

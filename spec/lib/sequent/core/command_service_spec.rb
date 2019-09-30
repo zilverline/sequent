@@ -10,7 +10,7 @@ class TestCommandHandler < Sequent::CommandHandler
 
   class NotHandledCommand < Sequent::Core::Command; end
 
-  class WithIntegerCommand < Sequent::Core::BaseCommand
+  class WithIntegerCommand < Sequent::Command
     attrs value: Integer
   end
 
@@ -104,7 +104,7 @@ describe Sequent::Core::CommandService do
     end
 
     it "does not parse values if the command is invalid" do
-      command = TestCommandHandler::WithIntegerCommand.new(value: "A")
+      command = TestCommandHandler::WithIntegerCommand.new(value: "A", aggregate_id: '1')
       expect { command_service.execute_commands(command) }.to raise_error do |e|
         expect(e.errors[:value]).to eq ['is not a number']
       end

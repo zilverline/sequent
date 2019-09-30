@@ -1,3 +1,8 @@
+# Changes since 3.2
+
+- Introduced `strict_check_attributes_on_apply_events`. Sequent will fail when calling `apply` with unknown attributes.
+
+
 # Changelog 3.2
 
 Introduces optional `event_aggregate_id` and `event_sequence_number` columns to the `command_records` table.
