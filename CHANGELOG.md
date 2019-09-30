@@ -1,6 +1,6 @@
 # Changes since 4.0
 
-- Added [alter table](https://www.sequent.io/docs/concepts/migrations.html) capabilities to migrations. Useful for larger projections.
+- Added [alter table](https://www.sequent.io/docs/concepts/migrations.html#2-altertable) capabilities to migrations. Useful for larger projections.
 - Added `Sequent::Projector.manages_no_tables`.
 
 # Changes since 3.2
