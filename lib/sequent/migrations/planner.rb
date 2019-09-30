@@ -104,7 +104,6 @@ module Sequent
               fail "Missing file #{alter_table_sql_file_name} to apply for version #{version}" unless File.exist?(alter_table_sql_file_name)
               migration.copy(version)
             else
-              migration.is_a?(Sequent::Projector)
               migration.managed_tables.map { |table| ReplayTable.create(table, version) }
             end
           end
