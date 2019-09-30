@@ -21,7 +21,7 @@ most commonly used migration.
 This migration is an optimization migration and may come in handy for large projections.
 Overtime your projections will grow. As you introduce new Events and want to use
 this data in your projection you typically need to alter the table and add a column.
-Since in this case the column will initially be empty (the Event does not yet exist) a
+Since in this case the column will initially be empty (or when a default value suffices) a
 ReplayTable will work but is a bit overkill. For this reason you can also
 specify an `alter_table` migration in which you can alter an existing table
 and add a column.
@@ -164,8 +164,8 @@ after you put you application in maintenance mode and **ensure that no new Event
 To minimize downtime when replaying offline the event stream is scoped to the last 24 hours.
 {: .notice--info}
 
-**Pro-Tip**You can also choose to ensure no new Events are inserted by ensuring new Commands
-are coming in. You can use [CommandFilters](configuration.html#commandfilters) to achieve this. This will minimize downtime event further.
+**Pro-Tip**You can also choose to keep the application running in
+readonly mode. Then you need to ensure no state changes will occur while running the last part of the migration. You can use [CommandFilters](configuration.html#commandfilters) e.g. rejecting all commands to achieve this. This will minimize downtime event further.
 {: .notice--info}
 
 This is step in which the [AlterTable](#AlterTable) migrations are executed.
