@@ -140,7 +140,7 @@ and you want to deploy a version `2` and need to migrate the view model
 
 ### 1. Install new version and run migrations
 1. Install your application in `/app/version/2`
-2. From within that directory run `bundle exec rake sequent::migrate::online`
+2. From within that directory run `bundle exec rake sequent:migrate:online`
 
 When running this rake task Sequent is able to build up the new Projections
 from [Events](event.html) while the application is running. Sequent keeps track
@@ -151,7 +151,7 @@ When the online migration part is done you need to run the [offline migration](#
 
 ### 2. Stop application and finish migrations
 1. To ensure we get all events you now need to bring your application down and run
-  `bundle exec rake sequent::migrate::offline`
+  `bundle exec rake sequent:migrate:offline`
 
 It is possible (highly likely) that new Events are being committed to the
 event store during the online migration part. These new Events need to be
