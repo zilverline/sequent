@@ -107,7 +107,7 @@ module Sequent
       #
       # This method is mainly useful in test scenario's or development tasks
       def replay_all!
-        replay!(Sequent::Core::Migratable.all, Sequent.configuration.online_replay_persistor_class.new)
+        replay!(Sequent.configuration.online_replay_persistor_class.new)
       end
 
       ##
@@ -221,9 +221,7 @@ module Sequent
 
       end
 
-      def replay!(replay_persistor, exclude_ids: false, group_exponent: 3)
-        projectors = plan.projectors
-
+      def replay!(replay_persistor, projectors: plan.projectors, exclude_ids: false, group_exponent: 3)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
         with_sequent_config(replay_persistor, projectors) do
