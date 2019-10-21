@@ -54,7 +54,7 @@ module Sequent
       end
 
       def name_camelized
-        @name_camelized ||= name.gsub(/\W/, '_').squeeze('_').camelize
+        @name_camelized ||= name.camelize
       end
     end
   end

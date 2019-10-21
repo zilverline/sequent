@@ -10,7 +10,7 @@ describe Sequent::Generator::Project do
     Dir.chdir(tmp_path) { example.run }
   end
 
-  let(:arg) { 'blog-with_special-symbols' }
+  let(:arg) { 'blog' }
   let(:path) { File.expand_path(arg) }
   subject(:execute) { Sequent::Generator::Project.new(arg).execute }
 
@@ -29,17 +29,17 @@ describe Sequent::Generator::Project do
 
   it 'copies the generator files' do
     execute
-    expect(FileUtils.cmp('blog_with_special_symbols/Gemfile', '../../lib/sequent/generator/template_project/Gemfile')).to be_truthy
+    expect(FileUtils.cmp('blog/Gemfile', '../../lib/sequent/generator/template_project/Gemfile')).to be_truthy
   end
 
   it 'names the app' do
     execute
-    expect(File.exist?('blog_with_special_symbols/my_app.rb')).to be_falsey
-    expect(File.exist?('blog_with_special_symbols/blog_with_special_symbols.rb')).to be_truthy
-    expect(File.read('blog_with_special_symbols/blog_with_special_symbols.rb')).to_not include('module MyApp')
-    expect(File.read('blog_with_special_symbols/blog_with_special_symbols.rb')).to include('module BlogWithSpecialSymbols')
-    expect(File.read('blog_with_special_symbols/Rakefile')).to_not include("require './my_app'")
-    expect(File.read('blog_with_special_symbols/Rakefile')).to include("require './blog_with_special_symbols'")
+    expect(File.exist?('blog/my_app.rb')).to be_falsey
+    expect(File.exist?('blog/blog.rb')).to be_truthy
+    expect(File.read('blog/blog.rb')).to_not include('module MyApp')
+    expect(File.read('blog/blog.rb')).to include('module Blog')
+    expect(File.read('blog/Rakefile')).to_not include("require './my_app'")
+    expect(File.read('blog/Rakefile')).to include("require './blog'")
   end
 
   xit 'has working example with specs' do
@@ -47,7 +47,7 @@ describe Sequent::Generator::Project do
 
     Bundler.with_clean_env do
       system 'bash', '-cex', <<~SCRIPT
-        cd blog_with_special_symbols
+        cd blog
         export RACK_ENV=test
         source ~/.bash_profile
 
