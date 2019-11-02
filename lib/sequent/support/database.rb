@@ -47,7 +47,7 @@ module Sequent
       def self.create_schema(schema)
         sql = "CREATE SCHEMA IF NOT EXISTS #{schema}"
         if user = ActiveRecord::Base.connection_config[:username]
-          sql += " AUTHORIZATION #{user}"
+          sql += %Q{ AUTHORIZATION "#{user}"}
         end
         execute_sql(sql)
       end
