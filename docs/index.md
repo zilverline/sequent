@@ -35,7 +35,10 @@ web framework.
 In the [finishing the web-application guide](/docs/finishing-the-web-application.html) we continue with
 the blog application and add form validation and let the Author's add Posts.
 
-## Guides
+### 5. Rails & Sequent
+The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a [Rails application](https://rubyonrails.org/)
+
+## Reference Guide
 
 Next to the tutorials there is the [Reference Guide](/docs/concepts.html) to provide and
 in-depth explanation of the several concepts (like `AggregateRoot`, `Event`, `Command` etc) used in Sequent.
