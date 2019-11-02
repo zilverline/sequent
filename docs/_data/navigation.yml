@@ -10,14 +10,16 @@ docs:
         url: "https://github.com/zilverline/sequent"
   - title: Introduction
     children:
-      - title: "1.1 Getting started"
+      - title: "1 Getting started"
         url: /docs/getting-started.html
-      - title: "1.2 Modelling the domain"
+      - title: "2 Modelling the domain"
         url: /docs/modelling-the-domain.html
-      - title: "1.3 Building a web application"
+      - title: "3 Building a web application"
         url: /docs/building-a-web-application.html
-      - title: "1.4 Finishing the web application"
+      - title: "4 Finishing the web application"
         url: /docs/finishing-the-web-application.html
+      - title: "5 Rails & Sequent"
+        url: /docs/rails-sequent.html
 
   - title: Reference Guide
     url: /docs/concepts.html
