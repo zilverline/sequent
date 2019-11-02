@@ -64,13 +64,18 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
       Sequent::Support::Database.connect!(ENV['RACK_ENV'])
     end
     ```
+
 6. Ensure your `database.yml` contains: 
 
     ```yaml
-    schema_search_path: "sequent_schema, view_schema, public"
+    schema_search_path: "public, sequent_schema, view_schema"
     ```
-    We assume here that your current search_path is `public`.
-    
+
+    **It is important** that `public` comes first. The first schema
+    is used by Rails ActiveRecord and will therefor contain all
+    your non event sourced tables.
+    {: .notice--warning}
+
 7. Add `./config/initializers/sequent.rb` containing at least:
 
     ```ruby
