@@ -1,3 +1,9 @@
+# Changes since 3.4
+
+- Changed default ruby to latest 2.6 release
+- Added support for ActiveRecord 6.0
+- Added documentation for using with Rails
+
 # Changes since 3.3
 
 - Added [alter table](https://www.sequent.io/docs/concepts/migrations.html#2-altertable) capabilities to migrations. Useful for larger projections.
