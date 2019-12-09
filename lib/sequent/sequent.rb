@@ -6,7 +6,6 @@ require_relative 'core/aggregate_root'
 require_relative 'core/projector'
 require_relative 'core/workflow'
 require_relative 'core/value_object'
-require_relative 'generator'
 require_relative 'migrations/migrations'
 
 module Sequent

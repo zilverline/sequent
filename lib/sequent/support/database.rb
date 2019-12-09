@@ -61,8 +61,13 @@ module Sequent
 
         disconnect!
         original_search_paths = db_config['schema_search_path'].dup
-        ActiveRecord::Base.configurations[env.to_s] = ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
+
+        if ActiveRecord::VERSION::MAJOR < 6
+          ActiveRecord::Base.configurations[env.to_s] = ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
+        end
+
         db_config['schema_search_path'] = search_path
+
         ActiveRecord::Base.establish_connection db_config
 
         yield
@@ -94,9 +99,11 @@ module Sequent
         self.class.execute_sql(sql)
       end
 
-      def migrate(migrations_path, verbose: true)
+      def migrate(migrations_path, schema_migration: ActiveRecord::SchemaMigration, verbose: true)
         ActiveRecord::Migration.verbose = verbose
-        if ActiveRecord::VERSION::MAJOR >= 5 && ActiveRecord::VERSION::MINOR >= 2
+        if ActiveRecord::VERSION::MAJOR >= 6
+          ActiveRecord::MigrationContext.new([migrations_path], schema_migration).up
+        elsif ActiveRecord::VERSION::MAJOR >= 5 && ActiveRecord::VERSION::MINOR >= 2
           ActiveRecord::MigrationContext.new([migrations_path]).up
         else
           ActiveRecord::Migrator.migrate(migrations_path)
