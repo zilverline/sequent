@@ -34,7 +34,7 @@ post.rb                    # Requires the entire aggregate root
 
 ### Adding a command
 
-Changes to state start by executing a command. Commands are quite simple classes containing some attributes and attribute validations. Looking at `lib/post/commands.rb` we have one command:
+Changes to state start by executing a command. Commands are quite simple classes containing some attributes and attribute validations. Looking at `lib/post/commands.rb`, we have one command:
 
 ```ruby
 class AddPost < Sequent::Command
@@ -233,7 +233,7 @@ require_relative 'lib/author'
 require_relative 'lib/usernames'
 ```
 
-The `author/author_command_handler.rb`
+The `author/author_command_handler.rb`:
 
 ```ruby
 class AuthorCommandHandler < Sequent::CommandHandler

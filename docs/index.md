@@ -32,11 +32,13 @@ application created in the modelling the domain guide and add a web interface fo
 web framework.
 
 ### 4. Finishing the webapplication
+
 In the [finishing the web-application guide](/docs/finishing-the-web-application.html) we continue with
 the blog application and add form validation and let the Author's add Posts.
 
 ### 5. Rails & Sequent
-The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a [Rails application](https://rubyonrails.org/)
+
+The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a [Rails application](https://rubyonrails.org/).
 
 ## Reference Guide
 

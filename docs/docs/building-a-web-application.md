@@ -48,6 +48,7 @@ In `./config.ru`
 
 ```ruby
 require './app/web'
+
 run Web
 ```
 
@@ -67,7 +68,7 @@ First we change the `get '/'` to serve us an `erb` with a html form that allows 
 
 The erb `in app/views/index.erb`:
 
-```ruby
+```erb
 <html>
   <body>
     <pre><%= flash.inspect %></pre>
@@ -216,7 +217,7 @@ readability.
 
 Next step is to display the existing authors. In Sequent this is done in 4 steps:
 
-**1. Create the `AuthorRecord`.**
+**1. Create the `AuthorRecord`**
 
 Since we are using `ActiveRecord` we need to create the `AuthorRecord`
 
@@ -226,7 +227,7 @@ class AuthorRecord < Sequent::ApplicationRecord
 end
 ```
 
-**2. Create the corresponding sql file**
+**2. Create the corresponding SQL file**
 
 `db/tables/author_records.sql`
 ```sql
@@ -286,6 +287,7 @@ require_relative 'app/projectors/author_projector'
 ```
 
 **4. Update Sequent configuration**
+
 Then we can add this projector to our Sequent config `config/initializers/sequent.rb`
 
 ```ruby
@@ -306,14 +308,17 @@ Sequent.configure do |config|
 end
 ```
 
-**5. Create and run the migration**
+**5. Update and run the migration**
 
-In `db/migrations.rb`
+In `db/migrations.rb`:
+
 ```ruby
 VIEW_SCHEMA_VERSION = 2 # <= update this to version 2
 
 class Migrations < Sequent::Migrations::Projectors
-  ...
+  def self.version
+    VIEW_SCHEMA_VERSION
+  end
 
   def self.versions
     {
@@ -328,10 +333,13 @@ class Migrations < Sequent::Migrations::Projectors
 end
 ```
 
+Make sure you have updated your `VIEW_SCHEMA_VERSION` constant.
+{: .notice}
+
 Stop your app and now run this migration and see what happens:
 
 ```bash
-(master)$ bundle exec rake sequent:migrate:online && bundle exec rake sequent:migrate:offline
+$ bundle exec rake sequent:migrate:online && bundle exec rake sequent:migrate:offline
 INFO -- : group_exponent: 3
 INFO -- : Start replaying events
 INFO -- : Number of groups 4096
@@ -344,7 +352,7 @@ INFO -- : Migrated to version 2
 Let's inspect the database again:
 
 ```bash
-(master)$ psql blog_development
+$ psql blog_development
 blog_development=# select * from view_schema.author_records;
  id |             aggregate_id             | name |     email
 ----+--------------------------------------+------+----------------
@@ -353,7 +361,7 @@ blog_development=# select * from view_schema.author_records;
 
 We have authors in the database! This means we can also display them in our app:
 
-Change the `app/web.rb`
+Change the `app/web.rb`:
 
 ```ruby
   get '/authors/id/:aggregate_id' do
@@ -362,9 +370,9 @@ Change the `app/web.rb`
   end
 ```
 
-Add the `app/views/authors/show.erb`
+Add the `app/views/authors/show.erb`:
 
-```ruby
+```erb
 <html>
   <body>
     <h1>Author <%= h @author.name %> </h1>
@@ -378,7 +386,7 @@ Add the `app/views/authors/show.erb`
 
 To create a navigatable web app we also add the following code:
 
-In `app/web.rb`
+In `app/web.rb`:
 
 ```ruby
 class Web < Sinatra::Base
@@ -393,9 +401,9 @@ class Web < Sinatra::Base
 end
 ```
 
-In `app/views/authors/index.erb`
+In `app/views/authors/index.erb`:
 
-```ruby
+```erb
 <html>
   <body>
     <p>
@@ -431,6 +439,6 @@ So that's it for this guide. In this guide we learned:
 2. Add a Projector and Migration
 3. Use the Projector to display data in the web application
 
-The full sourcecode of this guide is available here: [sequent-examples](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application)
+The full sourcecode of this guide is available here: [sequent-examples](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application).
 
 We will continue with this app in the [Finishing the web application](/docs/finishing-the-web-application.html) guide.
