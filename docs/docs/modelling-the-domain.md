@@ -250,6 +250,8 @@ class AddAuthor < Sequent::Command
 end
 ```
 
+And the `AuthorCommandHandler` to `config/initializers/sequent.rb`.
+
 Now when we run the tests all are marked as `Pending: Not yet implemented`. Before we can go any further we need to think about what kind of Events we are interested in. What do we want to know in this case? When registering our very first `Author` it will not only create the Author, but also create our `Usernames` Aggregate to ensure uniqueness of the usernames. So the test is something like:
 
 ```
