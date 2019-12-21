@@ -401,6 +401,17 @@ class Web < Sinatra::Base
 end
 ```
 
+In `app/views/index.erb`:
+
+```html
+  <body>
+    <nav style="border-bottom: 1px solid #333; padding-bottom: 1rem;">
+      <a href="/authors">All authors</a>
+    </nav>
+
+    ...
+```
+
 In `app/views/authors/index.erb`:
 
 ```erb
