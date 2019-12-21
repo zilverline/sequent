@@ -366,7 +366,7 @@ We have authors in the database! This means we can also display them in our app:
 Change the `app/web.rb`:
 
 ```ruby
-  get '/authors/id/:aggregate_id' do
+  get '/authors/:aggregate_id' do
     @author = AuthorRecord.find_by(aggregate_id: params[:aggregate_id])
     erb :'authors/show'
   end
@@ -434,7 +434,7 @@ In `app/views/authors/index.erb`:
         <% @authors.each do |author| %>
           <tr>
             <td>
-              <a href="/authors/id/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
+              <a href="/authors/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
             </td>
             <td><%= h author.name %></td>
             <td><%= h author.email %></td>
