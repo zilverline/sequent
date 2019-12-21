@@ -30,6 +30,7 @@ require 'sinatra/reloader' # for hot reloading changes we make
 require_relative '../blog'
 
 class Web < Sinatra::Base
+  enable :sessions
   register Sinatra::Flash
 
   configure :development do
@@ -52,7 +53,7 @@ require './app/web'
 run Web
 ```
 
-For now this is enough. On the command line execute `rackup -p 4567` and open [localhost:4567](http://localhost:4567). If you see `"Welcome to Sequent!"` then we are good to go!
+For now this is enough. On the command line execute `bundle exec rackup -p 4567` and open [localhost:4567](http://localhost:4567). If you see `"Welcome to Sequent!"` then we are good to go!
 
 For this guide we want to be able to signup as Author. In a later guide we will go full CRUD on the application
 and actually create Posts with Authors.
@@ -135,6 +136,7 @@ In `app/database.rb`:
 require 'yaml'
 require 'erb'
 require 'active_record'
+require 'sequent'
 
 class Database
   class << self
