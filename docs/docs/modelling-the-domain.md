@@ -34,7 +34,7 @@ post.rb                    # Requires the entire aggregate root
 
 ### Adding a command
 
-Changes to state start by executing a command. Commands are quite simple classes containing some attributes and attribute validations. Looking at `lib/post/commands.rb` we have one command:
+Changes to state start by executing a command. Commands are quite simple classes containing some attributes and attribute validations. Looking at `lib/post/commands.rb`, we have one command:
 
 ```ruby
 class AddPost < Sequent::Command
@@ -233,7 +233,7 @@ require_relative 'lib/author'
 require_relative 'lib/usernames'
 ```
 
-The `author/author_command_handler.rb`
+The `author/author_command_handler.rb`:
 
 ```ruby
 class AuthorCommandHandler < Sequent::CommandHandler
@@ -249,6 +249,8 @@ class AddAuthor < Sequent::Command
   validates_presence_of :name, :email
 end
 ```
+
+And the `AuthorCommandHandler` to `config/initializers/sequent.rb`.
 
 Now when we run the tests all are marked as `Pending: Not yet implemented`. Before we can go any further we need to think about what kind of Events we are interested in. What do we want to know in this case? When registering our very first `Author` it will not only create the Author, but also create our `Usernames` Aggregate to ensure uniqueness of the usernames. So the test is something like:
 

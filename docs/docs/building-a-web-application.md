@@ -30,6 +30,7 @@ require 'sinatra/reloader' # for hot reloading changes we make
 require_relative '../blog'
 
 class Web < Sinatra::Base
+  enable :sessions
   register Sinatra::Flash
 
   configure :development do
@@ -48,10 +49,11 @@ In `./config.ru`
 
 ```ruby
 require './app/web'
+
 run Web
 ```
 
-For now this is enough. On the command line execute `rackup -p 4567` and open [localhost:4567](http://localhost:4567). If you see `"Welcome to Sequent!"` then we are good to go!
+For now this is enough. On the command line execute `bundle exec rackup -p 4567` and open [localhost:4567](http://localhost:4567). If you see `"Welcome to Sequent!"` then we are good to go!
 
 For this guide we want to be able to signup as Author. In a later guide we will go full CRUD on the application
 and actually create Posts with Authors.
@@ -67,7 +69,7 @@ First we change the `get '/'` to serve us an `erb` with a html form that allows 
 
 The erb `in app/views/index.erb`:
 
-```ruby
+```erb
 <html>
   <body>
     <pre><%= flash.inspect %></pre>
@@ -134,6 +136,7 @@ In `app/database.rb`:
 require 'yaml'
 require 'erb'
 require 'active_record'
+require 'sequent'
 
 class Database
   class << self
@@ -216,7 +219,7 @@ readability.
 
 Next step is to display the existing authors. In Sequent this is done in 4 steps:
 
-**1. Create the `AuthorRecord`.**
+**1. Create the `AuthorRecord`**
 
 Since we are using `ActiveRecord` we need to create the `AuthorRecord`
 
@@ -226,7 +229,7 @@ class AuthorRecord < Sequent::ApplicationRecord
 end
 ```
 
-**2. Create the corresponding sql file**
+**2. Create the corresponding SQL file**
 
 `db/tables/author_records.sql`
 ```sql
@@ -286,6 +289,7 @@ require_relative 'app/projectors/author_projector'
 ```
 
 **4. Update Sequent configuration**
+
 Then we can add this projector to our Sequent config `config/initializers/sequent.rb`
 
 ```ruby
@@ -306,14 +310,17 @@ Sequent.configure do |config|
 end
 ```
 
-**5. Create and run the migration**
+**5. Update and run the migration**
 
-In `db/migrations.rb`
+In `db/migrations.rb`:
+
 ```ruby
 VIEW_SCHEMA_VERSION = 2 # <= update this to version 2
 
 class Migrations < Sequent::Migrations::Projectors
-  ...
+  def self.version
+    VIEW_SCHEMA_VERSION
+  end
 
   def self.versions
     {
@@ -328,10 +335,13 @@ class Migrations < Sequent::Migrations::Projectors
 end
 ```
 
+Make sure you have updated your `VIEW_SCHEMA_VERSION` constant.
+{: .notice}
+
 Stop your app and now run this migration and see what happens:
 
 ```bash
-(master)$ bundle exec rake sequent:migrate:online && bundle exec rake sequent:migrate:offline
+$ bundle exec rake sequent:migrate:online && bundle exec rake sequent:migrate:offline
 INFO -- : group_exponent: 3
 INFO -- : Start replaying events
 INFO -- : Number of groups 4096
@@ -344,7 +354,7 @@ INFO -- : Migrated to version 2
 Let's inspect the database again:
 
 ```bash
-(master)$ psql blog_development
+$ psql blog_development
 blog_development=# select * from view_schema.author_records;
  id |             aggregate_id             | name |     email
 ----+--------------------------------------+------+----------------
@@ -353,18 +363,18 @@ blog_development=# select * from view_schema.author_records;
 
 We have authors in the database! This means we can also display them in our app:
 
-Change the `app/web.rb`
+Change the `app/web.rb`:
 
 ```ruby
-  get '/authors/id/:aggregate_id' do
+  get '/authors/:aggregate_id' do
     @author = AuthorRecord.find_by(aggregate_id: params[:aggregate_id])
     erb :'authors/show'
   end
 ```
 
-Add the `app/views/authors/show.erb`
+Add the `app/views/authors/show.erb`:
 
-```ruby
+```erb
 <html>
   <body>
     <h1>Author <%= h @author.name %> </h1>
@@ -378,7 +388,7 @@ Add the `app/views/authors/show.erb`
 
 To create a navigatable web app we also add the following code:
 
-In `app/web.rb`
+In `app/web.rb`:
 
 ```ruby
 class Web < Sinatra::Base
@@ -393,9 +403,20 @@ class Web < Sinatra::Base
 end
 ```
 
-In `app/views/authors/index.erb`
+In `app/views/index.erb`:
 
-```ruby
+```html
+  <body>
+    <nav style="border-bottom: 1px solid #333; padding-bottom: 1rem;">
+      <a href="/authors">All authors</a>
+    </nav>
+
+    ...
+```
+
+In `app/views/authors/index.erb`:
+
+```erb
 <html>
   <body>
     <p>
@@ -413,7 +434,7 @@ In `app/views/authors/index.erb`
         <% @authors.each do |author| %>
           <tr>
             <td>
-              <a href="/authors/id/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
+              <a href="/authors/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
             </td>
             <td><%= h author.name %></td>
             <td><%= h author.email %></td>
@@ -431,6 +452,6 @@ So that's it for this guide. In this guide we learned:
 2. Add a Projector and Migration
 3. Use the Projector to display data in the web application
 
-The full sourcecode of this guide is available here: [sequent-examples](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application)
+The full sourcecode of this guide is available here: [sequent-examples](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application).
 
 We will continue with this app in the [Finishing the web application](/docs/finishing-the-web-application.html) guide.

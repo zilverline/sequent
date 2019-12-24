@@ -53,7 +53,7 @@ $ pg_config --version
 PostgreSQL 11.2
 ```
 
-Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org)
+Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org).
 
 #### Sequent
 
@@ -114,7 +114,9 @@ bundle exec rake sequent:migrate:online
 bundle exec rake sequent:migrate:offline
 ```
 
-If your database already exists and you just need to create the event_store schema and the view_schema then do:
+If your database already exists and you just need to create the `event_store` schema
+and the `view_schema` then do:
+
 ```bash
 bundle exec rake sequent:db:create_event_store
 bundle exec rake sequent:db:create_view_schema
