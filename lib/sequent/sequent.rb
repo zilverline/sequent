@@ -64,6 +64,10 @@ module Sequent
     configuration.aggregate_repository
   end
 
+  def self.dry_run(*commands)
+    Sequent::Util::DryRun.these_commands(commands)
+  end
+
   # Shortcut classes for easy usage
   Event = Sequent::Core::Event
   Command = Sequent::Core::Command

@@ -27,7 +27,7 @@ You can start the documentation locally via:
 ```
 cd docs
 bundle install
-bundle exec jekyll serve
+bundle exec jekyll serve --livereload
 ```
 
 Open [localhost:4000](localhost:4000)

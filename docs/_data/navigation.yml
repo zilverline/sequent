@@ -56,3 +56,5 @@ docs:
         url: /docs/concepts/event_store.html
       - title: "16. Configuration"
         url: /docs/concepts/configuration.html
+      - title: "17. Advanced topics"
+        url: /docs/concepts/advanced.html
