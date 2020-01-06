@@ -317,6 +317,26 @@ In `app/web.rb`
 
 ```ruby
 class Web < Sinatra::Base
+  post '/authors/id/:author_id/post' do
+      post_id = Sequent.new_uuid
+  
+      @command = AddPost.from_params(
+        params.merge(
+          aggregate_id: post_id,
+          author_aggregate_id: params[:author_id],
+        )
+      )
+      Sequent.command_service.execute_commands @command
+  
+      flash[:notice] = 'Post created'
+  
+      redirect "/authors/id/#{params[:author_id]}/post/#{post_id}"
+    rescue Sequent::Core::CommandNotValid => e
+      @author = AuthorRecord.find_by(aggregate_id: params[:author_id])
+      @errors = e.errors
+      erb :'authors/show'
+    end
+
   get '/authors/id/:author_id/post/:post_id' do
     @author = AuthorRecord.find_by(aggregate_id: params[:author_id])
     post_record = PostRecord.find_by(aggregate_id: params[:post_id])
