@@ -233,13 +233,13 @@ class Web < Sinatra::Base
 end
 ```
 
-### Adding Posts
+### Adding and editing Posts
 
 In order to have a fully working blog application an author needs
-to be able to submit posts. In this example we won't go into detail
+to be able to submit and edit posts. In this example we won't go into detail
 on how to do login, since that is not in Sequent scope.
 
-For now we will just add the ability to add a `Post` on the `Author`s show page.
+For now we will just add the ability to add and edit a `Post` on the `Author`s show page.
 
 To be able to add and edit posts we need to add the following code. Since this
 is somewhat of a repeat of what we did earlier in creating an Author we just
@@ -422,6 +422,34 @@ The complete `app/views/authors/show.erb`
 
 Since we follow a naming convention in the `AddPost` command and `EditPost` command
 we can use the same form.
+
+As we want to access the post records from our author record we need to add an has_many relation in `app/records/author_record.rb`
+
+```ruby
+  class AuthorRecord < Sequent::ApplicationRecord
+    has_many :post_records, foreign_key: 'author_aggregate_id', primary_key: 'aggregate_id'
+  end
+```
+
+We need to add this new foreign_key as a new column in the post table we need to update `db/tables/post_records.sql`
+                                                                                                                                                
+```ruby
+ CREATE TABLE post_records%SUFFIX% (
+     id serial NOT NULL,
+     aggregate_id uuid NOT NULL,
+     author_aggregate_id uuid,
+     author character varying,
+     title character varying,
+     content character varying,
+     CONSTRAINT post_records_pkey%SUFFIX% PRIMARY KEY (id)
+ );
+ 
+ CREATE UNIQUE INDEX post_records_keys%SUFFIX% ON post_records%SUFFIX% USING btree (aggregate_id);
+```
+Then run & update the migration as you did in 3.Building a web application > 5. Update and run the migration
+
+
+Then add the missing domain logic for adding posts.
 
 ### Wrap up
 
