@@ -434,7 +434,7 @@ In `app/views/authors/index.erb`:
         <% @authors.each do |author| %>
           <tr>
             <td>
-              <a href="/authors/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
+              <a href="/authors/id/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
             </td>
             <td><%= h author.name %></td>
             <td><%= h author.email %></td>
