@@ -451,7 +451,7 @@ As we want to access the post records from our author record we need to add an h
   end
 ```
 
-We need to add this new foreign_key as a new column in the post table we need to update `db/tables/post_records.sql`
+We need to add this new foreign_key as a new column in the post table. We need to update `db/tables/post_records.sql`
                                                                                                                                                 
 ```ruby
  CREATE TABLE post_records%SUFFIX% (
@@ -468,8 +468,6 @@ We need to add this new foreign_key as a new column in the post table we need to
 ```
 Then run & update the migration as you did in 3.Building a web application > 5. Update and run the migration
 
-
-Then add the missing domain logic for adding posts.
 
 ### Wrap up
 
