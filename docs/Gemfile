@@ -1,11 +1,10 @@
 source "https://rubygems.org"
 
 gem "minima", "~> 2.0"
+gem 'faraday', '0.17.3'
 
 group :jekyll_plugins do
   gem "github-pages"
   gem "jekyll-feed", "~> 0.6"
   gem 'jekyll-include-cache'
 end
-
-gem 'faraday', '0.17.3'
