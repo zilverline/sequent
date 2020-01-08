@@ -7,4 +7,5 @@ group :jekyll_plugins do
   gem "jekyll-feed", "~> 0.6"
   gem 'jekyll-include-cache'
 end
+
 gem 'faraday', '0.17.3'

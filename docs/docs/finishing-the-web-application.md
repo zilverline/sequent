@@ -453,7 +453,7 @@ As we want to access the post records from our author record we need to add an h
 
 We need to add this new foreign_key as a new column in the post table. We need to update `db/tables/post_records.sql`
                                                                                                                                                 
-```ruby
+```sql
  CREATE TABLE post_records%SUFFIX% (
      id serial NOT NULL,
      aggregate_id uuid NOT NULL,
