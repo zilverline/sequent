@@ -65,10 +65,11 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
     end
     ```
 
-6. Ensure your `database.yml` contains: 
+6. Ensure your `database.yml` contains the schema_search_path: 
 
     ```yaml
-    schema_search_path: "public, sequent_schema, view_schema"
+    default:
+      schema_search_path: "public, sequent_schema, view_schema"
     ```
 
     **It is important** that `public` comes first. The first schema
