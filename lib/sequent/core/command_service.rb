@@ -54,6 +54,10 @@ module Sequent
       end
 
       def process_command(command)
+        fail ArgumentError, 'command is required' if command.nil?
+
+        Sequent.logger.debug("[CommandService] Processing command #{command.class}")
+
         filters.each { |filter| filter.execute(command) }
 
         raise CommandNotValid.new(command) unless command.valid?

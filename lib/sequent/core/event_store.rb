@@ -37,6 +37,10 @@ module Sequent
       # `StreamRecord` to arrays of uncommitted `Event`s.
       #
       def commit_events(command, streams_with_events)
+        fail ArgumentError, "command is required" if command.nil?
+
+        Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
+
         store_events(command, streams_with_events)
         publish_events(streams_with_events.flat_map { |_, events| events })
       end
