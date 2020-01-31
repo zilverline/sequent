@@ -105,6 +105,11 @@ module Sequent
 
       # Gets all uncommitted_events from the 'registered' aggregates
       # and stores them in the event store.
+      #
+      # The events given to the EventStore are ordered in loading order
+      # of the different AggregateRoot's. So Events are stored
+      # (and therefore published) in order in which they are `apply`-ed per AggregateRoot.
+      #
       # The command is 'attached' for traceability purpose so we can see
       # which command resulted in which events.
       #

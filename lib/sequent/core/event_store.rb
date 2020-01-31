@@ -33,8 +33,12 @@ module Sequent
       # Stores the events in the EventStore and publishes the events
       # to the registered event_handlers.
       #
-      # Streams_with_Events is an enumerable of pairs from
-      # `StreamRecord` to arrays of uncommitted `Event`s.
+      # The events are published according to the order in
+      # the tail of the given `streams_with_events` array pair.
+      #
+      # @param command The command that caused the Events
+      # @param streams_with_events is an enumerable of pairs from
+      #   `StreamRecord` to arrays ordered uncommitted `Event`s.
       #
       def commit_events(command, streams_with_events)
         fail ArgumentError, "command is required" if command.nil?

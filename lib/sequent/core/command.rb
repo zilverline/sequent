@@ -7,7 +7,15 @@ require_relative 'helpers/mergable'
 
 module Sequent
   module Core
-    # Base command
+    #
+    # Base class for all Command's.
+    #
+    # Commands form the API of your domain. They are
+    # simple data objects with descriptive names
+    # of what they want to achieve. E.g. `SendInvoice`.
+    #
+    # BaseCommand uses `ActiveModel::Validations` for
+    # validations
     class BaseCommand
       include ActiveModel::Validations,
               Sequent::Core::Helpers::Copyable,
@@ -40,6 +48,9 @@ module Sequent
       end
     end
 
+    #
+    # Utility class containing all subclasses of BaseCommand
+    #
     class Commands
       class << self
         def commands
@@ -60,7 +71,7 @@ module Sequent
       end
     end
 
-    # Most commonly used command
+    # Most commonly used Command
     # Command can be instantiated just by using:
     #
     #   Command.new(aggregate_id: "1", user_id: "joe")

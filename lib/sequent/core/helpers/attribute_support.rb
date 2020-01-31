@@ -9,15 +9,29 @@ require_relative 'association_validator'
 module Sequent
   module Core
     module Helpers
-      # Provides functionality for defining attributes with their types
+      # Provides functionality for defining attributes with their types.
       #
-      # Since our Commands and ValueObjects are not backed by a database like e.g. rails
+      # Since our Commands and ValueObjects are not backed by a database like e.g. Rails
       # we can not infer their types. We need the types to be able to parse from and to json.
-      # We could have stored te type information in the json, but we didn't.
-      #
       # You typically do not need to include this module in your classes. If you extend from
-      # Sequent::Core::ValueObject, Sequent::Core::Event or Sequent::Core::BaseCommand you will
+      # Sequent::ValueObject, Sequent::Event or Sequent::Command you will
       # get this functionality for free.
+      #
+      # Example:
+      #
+      #   attrs name: String, age: Integer, born: Date
+      #
+      # Currently Sequent supports the following types:
+      #
+      # - String
+      # - Integer
+      # - Boolean
+      # - Date
+      # - DateTime
+      # - Subclasses of Sequent::ValueObject
+      # - Lists defined as `array(String)`
+      # - BigDecimal
+      # - Sequent::Secret
       #
       module AttributeSupport
         class UnknownAttributeError < StandardError; end

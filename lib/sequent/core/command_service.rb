@@ -4,23 +4,29 @@ require_relative 'current_event'
 module Sequent
   module Core
     #
-    # Single point in the application where subclasses of Sequent::Core::BaseCommand
-    # are executed. This will initiate the entire flow of:
+    # Single point in the application to get something done in Sequent.
+    # The CommandService handles all subclasses Sequent::Core::BaseCommand. Most common
+    # use is to subclass `Sequent::Command`.
     #
-    # * Validate command
-    # * Call correct Sequent::Core::BaseCommandHandler
-    # * CommandHandler decides which Sequent::Core::AggregateRoot (s) to call
-    # * Events are stored in the Sequent::Core::EventStore
-    # * Unit of Work is cleared
+    # The CommandService is available via the shortcut method `Sequent.command_service`
+    #
+    # To use the CommandService please use:
+    #
+    #   Sequent.command_service.execute_commands(...)
     #
     class CommandService
+      #
       # Executes the given commands in a single transactional block as implemented by the +transaction_provider+
       #
-      # For each command:
+      # For each Command:
       #
-      # * All filters are executed. Any exception raised will rollback the transaction and propagate up
-      # * If the command is valid all +command_handlers+ that +handles_message?+ is invoked
-      # * The +repository+ commits the command and all uncommitted_events resulting from the command
+      # * Validate command
+      # * Call Sequent::CommandHandler's listening to the given Command
+      # * Store and publish Events
+      # * Any new Command's (from e.g. workflows) are queued for processing in the same transaction
+      #
+      # At the end the transaction is committed and the AggregateRepository's Unit of Work is cleared.
+      #
       def execute_commands(*commands)
         commands.each do |command|
           if command.respond_to?(:event_aggregate_id) && CurrentEvent.current
@@ -33,6 +39,7 @@ module Sequent
       end
 
       def remove_event_handler(clazz)
+        warn "[DEPRECATION] `remove_event_handler` is deprecated"
         event_store.remove_event_handler(clazz)
       end
 
