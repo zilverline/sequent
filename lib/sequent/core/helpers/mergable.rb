@@ -8,6 +8,7 @@ module Sequent
       module Mergable
 
         def merge!(attrs = {})
+          warn "[DEPRECATION] `merge!` is deprecated. Please use `copy` instead. This method will no longer be included in the next version of Sequent. You can still use it but you will have to include the module `Sequent::Core::Helpers::Mergable` yourself."
           attrs.each do |name, value|
             self.send("#{name}=", value)
           end

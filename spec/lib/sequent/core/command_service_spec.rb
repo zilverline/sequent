@@ -1,14 +1,16 @@
 require 'spec_helper'
 
 class TestCommandHandler < Sequent::CommandHandler
-  class DummyCommand < Sequent::Core::Command; end
+  class DummyCommand < Sequent::Core::Command;
+  end
 
   class DummyBaseCommand < Sequent::Core::BaseCommand
     attrs mandatory_string: String
     validates_presence_of :mandatory_string
   end
 
-  class NotHandledCommand < Sequent::Core::Command; end
+  class NotHandledCommand < Sequent::Core::Command;
+  end
 
   class WithIntegerCommand < Sequent::Command
     attrs value: Integer
@@ -121,6 +123,150 @@ describe Sequent::Core::CommandService do
       command = TestCommandHandler::WithIntegerCommand.new(aggregate_id: "1", value: "0x10")
       expect { command_service.execute_commands(command) }.to raise_error do |e|
         expect(e.errors[:value]).to eq ['is not a number']
+      end
+    end
+  end
+
+  context 'scheduling order' do
+    let(:ch) do
+      Class.new(Sequent::CommandHandler) do
+        on Sequent::Fixtures::Command1 do |command|
+          Sequent.aggregate_repository.add_aggregate(Sequent::Fixtures::AggregateClass.new(command.id))
+        end
+
+        on Sequent::Fixtures::Command2 do |command|
+          aggregate = Sequent.aggregate_repository.load_aggregate(command.id)
+          aggregate.c2
+        end
+
+        on Sequent::Fixtures::Command3 do |command|
+          aggregate = Sequent.aggregate_repository.load_aggregate(command.id)
+          aggregate.c3
+        end
+
+        on Sequent::Fixtures::Command4 do |command|
+          aggregate_1 = Sequent.aggregate_repository.load_aggregate(command.id)
+          aggregate_2 = Sequent.aggregate_repository.load_aggregate(command.id_2)
+          aggregate_2.c2
+          aggregate_1.c2
+          aggregate_1.c2
+          aggregate_2.c2
+        end
+      end.new
+    end
+
+    let(:wf) do
+      Class.new(Sequent::Workflow) do
+        on Sequent::Fixtures::Event1 do |event|
+          Sequent.command_service.execute_commands(Sequent::Fixtures::Command3.new(id: event.aggregate_id))
+        end
+      end.new
+    end
+    let(:aggregate1) { Sequent.new_uuid }
+    let(:aggregate2) { Sequent.new_uuid }
+    let(:wrapping_event_publisher) do
+      Class.new(Sequent::Core::EventPublisher) do
+        attr_reader :published_events
+
+        def initialize
+          @published_events = []
+        end
+
+        def publish_events(events)
+          super
+          @published_events += events
+        end
+
+        def clear!
+          @published_events = []
+        end
+      end.new
+    end
+
+    before do
+      Sequent.configure do |config|
+        config.command_handlers = [ch]
+        config.event_handlers = [wf]
+        config.event_publisher = wrapping_event_publisher
+      end
+      Sequent.logger.level = Logger::DEBUG
+    end
+
+    let(:published_events) do
+      wrapping_event_publisher.published_events.map { |e| [e.aggregate_id, e.class] }
+    end
+
+    after do
+      wrapping_event_publisher.clear!
+      Sequent::Configuration.reset
+    end
+
+    context 'with workflow' do
+
+      it 'publishes events' do
+        Sequent.command_service.execute_commands(
+          Sequent::Fixtures::Command1.new(id: aggregate1),
+        )
+        expect(published_events).to eq(
+          [
+            [aggregate1, Sequent::Fixtures::Event1],
+            [aggregate1, Sequent::Fixtures::Event3],
+          ]
+        )
+      end
+
+      it 'with multiple commands publishes events based on command queueing order' do
+        Sequent.command_service.execute_commands(
+          Sequent::Fixtures::Command1.new(id: aggregate1),
+          Sequent::Fixtures::Command2.new(id: aggregate1),
+        )
+        expect(published_events).to eq(
+          [
+            [aggregate1, Sequent::Fixtures::Event1],
+            [aggregate1, Sequent::Fixtures::Event2],
+            [aggregate1, Sequent::Fixtures::Event3],
+          ]
+        )
+      end
+      context 'multiple aggregates' do
+        it 'with multiple commands publishes events based on command queueing order' do
+          Sequent.command_service.execute_commands(
+            Sequent::Fixtures::Command1.new(id: aggregate1),
+            Sequent::Fixtures::Command1.new(id: aggregate2),
+            Sequent::Fixtures::Command2.new(id: aggregate1),
+          )
+          expect(published_events).to eq(
+            [
+              [aggregate1, Sequent::Fixtures::Event1],
+              [aggregate2, Sequent::Fixtures::Event1],
+              [aggregate1, Sequent::Fixtures::Event2],
+              [aggregate1, Sequent::Fixtures::Event3],
+              [aggregate2, Sequent::Fixtures::Event3],
+            ]
+          )
+        end
+
+        it 'touching multiple aggregates in same command publishes events per aggregate on aggregate load order' do
+          Sequent.configure do |config|
+            config.event_handlers = [] # remove workflow, not needed to this test
+          end
+          Sequent.command_service.execute_commands(
+            Sequent::Fixtures::Command1.new(id: aggregate1),
+            Sequent::Fixtures::Command1.new(id: aggregate2),
+            Sequent::Fixtures::Command4.new(id: aggregate1, id_2: aggregate2),
+          )
+
+          expect(published_events).to eq(
+            [
+              [aggregate1, Sequent::Fixtures::Event1],
+              [aggregate2, Sequent::Fixtures::Event1],
+              [aggregate1, Sequent::Fixtures::Event2],
+              [aggregate1, Sequent::Fixtures::Event2],
+              [aggregate2, Sequent::Fixtures::Event2],
+              [aggregate2, Sequent::Fixtures::Event2],
+            ]
+          )
+        end
       end
     end
   end
