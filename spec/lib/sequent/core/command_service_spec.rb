@@ -79,7 +79,8 @@ describe Sequent::Core::CommandService do
   end
 
   it "raises a CommandNotValid for invalid commands" do
-    expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(Sequent::Core::CommandNotValid)
+    expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }
+      .to raise_error(Sequent::Core::CommandNotValid)
   end
 
   context 'given multiple available locales' do
@@ -90,7 +91,8 @@ describe Sequent::Core::CommandService do
 
     it "raises a CommandNotValid for invalid commands in english" do
       expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
-        an_instance_of(Sequent::Core::CommandNotValid).and having_attributes(errors: {mandatory_string: ["can't be blank"]})
+        an_instance_of(Sequent::Core::CommandNotValid)
+          .and having_attributes(errors: {mandatory_string: ["can't be blank"]})
       )
     end
 
@@ -99,7 +101,8 @@ describe Sequent::Core::CommandService do
 
       it "raises a CommandNotValid for invalid commands in dutch" do
         expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
-          an_instance_of(Sequent::Core::CommandNotValid).and having_attributes(errors: {mandatory_string: ["Verplicht veld"]})
+          an_instance_of(Sequent::Core::CommandNotValid)
+            .and having_attributes(errors: {mandatory_string: ["Verplicht veld"]})
         )
       end
     end
@@ -114,7 +117,8 @@ describe Sequent::Core::CommandService do
   end
 
   it "always clear repository after execute" do
-    expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(Sequent::Core::CommandNotValid)
+    expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }
+      .to raise_error(Sequent::Core::CommandNotValid)
     expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_nil
   end
 
