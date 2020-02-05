@@ -124,3 +124,4 @@ For the most recent possibilities please check the `Sequent::Configuration` impl
 |migrations_class_name|The name of the [class](#minimum-configuration) containing the migrations|Empty|
 |versions_table_name|The name of the table in which Sequent checks which [migration version](migrations.html) is currently active|`sequent_versions`|
 |replayed_ids_table_name|The name of the table in which Sequent keeps track of which events are already replayed during a [migration](migrations.html)|`sequent_replayed_ids`|
+|error_locale_resolver|A lambda that returns the desired locale for command validation errors|<code>-> { I18n.locale &#124;&#124; :en }</code>|
