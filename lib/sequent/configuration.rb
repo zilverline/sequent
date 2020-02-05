@@ -28,6 +28,8 @@ module Sequent
 
     DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS = false
 
+    DEFAULT_ERROR_LOCALE = -> { I18n.locale || :en }
+
     attr_accessor :aggregate_repository
 
     attr_accessor :event_store,
@@ -51,6 +53,7 @@ module Sequent
 
     attr_accessor :logger
 
+    attr_accessor :error_locale
 
     attr_accessor :migration_sql_files_directory,
                   :view_schema_name,
@@ -109,6 +112,7 @@ module Sequent
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
+      self.error_locale = DEFAULT_ERROR_LOCALE
     end
 
     def replayed_ids_table_name=(table_name)

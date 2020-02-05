@@ -67,7 +67,10 @@ module Sequent
 
         filters.each { |filter| filter.execute(command) }
 
-        raise CommandNotValid.new(command) unless command.valid?
+        I18n.with_locale(Sequent.configuration.error_locale.call) do
+          raise CommandNotValid.new(command) unless command.valid?
+        end
+
         parsed_command = command.parse_attrs_to_correct_types
         command_handlers.select { |h| h.class.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
         repository.commit(parsed_command)

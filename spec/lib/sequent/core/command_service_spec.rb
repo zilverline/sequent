@@ -82,6 +82,20 @@ describe Sequent::Core::CommandService do
     expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(Sequent::Core::CommandNotValid)
   end
 
+  context 'given a dutch error locale' do
+    before do
+      I18n.config.available_locales = %i{en nl}
+      I18n.backend.store_translations(:nl, {errors: { messages: { blank: 'Verplicht veld' } } })
+      Sequent.configuration.error_locale = -> { :nl }
+    end
+
+    it "raises a CommandNotValid for invalid commands in dutch" do
+      expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
+        an_instance_of(Sequent::Core::CommandNotValid).and having_attributes(errors: {mandatory_string: ["Verplicht veld"]})
+      )
+    end
+  end
+
   it "always clear repository after execute" do
     expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(Sequent::Core::CommandNotValid)
     expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_nil
