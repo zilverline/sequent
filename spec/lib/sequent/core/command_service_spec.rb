@@ -82,17 +82,34 @@ describe Sequent::Core::CommandService do
     expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(Sequent::Core::CommandNotValid)
   end
 
+  context 'given multiple available locales' do
+    before do
+      I18n.config.available_locales = %i{en nl}
+      I18n.backend.store_translations(:nl, {errors: { messages: { blank: 'Verplicht veld' } } })
+    end
+
+    it "raises a CommandNotValid for invalid commands in english" do
+      expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
+        an_instance_of(Sequent::Core::CommandNotValid).and having_attributes(errors: {mandatory_string: ["can't be blank"]})
+      )
+    end
+
+    context 'and dutch as error locale' do
+      before { Sequent.configuration.error_locale_resolver = -> { :nl } }
+
+      it "raises a CommandNotValid for invalid commands in dutch" do
+        expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
+          an_instance_of(Sequent::Core::CommandNotValid).and having_attributes(errors: {mandatory_string: ["Verplicht veld"]})
+        )
+      end
+    end
+  end
+
   context 'given a dutch error locale' do
     before do
       I18n.config.available_locales = %i{en nl}
       I18n.backend.store_translations(:nl, {errors: { messages: { blank: 'Verplicht veld' } } })
-      Sequent.configuration.error_locale = -> { :nl }
-    end
-
-    it "raises a CommandNotValid for invalid commands in dutch" do
-      expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
-        an_instance_of(Sequent::Core::CommandNotValid).and having_attributes(errors: {mandatory_string: ["Verplicht veld"]})
-      )
+      Sequent.configuration.error_locale_resolver = -> { :nl }
     end
   end
 

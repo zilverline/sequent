@@ -67,7 +67,7 @@ module Sequent
 
         filters.each { |filter| filter.execute(command) }
 
-        I18n.with_locale(Sequent.configuration.error_locale.call) do
+        I18n.with_locale(Sequent.configuration.error_locale_resolver.call) do
           raise CommandNotValid.new(command) unless command.valid?
         end
 
