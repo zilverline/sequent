@@ -61,7 +61,7 @@ rescue Sequent::Core::CommandNotValid => e
 end
 ```
 
-You should handle the `Sequent::Core::CommandNotValid` since even if you validate you Command yourself in the
+You should handle the `Sequent::Core::CommandNotValid` since even if you validate your Command yourself in the
 route before executed any registered synchronous [Workflow](workflow.html) executing Commands 
 can also raise a `Sequent::Core::CommandNotValid`.
 
