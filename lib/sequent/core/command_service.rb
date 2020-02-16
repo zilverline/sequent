@@ -103,6 +103,7 @@ module Sequent
 
     # Raised when BaseCommand.valid? returns false
     class CommandNotValid < ArgumentError
+      attr_reader :command
 
       def initialize(command)
         @command = command

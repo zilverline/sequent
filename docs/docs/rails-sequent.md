@@ -6,15 +6,12 @@ This guide gives a step by step overview on how to add Sequent to an existing Ra
 
 ## Prerequisites
 
-- Rails < 6. At the time of writing Sequent only supports Rails < 6
 - Postgresql database. Sequent only supports Postgres databases. There is no particular reason for this other then we haven't had the need or time
 to support any other databases.
 
 ## Guide assumptions
 
 You are already familiar with Ruby on Rails and the core [Concepts](concepts.html) of Sequent.
-
-
 
 1. Add `gem 'sequent', git: 'https://github.com/zilverline/sequent'`  to your `Gemfile`
 
