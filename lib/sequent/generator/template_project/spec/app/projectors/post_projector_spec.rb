@@ -1,4 +1,4 @@
-require_relative '../../spec_helper'
+require 'spec_helper'
 require_relative '../../../app/projectors/post_projector'
 
 describe PostProjector do
