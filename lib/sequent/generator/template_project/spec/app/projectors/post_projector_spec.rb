@@ -1,7 +1,7 @@
 require_relative '../../spec_helper'
 require_relative '../../../app/projectors/post_projector'
 
-describe PostProjector do
+RSpec.describe PostProjector do
   let(:aggregate_id) { Sequent.new_uuid }
   let(:post_projector) { PostProjector.new }
   let(:post_added) { PostAdded.new(aggregate_id: aggregate_id, sequence_number: 1) }
