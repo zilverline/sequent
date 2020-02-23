@@ -1,7 +1,7 @@
 require_relative '../../spec_helper'
 require_relative '../../../lib/post'
 
-describe PostCommandHandler do
+RSpec.describe PostCommandHandler do
   let(:aggregate_id) { Sequent.new_uuid }
 
   before :each do
