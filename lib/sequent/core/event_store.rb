@@ -166,7 +166,15 @@ SELECT aggregate_id
       private
 
       def column_names
-        @column_names ||= Sequent.configuration.event_record_class.column_names.reject { |c| c == 'id' }
+        @column_names ||= Sequent
+                            .configuration
+                            .event_record_class
+                            .column_names
+                            .reject { |c| c == primary_key_event_records }
+      end
+
+      def primary_key_event_records
+        @primary_key_event_records ||= Sequent.configuration.event_record_class.primary_key
       end
 
       def deserialize_event(event_hash)
@@ -208,7 +216,7 @@ SELECT aggregate_id
                    .join(',')
         columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
         sql = %Q{insert into #{connection.quote_table_name(Sequent.configuration.event_record_class.table_name)} (#{columns}) values #{values}}
-        Sequent.configuration.event_record_class.connection.insert(sql)
+        Sequent.configuration.event_record_class.connection.insert(sql, nil, primary_key_event_records)
       rescue ActiveRecord::RecordNotUnique
         fail OptimisticLockingError.new
       end
