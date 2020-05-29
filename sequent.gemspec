@@ -31,7 +31,7 @@ Gem::Specification.new do |s|
   s.add_dependency              'thread_safe', '~> 0.3.6'
   s.add_dependency              'parallel', '~> 1.17'
   s.add_dependency              'bcrypt', '~> 3.1'
-  s.add_dependency              'parser', '~> 2.6.5'
+  s.add_dependency              'parser', '>= 2.6.5', '< 3'
   s.add_dependency              'i18n'
   s.add_development_dependency  'rspec', '~> 3.8'
   s.add_development_dependency  'timecop', '~> 0.9'
