@@ -76,7 +76,7 @@ module Sequent
           if val.is_a?(Sequent::Core::ValueObject)
             val.as_params
           elsif val.is_a? DateTime
-            val.iso8601
+            val.iso8601(ActiveSupport::JSON::Encoding.time_precision) # this is in sync with Oj `mode: :rails`
           elsif val.is_a? Date
             val.iso8601
           else
