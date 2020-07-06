@@ -9,9 +9,11 @@ end
 
 describe 'Time comparison' do
   around do |example|
+    original_time_zone = Time.zone
     Time.zone = 'UTC'
     example.run
-    Time.zone = nil
+  ensure
+    Time.zone = original_time_zone
   end
 
   time_classes = [Time, DateTime, ActiveSupport::TimeWithZone]
@@ -49,4 +51,5 @@ describe 'Time comparison' do
       expect(Time.current == :test).to be_falsey
     end
   end
+
 end

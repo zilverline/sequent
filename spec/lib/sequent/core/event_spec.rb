@@ -46,7 +46,7 @@ describe Sequent::Core::Event do
 
   it "events are equal when deserialized from same attributes" do
     event1 = TestEventEvent.new(aggregate_id: "foo", organization_id: "bar", sequence_number: 1)
-    created_at = event1.created_at.iso8601
+    created_at = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event1.created_at))
     event2 = TestEventEvent.deserialize_from_json("aggregate_id" => "foo", "organization_id" => "bar", "sequence_number" => 1, "created_at" => created_at)
     expect(event1).to eq event2
   end

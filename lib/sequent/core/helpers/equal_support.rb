@@ -14,8 +14,8 @@ module Sequent
             self_value = self.send(name)
             other_value = other.send(name)
             if self_value.class == DateTime && other_value.class == DateTime
-              # we don't care about milliseconds. If you know a better way of checking for equality please improve.
-              return false unless (self_value.iso8601 == other_value.iso8601)
+              # Compare using time precision defined.
+              return false unless (self_value.iso8601(ActiveSupport::JSON::Encoding.time_precision) == other_value.iso8601(ActiveSupport::JSON::Encoding.time_precision))
             else
               return false unless (self_value == other_value)
             end
