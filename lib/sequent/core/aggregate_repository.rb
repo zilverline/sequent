@@ -100,7 +100,9 @@ module Sequent
       ##
       # Returns whether the event store has an aggregate with the given id
       def contains_aggregate?(aggregate_id)
-        Sequent.configuration.event_store.stream_exists?(aggregate_id)
+        load_aggregate(aggregate_id).present?
+      rescue AggregateNotFound
+        false
       end
 
       # Gets all uncommitted_events from the 'registered' aggregates
@@ -119,7 +121,7 @@ module Sequent
         updated_aggregates = aggregates.values.reject { |x| x.uncommitted_events.empty? }
         return if updated_aggregates.empty?
         streams_with_events = updated_aggregates.map do |aggregate|
-          [ aggregate.event_stream, aggregate.uncommitted_events ]
+          [aggregate.event_stream, aggregate.uncommitted_events]
         end
         updated_aggregates.each(&:clear_events)
         store_events command, streams_with_events
