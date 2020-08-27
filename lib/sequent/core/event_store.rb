@@ -88,6 +88,9 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuratio
         Sequent.configuration.stream_record_class.exists?(aggregate_id: aggregate_id)
       end
 
+      def events_exists?(aggregate_id)
+        Sequent.configuration.event_record_class.exists?(aggregate_id: aggregate_id)
+      end
       ##
       # Replays all events in the event store to the registered event_handlers.
       #

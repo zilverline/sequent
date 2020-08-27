@@ -92,7 +92,26 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe '#exists?' do
+  describe '#events_exists?' do
+    it 'gets true for an existing aggregate' do
+      event_store.commit_events(
+        Sequent::Core::CommandRecord.new,
+        [
+          [
+            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
+          ]
+        ]
+      )
+      expect(event_store.events_exists?(aggregate_id)).to eq(true)
+    end
+
+    it 'gets false for an non-existing aggregate' do
+      expect(event_store.events_exists?(aggregate_id)).to eq(false)
+    end
+  end
+
+  describe '#stream_exists?' do
     it 'gets true for an existing aggregate' do
       event_store.commit_events(
         Sequent::Core::CommandRecord.new,

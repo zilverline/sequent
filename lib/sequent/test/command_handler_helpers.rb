@@ -92,6 +92,10 @@ module Sequent
           @event_streams.has_key?(aggregate_id)
         end
 
+        def events_exists?(aggregate_id)
+          @event_streams[aggregate_id].present?
+        end
+
         private
 
         def to_event_streams(events)
