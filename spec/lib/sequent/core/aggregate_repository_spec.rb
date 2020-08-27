@@ -38,7 +38,6 @@ describe Sequent::Core::AggregateRepository do
   let(:event_store) { double }
   let(:repository) { Sequent.configuration.aggregate_repository }
   let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
-  let(:aggregate_stream_with_events) { [aggregate.event_stream, [:events]] }
 
   it "should track added aggregates by id" do
     allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
@@ -137,12 +136,12 @@ describe Sequent::Core::AggregateRepository do
   end
 
   it 'contains an aggregate' do
-    allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([aggregate_stream_with_events])
+    allow(event_store).to receive(:stream_exists?).with(aggregate.id).and_return(true)
     expect(repository.contains_aggregate?(aggregate.id)).to eq(true)
   end
 
   it 'does not contain an aggregate' do
-    allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_raise(Sequent::Core::AggregateRepository::AggregateNotFound.new(aggregate.id))
+    allow(event_store).to receive(:stream_exists?).with(aggregate.id).and_return(false)
     expect(repository.contains_aggregate?(aggregate.id)).to eq(false)
   end
 
@@ -168,6 +167,8 @@ describe Sequent::Core::AggregateRepository do
     end
 
     context 'with aggregates in the event store' do
+
+      let(:aggregate_stream_with_events) { [aggregate.event_stream, [:events]] }
 
       let(:aggregate_2) { DummyAggregate.new(Sequent.new_uuid) }
       let(:aggregate_2_stream_with_events) { [aggregate_2.event_stream, [:events_2]] }
