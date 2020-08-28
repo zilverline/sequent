@@ -43,8 +43,9 @@ module Sequent
 
       def parent
         EventRecord
-          .find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
+          .where(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
           .where('event_type != ?', Sequent::Core::SnapshotEvent.name)
+          .first
       end
 
       def children
