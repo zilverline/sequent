@@ -42,7 +42,9 @@ module Sequent
       validates_presence_of :command_type, :command_json
 
       def parent
-        EventRecord.find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
+        EventRecord
+          .find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
+          .where('event_type != ?', Sequent::Core::SnapshotEvent.name)
       end
 
       def children
