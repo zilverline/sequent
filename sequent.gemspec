@@ -2,7 +2,7 @@ require_relative 'lib/version'
 
 Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
-  s.required_ruby_version = '>= 2.5'
+  s.required_ruby_version = '>= 2.6'
   s.name        = 'sequent'
   s.version     = Sequent::VERSION
   s.summary     = "Event sourcing framework for Ruby"
@@ -23,21 +23,23 @@ Gem::Specification.new do |s|
 
   active_star_version = ENV['ACTIVE_STAR_VERSION'] || ['>= 5.0', '< 6.0.3']
 
+  rspec_version = '~> 3.9'
+
   s.add_dependency              'activerecord', active_star_version
   s.add_dependency              'activemodel', active_star_version
-  s.add_dependency              'pg', '~> 1.1'
+  s.add_dependency              'pg', '~> 1.2'
   s.add_dependency              'postgresql_cursor', '~> 0.6'
   s.add_dependency              'oj', '~> 3'
   s.add_dependency              'thread_safe', '~> 0.3.6'
-  s.add_dependency              'parallel', '~> 1.17'
+  s.add_dependency              'parallel', '~> 1.19'
   s.add_dependency              'bcrypt', '~> 3.1'
   s.add_dependency              'parser', '>= 2.6.5', '< 3'
   s.add_dependency              'i18n'
-  s.add_development_dependency  'rspec', '~> 3.8'
+  s.add_development_dependency  'rspec', rspec_version
   s.add_development_dependency  'timecop', '~> 0.9'
-  s.add_development_dependency  'rspec-mocks', '~> 3.8'
+  s.add_development_dependency  'rspec-mocks', rspec_version
   s.add_development_dependency  'rspec-collection_matchers', '~> 1.2'
   s.add_development_dependency  'rake', '~> 13'
-  s.add_development_dependency  'pry', '~> 0.12'
-  s.add_development_dependency  'simplecov', '~> 0.17'
+  s.add_development_dependency  'pry', '~> 0.13'
+  s.add_development_dependency  'simplecov', '~> 0.19'
 end

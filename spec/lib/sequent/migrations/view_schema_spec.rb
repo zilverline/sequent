@@ -162,7 +162,7 @@ describe Sequent::Migrations::ViewSchema do
           migrator.migrate_offline # to version 1
         end
 
-        let(:new_migrator) { Sequent::Migrations::ViewSchema.new(opts) }
+        let(:new_migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
 
         it 'does not replay with only alter tables' do
           Sequent.configure do |config|
