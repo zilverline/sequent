@@ -183,7 +183,7 @@ class Usernames < Sequent::AggregateRoot
 end
 ```
 
-We can now obtain the `Usernames` Aggregate by invoking `Usernames.instance`. Next thing we want to do is create a `UserCommandHandler` and add an Author. To ensure everything will work we start by defining our tests.
+We can now obtain the `Usernames` Aggregate by invoking `Usernames.instance`. Next thing we want to do is create a `AuthorCommandHandler` and add an Author. To ensure everything will work we start by defining our tests.
 
 In `spec/lib/author/author_command_handler_spec.rb`
 
