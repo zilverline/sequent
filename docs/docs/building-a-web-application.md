@@ -21,7 +21,7 @@ And then run `bundle install`. We will setup Sinatra to run as a [modular applic
 
 After doing tne necessary plumbing we end up with the following files:
 
-In `./app/web`
+In `./app/web.rb`
 
 ```ruby
 require 'sinatra/base'
@@ -246,7 +246,7 @@ CREATE UNIQUE INDEX author_records_keys%SUFFIX% ON author_records%SUFFIX% USING 
 
 **3. Create the [Projector](concepts/projector.html)**
 
-In order to create and `AuthorRecord` based on the events we need to create the `AuthorProjector`
+In order to create an `AuthorRecord` based on the events we need to create the `AuthorProjector`
 
 `app/projectors/author_projector.rb`
 ```ruby
@@ -434,7 +434,7 @@ In `app/views/authors/index.erb`:
         <% @authors.each do |author| %>
           <tr>
             <td>
-              <a href="/authors/id/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
+              <a href="/authors/<%= author.aggregate_id %>"><%= h author.aggregate_id %></a>
             </td>
             <td><%= h author.name %></td>
             <td><%= h author.email %></td>
