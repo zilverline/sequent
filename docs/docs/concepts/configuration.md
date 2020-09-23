@@ -119,6 +119,7 @@ For the most recent possibilities please check the `Sequent::Configuration` impl
 |online_replay_persistor_class|The class used to persist the the `Projector`s.|`Sequent::Core::Persistors::ActiveRecordPersistor`|
 |number_of_replay_processes|The [number of process](#number_of_replay_processes) used while offline migration|`4`|
 |database_config_directory|The directory in which db config can be found|`db`|
+|database_schema_directory|The directory in which db schema and migrations can be found|`db`|
 |event_store_schema_name|The name of the db schema in which the [EventStore](event_store.html) is installed|`sequent_schema`|
 |strict_check_attributes_on_apply_events|Whether or not sequent should fail on calling `apply` with invalid attributes.|`false`. Will be enabled by default in the next major release.|
 |migrations_class_name|The name of the [class](#minimum-configuration) containing the migrations|Empty|

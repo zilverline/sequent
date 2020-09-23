@@ -1,3 +1,10 @@
+# Changes since 3.5
+
+- Added `database_schema_directory` configuration parameter to determine where to
+  find `sequent_schema.rb` and `sequent_migrations.rb`. Currently set to match 
+  `database_config_directory` for backwards compatibility, but with a deparcation 
+  warning.
+
 # Changes since 3.4
 
 - Changed default ruby to latest 2.6 release

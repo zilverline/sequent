@@ -55,7 +55,7 @@ module Sequent
 
             def create_event_store(db_config)
               event_store_schema = Sequent.configuration.event_store_schema_name
-              sequent_schema = File.join(Sequent.configuration.database_config_directory, "#{event_store_schema}.rb")
+              sequent_schema = File.join(Sequent.configuration.database_schema_directory, "#{event_store_schema}.rb")
               fail "File #{sequent_schema} does not exist. Check your Sequent configuration." unless File.exists?(sequent_schema)
 
               Sequent::Support::Database.establish_connection(db_config)

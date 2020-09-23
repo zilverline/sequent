@@ -13,6 +13,7 @@ module Sequent
 
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
     DEFAULT_DATABASE_CONFIG_DIRECTORY = 'db'
+    DEFAULT_DATABASE_SCHEMA_DIRECTORY = 'db'
 
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
     DEFAULT_EVENT_STORE_SCHEMA_NAME= 'sequent_schema'
@@ -61,6 +62,7 @@ module Sequent
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
                   :database_config_directory,
+                  :database_schema_directory,
                   :event_store_schema_name
 
     attr_accessor :strict_check_attributes_on_apply_events
@@ -109,6 +111,9 @@ module Sequent
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
       self.database_config_directory = DEFAULT_DATABASE_CONFIG_DIRECTORY
+      # For backwards compatibility, this is currently set to whatever it previously was.
+      # In the next release, this will change to its own default.
+      self.database_schema_directory = self.database_config_directory
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
