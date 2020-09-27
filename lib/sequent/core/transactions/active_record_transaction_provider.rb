@@ -7,9 +7,11 @@ module Sequent
           Sequent::ApplicationRecord.transaction(requires_new: true) do
             yield
           end
+          Sequent.configuration.command_service.set_after_commit_lock
           after_commit_queue.each &:call
         ensure
           clear_after_commit_queue
+          Sequent.configuration.command_service.reset_lock_key
         end
 
         def after_commit(&block)

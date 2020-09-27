@@ -43,10 +43,22 @@ module Sequent
         event_store.remove_event_handler(clazz)
       end
 
+      def reset_lock_key
+        Thread.current[:sequent_command_service_lock_key] = :command_service_process_commands
+      end
+
+      def set_after_commit_lock
+        Thread.current[:sequent_command_service_lock_key] = :sequent_command_service_after_commit_lock_key
+      end
+
       private
 
+      def lock_key
+        Thread.current[:sequent_command_service_lock_key] ||= :command_service_process_commands
+      end
+
       def process_commands
-        Sequent::Util.skip_if_already_processing(:command_service_process_commands) do
+        Sequent::Util.skip_if_already_processing(lock_key) do
           begin
             transaction_provider.transactional do
               while(!command_queue.empty?) do
