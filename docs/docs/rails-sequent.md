@@ -17,9 +17,9 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
 
 2. Run `bundle install`
 
-3. Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb) and put it in your `./config` directory.
+3. Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb) and put it in your `./db` directory.
 
-4. Create `./config/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
+4. Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
     
     ```ruby
     VIEW_SCHEMA_VERSION = 1
@@ -77,7 +77,7 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
 7. Add `./config/initializers/sequent.rb` containing at least:
 
     ```ruby
-    require_relative '../sequent_migrations'
+    require_relative '../../db/sequent_migrations'
     
     Sequent.configure do |config|
       config.migrations_class_name = 'SequentMigrations'
@@ -91,6 +91,7 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
       ]
 
       config.database_config_directory = 'config'
+      config.database_config_directory = 'db'
       
       # this is the location of your sql files for your view_schema
       config.migration_sql_files_directory = 'db/sequent'
