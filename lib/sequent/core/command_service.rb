@@ -52,6 +52,7 @@ module Sequent
               while(!command_queue.empty?) do
                 process_command(command_queue.pop)
               end
+              Sequent::Util.done_processing(:command_service_process_commands)
             end
           ensure
             command_queue.clear
