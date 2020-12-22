@@ -44,6 +44,29 @@ describe Sequent::Migrations::ViewSchema do
     end
   end
 
+  context '#create_view_tables' do
+    before do
+      Sequent.configure do |config|
+        config.migration_sql_files_directory = 'spec/fixtures/db/1'
+        config.migrations_class_name = 'SpecMigrations'
+        config.event_handlers = [
+          AccountProjector,
+          MessageProjector,
+        ].map(&:new)
+      end
+
+      migrator.create_view_schema_if_not_exists
+    end
+
+    it 'creates everything' do
+      migrator.create_view_tables
+
+      expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records')
+      expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records')
+      expect(Sequent::ApplicationRecord.connection).to have_view_schema_index('message_records.message_records_message')
+    end
+  end
+
   context '#migrate_online' do
     let(:new_version) { SpecMigrations.version }
 
@@ -95,6 +118,7 @@ describe Sequent::Migrations::ViewSchema do
 
         expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records_1')
         expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records_1')
+        expect(Sequent::ApplicationRecord.connection).to have_view_schema_index('message_records_1.message_records_message_1')
       end
 
       it 'cleans old migration tables before migrating' do

@@ -21,6 +21,18 @@ module Sequent
         end
       end
 
+      def create_indexes_after_execute_online(plan)
+        plan.replay_tables.each do |migration|
+          table = migration.record_class
+          original_table_name = table.table_name.gsub("_#{migration.version}", '')
+          indexes_file_name = "#{Sequent.configuration.migration_sql_files_directory}/#{original_table_name}.indexes.sql"
+          if File.exist?(indexes_file_name)
+            statements = sql_file_to_statements(indexes_file_name) { |raw_sql| raw_sql.gsub('%SUFFIX%', "_#{migration.version}") }
+            statements.each(&method(:exec_sql))
+          end
+        end
+      end
+
       def execute_offline(plan, current_version)
         plan.replay_tables.each do |migration|
           table = migration.record_class

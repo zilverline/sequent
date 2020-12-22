@@ -60,6 +60,22 @@ RSpec::Matchers.define :have_view_schema_table do |expected|
   end
 end
 
+RSpec::Matchers.define :have_view_schema_index do |expected|
+  index_names = []
+  table_name = expected.split('.').first
+
+  match do |connection|
+    index_names = connection
+                    .execute("SELECT tablename || '.' || indexname FROM pg_indexes where tablename = '#{table_name}'")
+                    .flat_map { |r| r.values }
+    expect(index_names).to include(expected)
+  end
+
+  failure_message do |_actual|
+    %Q{expected indexes for table #{table_name}:\n  #{index_names.join("\n  ")}\nto contain:\n  #{expected}}
+  end
+end
+
 RSpec::Matchers.define :have_column do |expected|
   match do |actual|
     actual.reset_column_information

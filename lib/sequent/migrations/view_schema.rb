@@ -98,6 +98,12 @@ module Sequent
           Sequent::Core::Migratable.all.flat_map(&:managed_tables).each do |table|
             statements = sql_file_to_statements("#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.sql") { |raw_sql| raw_sql.remove('%SUFFIX%') }
             statements.each { |statement| exec_sql(statement) }
+
+            indexes_file_name = "#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.indexes.sql"
+            if File.exist?(indexes_file_name)
+              statements = sql_file_to_statements(indexes_file_name) { |raw_sql| raw_sql.remove('%SUFFIX%') }
+              statements.each(&method(:exec_sql))
+            end
           end
         end
       end
@@ -158,6 +164,10 @@ module Sequent
 
         if plan.projectors.any?
           replay!(Sequent.configuration.online_replay_persistor_class.new)
+        end
+
+        in_view_schema do
+          executor.create_indexes_after_execute_online(plan)
         end
       rescue Exception => e
         rollback_migration
