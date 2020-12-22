@@ -11,11 +11,10 @@ require 'simplecov'
 SimpleCov.start if ENV["COVERAGE"]
 
 require_relative 'database'
-Database.establish_connection
-Sequent::ApplicationRecord.connection.execute("TRUNCATE command_records, stream_records CASCADE")
-
 RSpec.configure do |c|
   c.before do
+    Database.establish_connection
+    Sequent::ApplicationRecord.connection.execute("TRUNCATE command_records, stream_records CASCADE")
     Sequent::Configuration.reset
   end
 

@@ -17,7 +17,10 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
     Sequent::Support::Database.create!(db_config)
     ActiveRecord::Base.establish_connection(db_config)
   end
-  after { Sequent::Support::Database.drop!(db_config) }
+  after do
+    Sequent::Support::Database.drop!(db_config)
+    Sequent::Support::Database.disconnect!
+  end
 
   let(:database) { Sequent::Support::Database.new }
 
