@@ -221,7 +221,10 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       Sequent::Support::Database.establish_connection(db_config)
     end
 
-    after { Sequent::Support::Database.drop!(db_config) }
+    after do
+      Sequent::Support::Database.drop!(db_config)
+      Sequent::Support::Database.disconnect!
+    end
 
     before :each do
       File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|

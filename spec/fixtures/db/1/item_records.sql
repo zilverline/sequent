@@ -4,4 +4,4 @@ CREATE TABLE item_records%SUFFIX% (
     CONSTRAINT item_records_pkey%SUFFIX% PRIMARY KEY (id)
 );
 
-CREATE INDEX unique_aggregate_id%SUFFIX% ON item_records%SUFFIX% USING btree (aggregate_id);
+CREATE INDEX aggregate_id%SUFFIX% ON item_records%SUFFIX% USING btree (aggregate_id);

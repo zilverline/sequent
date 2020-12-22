@@ -19,4 +19,4 @@ before_script:
   - psql -c 'CREATE DATABASE sequent_spec_db OWNER sequent;' -U postgres
   - bundle exec rake db:create
 script:
-  - RUBYOPTS="-W0" bundle exec rspec
+  - RUBYOPT="-W0" bundle exec rspec

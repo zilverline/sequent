@@ -11,11 +11,10 @@ require 'simplecov'
 SimpleCov.start if ENV["COVERAGE"]
 
 require_relative 'database'
-Database.establish_connection
-Sequent::ApplicationRecord.connection.execute("TRUNCATE command_records, stream_records CASCADE")
-
 RSpec.configure do |c|
   c.before do
+    Database.establish_connection
+    Sequent::ApplicationRecord.connection.execute("TRUNCATE command_records, stream_records CASCADE")
     Sequent::Configuration.reset
   end
 
@@ -57,6 +56,22 @@ RSpec::Matchers.define :have_view_schema_table do |expected|
 
   failure_message do |_actual|
     %Q{expected view schema tables:\n  #{tables.join("\n  ")}\nto contain:\n  #{expected}}
+  end
+end
+
+RSpec::Matchers.define :have_view_schema_index do |expected|
+  index_names = []
+  table_name = expected.split('.').first
+
+  match do |connection|
+    index_names = connection
+                    .execute("SELECT tablename || '.' || indexname FROM pg_indexes where tablename = '#{table_name}'")
+                    .flat_map { |r| r.values }
+    expect(index_names).to include(expected)
+  end
+
+  failure_message do |_actual|
+    %Q{expected indexes for table #{table_name}:\n  #{index_names.join("\n  ")}\nto contain:\n  #{expected}}
   end
 end
 
