@@ -35,6 +35,7 @@ Gem::Specification.new do |s|
   s.add_dependency              'bcrypt', '~> 3.1'
   s.add_dependency              'parser', '>= 2.6.5', '< 3'
   s.add_dependency              'i18n'
+  s.add_dependency              'tzinfo', '<= 1.2.7'
   s.add_development_dependency  'rspec', rspec_version
   s.add_development_dependency  'timecop', '~> 0.9'
   s.add_development_dependency  'rspec-mocks', rspec_version
