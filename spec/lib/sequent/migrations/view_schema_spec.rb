@@ -7,7 +7,7 @@ describe Sequent::Migrations::ViewSchema do
 
   let(:view_schema) { 'test_view_schema' }
   let(:opts) { {db_config: db_config} }
-  let(:migrator) { Sequent::Migrations::ViewSchema.new(opts) }
+  let(:migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
   let(:db_config) { ActiveSupport::HashWithIndifferentAccess.new(Database.test_config.merge(schema_search_path: "#{view_schema},public")).stringify_keys }
 
   before :each do
@@ -363,7 +363,7 @@ describe Sequent::Migrations::ViewSchema do
       context 'with an existing view schema' do
         let(:account_id) { Sequent.new_uuid }
         let(:message_id) { Sequent.new_uuid }
-        let(:next_migration) { Sequent::Migrations::ViewSchema.new(opts) }
+        let(:next_migration) { Sequent::Migrations::ViewSchema.new(**opts) }
 
         before :each do
           insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
