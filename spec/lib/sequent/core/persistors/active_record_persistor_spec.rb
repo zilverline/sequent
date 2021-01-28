@@ -12,7 +12,9 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
     {
       'adapter' => 'postgresql',
       'host' => 'localhost',
-      'database' => database_name
+      'database' => database_name,
+      # see https://github.com/rails/rails/issues/40029
+      'advisory_locks' => false,
     }
   end
   before do
