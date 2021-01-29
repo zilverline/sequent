@@ -6,7 +6,7 @@ on:
 env:
   RACK_ENV: test
   POSTGRES_USERNAME: sequent
-  POSTGRES_PASSWORD: ""
+  POSTGRES_PASSWORD: sequent
 
 jobs:
   build:
@@ -22,7 +22,7 @@ jobs:
         image: postgres:12
         env:
           POSTGRES_USER: sequent
-          POSTGRES_PASSWORD: ""
+          POSTGRES_PASSWORD: sequent
         options: >-
           --health-cmd pg_isready
           --health-interval 10s

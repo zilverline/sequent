@@ -7,7 +7,7 @@ module Database
       adapter: "postgresql",
       host: "localhost",
       username: "sequent",
-      password: "",
+      password: "sequent",
       database: "sequent_spec_db"
     }).stringify_keys
   end
