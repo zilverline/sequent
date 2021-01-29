@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         include:
-          ruby-version: 3.0.0
-          active-star-version: '< 6.0.4'
+          - ruby-version: 3.0.0
+            active-star-version: '< 6.0.4'
 
     services:
       postgres:
