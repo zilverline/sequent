@@ -36,7 +36,7 @@ jobs:
       - name: Set up Ruby
         uses: actions/setup-ruby@v1
         with:
-          ruby-version: ${{ ruby-version }}
+          ruby-version: ${{ matrix.ruby-version }}
       - name: Cache bundler
         uses: actions/cache@v2
         with:
@@ -49,7 +49,7 @@ jobs:
           gem install bundler
       - name: Install ruby dependencies
         env:
-          ACTIVE_STAR_VERSION: ${{ active-star-version }}
+          ACTIVE_STAR_VERSION: ${{ matrix.active-star-version }}
         run: |
           bundle config path vendor/bundle
           bundle install --jobs 4
