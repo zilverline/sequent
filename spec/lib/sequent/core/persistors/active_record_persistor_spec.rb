@@ -9,13 +9,9 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
   let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
   let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
-    {
-      'adapter' => 'postgresql',
-      'host' => 'localhost',
+    Database.test_config.merge(
       'database' => database_name,
-      # see https://github.com/rails/rails/issues/40029
-      'advisory_locks' => false,
-    }
+    )
   end
   before do
     Sequent::Support::Database.create!(db_config)

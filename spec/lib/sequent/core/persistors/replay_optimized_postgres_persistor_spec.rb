@@ -209,9 +209,9 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
     let(:database_name) { Sequent.new_uuid }
     let(:db_config) do
-      {'adapter' => 'postgresql',
-        'host' => 'localhost',
-        'database' => database_name}
+      Database.test_config.merge(
+        'database' => database_name,
+      )
     end
     let(:database) { Sequent::Support::Database.new }
     let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(insert_csv_size) }
