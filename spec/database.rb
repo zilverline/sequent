@@ -8,7 +8,9 @@ module Database
       host: "localhost",
       username: "sequent",
       password: "sequent",
-      database: "sequent_spec_db"
+      database: "sequent_spec_db",
+      advisory_locks: false,
+
     }).stringify_keys
   end
 

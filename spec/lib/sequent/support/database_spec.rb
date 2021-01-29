@@ -8,9 +8,9 @@ require 'tmpdir' # ruby 2.2.2 fails on Dir.tmpdir when not requiring
 describe Sequent::Support::Database do
   let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
-    {'adapter' => 'postgresql',
-     'host' => 'localhost',
-     'database' => database_name}
+    Database.test_config.merge(
+      'database' => database_name,
+    )
   end
 
   describe 'class methods' do
