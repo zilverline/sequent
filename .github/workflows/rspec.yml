@@ -7,6 +7,7 @@ env:
   RACK_ENV: test
   POSTGRES_USERNAME: sequent
   POSTGRES_PASSWORD: sequent
+  POSTGRES_DB: sequent_spec_db
 
 jobs:
   build:
@@ -23,6 +24,7 @@ jobs:
         env:
           POSTGRES_USER: sequent
           POSTGRES_PASSWORD: sequent
+          POSTGRES_DB: sequent_spec_db
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -55,9 +57,6 @@ jobs:
           bundle install --jobs 4
       - name: Setup database
         run: |
-          psql -c 'CREATE DATABASE sequent_spec_db OWNER sequent;' -U sequent
           bundle exec rake db:create
-        env:
-          PGPASSWORD: "$POSTGRES_PASSWORD"
       - name: Run tests
         run: bundle exec rspec
