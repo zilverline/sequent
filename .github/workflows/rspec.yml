@@ -1,0 +1,60 @@
+name: Run rspec
+
+on:
+  [push, pull_request]
+
+env:
+  RACK_ENV: test
+  POSTGRES_USERNAME: sequent
+  POSTGRES_PASSWORD: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          ruby-version: 3.0.0
+          active-star-version: '< 6.0.4'
+
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: sequent
+          POSTGRES_PASSWORD: ""
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: ${{ ruby-version }}
+      - name: Cache bundler
+        uses: actions/cache@v2
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gems-
+      - name: Install bundler
+        run: |
+          gem install bundler
+      - name: Install ruby dependencies
+        env:
+          ACTIVE_STAR_VERSION: ${{ active-star-version }}
+        run: |
+          bundle config path vendor/bundle
+          bundle install --jobs 4
+      - name: Setup database
+        run:
+          bundle exec rake db:create
+      - name: Run tests
+        run: bundle exec rspec
