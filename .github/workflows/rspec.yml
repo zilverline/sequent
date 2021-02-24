@@ -1,4 +1,4 @@
-name: Run rspec
+name: rspec
 
 on:
   [push]
