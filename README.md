@@ -1,6 +1,6 @@
 # Sequent
 
-![sequent workflow file path](https://github.com/actions/hello-world/workflows/.github/workflows/main.yml/badge.svg) [![Code Climate](https://codeclimate.com/github/zilverline/sequent/badges/gpa.svg)](https://codeclimate.com/github/zilverline/sequent) [![Test Coverage](https://codeclimate.com/github/zilverline/sequent/badges/coverage.svg)](https://codeclimate.com/github/zilverline/sequent)
+![sequent workflow file path](https://github.com/actions/hello-world/workflows/.github/workflows/rspec.yml/badge.svg) [![Code Climate](https://codeclimate.com/github/zilverline/sequent/badges/gpa.svg)](https://codeclimate.com/github/zilverline/sequent) [![Test Coverage](https://codeclimate.com/github/zilverline/sequent/badges/coverage.svg)](https://codeclimate.com/github/zilverline/sequent)
 
 > Sequent is a CQRS and event sourcing framework written in Ruby.
 
