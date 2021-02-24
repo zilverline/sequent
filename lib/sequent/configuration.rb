@@ -111,9 +111,7 @@ module Sequent
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
       self.database_config_directory = DEFAULT_DATABASE_CONFIG_DIRECTORY
-      # For backwards compatibility, this is currently set to whatever it previously was.
-      # In the next release, this will change to its own default.
-      self.database_schema_directory = self.database_config_directory
+      self.database_schema_directory = DEFAULT_DATABASE_SCHEMA_DIRECTORY
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
