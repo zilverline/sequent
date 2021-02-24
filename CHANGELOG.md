@@ -1,10 +1,13 @@
-# Changes since 3.5
+# Changelog 4.0 (changes since 3.5)
 
+- Changed default ruby to 3.0.0 release
 - Added `database_schema_directory` configuration parameter to determine where to
-  find `sequent_schema.rb` and `sequent_migrations.rb`. Currently set to match 
-  `database_config_directory` for backwards compatibility, but with a deparcation 
-  warning.
-
+  find `sequent_schema.rb` and `sequent_migrations.rb`. Currently it has the same default as `database_config_directory`
+- Dropped support for ruby < 2.7
+- Moved to Github Actions for CI
+- Allow splitting of indices and table definition in sql files
+  to speed up replaying projectors
+  
 # Changes since 3.4
 
 - Changed default ruby to latest 2.6 release
