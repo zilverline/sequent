@@ -2,6 +2,7 @@ require 'base64'
 require_relative 'helpers/message_handler'
 require_relative 'helpers/autoset_attributes'
 require_relative 'stream_record'
+require_relative 'aggregate_roots'
 
 module Sequent
   module Core
@@ -39,6 +40,10 @@ module Sequent
       include SnapshotConfiguration
 
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
+
+      def self.inherited(subclass)
+        AggregateRoots << subclass
+      end
 
       def self.load_from_history(stream, events)
         first, *rest = events

@@ -106,7 +106,7 @@ module Sequent
               streams_by_aggregate_id[aggregate_id] =
                 find_event_stream(aggregate_id) ||
                 begin
-                  aggregate_type = FakeEventStore.aggregate_type_for_event(event)
+                  aggregate_type = aggregate_type_for_event(event)
                   raise "cannot find aggregate type associated with creation event #{event}, did you include an event handler in your aggregate for this event?" unless aggregate_type
                   Sequent::Core::EventStream.new(aggregate_type: aggregate_type.name, aggregate_id: aggregate_id)
                 end
@@ -115,10 +115,10 @@ module Sequent
           end
         end
 
-        def self.aggregate_type_for_event(event)
+        def aggregate_type_for_event(event)
           @event_to_aggregate_type ||= ThreadSafe::Cache.new
           @event_to_aggregate_type.fetch_or_store(event.class) do |klass|
-            Sequent::Core::AggregateRoot.descendants.find { |x| x.message_mapping.has_key?(klass) }
+            Sequent::Core::AggregateRoots.all.find { |x| x.message_mapping.has_key?(klass) }
           end
         end
 
