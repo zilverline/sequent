@@ -38,16 +38,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Set up Ruby
-        uses: actions/setup-ruby@v1
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-      - name: Cache bundler
-        uses: actions/cache@v2
-        with:
-          path: vendor/bundle
-          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-gems-
+          bundler-cache: true
       - name: Install bundler
         run: |
           gem install bundler
