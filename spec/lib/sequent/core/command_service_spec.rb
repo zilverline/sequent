@@ -98,6 +98,7 @@ describe Sequent::Core::CommandService do
 
     context 'and dutch as the locale' do
       before { I18n.locale = :nl }
+      after { I18n.locale = :en }
 
       it "raises a CommandNotValid for invalid commands in dutch" do
         expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
