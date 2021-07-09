@@ -68,9 +68,7 @@ module Sequent
 
         filters.each { |filter| filter.execute(command) }
 
-        I18n.with_locale(Sequent.configuration.error_locale_resolver.call) do
-          raise CommandNotValid.new(command) unless command.valid?
-        end
+        raise CommandNotValid.new(command) unless command.valid?
 
         parsed_command = command.parse_attrs_to_correct_types
         command_handlers.select { |h| h.class.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
@@ -113,7 +111,9 @@ module Sequent
       end
 
       def errors(prefix = nil)
-        @command.validation_errors(prefix)
+        I18n.with_locale(Sequent.configuration.error_locale_resolver.call) do
+          @command.validation_errors(prefix)
+        end
       end
 
       def errors_with_command_prefix

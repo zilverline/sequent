@@ -62,7 +62,7 @@ module Sequent
         streams = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids)
 
         query = aggregate_ids.uniq.map { |aggregate_id| aggregate_query(aggregate_id) }.join(" UNION ALL ")
-        events = Sequent.configuration.event_record_class.connection.select_all(query).map! do |event_hash|
+        events = Sequent.configuration.event_record_class.connection.select_all(query).map do |event_hash|
           deserialize_event(event_hash)
         end
 

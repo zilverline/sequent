@@ -346,7 +346,10 @@ module Sequent
         private
 
         def cast_value_to_column_type(clazz, column_name, record)
-          Sequent::ApplicationRecord.connection.type_cast(record[column_name.to_sym], @column_cache[clazz.name][column_name])
+          data = clazz.arel_table.type_cast_for_database(column_name, record[column_name.to_sym])
+          return data unless data.respond_to?(:encoder)
+
+          data.encoder.encode(record[column_name.to_sym])
         end
       end
     end
