@@ -46,9 +46,8 @@ module Sequent
 
       def self.create_schema(schema)
         sql = "CREATE SCHEMA IF NOT EXISTS #{schema}"
-        if user = ActiveRecord::Base.connection_db_config.configuration_hash[:username]
-          sql += %Q{ AUTHORIZATION "#{user}"}
-        end
+        user = configuration_hash[:username]
+        sql += %( AUTHORIZATION "#{user}") if user
         execute_sql(sql)
       end
 
@@ -81,6 +80,14 @@ module Sequent
         ActiveRecord::Base.connection.execute(
           "SELECT schema_name FROM information_schema.schemata WHERE schema_name like '#{schema}'"
         ).count == 1
+      end
+
+      def self.configuration_hash
+        if Gem.loaded_specs['activesupport'].version >= Gem::Version.create('6.1.0')
+          ActiveRecord::Base.connection_db_config.configuration_hash
+        else
+          ActiveRecord::Base.connection_config
+        end
       end
 
       def schema_exists?(schema)
