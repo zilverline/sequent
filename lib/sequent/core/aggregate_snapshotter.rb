@@ -16,7 +16,7 @@ module Sequent
     class AggregateSnapshotter < BaseCommandHandler
 
       on SnapshotCommand do |command|
-        aggregate_ids = repository.event_store.aggregates_that_need_snapshots(@last_aggregate_id, command.limit)
+        aggregate_ids = Sequent.configuration.event_store.aggregates_that_need_snapshots(@last_aggregate_id, command.limit)
         aggregate_ids.each do |aggregate_id|
           take_snapshot!(aggregate_id)
         end
