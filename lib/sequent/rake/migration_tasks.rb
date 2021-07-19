@@ -106,7 +106,7 @@ module Sequent
             desc 'Rake task that runs before all snapshots rake tasks. Hook applications can use to for instance run other rake tasks.'
             task :init
 
-            task :set_snapshot_threshold, [:aggregate_type,:threshold] => ['sequent:init', :init] do
+            task :set_snapshot_threshold, [:aggregate_type,:threshold] => ['sequent:init', :init] do |_t, args|
               aggregate_type = args['aggregate_type']
               threshold = args['threshold']
 
