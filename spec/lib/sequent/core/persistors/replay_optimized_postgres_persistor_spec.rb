@@ -247,7 +247,7 @@ EOF
 
     context 'csv' do
       let(:insert_csv_size) { 0 }
-      let(:values) { {name: 'ben', initials: ['b'], created_at: DateTime.now} }
+      let(:values) { {name: 'bén', initials: ['björ'], created_at: DateTime.now} }
 
       context 'values as with_indifferent_access' do
         it 'commits a persistor' do
