@@ -14,8 +14,8 @@ module Sequent
       #
       # Rebuilding the view state (or projection) of an aggregate typically consists
       # of an initial insert and then many updates and maybe a delete. With a normal Persistor (like ActiveRecordPersistor)
-      # each action is executed to the database. This persitor creates an inmemory store first and finally flushes
-      # the in memory store to the database. This can significantly reduces the amount of queries to the database.
+      # each action is executed to the database. This persistor creates an in-memory store first and finally flushes
+      # the in-memory store to the database. This can significantly reduce the amount of queries to the database.
       # E.g. 1 insert, 6 updates is only a single insert using this Persistor.
       #
       # After lot of experimenting this turned out to be the fastest way to to bulk inserts in the database.
@@ -29,19 +29,21 @@ module Sequent
       #
       #   class InvoiceProjector < Sequent::Core::Projector
       #     on RecipientMovedEvent do |event|
-      #       update_all_records InvoiceRecord, recipient_id: event.recipient.aggregate_id do |record|
-      #         record.recipient_street = record.recipient.street
+      #       update_all_records(
+      #         InvoiceRecord,
+      #         { aggregate_id: event.aggregate_id, recipient_id: event.recipient.aggregate_id },
+      #         { recipient_street: event.recipient.street },
       #       end
       #     end
       #   end
       #
-      # In this case it is wise to create an index on InvoiceRecord on the recipient_id like you would in the database.
+      # In this case it is wise to create an index on InvoiceRecord on the aggregate_id and recipient_id like you would in the database.
       #
       # Example:
       #
       #   ReplayOptimizedPostgresPersistor.new(
       #     50,
-      #     {InvoiceRecord => [[:recipient_id]]}
+      #     {InvoiceRecord => [[:aggregate_id, :recipient_id]]}
       #   )
       class ReplayOptimizedPostgresPersistor
         include Persistor
@@ -66,13 +68,17 @@ module Sequent
           def initialize(indexed_columns)
             @indexed_columns = Hash.new do |hash, record_class|
               if record_class.column_names.include? 'aggregate_id'
-                hash[record_class] = [:aggregate_id]
+                hash[record_class] = ['aggregate_id']
               else
                 hash[record_class] = []
               end
             end
 
-            @indexed_columns.merge!(indexed_columns)
+            @indexed_columns = @indexed_columns.merge(
+              indexed_columns.reduce({}) do |memo, (key, ics)|
+                memo.merge({ key => ics.map { |c| c.map(&:to_s) } })
+              end
+            )
 
             @index = {}
             @reverse_index = {}
@@ -112,7 +118,7 @@ module Sequent
             key = [record_class.name]
             get_index(record_class, where_clause).each do |field|
               key << field
-              key << where_clause[field]
+              key << where_clause.stringify_keys[field]
             end
             @index[key.hash] || []
           end
@@ -123,7 +129,7 @@ module Sequent
           end
 
           def use_index?(record_class, where_clause)
-            @indexed_columns.has_key?(record_class) && @indexed_columns[record_class].any? { |indexed_where| where_clause.keys.size == indexed_where.size && (where_clause.keys - indexed_where).empty? }
+            @indexed_columns.has_key?(record_class) && get_index(record_class, where_clause).present?
           end
 
           private
@@ -144,7 +150,9 @@ module Sequent
           end
 
           def get_index(record_class, where_clause)
-            @indexed_columns[record_class].find { |indexed_where| where_clause.keys.size == indexed_where.size && (where_clause.keys - indexed_where).empty? }
+            @indexed_columns[record_class].find do |indexed_where|
+              where_clause.keys.size == indexed_where.size && (where_clause.keys.map(&:to_s) - indexed_where).empty?
+            end
           end
         end
 
@@ -159,7 +167,7 @@ module Sequent
           @record_index = Index.new(indices)
         end
 
-        def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
+        def update_record(record_class, event, where_clause = { aggregate_id: event.aggregate_id }, options = {}, &block)
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
           yield record if block_given?
@@ -182,7 +190,7 @@ module Sequent
             # Since the replay happens in memory we implement the ==, eql? and hash methods
             # to point to the same object. A record is the same if and only if they point to
             # the same object. These methods are necessary since we use Set instead of [].
-            class_def=<<-EOD
+            class_def = <<-EOD
       #{struct_class_name} = Struct.new(*#{column_names.map(&:to_sym)})
               class #{struct_class_name}
                 include InitStruct
