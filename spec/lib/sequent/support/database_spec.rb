@@ -101,6 +101,22 @@ EOF
     end
   end
 
+  describe 'connection options' do
+    let(:db_config) do
+      test_config = Database.test_config
+      # Use test config from all other tests but turn it into an URL. Hardcode
+      # the default port to enforce a proper URL.
+      {
+        "url" => "postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}"
+      }
+    end
+
+    it 'connects using an url option' do
+      Sequent::Support::Database.establish_connection(db_config)
+      expect(Sequent::ApplicationRecord.connection).to be_active
+    end
+  end
+
   def database_exists?
     results = Sequent::ApplicationRecord.connection.select_all %Q(
 SELECT 1 FROM pg_database
