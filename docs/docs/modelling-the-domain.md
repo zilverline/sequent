@@ -21,7 +21,7 @@ lib/           # Contains your domain logic
 spec/          # Tests for your application
 ```
 
-Zooming in on the `lib` folder reveals the domain and most import concepts of the app:
+Zooming in on the `lib` folder reveals the domain and most important concepts of the app:
 
 ```bash
 post/                      # Files are grouped by aggregate root
