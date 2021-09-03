@@ -58,3 +58,5 @@ The most notable changes can be found in the [Changelog](CHANGELOG.md)
 ## License
 
 Sequent is released under the MIT License.
+
+## Testing if the build runs when receiving a pr from a fork...
