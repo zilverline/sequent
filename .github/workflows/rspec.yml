@@ -1,7 +1,6 @@
 name: rspec
 
-on:
-  [push]
+on: [push, pull_request_target]
 
 env:
   RACK_ENV: test
