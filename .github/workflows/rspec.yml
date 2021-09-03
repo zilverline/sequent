@@ -3,10 +3,9 @@ name: rspec
 on:
   push:
     branches:
-      - master
-  pull_request:
-    branches:
       - *
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
 env:
   RACK_ENV: test
   POSTGRES_USERNAME: sequent
