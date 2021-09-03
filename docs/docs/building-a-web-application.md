@@ -147,7 +147,7 @@ class Database
     def establish_connection(env = ENV['RACK_ENV'])
       config = database_config(env)
       yield(config) if block_given?
-      Sequent::ApplicationRecord.configurations[env.to_s] = config.stringify_keys
+      Sequent::ApplicationRecord.configurations = { env.to_s => config.stringify_keys }
       Sequent::ApplicationRecord.establish_connection config
     end
   end
