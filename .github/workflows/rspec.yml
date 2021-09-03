@@ -1,8 +1,12 @@
 name: rspec
 
 on:
-  [push, pull_request]
-
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - *
 env:
   RACK_ENV: test
   POSTGRES_USERNAME: sequent
