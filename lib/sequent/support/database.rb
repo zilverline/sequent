@@ -19,17 +19,18 @@ module Sequent
         fail ArgumentError.new("env is mandatory") unless env
 
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
-        YAML.load(ERB.new(File.read(database_yml)).result)[env]
+        config = YAML.load(ERB.new(File.read(database_yml)).result)[env]
+        ActiveRecord::Base.resolve_config_for_connection(config)
       end
 
       def self.create!(db_config)
-        ActiveRecord::Base.establish_connection(db_config.merge('database' => 'postgres'))
-        ActiveRecord::Base.connection.create_database(db_config['database'])
+        ActiveRecord::Base.establish_connection(db_config.merge(database: 'postgres'))
+        ActiveRecord::Base.connection.create_database(db_config[:database])
       end
 
       def self.drop!(db_config)
-        ActiveRecord::Base.establish_connection(db_config.merge('database' => 'postgres'))
-        ActiveRecord::Base.connection.drop_database(db_config['database'])
+        ActiveRecord::Base.establish_connection(db_config.merge(database: 'postgres'))
+        ActiveRecord::Base.connection.drop_database(db_config[:database])
       end
 
       def self.establish_connection(db_config)
@@ -59,20 +60,20 @@ module Sequent
         fail ArgumentError.new("env is required") unless env
 
         disconnect!
-        original_search_paths = db_config['schema_search_path'].dup
+        original_search_paths = db_config[:schema_search_path].dup
 
         if ActiveRecord::VERSION::MAJOR < 6
           ActiveRecord::Base.configurations[env.to_s] = ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
         end
 
-        db_config['schema_search_path'] = search_path
+        db_config[:schema_search_path] = search_path
 
         ActiveRecord::Base.establish_connection db_config
 
         yield
       ensure
         disconnect!
-        db_config['schema_search_path'] = original_search_paths
+        db_config[:schema_search_path] = original_search_paths
         establish_connection(db_config)
       end
 
