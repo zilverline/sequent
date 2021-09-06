@@ -1,0 +1,323 @@
+# The behavior of RuboCop can be controlled via the .rubocop.yml
+# configuration file. It makes it possible to enable/disable
+# certain cops (checks) and to alter their behavior if they accept
+# any parameters. The file can be placed either in your home
+# directory or in some project directory.
+#
+# RuboCop will start looking for the configuration file in the directory
+# where the inspected file is and continue its way up to the root directory.
+#
+# See https://github.com/rubocop-hq/rubocop/blob/master/manual/configuration.md
+
+AllCops:
+  SuggestExtensions:
+    rubocop-rake: false
+    rubocop-rspec: false
+##
+# General styles
+##
+Style/Documentation:
+  Enabled: false # Code should be self-documenting
+
+Style/AsciiComments:
+  Enabled: false # We have no issues with non-ascii characters in comments
+
+Style/StructInheritance:
+  Enabled: false # We don't want this because Rubymine doesn't understand the 'correct' way.
+
+Style/GuardClause:
+  Enabled: false # Can lead to strange constructions
+
+Style/EachWithObject:
+  Enabled: false # We prefer/are used to using reduce
+
+Style/NumericPredicate:
+  Enabled: false # Using .zero? can lead to 'Undefined method x for nil'
+
+Style/MultilineBlockChain:
+  Enabled: false # Acceptable
+
+Style/DoubleNegation:
+  Enabled: false # Usable 'hack'
+
+Style/Lambda:
+  EnforcedStyle: literal
+
+Style/SignalException:
+  EnforcedStyle: semantic
+
+Style/FormatStringToken:
+  EnforcedStyle: unannotated
+
+##
+# Metrics (all disabled; we have our own opinion on this)
+##
+Layout/LineLength:
+  Enabled: true
+  Max: 120
+  AutoCorrect: true
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/BlockNesting:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+##
+# Trailing comma's
+##
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma
+
+##
+# Naming things
+##
+Naming/AccessorMethodName:
+  Enabled: false # We have our own opinion on this
+
+Naming/PredicateName:
+  Enabled: false # We have our own opinion on this
+
+Naming/VariableNumber:
+  Enabled: false # We have our own opinion on this
+
+Naming/HeredocDelimiterNaming:
+  Enabled: false # We have our own opinion on this
+
+Naming/MethodParameterName:
+  AllowedNames:
+    # defaults
+    - io
+    - id
+    - to
+    - by
+    - 'on'
+    - in
+    - at
+    - ip
+    - db
+##
+# Lint
+##
+Lint/UriEscapeUnescape:
+  Enabled: false # TODO enable
+
+Lint/SuppressedException:
+  AllowComments: true
+
+Lint/AmbiguousBlockAssociation:
+  Enabled: true
+  Exclude:
+    - '**/spec/**/*'
+
+Lint/ConstantDefinitionInBlock:
+  Enabled: true
+  Exclude:
+    - '**/spec/**/*'
+    - '**/tasks/**/*rake'
+
+Lint/RaiseException:
+  Enabled: true
+  Exclude:
+    - '**/spec/**/*'
+
+##
+# Layout
+##
+Layout/ExtraSpacing:
+  Enabled: true
+  AllowForAlignment: false
+
+Layout/SpaceInsideHashLiteralBraces:
+  EnforcedStyle: no_space
+
+##
+# Multi-line formatting (hashes)
+##
+Layout/FirstHashElementLineBreak:
+  Enabled: true
+
+Layout/FirstHashElementIndentation:
+  Enabled: true
+  EnforcedStyle: consistent
+
+Layout/MultilineHashBraceLayout:
+  Enabled: true
+  EnforcedStyle: new_line
+
+Layout/MultilineHashKeyLineBreaks:
+  Enabled: true
+
+##
+# Multi-line formatting (array)
+##
+Layout/FirstArrayElementLineBreak:
+  Enabled: true
+
+Layout/FirstArrayElementIndentation:
+  Enabled: true
+  EnforcedStyle: consistent
+
+Layout/MultilineArrayBraceLayout:
+  Enabled: true
+  EnforcedStyle: new_line
+
+Layout/MultilineArrayLineBreaks:
+  Enabled: true
+
+##
+# Multi-line formatting (methods/arguments)
+##
+Layout/FirstMethodArgumentLineBreak:
+  Enabled: true
+
+Layout/FirstArgumentIndentation:
+  Enabled: true
+  EnforcedStyle: consistent
+
+Layout/FirstParameterIndentation:
+  Enabled: true
+  EnforcedStyle: consistent
+
+Layout/MultilineMethodCallBraceLayout:
+  Enabled: true
+  EnforcedStyle: new_line
+
+Layout/MultilineMethodArgumentLineBreaks:
+  Enabled: true
+
+Layout/MultilineMethodCallIndentation:
+  Enabled: true
+  EnforcedStyle: indented
+
+# TODO Ruby 3.0
+
+Style/HashTransformKeys:
+  Enabled: false
+
+Style/OptionalBooleanParameter:
+  Enabled: false
+
+Style/SlicingWithRange:
+  Enabled: false
+
+Style/CombinableLoops:
+  Enabled: false
+
+Style/CaseLikeIf:
+  Enabled: false
+
+Style/GlobalStdStream:
+  Enabled: false
+
+Layout/EmptyLineBetweenDefs:
+  Enabled: false
+
+Style/SingleArgumentDig:
+  Enabled: false
+
+Style/RedundantRegexpEscape:
+  Enabled: false
+
+Lint/BinaryOperatorWithIdenticalOperands:
+  Enabled: false
+
+Style/SoleNestedConditional:
+  Enabled: false
+
+Style/EvalWithLocation:
+  Enabled: false
+
+Layout/SpaceBeforeBrackets: # (new in 1.7)
+  Enabled: false
+Lint/AmbiguousAssignment: # (new in 1.7)
+  Enabled: false
+Lint/DeprecatedConstants: # (new in 1.8)
+  Enabled: false
+Lint/DuplicateBranch: # (new in 1.3)
+  Enabled: false
+Lint/DuplicateRegexpCharacterClassElement: # (new in 1.1)
+  Enabled: false
+Lint/EmptyBlock: # (new in 1.1)
+  Enabled: false
+Lint/EmptyClass: # (new in 1.3)
+  Enabled: false
+Lint/LambdaWithoutLiteralBlock: # (new in 1.8)
+  Enabled: false
+Lint/NoReturnInBeginEndBlocks: # (new in 1.2)
+  Enabled: false
+Lint/NumberedParameterAssignment: # (new in 1.9)
+  Enabled: false
+Lint/OrAssignmentToConstant: # (new in 1.9)
+  Enabled: false
+Lint/RedundantDirGlobSort: # (new in 1.8)
+  Enabled: false
+Lint/SymbolConversion: # (new in 1.9)
+  Enabled: false
+Lint/ToEnumArguments: # (new in 1.1)
+  Enabled: false
+Lint/TripleQuotes: # (new in 1.9)
+  Enabled: false
+Lint/UnexpectedBlockArity: # (new in 1.5)
+  Enabled: false
+Lint/UnmodifiedReduceAccumulator: # (new in 1.1)
+  Enabled: false
+Style/ArgumentsForwarding: # (new in 1.1)
+  Enabled: false
+Style/CollectionCompact: # (new in 1.2)
+  Enabled: false
+Style/DocumentDynamicEvalDefinition: # (new in 1.1)
+  Enabled: false
+Style/EndlessMethod: # (new in 1.8)
+  Enabled: false
+Style/HashExcept: # (new in 1.7)
+  Enabled: false
+Style/IfWithBooleanLiteralBranches: # (new in 1.9)
+  Enabled: false
+Style/NegatedIfElseCondition: # (new in 1.2)
+  Enabled: false
+Style/NilLambda: # (new in 1.3)
+  Enabled: false
+Style/RedundantArgument: # (new in 1.4)
+  Enabled: false
+Style/SwapValues: # (new in 1.1)
+  Enabled: false
+Style/StringConcatenation:
+  Enabled: false
+Style/HashEachMethods:
+  Enabled: false
+Lint/RedundantSafeNavigation:
+  Enabled: false
+Style/HashTransformValues:
+  Enabled: false
+Lint/FloatComparison:
+  Enabled: false
+Style/ClassVars:
+  Enabled: false

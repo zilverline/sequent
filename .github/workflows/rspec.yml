@@ -54,3 +54,10 @@ jobs:
           bundle exec rake db:create
       - name: Run tests
         run: bundle exec rspec
+      - name: rubocop
+        uses: reviewdog/action-rubocop@v2
+        with:
+          rubocop_version: gemfile
+          rubocop_extensions: ''
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review
