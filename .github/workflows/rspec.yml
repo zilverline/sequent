@@ -21,11 +21,13 @@ jobs:
       matrix:
         include:
           - ruby-version: 3.0.0
-            active-star-version: "'~> 6.1.4', '< 6.1.5'"
+            active-star-version: '< 6.1.5'
           - ruby-version: 3.0.0
-            active-star-version: '< 6.0.4'
+            active-star-version: '6.1.4'
+          - ruby-version: 3.0.0
+            active-star-version: '6.1.0'
           - ruby-version: 2.7
-            active-star-version: '< 6.0.3'
+            active-star-version: '6.1.0'
 
     services:
       postgres:
@@ -49,6 +51,9 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
+          cache-version: ${{ matrix.ruby-version }}-${{ matrix.active-star-version }}
+        env:
+          ACTIVE_STAR_VERSION: ${{ matrix.active-star-version }}
       - name: Setup database
         run: |
           bundle exec rake db:create
