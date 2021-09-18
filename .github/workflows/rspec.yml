@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - ruby-version: 3.0.0
-            active-star-version: '< 6.1.5'
+            active-star-version: '< 7'
           - ruby-version: 3.0.0
             active-star-version: '6.1.4'
           - ruby-version: 3.0.0
