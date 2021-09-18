@@ -1,5 +1,7 @@
 require 'active_support/hash_with_indifferent_access'
 
+class ActiveRecordVersionNotSupportedError< StandardError; end
+
 module Sequent
   module Support
     # Offers support operations for a postgres database.
@@ -8,13 +10,11 @@ module Sequent
     # take in a database configuration). Instance methods assume that a database
     # connection yet is established.
     class Database
-      class ActiveRecordNotSupportedError < StandardError; end
 
       attr_reader :db_config
 
       def self.connect!(env)
         db_config = read_config(env)
-        byebug
         establish_connection(db_config)
       end
 
@@ -31,7 +31,7 @@ module Sequent
         elsif ActiveRecord::Base.configurations.respond_to?(:resolve)
           ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
         else
-          raise ActiveRecordNotSupportedError, "Unsupported ActiveRecord version"
+          raise ActiveRecordVersionNotSupportedError, "Unsupported ActiveRecord version"
         end
       end
 
