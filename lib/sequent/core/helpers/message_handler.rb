@@ -36,8 +36,8 @@ module Sequent
         module ClassMethods
           def on(*message_classes, &block)
             message_classes.each do |message_class|
-              message_mapping[message_class] ||= []
-              message_mapping[message_class] << block
+              message_mapping[message_class.name] ||= []
+              message_mapping[message_class.name] << block
             end
           end
 
@@ -46,7 +46,7 @@ module Sequent
           end
 
           def handles_message?(message)
-            message_mapping.keys.include? message.class
+            message_mapping.keys.include? message.class.name
           end
         end
 
@@ -55,7 +55,7 @@ module Sequent
         end
 
         def handle_message(message)
-          handlers = self.class.message_mapping[message.class]
+          handlers = self.class.message_mapping[message.class.name]
           handlers.each { |handler| self.instance_exec(message, &handler) } if handlers
         end
       end

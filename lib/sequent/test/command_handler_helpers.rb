@@ -118,7 +118,7 @@ module Sequent
         def aggregate_type_for_event(event)
           @event_to_aggregate_type ||= ThreadSafe::Cache.new
           @event_to_aggregate_type.fetch_or_store(event.class) do |klass|
-            Sequent::Core::AggregateRoots.all.find { |x| x.message_mapping.has_key?(klass) }
+            Sequent::Core::AggregateRoots.all.find { |x| x.message_mapping.has_key?(klass.name) }
           end
         end
 

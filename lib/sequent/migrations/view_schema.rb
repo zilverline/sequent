@@ -238,7 +238,7 @@ module Sequent
           logger.info "Start replaying events"
 
           time("#{16 ** group_exponent} groups replayed") do
-            event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
+            event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq
             disconnect!
 
             number_of_groups = 16 ** group_exponent
