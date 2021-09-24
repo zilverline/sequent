@@ -5,11 +5,15 @@ module Sequent
         attr_reader :entries
 
         def initialize
-          @entries = []
+          clear
         end
 
         def add(middleware)
           @entries.push(middleware)
+        end
+
+        def clear
+          @entries = []
         end
 
         def invoke(*args, &invoker)

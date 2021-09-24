@@ -13,6 +13,20 @@ describe Sequent::Core::Middleware::Chain do
     end
   end
 
+  describe '#clear' do
+    subject(:clear_chain) { chain.clear }
+
+    let(:middleware) { double('middleware') }
+
+    before do
+      chain.add(middleware)
+    end
+
+    it 'clears all middleware' do
+      expect { clear_chain }.to change { chain.entries }.from([middleware]).to([])
+    end
+  end
+
   describe '#invoke' do
     subject(:invoke_chain) { chain.invoke(command, &invoker) }
 
