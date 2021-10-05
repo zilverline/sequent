@@ -91,7 +91,6 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
       ]
 
       config.database_config_directory = 'config'
-      config.database_config_directory = 'db'
       
       # this is the location of your sql files for your view_schema
       config.migration_sql_files_directory = 'db/sequent'
