@@ -38,7 +38,6 @@ module Sequent
 
         # module containing class methods to be added
         module ClassMethods
-
           def types
             @types ||= {}
             if @merged_types
@@ -107,16 +106,30 @@ EOS
           def deserialize_from_json(args)
             unless args.nil?
               obj = allocate()
+
+              upcast!(args)
+
               obj.update_all_attributes_from_json(args)
               obj
             end
           end
 
-
           def numeric?(object)
             true if Float(object) rescue false
           end
 
+          def upcast(&block)
+            @upcasters ||= []
+            @upcasters.push(block)
+          end
+
+          def upcast!(hash)
+            return if @upcasters.nil?
+
+            @upcasters.each do |upcaster|
+              upcaster.call(hash)
+            end
+          end
         end
 
         # extend host class with class methods when we're included

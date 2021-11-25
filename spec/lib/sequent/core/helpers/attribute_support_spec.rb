@@ -520,4 +520,46 @@ describe Sequent::Core::Helpers::AttributeSupport do
       expect(TestValue.new(value: 1).update(value: 2).value).to eq(2)
     end
   end
+
+  describe '.upcast' do
+    subject { attrable_class.deserialize_from_json(hash) }
+
+    context 'given a defined upcaster' do
+      class ValueObjectWithSingleUpcaster < Sequent::Core::ValueObject
+        attrs new_attribute: String
+
+        upcast do |hash|
+          hash['new_attribute'] = hash['old_attribute']
+        end
+      end
+
+      let(:attrable_class) { ValueObjectWithSingleUpcaster }
+      let(:hash) { {'old_attribute' => 'some value'} }
+
+      it 'upcasts' do
+        expect(subject.new_attribute).to eq('some value')
+      end
+    end
+
+    context 'given multiple defined upcasters' do
+      class ValueObjectWithMultipleUpcasters < Sequent::Core::ValueObject
+        attrs new_attribute: String
+
+        upcast do |hash|
+          hash['new_attribute'] = hash['old_attribute']
+        end
+
+        upcast do |hash|
+          hash['new_attribute'] = hash['old_attribute'].reverse
+        end
+      end
+
+      let(:attrable_class) { ValueObjectWithMultipleUpcasters }
+      let(:hash) { {'old_attribute' => 'some value'} }
+
+      it 'upcasts in the order that upcasters are defined' do
+        expect(subject.new_attribute).to eq('some value'.reverse)
+      end
+    end
+  end
 end
