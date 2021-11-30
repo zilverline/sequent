@@ -20,7 +20,11 @@ module Sequent
 
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
         config = YAML.load(ERB.new(File.read(database_yml)).result)[env]
-        ActiveRecord::Base.resolve_config_for_connection(config)
+        if Gem.loaded_specs['activerecord'].version >= Gem::Version.create('6.1.0')
+          ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
+        else
+          ActiveRecord::Base.resolve_config_for_connection(config)
+        end
       end
 
       def self.create!(db_config)

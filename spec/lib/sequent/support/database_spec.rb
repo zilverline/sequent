@@ -40,6 +40,21 @@ describe Sequent::Support::Database do
         expect(Sequent::ApplicationRecord.connection).to be_active
       end
     end
+
+    describe '.read_config' do
+      let(:test_config) do
+        File.join(Sequent.configuration.database_config_directory, "database.yml")
+      end
+      before do
+        Sequent.configuration.database_config_directory = 'tmp'
+        File.write(test_config, { 'test' => Database.test_config.to_h }.to_yaml)
+      end
+      # after { File.delete(test_config) }
+
+      it 'works' do
+        expect(Sequent::Support::Database.read_config('test')).to be
+      end
+    end
   end
 
   context 'instance methods' do
