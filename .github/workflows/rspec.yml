@@ -21,11 +21,11 @@ jobs:
       matrix:
         include:
           - ruby-version: 3.0.0
-            active-star-version: '< 6.1.5'
+            active-star-version: '= 6.1.4.1'
           - ruby-version: 3.0.0
-            active-star-version: '< 6.0.4'
+            active-star-version: '= 6.0.4.1'
           - ruby-version: 2.7
-            active-star-version: '< 6.0.3'
+            active-star-version: '= 6.0.3.7'
 
     services:
       postgres:
