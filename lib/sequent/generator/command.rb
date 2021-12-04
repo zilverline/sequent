@@ -45,13 +45,14 @@ module Sequent
 
       def find_target_cursor_position(ast)
         return unless ast.children.any?
+        return if ast.children.any? { |c| c.class.to_s != 'Parser::AST::Node' }
+        if (child = ast.children.find { |c| c.type.to_s == 'block' })
+          return child.loc.expression.end_pos
+        end
 
         ast.children.map do |child|
-          break if child.class.to_s != 'Parser::AST::Node'
-          break child.loc.expression.end_pos if child.type.to_s == 'block'
-
           find_target_cursor_position(child)
-        end.flatten.compact.max
+        end&.flatten&.compact&.max
       end
 
       def append_command
