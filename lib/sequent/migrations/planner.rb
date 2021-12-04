@@ -1,13 +1,15 @@
+# frozen_string_literal: true
+
 module Sequent
   module Migrations
     class Planner
       Plan = Struct.new(:projectors, :migrations) do
         def replay_tables
-          migrations.select { |m| m.class == ReplayTable }
+          migrations.select { |m| m.instance_of?(ReplayTable) }
         end
 
         def alter_tables
-          migrations.select { |m| m.class == AlterTable }
+          migrations.select { |m| m.instance_of?(AlterTable) }
         end
 
         def empty?
@@ -28,7 +30,7 @@ module Sequent
           migrations.yield_self(&method(:select_projectors)),
           migrations
             .yield_self(&method(:create_migrations))
-            .yield_self(&method(:remove_redundant_migrations))
+            .yield_self(&method(:remove_redundant_migrations)),
         )
       end
 
@@ -43,11 +45,11 @@ module Sequent
 
       def remove_redundant_migrations(migrations)
         redundant_migrations = migrations
-                                 .yield_self(&method(:group_identical_migrations))
-                                 .yield_self(&method(:select_redundant_migrations))
-                                 .yield_self(&method(:remove_redundancy))
-                                 .values
-                                 .flatten
+          .yield_self(&method(:group_identical_migrations))
+          .yield_self(&method(:select_redundant_migrations))
+          .yield_self(&method(:remove_redundancy))
+          .values
+          .flatten
 
         (migrations - redundant_migrations)
           .yield_self(&method(:remove_alter_tables_before_replay_table))
@@ -64,21 +66,22 @@ module Sequent
 
       def remove_alter_tables_before_replay_table(migrations)
         migrations - migrations
-                       .each_with_index
-                       .select { |migration, _index| migration.class == AlterTable }
-                       .select { |migration, index| migrations
-                                                      .slice((index + 1)..-1)
-                                                      .find { |m| m.class == ReplayTable && m.record_class == migration.record_class }
-                       }.map(&:first)
+          .each_with_index
+          .select { |migration, _index| migration.instance_of?(AlterTable) }
+          .select do |migration, index|
+                       migrations
+                         .slice((index + 1)..-1)
+                         .find { |m| m.instance_of?(ReplayTable) && m.record_class == migration.record_class }
+                     end.map(&:first)
       end
 
       def remove_redundancy(grouped_migrations)
-        grouped_migrations.reduce({}) { |memo, (key, ms)|
+        grouped_migrations.reduce({}) do |memo, (key, ms)|
           memo[key] = ms
-                        .yield_self(&method(:order_by_version_desc))
-                        .slice(1..-1)
+            .yield_self(&method(:order_by_version_desc))
+            .slice(1..-1)
           memo
-        }
+        end
       end
 
       def order_by_version_desc(migrations)
@@ -95,13 +98,20 @@ module Sequent
       end
 
       def map_to_migrations(migrations)
-        migrations.reduce({}) do |memo, (version, _migrations)|
-          fail "Declared migrations for version #{version} must be an Array. For example: {'3' => [FooProjector]}" unless _migrations.is_a?(Array)
+        migrations.reduce({}) do |memo, (version, ms)|
+          unless ms.is_a?(Array)
+            fail "Declared migrations for version #{version} must be an Array. For example: {'3' => [FooProjector]}"
+          end
 
-          memo[version] = _migrations.flat_map do |migration|
+          memo[version] = ms.flat_map do |migration|
             if migration.is_a?(AlterTable)
-              alter_table_sql_file_name = "#{Sequent.configuration.migration_sql_files_directory}/#{migration.table_name}_#{version}.sql"
-              fail "Missing file #{alter_table_sql_file_name} to apply for version #{version}" unless File.exist?(alter_table_sql_file_name)
+              alter_table_sql_file_name = <<~EOS.chomp
+                #{Sequent.configuration.migration_sql_files_directory}/#{migration.table_name}_#{version}.sql
+              EOS
+              unless File.exist?(alter_table_sql_file_name)
+                fail "Missing file #{alter_table_sql_file_name} to apply for version #{version}"
+              end
+
               migration.copy(version)
             elsif migration < Sequent::Projector
               migration.managed_tables.map { |table| ReplayTable.create(table, version) }

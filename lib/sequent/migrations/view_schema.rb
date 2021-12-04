@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'parallel'
 require 'postgresql_cursor'
 
@@ -24,11 +26,13 @@ module Sequent
     # - AlterTable (For instance if you introduce a new column)
     #
     # To maintain your migrations you need to:
-    # 1. Create a class that extends `Sequent::Migrations::Projectors` and specify in `Sequent.configuration.migrations_class_name`
+    # 1. Create a class that extends `Sequent::Migrations::Projectors`
+    #    and specify in `Sequent.configuration.migrations_class_name`
     # 2. Define per version which migrations you want to execute
     #    See the definition of `Sequent::Migrations::Projectors.versions` and `Sequent::Migrations::Projectors.version`
     # 3. Specify in Sequent where your sql files reside (Sequent.configuration.migration_sql_files_directory)
-    # 4. Ensure that you add %SUFFIX% to each name that needs to be unique in postgres (like TABLE names, INDEX names, PRIMARY KEYS)
+    # 4. Ensure that you add %SUFFIX% to each name that needs to be unique in postgres
+    #    (like TABLE names, INDEX names, PRIMARY KEYS)
     #    E.g. `create table foo%SUFFIX% (id serial NOT NULL, CONSTRAINT foo_pkey%SUFFIX% PRIMARY KEY (id))`
     # 5. If you want to run an `alter_table` migration ensure that
     #   a sql file named `table_name_VERSION.sql` exists.
@@ -96,7 +100,10 @@ module Sequent
         create_view_schema_if_not_exists
         in_view_schema do
           Sequent::Core::Migratable.all.flat_map(&:managed_tables).each do |table|
-            statements = sql_file_to_statements("#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.sql") { |raw_sql| raw_sql.remove('%SUFFIX%') }
+            sql_file = "#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.sql"
+            statements = sql_file_to_statements(sql_file) do |raw_sql|
+              raw_sql.remove('%SUFFIX%')
+            end
             statements.each { |statement| exec_sql(statement) }
 
             indexes_file_name = "#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.indexes.sql"
@@ -121,10 +128,14 @@ module Sequent
       #
       # This method is mainly useful during an initial setup of the view schema
       def create_view_schema_if_not_exists
-        exec_sql(%Q{CREATE SCHEMA IF NOT EXISTS #{view_schema}})
+        exec_sql(%(CREATE SCHEMA IF NOT EXISTS #{view_schema}))
         in_view_schema do
-          exec_sql(%Q{CREATE TABLE IF NOT EXISTS #{Versions.table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version))})
-          exec_sql(%Q{CREATE TABLE IF NOT EXISTS #{ReplayedIds.table_name} (event_id bigint NOT NULL, CONSTRAINT event_id_pk PRIMARY KEY(event_id))})
+          exec_sql(<<~SQL.chomp)
+            CREATE TABLE IF NOT EXISTS #{Versions.table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version))
+          SQL
+          exec_sql(<<~SQL.chomp)
+            CREATE TABLE IF NOT EXISTS #{ReplayedIds.table_name} (event_id bigint NOT NULL, CONSTRAINT event_id_pk PRIMARY KEY(event_id))
+          SQL
         end
       end
 
@@ -162,14 +173,14 @@ module Sequent
           executor.execute_online(plan)
         end
 
-        if plan.projectors.any?
-          replay!(Sequent.configuration.online_replay_persistor_class.new)
-        end
+        replay!(Sequent.configuration.online_replay_persistor_class.new) if plan.projectors.any?
 
         in_view_schema do
           executor.create_indexes_after_execute_online(plan)
         end
+        # rubocop:disable Lint/RescueException
       rescue Exception => e
+        # rubocop:enable Lint/RescueException
         rollback_migration
         raise e
       end
@@ -201,7 +212,13 @@ module Sequent
         executor.set_table_names_to_new_version(plan)
 
         # 1 replay events not yet replayed
-        replay!(Sequent.configuration.offline_replay_persistor_class.new, exclude_ids: true, group_exponent: 1) if plan.projectors.any?
+        if plan.projectors.any?
+          replay!(
+            Sequent.configuration.offline_replay_persistor_class.new,
+            exclude_ids: true,
+            group_exponent: 1,
+          )
+        end
 
         in_view_schema do
           Sequent::ApplicationRecord.transaction do
@@ -215,50 +232,57 @@ module Sequent
           truncate_replay_ids_table!
         end
         logger.info "Migrated to version #{Sequent.new_version}"
+        # rubocop:disable Lint/RescueException
       rescue Exception => e
+        # rubocop:enable Lint/RescueException
         rollback_migration
         raise e
       end
 
       private
 
-
       def ensure_version_correct!
         create_view_schema_if_not_exists
         new_version = Sequent.new_version
 
-        fail ArgumentError.new("new_version [#{new_version}] must be greater or equal to current_version [#{current_version}]") if new_version < current_version
-
+        if new_version < current_version
+          fail ArgumentError,
+               "new_version [#{new_version}] must be greater or equal to current_version [#{current_version}]"
+        end
       end
 
       def replay!(replay_persistor, projectors: plan.projectors, exclude_ids: false, group_exponent: 3)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
         with_sequent_config(replay_persistor, projectors) do
-          logger.info "Start replaying events"
+          logger.info 'Start replaying events'
 
-          time("#{16 ** group_exponent} groups replayed") do
+          time("#{16**group_exponent} groups replayed") do
             event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
 
-            number_of_groups = 16 ** group_exponent
+            number_of_groups = 16**group_exponent
             groups = groups_of_aggregate_id_prefixes(number_of_groups)
 
             @connected = false
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
-            result = Parallel.map_with_index(groups, in_processes: Sequent.configuration.number_of_replay_processes) do |aggregate_prefixes, index|
-              begin
-                @connected ||= establish_connection
-                time("Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed") do
-                  replay_events(aggregate_prefixes, event_types, exclude_ids, replay_persistor, &insert_ids)
-                end
-                nil
-              rescue => e
-                logger.error "Replaying failed for ids: ^#{aggregate_prefixes.first} - #{aggregate_prefixes.last}"
-                logger.error "+++++++++++++++ ERROR +++++++++++++++"
-                recursively_print(e)
-                raise Parallel::Kill # immediately kill all sub-processes
+            result = Parallel.map_with_index(
+              groups,
+              in_processes: Sequent.configuration.number_of_replay_processes,
+            ) do |aggregate_prefixes, index|
+              @connected ||= establish_connection
+              msg = <<~EOS.chomp
+                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed
+              EOS
+              time(msg) do
+                replay_events(aggregate_prefixes, event_types, exclude_ids, replay_persistor, &insert_ids)
               end
+              nil
+            rescue StandardError => e
+              logger.error "Replaying failed for ids: ^#{aggregate_prefixes.first} - #{aggregate_prefixes.last}"
+              logger.error '+++++++++++++++ ERROR +++++++++++++++'
+              recursively_print(e)
+              raise Parallel::Kill # immediately kill all sub-processes
             end
             establish_connection
             fail if result.nil?
@@ -270,7 +294,7 @@ module Sequent
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
           get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
-          on_progress: on_progress
+          on_progress: on_progress,
         )
 
         replay_persistor.commit
@@ -293,29 +317,31 @@ module Sequent
       end
 
       def groups_of_aggregate_id_prefixes(number_of_groups)
-        all_prefixes = (0...16 ** LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE).to_a.map { |i| i.to_s(16) } # first x digits of hex
-        all_prefixes = all_prefixes.map { |s| s.length == 3 ? s : "#{"0" * (3 - s.length)}#{s}" }
+        all_prefixes = (0...16**LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE).to_a.map do |i|
+          i.to_s(16)
+        end
+        all_prefixes = all_prefixes.map { |s| s.length == 3 ? s : "#{'0' * (3 - s.length)}#{s}" }
 
         logger.info "Number of groups #{number_of_groups}"
 
         logger.debug "Prefixes: #{all_prefixes.length}"
-        fail "Can not have more groups #{number_of_groups} than number of prefixes #{all_prefixes.length}" if number_of_groups > all_prefixes.length
+        if number_of_groups > all_prefixes.length
+          fail "Can not have more groups #{number_of_groups} than number of prefixes #{all_prefixes.length}"
+        end
 
         all_prefixes.each_slice(all_prefixes.length / number_of_groups).to_a
       end
 
-      def in_view_schema
-        Sequent::Support::Database.with_schema_search_path(view_schema, db_config) do
-          yield
-        end
+      def in_view_schema(&block)
+        Sequent::Support::Database.with_schema_search_path(view_schema, db_config, &block)
       end
 
       def drop_old_tables(new_version)
         versions_to_check = (current_version - 10)..new_version
         old_tables = versions_to_check.flat_map do |old_version|
-          exec_sql(
-            "select table_name from information_schema.tables where table_schema = '#{Sequent.configuration.view_schema_name}' and table_name LIKE '%_#{old_version}'"
-          ).flat_map { |row| row.values }
+          exec_sql(<<~SQL).flat_map(&:values)
+            select table_name from information_schema.tables where table_schema = '#{Sequent.configuration.view_schema_name}' and table_name LIKE '%_#{old_version}'
+          SQL
         end
         old_tables.each do |old_table|
           exec_sql("DROP TABLE #{Sequent.configuration.view_schema_name}.#{old_table} CASCADE")
@@ -324,7 +350,13 @@ module Sequent
 
       def insert_ids
         ->(progress, done, ids) do
-          exec_sql("insert into #{ReplayedIds.table_name} (event_id) values #{ids.map { |id| "(#{id})" }.join(',')}") unless ids.empty?
+          unless ids.empty?
+            exec_sql(
+              "insert into #{ReplayedIds.table_name} (event_id) values #{ids.map do |id|
+                                                                           "(#{id})"
+                                                                         end.join(',')}",
+            )
+          end
           Sequent::Core::EventStore::PRINT_PROGRESS[progress, done, ids] if progress > 0
         end
       end
@@ -334,7 +366,9 @@ module Sequent
 
         config = Sequent.configuration.dup
 
-        replay_projectors = projectors.map { |projector_class| projector_class.new(projector_class.replay_persistor || replay_persistor) }
+        replay_projectors = projectors.map do |projector_class|
+          projector_class.new(projector_class.replay_persistor || replay_persistor)
+        end
         config.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
         config.event_handlers = replay_projectors
 
@@ -346,12 +380,17 @@ module Sequent
       end
 
       def event_stream(aggregate_prefixes, event_types, exclude_already_replayed)
-        fail ArgumentError.new("aggregate_prefixes is mandatory") unless aggregate_prefixes.present?
+        fail ArgumentError, 'aggregate_prefixes is mandatory' unless aggregate_prefixes.present?
 
         event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
-        event_stream = event_stream.where("substring(aggregate_id::varchar from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)", aggregate_prefixes)
-        event_stream = event_stream.where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)") if exclude_already_replayed
-        event_stream = event_stream.where("event_records.created_at > ?", 1.day.ago) if exclude_already_replayed
+        event_stream = event_stream.where(<<~SQL, aggregate_prefixes)
+          substring(aggregate_id::varchar from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)
+        SQL
+        if exclude_already_replayed
+          event_stream = event_stream
+            .where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)")
+        end
+        event_stream = event_stream.where('event_records.created_at > ?', 1.day.ago) if exclude_already_replayed
         event_stream.order('sequence_number ASC').select('id, event_type, event_json, sequence_number')
       end
 
