@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Util
     ##
@@ -6,7 +8,7 @@ module Sequent
     # it yields the given +&block+.
     #
     # Useful in a Queue and Processing strategy
-    def self.skip_if_already_processing(processing_key, &block)
+    def self.skip_if_already_processing(processing_key)
       return if Thread.current[processing_key]
 
       begin

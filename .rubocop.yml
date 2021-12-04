@@ -49,14 +49,14 @@ Style/SignalException:
 Style/FormatStringToken:
   EnforcedStyle: unannotated
 
-##
-# Metrics (all disabled; we have our own opinion on this)
-##
 Layout/LineLength:
   Enabled: true
   Max: 120
   AutoCorrect: true
 
+##
+# Metrics (all disabled; we have our own opinion on this)
+##
 Metrics/AbcSize:
   Enabled: false
 
@@ -123,6 +123,8 @@ Naming/MethodParameterName:
     - at
     - ip
     - db
+    - e
+
 ##
 # Lint
 ##
