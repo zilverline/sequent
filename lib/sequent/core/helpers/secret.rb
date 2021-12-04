@@ -1,9 +1,10 @@
+# frozen_string_literal: true
+
 require 'bcrypt'
 
 module Sequent
   module Core
     module Helpers
-
       #
       # You can use this in Commands to handle for instance passwords
       # safely. It uses BCrypt to encrypt the Secret.
@@ -55,7 +56,6 @@ module Sequent
       # See +re_encrypt_secret+
       # See +verify_secret+
       class Secret
-
         class << self
           def deserialize_from_json(value)
             new(value)
@@ -65,7 +65,8 @@ module Sequent
           # Creates a hash for the given clear text password.
           #
           def encrypt_secret(clear_text_secret)
-            fail ArgumentError.new('clear_text_secret can not be blank') if clear_text_secret.blank?
+            fail ArgumentError, 'clear_text_secret can not be blank' if clear_text_secret.blank?
+
             BCrypt::Password.create(clear_text_secret)
           end
 
@@ -74,8 +75,8 @@ module Sequent
           # (essentially re-creating the secret hash).
           #
           def re_encrypt_secret(clear_text_secret, hashed_secret)
-            fail ArgumentError.new('clear_text_secret can not be blank') if clear_text_secret.blank?
-            fail ArgumentError.new('hashed_secret can not be blank') if hashed_secret.blank?
+            fail ArgumentError, 'clear_text_secret can not be blank' if clear_text_secret.blank?
+            fail ArgumentError, 'hashed_secret can not be blank' if hashed_secret.blank?
 
             BCrypt::Engine.hash_secret(clear_text_secret, hashed_secret)
           end
@@ -84,7 +85,7 @@ module Sequent
           # Verifies that the hashed and clear text secret are equal.
           #
           def verify_secret(hashed_secret, clear_text_secret)
-            return false if (hashed_secret.blank? || clear_text_secret.blank?)
+            return false if hashed_secret.blank? || clear_text_secret.blank?
 
             BCrypt::Password.new(hashed_secret) == clear_text_secret
           end
@@ -93,12 +94,13 @@ module Sequent
         attr_reader :value
 
         def initialize(value)
-          fail ArgumentError.new('value can not be blank') if value.blank?
-          if value.is_a?(Secret)
-            @value = value.value
-          else
-            @value = value
-          end
+          fail ArgumentError, 'value can not be blank' if value.blank?
+
+          @value = if value.is_a?(Secret)
+                     value.value
+                   else
+                     value
+                   end
         end
 
         def encrypt

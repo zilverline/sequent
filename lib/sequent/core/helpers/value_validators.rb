@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative '../ext/ext'
 
 module Sequent
@@ -6,7 +8,7 @@ module Sequent
       class ValueValidators
         INVALID_STRING_CHARS = [
           "\u0000",
-        ]
+        ].freeze
 
         VALIDATORS = {
           ::Symbol => ->(_) { true },
@@ -14,36 +16,48 @@ module Sequent
           ::Integer => ->(value) { valid_integer?(value) },
           ::Boolean => ->(value) { valid_bool?(value) },
           ::Date => ->(value) { valid_date?(value) },
-          ::DateTime => ->(value) { valid_date_time?(value) }
-        }
+          ::DateTime => ->(value) { valid_date_time?(value) },
+        }.freeze
 
         def self.valid_integer?(value)
           value.blank? || Integer(value)
-        rescue
+        rescue StandardError
           false
         end
 
         def self.valid_bool?(value)
           return true if value.blank?
-          value.is_a?(TrueClass) || value.is_a?(FalseClass) || value == "true" || value == "false"
+
+          value.is_a?(TrueClass) || value.is_a?(FalseClass) || value == 'true' || value == 'false'
         end
 
         def self.valid_date?(value)
           return true if value.blank?
           return true if value.is_a?(Date)
           return false unless value =~ /\d{4}-\d{2}-\d{2}/
-          !!Date.iso8601(value) rescue false
+
+          begin
+            !!Date.iso8601(value)
+          rescue StandardError
+            false
+          end
         end
 
         def self.valid_date_time?(value)
           return true if value.blank?
-          value.is_a?(DateTime) || !!DateTime.iso8601(value.dup) rescue false
+
+          begin
+            value.is_a?(DateTime) || !!DateTime.iso8601(value.dup)
+          rescue StandardError
+            false
+          end
         end
 
         def self.valid_string?(value)
           return true if value.nil?
-          value.to_s && !INVALID_STRING_CHARS.any? { |invalid_char| value.to_s.include?(invalid_char) }
-        rescue
+
+          value.to_s && INVALID_STRING_CHARS.none? { |invalid_char| value.to_s.include?(invalid_char) }
+        rescue StandardError
           false
         end
 

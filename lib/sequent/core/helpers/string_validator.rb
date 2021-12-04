@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_model'
 require_relative 'value_validators'
 
@@ -16,7 +18,10 @@ module Sequent
       #
       class StringValidator < ActiveModel::EachValidator
         def validate_each(subject, attribute, value)
-          subject.errors.add attribute, :invalid_string unless Sequent::Core::Helpers::ValueValidators.for(String).valid_value?(value)
+          unless Sequent::Core::Helpers::ValueValidators.for(String).valid_value?(value)
+            subject.errors.add attribute,
+                               :invalid_string
+          end
         end
       end
     end

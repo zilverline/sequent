@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Helpers
@@ -9,14 +11,13 @@ module Sequent
       module StringSupport
         def to_s
           s = "#{self.class.name}: "
-          self.instance_variables.each do |name|
-            value = self.instance_variable_get("#{name}")
+          instance_variables.each do |name|
+            value = instance_variable_get(name.to_s)
             s += "#{name}=[#{value}], "
           end
-          "{" + s.chomp(", ") + "}"
+          '{' + s.chomp(', ') + '}'
         end
       end
-
     end
   end
 end

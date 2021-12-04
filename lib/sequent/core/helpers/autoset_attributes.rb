@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Helpers
@@ -24,8 +26,7 @@ module Sequent
       #
       module AutosetAttributes
         module ClassMethods
-
-          @@autoset_ignore_attributes = %w{aggregate_id sequence_number created_at}
+          @@autoset_ignore_attributes = %w[aggregate_id sequence_number created_at]
 
           def set_autoset_ignore_attributes(attribute_names)
             @@autoset_ignore_attributes = attribute_names
@@ -39,7 +40,7 @@ module Sequent
             event_classes.each do |event_class|
               on event_class do |event|
                 self.class.event_attribute_keys(event_class).each do |attribute_name|
-                  instance_variable_set(:"@#{attribute_name.to_s}", event.send(attribute_name.to_sym))
+                  instance_variable_set(:"@#{attribute_name}", event.send(attribute_name.to_sym))
                 end
               end
             end
@@ -53,4 +54,3 @@ module Sequent
     end
   end
 end
-

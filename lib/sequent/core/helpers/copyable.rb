@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Helpers
@@ -17,9 +19,7 @@ module Sequent
           end
           the_copy
         end
-
       end
     end
   end
 end
-

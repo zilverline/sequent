@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative '../ext/ext'
 require_relative 'array_with_type'
 
@@ -16,10 +18,11 @@ module Sequent
           ::DateTime => ->(value) { parse_to_date_time(value) },
           ::Sequent::Core::Helpers::ArrayWithType => ->(values, type_in_array) { parse_array(values, type_in_array) },
           ::Sequent::Core::Helpers::Secret => ->(value) { Sequent::Core::Helpers::Secret.new(value).encrypt },
-        }
+        }.freeze
 
         def self.parse_to_integer(value)
           return value if value.is_a?(Integer)
+
           Integer(value, 10) unless value.blank?
         end
 
@@ -35,12 +38,13 @@ module Sequent
           if value.blank? && !(value.is_a?(TrueClass) || value.is_a?(FalseClass))
             nil
           else
-            (value.is_a?(TrueClass) || value == "true")
+            (value.is_a?(TrueClass) || value == 'true')
           end
         end
 
         def self.parse_to_date(value)
           return if value.blank?
+
           value.is_a?(Date) ? value : Date.iso8601(value.dup)
         end
 
@@ -50,6 +54,7 @@ module Sequent
 
         def self.parse_array(values, type_in_array)
           fail "invalid value for array(): \"#{values}\"" unless values.is_a?(Array)
+
           values.map do |item|
             if item.respond_to?(:parse_attrs_to_correct_types)
               item.parse_attrs_to_correct_types
