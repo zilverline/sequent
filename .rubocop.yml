@@ -14,6 +14,11 @@ AllCops:
     rubocop-rake: false
     rubocop-rspec: false
   Exclude:
+    # default
+    - '**/node_modules/**/*'
+    - '**/vendor/**/*'
+    - '**/.git/**/*'
+    # sequent
     - '**/sequent/generator/template_aggregate/**/*'
     - '**/sequent/generator/template_project/**/*'
 ##
