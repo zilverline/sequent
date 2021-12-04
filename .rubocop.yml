@@ -13,6 +13,9 @@ AllCops:
   SuggestExtensions:
     rubocop-rake: false
     rubocop-rspec: false
+  Exclude:
+    - '**/sequent/generator/template_aggregate/**/*'
+    - '**/sequent/generator/template_project/**/*'
 ##
 # General styles
 ##
