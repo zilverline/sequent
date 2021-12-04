@@ -50,8 +50,8 @@ module Sequent
           return child.loc.expression.end_pos
         end
 
-        ast.children.map do |child|
-          find_target_cursor_position(child)
+        ast.children.map do |c|
+          find_target_cursor_position(c)
         end&.flatten&.compact&.max
       end
 
