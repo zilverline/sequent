@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Transactions
@@ -11,7 +13,6 @@ module Sequent
           yield
         end
       end
-
     end
   end
 end
