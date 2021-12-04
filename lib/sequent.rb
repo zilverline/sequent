@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'sequent/application_record'
 require_relative 'sequent/sequent'
 require_relative 'sequent/core/core'
