@@ -21,6 +21,8 @@ AllCops:
     # sequent
     - '**/sequent/generator/template_aggregate/**/*'
     - '**/sequent/generator/template_project/**/*'
+    - 'db/sequent_schema.rb'
+    - 'docs/**/*'
 ##
 # General styles
 ##
