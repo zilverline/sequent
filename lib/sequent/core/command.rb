@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'helpers/copyable'
 require_relative 'helpers/attribute_support'
 require_relative 'helpers/uuid_helper'
@@ -17,13 +19,13 @@ module Sequent
     # BaseCommand uses `ActiveModel::Validations` for
     # validations
     class BaseCommand
-      include ActiveModel::Validations,
-              Sequent::Core::Helpers::Copyable,
-              Sequent::Core::Helpers::AttributeSupport,
-              Sequent::Core::Helpers::UuidHelper,
-              Sequent::Core::Helpers::EqualSupport,
-              Sequent::Core::Helpers::ParamSupport,
-              Sequent::Core::Helpers::Mergable
+      include Sequent::Core::Helpers::Mergable
+      include Sequent::Core::Helpers::ParamSupport
+      include Sequent::Core::Helpers::EqualSupport
+      include Sequent::Core::Helpers::UuidHelper
+      include Sequent::Core::Helpers::AttributeSupport
+      include Sequent::Core::Helpers::Copyable
+      include ActiveModel::Validations
       include ActiveModel::Validations::Callbacks
       include Sequent::Core::Helpers::TypeConversionSupport
 
@@ -35,6 +37,7 @@ module Sequent
       end
 
       def self.inherited(subclass)
+        super
         Commands << subclass
       end
     end
@@ -44,7 +47,11 @@ module Sequent
       included do
         attrs sequence_number: Integer
         validates_presence_of :sequence_number
-        validates_numericality_of :sequence_number, only_integer: true, allow_nil: true, allow_blank: true, greater_than: 0
+        validates_numericality_of :sequence_number,
+                                  only_integer: true,
+                                  allow_nil: true,
+                                  allow_blank: true,
+                                  greater_than: 0
       end
     end
 
@@ -85,7 +92,8 @@ module Sequent
       attrs aggregate_id: String, user_id: String, event_aggregate_id: String, event_sequence_number: Integer
 
       def initialize(args = {})
-        raise ArgumentError, "Missing aggregate_id" if args[:aggregate_id].nil?
+        fail ArgumentError, 'Missing aggregate_id' if args[:aggregate_id].nil?
+
         super
       end
     end

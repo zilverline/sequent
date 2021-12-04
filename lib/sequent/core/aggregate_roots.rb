@@ -22,4 +22,3 @@ module Sequent
     end
   end
 end
-

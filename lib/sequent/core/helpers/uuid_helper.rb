@@ -13,9 +13,7 @@ module Sequent
           Sequent.new_uuid
         end
 
-        # rubocop:disable Style/AccessModifierDeclarations
         module_function :new_uuid
-        # rubocop:enable Style/AccessModifierDeclarations
       end
     end
   end

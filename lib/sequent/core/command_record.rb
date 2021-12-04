@@ -1,9 +1,10 @@
+# frozen_string_literal: true
+
 require 'active_record'
 require_relative 'sequent_oj'
 
 module Sequent
   module Core
-
     module SerializesCommand
       def command
         args = Sequent::Core::Oj.strict_load(command_json)
@@ -21,7 +22,10 @@ module Sequent
         # this should be moved to a configurable CommandSerializer
         self.organization_id = command.organization_id if serialize_attribute?(command, :organization_id)
         self.event_aggregate_id = command.event_aggregate_id if serialize_attribute?(command, :event_aggregate_id)
-        self.event_sequence_number = command.event_sequence_number if serialize_attribute?(command, :event_sequence_number)
+        self.event_sequence_number = command.event_sequence_number if serialize_attribute?(
+          command,
+          :event_sequence_number,
+        )
       end
 
       private
@@ -35,7 +39,7 @@ module Sequent
     class CommandRecord < Sequent::ApplicationRecord
       include SerializesCommand
 
-      self.table_name = "command_records"
+      self.table_name = 'command_records'
 
       has_many :event_records
 
@@ -58,6 +62,7 @@ module Sequent
 
       def find_origin(record)
         return find_origin(record.parent) if record.parent.present?
+
         record
       end
     end

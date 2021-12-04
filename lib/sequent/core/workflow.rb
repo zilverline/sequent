@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'helpers/message_handler'
 require_relative 'current_event'
 
@@ -11,7 +13,7 @@ module Sequent
           begin
             old_event = CurrentEvent.current
             CurrentEvent.current = event
-            self.instance_exec(event, &block)
+            instance_exec(event, &block)
           ensure
             CurrentEvent.current = old_event
           end
@@ -31,12 +33,12 @@ module Sequent
       # jobs processor is not using the same database connection
       # to enqueue jobs.
       def after_commit(ignore_errors: false, &block)
-        Sequent.configuration.transaction_provider.after_commit &block
-      rescue StandardError => error
+        Sequent.configuration.transaction_provider.after_commit(&block)
+      rescue StandardError => e
         if ignore_errors
-          Sequent.logger.warn("An exception was raised in an after_commit hook: #{error}, #{error.inspect}")
+          Sequent.logger.warn("An exception was raised in an after_commit hook: #{e}, #{e.inspect}")
         else
-          raise error
+          raise e
         end
       end
     end

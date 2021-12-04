@@ -1,10 +1,11 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
-
     ##
     # Take up to `limit` snapshots when needed. Throws `:done` when done.
     #
-    class SnapshotCommand <  Sequent::Core::BaseCommand
+    class SnapshotCommand < Sequent::Core::BaseCommand
       attrs limit: Integer
     end
 
@@ -14,9 +15,11 @@ module Sequent
     end
 
     class AggregateSnapshotter < BaseCommandHandler
-
       on SnapshotCommand do |command|
-        aggregate_ids = Sequent.configuration.event_store.aggregates_that_need_snapshots(@last_aggregate_id, command.limit)
+        aggregate_ids = Sequent.configuration.event_store.aggregates_that_need_snapshots(
+          @last_aggregate_id,
+          command.limit,
+        )
         aggregate_ids.each do |aggregate_id|
           take_snapshot!(aggregate_id)
         end
@@ -32,7 +35,7 @@ module Sequent
         aggregate = repository.load_aggregate(aggregate_id)
         Sequent.logger.info "Taking snapshot for aggregate #{aggregate}"
         aggregate.take_snapshot!
-      rescue => e
+      rescue StandardError => e
         Sequent.logger.error("Failed to take snapshot for aggregate #{aggregate_id}: #{e}, #{e.inspect}")
       end
     end
