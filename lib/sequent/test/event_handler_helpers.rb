@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Test
     ##
@@ -26,7 +28,6 @@ module Sequent
     #   end
     # end
     module WorkflowHelpers
-
       class FakeTransactionProvider
         def initialize
           @after_commit_blocks = []
@@ -55,12 +56,17 @@ module Sequent
       end
 
       def then_events(*expected_events)
-        expected_classes = expected_events.flatten(1).map { |event| event.class == Class ? event : event.class }
+        expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
         expect(Sequent.configuration.event_store.stored_events.map(&:class)).to eq(expected_classes)
 
         Sequent.configuration.event_store.stored_events.zip(expected_events.flatten(1)).each do |actual, expected|
-          next if expected.class == Class
-          expect(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))) if expected
+          next if expected.instance_of?(Class)
+
+          next unless expected
+
+          expect(
+            Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload)),
+          ).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload)))
         end
       end
 

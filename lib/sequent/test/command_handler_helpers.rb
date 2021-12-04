@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'thread_safe'
 require 'sequent/core/event_store'
 
@@ -36,7 +38,6 @@ module Sequent
     #
     # end
     module CommandHandlerHelpers
-
       class FakeEventStore
         extend Forwardable
 
@@ -89,7 +90,7 @@ module Sequent
         end
 
         def stream_exists?(aggregate_id)
-          @event_streams.has_key?(aggregate_id)
+          @event_streams.key?(aggregate_id)
         end
 
         def events_exists?(aggregate_id)
@@ -99,7 +100,8 @@ module Sequent
         private
 
         def to_event_streams(events)
-          # Specs use a simple list of given events. We need a mapping from StreamRecord to the associated events for the event store.
+          # Specs use a simple list of given events.
+          # We need a mapping from StreamRecord to the associated events for the event store.
           streams_by_aggregate_id = {}
           events.map do |event|
             event_stream = streams_by_aggregate_id.fetch(event.aggregate_id) do |aggregate_id|
@@ -107,7 +109,12 @@ module Sequent
                 find_event_stream(aggregate_id) ||
                 begin
                   aggregate_type = aggregate_type_for_event(event)
-                  raise "cannot find aggregate type associated with creation event #{event}, did you include an event handler in your aggregate for this event?" unless aggregate_type
+                  unless aggregate_type
+                    fail <<~EOS
+                      Cannot find aggregate type associated with creation event #{event}, did you include an event handler in your aggregate for this event?
+                    EOS
+                  end
+
                   Sequent::Core::EventStream.new(aggregate_type: aggregate_type.name, aggregate_id: aggregate_id)
                 end
             end
@@ -118,7 +125,7 @@ module Sequent
         def aggregate_type_for_event(event)
           @event_to_aggregate_type ||= ThreadSafe::Cache.new
           @event_to_aggregate_type.fetch_or_store(event.class) do |klass|
-            Sequent::Core::AggregateRoots.all.find { |x| x.message_mapping.has_key?(klass) }
+            Sequent::Core::AggregateRoots.all.find { |x| x.message_mapping.key?(klass) }
           end
         end
 
@@ -133,30 +140,41 @@ module Sequent
         end
       end
 
-      def given_events *events
+      def given_events(*events)
         Sequent.configuration.event_store.given_events(events.flatten(1))
       end
 
-      def when_command command
+      def when_command(command)
         Sequent.configuration.command_service.execute_commands command
       end
 
       def then_events(*expected_events)
-        expected_classes = expected_events.flatten(1).map { |event| event.class == Class ? event : event.class }
+        expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
         expect(Sequent.configuration.event_store.stored_events.map(&:class)).to eq(expected_classes)
 
-        Sequent.configuration.event_store.stored_events.zip(expected_events.flatten(1)).each_with_index do |(actual, expected), index|
-          next if expected.class == Class
-          _actual = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
-          _expected = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
-          expect(_actual).to eq(_expected), "#{index+1}th Event of type #{actual.class} not equal\nexpected: #{_expected.inspect}\n     got: #{_actual.inspect}" if expected
-        end
+        Sequent
+          .configuration
+          .event_store
+          .stored_events
+          .zip(expected_events.flatten(1))
+          .each_with_index do |(actual, expected), index|
+            next if expected.instance_of?(Class)
+
+            actual_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
+            expected_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
+            next unless expected
+
+            # rubocop:disable Layout/LineLength
+            expect(actual_hash)
+              .to eq(expected_hash),
+                  "#{index + 1}th Event of type #{actual.class} not equal\nexpected: #{expected_hash.inspect}\n     got: #{actual_hash.inspect}"
+            # rubocop:enable Layout/LineLength
+          end
       end
 
       def then_no_events
         then_events
       end
-
     end
   end
 end
