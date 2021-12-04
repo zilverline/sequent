@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_record'
 require 'rake'
 require 'rake/tasklib'
@@ -11,12 +13,13 @@ module Sequent
 
       DEFAULT_OPTIONS = {
         migrations_path: 'db/migrate',
-        event_store_schema: 'public'
-      }
+        event_store_schema: 'public',
+      }.freeze
 
       attr_reader :options
 
       def initialize(options)
+        super()
         @options = DEFAULT_OPTIONS.merge(options)
       end
 
