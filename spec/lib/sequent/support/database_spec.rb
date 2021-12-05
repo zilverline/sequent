@@ -1,9 +1,10 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../migration_class'
 require 'tmpdir'
 
 require 'sequent/support'
-require 'tmpdir' # ruby 2.2.2 fails on Dir.tmpdir when not requiring
 
 describe Sequent::Support::Database do
   let(:database_name) { Sequent.new_uuid }
@@ -43,11 +44,11 @@ describe Sequent::Support::Database do
 
     describe '.read_config' do
       let(:test_config) do
-        File.join(Sequent.configuration.database_config_directory, "database.yml")
+        File.join(Sequent.configuration.database_config_directory, 'database.yml')
       end
       before do
         Sequent.configuration.database_config_directory = 'tmp'
-        File.write(test_config, { 'test' => Database.test_config.to_h }.to_yaml)
+        File.write(test_config, {'test' => Database.test_config.to_h}.to_yaml)
       end
       # after { File.delete(test_config) }
 
@@ -97,16 +98,16 @@ describe Sequent::Support::Database do
       after { FileUtils.rm_rf(migrations_path) }
 
       it 'runs pending migrations' do
-        File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|
-          f.write <<EOF
-class TestMigration < MigrationClass
-  def change
-    create_table "my_table", id: false do |t|
-      t.string "id", null: false
-    end
-  end
-end
-EOF
+        File.open(File.expand_path('1_test_migration.rb', migrations_path), 'w') do |f|
+          f.write <<~EOF
+            class TestMigration < MigrationClass
+              def change
+                create_table "my_table", id: false do |t|
+                  t.string "id", null: false
+                end
+              end
+            end
+          EOF
           f.flush
           expect { database.migrate(migrations_path, verbose: false) }.to change {
             table_exists?('my_table')
@@ -122,7 +123,9 @@ EOF
       # Use test config from all other tests but turn it into an URL. Hardcode
       # the default port to enforce a proper URL.
       {
-        "url" => "postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}"
+        'url' => <<~EOS.chomp,
+          postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}
+        EOS
       }
     end
 
@@ -133,7 +136,7 @@ EOF
   end
 
   def database_exists?
-    results = Sequent::ApplicationRecord.connection.select_all %Q(
+    results = Sequent::ApplicationRecord.connection.select_all %(
 SELECT 1 FROM pg_database
  WHERE datname = '#{database_name}'
 )
@@ -141,7 +144,7 @@ SELECT 1 FROM pg_database
   end
 
   def table_exists?(table_name)
-    results = Sequent::ApplicationRecord.connection.select_all %Q(
+    results = Sequent::ApplicationRecord.connection.select_all %(
 SELECT 1 FROM pg_tables
  WHERE tablename = '#{table_name}'
 )
