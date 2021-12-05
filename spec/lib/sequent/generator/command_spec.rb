@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'fileutils'
 
 describe Sequent::Generator::Command do
   let(:app_name) { 'blog' }
   let(:arg) { 'address' }
-  let(:tmp_path) { "tmp/sequent-generator-spec" }
+  let(:tmp_path) { 'tmp/sequent-generator-spec' }
   let(:app_dir) { [tmp_path, app_name].join('/') }
 
   subject(:execute) { Sequent::Generator::Command.new(arg, 'SetStreet', ['street:string']).execute }
@@ -21,8 +23,8 @@ describe Sequent::Generator::Command do
 
   it 'adds the command and handlers' do
     execute
-    expect(File.read('lib/address/commands.rb')).to include("SetStreet")
-    expect(File.read('lib/address/commands.rb')).to include("attrs street: String")
-    expect(File.read('lib/address/address_command_handler.rb')).to include("SetStreet")
+    expect(File.read('lib/address/commands.rb')).to include('SetStreet')
+    expect(File.read('lib/address/commands.rb')).to include('attrs street: String')
+    expect(File.read('lib/address/address_command_handler.rb')).to include('SetStreet')
   end
 end
