@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require_relative '../../../fixtures/db/1/classes'
 
 class SpecMigrations < Sequent::Migrations::Projectors
   DEFAULT_VERSIONS = {
-    '1' => [AccountProjector, MessageProjector].freeze
+    '1' => [AccountProjector, MessageProjector].freeze,
   }.freeze
 
   @@versions = DEFAULT_VERSIONS
@@ -20,16 +22,16 @@ class SpecMigrations < Sequent::Migrations::Projectors
     self.versions = v
   end
 
-  def self.versions=(v)
-    @@versions = v
+  def self.versions=(versions)
+    @@versions = versions
   end
 
   def self.version
     @@version
   end
 
-  def self.version=(v)
-    @@version = v
+  def self.version=(version)
+    @@version = version
   end
 
   def self.reset
