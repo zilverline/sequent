@@ -185,6 +185,19 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
+
+      context 'lots of values' do
+        let(:values) do
+          10_000.times.map do |i|
+            {name: "Ben #{i}", initials: ['b'], created_at: DateTime.now}
+          end
+        end
+
+        it 'commits a persistor' do
+          persistor.create_records(ReplayOptimizedPostgresTest, values)
+          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(10_000)
+        end
+      end
     end
 
     context 'batch inserts' do
