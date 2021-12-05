@@ -1,41 +1,47 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe Sequent::Core::EventRecord do
   describe Sequent::Core::SerializesEvent do
     before do
-      stub_const("ExampleEvent", Class.new(Sequent::Core::Event))
-      stub_const("ExampleRecord", Class.new(Sequent::Core::EventRecord))
+      stub_const('ExampleEvent', Class.new(Sequent::Core::Event))
+      stub_const('ExampleRecord', Class.new(Sequent::Core::EventRecord))
 
       ExampleEvent.class_eval do
         attrs name: String, age: Integer
       end
     end
 
-    context "event" do
-      it "initializes an event type from json" do
-        record = ExampleRecord.new({
-          event_type: ExampleEvent.name,
-          event_json: {
+    context 'event' do
+      it 'initializes an event type from json' do
+        record = ExampleRecord.new(
+          {
+            event_type: ExampleEvent.name,
+            event_json: {
+              aggregate_id: 'example-id',
+              sequence_number: 1,
+              name: 'example-name',
+              age: 58,
+              created_at: DateTime.new(2019, 1, 1),
+            }.to_json,
+          },
+        )
+
+        expect(record.event).to eq(
+          ExampleEvent.new(
             aggregate_id: 'example-id',
             sequence_number: 1,
-            name: "example-name",
+            name: 'example-name',
             age: 58,
-            created_at: DateTime.new(2019, 1, 1)
-          }.to_json
-        })
-
-        expect(record.event).to eq(ExampleEvent.new(
-          aggregate_id: 'example-id',
-          sequence_number: 1,
-          name: 'example-name',
-          age: 58,
-          created_at: DateTime.new(2019, 1, 1)
-        ))
+            created_at: DateTime.new(2019, 1, 1),
+          ),
+        )
       end
     end
 
-    context "event=" do
-      it "assigns attributes from an event" do
+    context 'event=' do
+      it 'assigns attributes from an event' do
         aggregate_id = 'aggregate-id'
         sequence_number = 1
         created_at = DateTime.new(2019, 1, 1)
@@ -43,7 +49,7 @@ describe Sequent::Core::EventRecord do
         event = ExampleEvent.new(
           aggregate_id: aggregate_id,
           sequence_number: sequence_number,
-          created_at: created_at
+          created_at: created_at,
         )
 
         record = ExampleRecord.new
@@ -56,8 +62,8 @@ describe Sequent::Core::EventRecord do
         expect(record.event_json).to eq(ExampleRecord.serialize_to_json(event))
       end
 
-      it "conditionally assigns organization_id" do
-        stub_const("EventWithOrganizationId", Class.new(Sequent::Core::Event))
+      it 'conditionally assigns organization_id' do
+        stub_const('EventWithOrganizationId', Class.new(Sequent::Core::Event))
 
         ExampleRecord.class_eval do
           attr_accessor :organization_id
@@ -67,7 +73,7 @@ describe Sequent::Core::EventRecord do
 
         event = ExampleEvent.new(
           aggregate_id: 'aggregate-id',
-          sequence_number: 1
+          sequence_number: 1,
         )
 
         record.event = event
@@ -80,7 +86,7 @@ describe Sequent::Core::EventRecord do
         event = EventWithOrganizationId.new(
           aggregate_id: 'aggregate-id',
           sequence_number: 1,
-          organization_id: 'organization-id'
+          organization_id: 'organization-id',
         )
 
         record.event = event
@@ -93,7 +99,7 @@ describe Sequent::Core::EventRecord do
 
         event = ExampleEvent.new(
           aggregate_id: 'aggregate-id',
-          sequence_number: 1
+          sequence_number: 1,
         )
 
         record = ExampleRecord.new

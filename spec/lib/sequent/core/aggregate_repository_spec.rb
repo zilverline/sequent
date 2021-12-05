@@ -1,16 +1,16 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 require 'securerandom'
 
 describe Sequent::Core::AggregateRepository do
-
   class DummyAggregate2 < Sequent::Core::AggregateRoot
-
     attr_reader :loaded_events
     attr_writer :uncommitted_events
 
     def load_from_history(stream, events)
-      @id = stream && stream.aggregate_id
+      @id = stream&.aggregate_id
       @event_stream = stream
       @loaded_events = events
       @uncommitted_events = []
@@ -18,12 +18,11 @@ describe Sequent::Core::AggregateRepository do
   end
 
   class DummyAggregate < Sequent::Core::AggregateRoot
-
     attr_reader :loaded_events
     attr_writer :uncommitted_events
 
     def load_from_history(stream, events)
-      @id = stream && stream.aggregate_id
+      @id = stream&.aggregate_id
       @event_stream = stream
       @loaded_events = events
       @uncommitted_events = []
@@ -39,15 +38,22 @@ describe Sequent::Core::AggregateRepository do
   let(:repository) { Sequent.configuration.aggregate_repository }
   let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
 
-  it "should track added aggregates by id" do
+  it 'should track added aggregates by id' do
     allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
 
     repository.add_aggregate aggregate
     expect(repository.load_aggregate(aggregate.id, DummyAggregate)).to be(aggregate)
   end
 
-  it "should load an aggregate from the event store" do
-    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
+  it 'should load an aggregate from the event store' do
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return(
+      [
+        [
+          aggregate.event_stream,
+          [:events],
+        ],
+      ],
+    )
 
     loaded = repository.load_aggregate(:id, DummyAggregate)
 
@@ -55,24 +61,45 @@ describe Sequent::Core::AggregateRepository do
     expect(loaded.loaded_events).to eq([:events])
   end
 
-  it "should not require expected aggregate class" do
-    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
+  it 'should not require expected aggregate class' do
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return(
+      [
+        [
+          aggregate.event_stream,
+          [:events],
+        ],
+      ],
+    )
     loaded = repository.load_aggregate(:id)
     expect(loaded.class).to eq(DummyAggregate)
   end
 
-  it "should load a subclass aggregate" do
-    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
+  it 'should load a subclass aggregate' do
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return(
+      [
+        [
+          aggregate.event_stream,
+          [:events],
+        ],
+      ],
+    )
     loaded = repository.load_aggregate(:id, Sequent::Core::AggregateRoot)
     expect(loaded.class).to be < Sequent::Core::AggregateRoot
   end
 
-  it "should fail when the expected type does not match the stored type" do
-    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return([[aggregate.event_stream, [:events]]])
+  it 'should fail when the expected type does not match the stored type' do
+    allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return(
+      [
+        [
+          aggregate.event_stream,
+          [:events],
+        ],
+      ],
+    )
     expect { repository.load_aggregate(:id, Integer) }.to raise_error TypeError
   end
 
-  it "should commit and clear events from aggregates in the identity map" do
+  it 'should commit and clear events from aggregates in the identity map' do
     repository.add_aggregate aggregate
     aggregate.uncommitted_events = [:event]
     allow(event_store).to receive(:commit_events).with(:command, [[aggregate.event_stream, [:event]]]).once
@@ -99,8 +126,14 @@ describe Sequent::Core::AggregateRepository do
     end
   end
 
-  it "should return aggregates from the identity map after loading from the event store" do
-    allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([[aggregate.event_stream, [:events]]]).once
+  it 'should return aggregates from the identity map after loading from the event store' do
+    allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return(
+      [
+        [
+          aggregate.event_stream, [:events]
+        ],
+      ],
+    ).once
     allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
 
     a = repository.load_aggregate(aggregate.id, DummyAggregate)
@@ -108,30 +141,30 @@ describe Sequent::Core::AggregateRepository do
     expect(a).to equal(b)
   end
 
-  it "should check type when returning aggregate from identity map" do
+  it 'should check type when returning aggregate from identity map' do
     allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
 
     repository.add_aggregate aggregate
     expect { repository.load_aggregate(aggregate.id, String) }.to raise_error { |error|
-                                                                      expect(error).to be_a TypeError
-                                                                    }
+                                                                    expect(error).to be_a TypeError
+                                                                  }
   end
 
-  it "should prevent different aggregates with the same id from being added" do
+  it 'should prevent different aggregates with the same id from being added' do
     another = DummyAggregate.new(aggregate.id)
 
     repository.add_aggregate aggregate
     expect { repository.add_aggregate another }.to raise_error Sequent::Core::AggregateRepository::NonUniqueAggregateId
   end
 
-  it "should indicate if a aggregate exists" do
+  it 'should indicate if a aggregate exists' do
     allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
 
     repository.add_aggregate aggregate
     expect(repository.ensure_exists(aggregate.id, DummyAggregate)).to be_truthy
   end
 
-  it "should raise exception if a aggregate does not exists" do
+  it 'should raise exception if a aggregate does not exists' do
     expect { repository.ensure_exists(:foo, InvoiceCreatedEvent) }.to raise_exception NameError
   end
 
@@ -149,7 +182,6 @@ describe Sequent::Core::AggregateRepository do
   end
 
   describe '#load_aggregates' do
-
     context 'arguments' do
       it 'fails when aggregate_ids is nil' do
         expect { repository.load_aggregates(nil) }.to raise_error ArgumentError
@@ -164,12 +196,13 @@ describe Sequent::Core::AggregateRepository do
       it 'raises an error when nothing is found' do
         allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([]).once
 
-        expect{ repository.load_aggregates([aggregate.id]) }.to raise_error Sequent::Core::AggregateRepository::AggregateNotFound
+        expect do
+          repository.load_aggregates([aggregate.id])
+        end.to raise_error Sequent::Core::AggregateRepository::AggregateNotFound
       end
     end
 
     context 'with aggregates in the event store' do
-
       let(:aggregate_stream_with_events) { [aggregate.event_stream, [:events]] }
 
       let(:aggregate_2) { DummyAggregate.new(Sequent.new_uuid) }
@@ -184,7 +217,7 @@ describe Sequent::Core::AggregateRepository do
             receive(:load_events_for_aggregates)
               .with([aggregate.id, aggregate_2.id])
               .and_return([aggregate_stream_with_events, aggregate_2_stream_with_events])
-              .once
+              .once,
           )
 
         aggregates = repository.load_aggregates([aggregate.id, aggregate_2.id])
@@ -202,10 +235,17 @@ describe Sequent::Core::AggregateRepository do
           receive(:load_events_for_aggregates)
           .with([aggregate.id, :foo])
           .and_return([aggregate_stream_with_events])
-          .once
+          .once,
         )
 
-        expect { repository.load_aggregates([aggregate.id, :foo]) }.to raise_error(Sequent::Core::AggregateRepository::AggregateNotFound, "Aggregate with id [:foo] not found")
+        expect do
+          repository.load_aggregates(
+            [
+              aggregate.id,
+              :foo,
+            ],
+          )
+        end.to raise_error(Sequent::Core::AggregateRepository::AggregateNotFound, 'Aggregate with id [:foo] not found')
       end
 
       it 'can handle duplicate input for load_aggregates' do
@@ -213,7 +253,7 @@ describe Sequent::Core::AggregateRepository do
           receive(:load_events_for_aggregates)
           .with([aggregate.id])
           .and_return([aggregate_stream_with_events])
-          .once
+          .once,
         )
 
         aggregates = repository.load_aggregates([aggregate.id, aggregate.id])
@@ -226,7 +266,7 @@ describe Sequent::Core::AggregateRepository do
             receive(:load_events_for_aggregates)
               .with([aggregate.id])
               .and_return([aggregate_stream_with_events])
-              .once
+              .once,
           )
 
         expect { repository.load_aggregates([aggregate.id], Integer) }.to raise_error TypeError
@@ -238,7 +278,7 @@ describe Sequent::Core::AggregateRepository do
             receive(:load_events_for_aggregates)
               .with([aggregate.id, aggregate_3.id])
               .and_return([aggregate_stream_with_events, aggregate_3_stream_with_events])
-              .once
+              .once,
           )
 
         expect { repository.load_aggregates([aggregate.id, aggregate_3.id], DummyAggregate) }.to raise_error TypeError
@@ -250,7 +290,7 @@ describe Sequent::Core::AggregateRepository do
             receive(:load_events_for_aggregates)
               .with([aggregate.id, aggregate_3.id])
               .and_return([aggregate_stream_with_events, aggregate_3_stream_with_events])
-              .once
+              .once,
           )
 
         aggregates = repository.load_aggregates([aggregate.id, aggregate_3.id])
@@ -275,14 +315,14 @@ describe Sequent::Core::AggregateRepository do
               receive(:load_events_for_aggregates)
                 .with([aggregate.id, aggregate_2.id])
                 .and_return([aggregate_stream_with_events, aggregate_2_stream_with_events])
-                .once
+                .once,
             )
 
           aggregates_1 = repository.load_aggregates([aggregate.id, aggregate_2.id])
           aggregates_2 = repository.load_aggregates([aggregate.id, aggregate_2.id])
 
-          expect(aggregates_1[0]).to equal (aggregates_2[0])
-          expect(aggregates_1[1]).to equal (aggregates_2[1])
+          expect(aggregates_1[0]).to equal(aggregates_2[0])
+          expect(aggregates_1[1]).to equal(aggregates_2[1])
         end
 
         it 'fails if one of the aggregates in the identity map is not of the correct type' do
@@ -291,7 +331,7 @@ describe Sequent::Core::AggregateRepository do
               receive(:load_events_for_aggregates)
                 .with([aggregate.id, aggregate_3.id])
                 .and_return([aggregate_stream_with_events, aggregate_3_stream_with_events])
-                .once
+                .once,
             )
 
           repository.load_aggregates([aggregate.id, aggregate_3.id])
@@ -299,6 +339,5 @@ describe Sequent::Core::AggregateRepository do
         end
       end
     end
-
   end
 end

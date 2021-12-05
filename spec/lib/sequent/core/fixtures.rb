@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class NameSet < Sequent::Event
   attrs first_name: String, last_name: String
 end
@@ -5,11 +7,11 @@ end
 class PersonAggregate < Sequent::Core::AggregateRoot
   attr_reader :first_name, :last_name
 
-  self.autoset_attributes_for_events(NameSet)
+  autoset_attributes_for_events(NameSet)
 
   def initialize(id)
     super(id)
-    apply TestEvent, field: "value"
+    apply TestEvent, field: 'value'
   end
 
   def set_name(first_name, last_name)
@@ -24,7 +26,6 @@ class PersonAggregate < Sequent::Core::AggregateRoot
     apply_if_changed NameSet, first_name: first_name, last_name: last_name
   end
 
-  private
   on TestEvent do
   end
 end

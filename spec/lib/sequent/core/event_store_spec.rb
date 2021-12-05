@@ -1,24 +1,25 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'sequent/support'
 require 'postgresql_cursor'
 
 describe Sequent::Core::EventStore do
-
   class MyEvent < Sequent::Core::Event
   end
 
-  let(:event_store) { Sequent::configuration.event_store }
-  let(:aggregate_id) { "aggregate-#{rand(10000000)}" }
+  let(:event_store) { Sequent.configuration.event_store }
+  let(:aggregate_id) { "aggregate-#{rand(10_000_000)}" }
 
-  context ".configure" do
-    it "can be configured using a ActiveRecord class" do
+  context '.configure' do
+    it 'can be configured using a ActiveRecord class' do
       Sequent.configure do |config|
         config.stream_record_class = :foo
       end
       expect(Sequent.configuration.stream_record_class).to eq :foo
     end
 
-    it "can be configured with event_handlers" do
+    it 'can be configured with event_handlers' do
       event_handler_class = Class.new
       Sequent.configure do |config|
         config.event_handlers = [event_handler_class]
@@ -40,16 +41,20 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  context "snapshotting" do
-    it "can store events" do
+  context 'snapshotting' do
+    it 'can store events' do
       event_store.commit_events(
         Sequent::Core::CommandRecord.new,
         [
           [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
-          ]
-        ]
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_threshold: 13,
+            ),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
       )
 
       stream, events = event_store.load_events aggregate_id
@@ -61,15 +66,19 @@ describe Sequent::Core::EventStore do
       expect(events.first.sequence_number).to eq(1)
     end
 
-    it "can find streams that need snapshotting" do
+    it 'can find streams that need snapshotting' do
       event_store.commit_events(
         Sequent::Core::CommandRecord.new,
         [
           [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 1),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
-          ]
-        ]
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_threshold: 1,
+            ),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
       )
 
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
@@ -78,17 +87,26 @@ describe Sequent::Core::EventStore do
 
   describe '#commit_events' do
     it 'fails with OptimisticLockingError when RecordNotUnique' do
-      expect {
+      expect do
         event_store.commit_events(
           Sequent::Core::CommandRecord.new,
           [
             [
-              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1), MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
-            ]
-          ]
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+                snapshot_threshold: 13,
+              ),
+              [
+                MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
+                MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
+              ],
+            ],
+          ],
         )
-      }.to raise_error(Sequent::Core::EventStore::OptimisticLockingError) { |error| expect(error.cause).to be_a(ActiveRecord::RecordNotUnique) }
+      end.to raise_error(Sequent::Core::EventStore::OptimisticLockingError) { |error|
+               expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)
+             }
     end
   end
 
@@ -98,10 +116,14 @@ describe Sequent::Core::EventStore do
         Sequent::Core::CommandRecord.new,
         [
           [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
-          ]
-        ]
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_threshold: 13,
+            ),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
       )
       expect(event_store.events_exists?(aggregate_id)).to eq(true)
     end
@@ -117,10 +139,14 @@ describe Sequent::Core::EventStore do
         Sequent::Core::CommandRecord.new,
         [
           [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
-          ]
-        ]
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_threshold: 13,
+            ),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
       )
       expect(event_store.stream_exists?(aggregate_id)).to eq(true)
     end
@@ -130,7 +156,7 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe "#load_events" do
+  describe '#load_events' do
     it 'returns nil for non existing aggregates' do
       stream, events = event_store.load_events(aggregate_id)
       expect(stream).to be_nil
@@ -143,9 +169,9 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)]
-          ]
-        ]
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
       )
       stream, events = event_store.load_events(aggregate_id)
       expect(stream).to be
@@ -153,7 +179,7 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe "#load_events_for_aggregates" do
+  describe '#load_events_for_aggregates' do
     let(:aggregate_id_1) { Sequent.new_uuid }
     let(:aggregate_id_2) { Sequent.new_uuid }
 
@@ -163,13 +189,13 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
-            [MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1)]
+            [MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1)],
           ],
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_2),
-            [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)]
-          ]
-        ]
+            [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)],
+          ],
+        ],
       )
     end
     it 'returns the stream and events for multiple aggregates' do
@@ -222,10 +248,14 @@ describe Sequent::Core::EventStore do
           Sequent::Core::CommandRecord.new,
           [
             [
-              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-              [my_event]
-            ]
-          ]
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+                snapshot_threshold: 13,
+              ),
+              [my_event],
+            ],
+          ],
         )
         expect(handler.recorded_events).to eq([my_event])
       end
@@ -238,10 +268,14 @@ describe Sequent::Core::EventStore do
             Sequent::Core::CommandRecord.new,
             [
               [
-                Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-                [my_event]
-              ]
-            ]
+                Sequent::Core::EventStream.new(
+                  aggregate_type: 'MyAggregate',
+                  aggregate_id: aggregate_id,
+                  snapshot_threshold: 13,
+                ),
+                [my_event],
+              ],
+            ],
           )
           expect(handler.recorded_events).to eq([])
         end
@@ -252,19 +286,21 @@ describe Sequent::Core::EventStore do
       let(:handler) { FailingHandler.new }
       let(:my_event) { MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1) }
       subject(:publish_error) do
-        begin
-          event_store.commit_events(
-            Sequent::Core::CommandRecord.new,
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
+          [
             [
-              [
-                Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id, snapshot_threshold: 13),
-                [my_event]
-              ]
-            ]
-          )
-        rescue => e
-          e
-        end
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+                snapshot_threshold: 13,
+              ),
+              [my_event],
+            ],
+          ],
+        )
+      rescue StandardError => e
+        e
       end
 
       it { is_expected.to be_a(Sequent::Core::EventPublisher::PublishEventError) }
@@ -284,23 +320,23 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe "#replay_events_from_cursor" do
+  describe '#replay_events_from_cursor' do
     let(:stream_record) do
       Sequent::Core::StreamRecord.create!(
-        aggregate_type: "Sequent::Core::AggregateRoot",
+        aggregate_type: 'Sequent::Core::AggregateRoot',
         aggregate_id: aggregate_id,
-        created_at: DateTime.now
+        created_at: DateTime.now,
       )
     end
     let(:command_record) do
       Sequent::Core::CommandRecord.create!(
-        command_type: "Sequent::Core::Command",
-        command_json: "{}",
-        aggregate_id: stream_record.aggregate_id
+        command_type: 'Sequent::Core::Command',
+        command_json: '{}',
+        aggregate_id: stream_record.aggregate_id,
       )
     end
     let(:get_events_cursor) do
-      ->() { Sequent::Support::Events::ORDERED_BY_STREAM[event_store] }
+      -> { Sequent::Support::Events::ORDERED_BY_STREAM[event_store] }
     end
 
     before do
@@ -309,37 +345,37 @@ describe Sequent::Core::EventStore do
         Sequent::Core::EventRecord.create!(
           aggregate_id: stream_record.aggregate_id,
           sequence_number: n + 1,
-          event_type: "Sequent::Core::Event",
-          event_json: "{}",
+          event_type: 'Sequent::Core::Event',
+          event_json: '{}',
           created_at: DateTime.now,
           command_record_id: command_record.id,
-          stream_record_id: stream_record.id
+          stream_record_id: stream_record.id,
         )
       end
     end
 
-    it "publishes all events" do
+    it 'publishes all events' do
       replay_counter = ReplayCounter.new
       Sequent.configuration.event_handlers << replay_counter
       event_store.replay_events_from_cursor(
         block_size: 2,
         get_events: get_events_cursor,
-        on_progress: proc {}
+        on_progress: proc {},
       )
       expect(replay_counter.replay_count).to eq(Sequent::Core::EventRecord.count)
     end
 
-    it "reports progress for each block" do
+    it 'reports progress for each block' do
       progress = 0
       progress_reported_count = 0
-      on_progress = lambda do |n, _, _|
+      on_progress = ->(n, _, _) do
         progress = n
         progress_reported_count += 1
       end
       event_store.replay_events_from_cursor(
         block_size: 2,
         get_events: get_events_cursor,
-        on_progress: on_progress
+        on_progress: on_progress,
       )
       total_events = Sequent::Core::EventRecord.count
       expect(progress).to eq(total_events)
@@ -350,7 +386,9 @@ describe Sequent::Core::EventStore do
   class ReplayCounter < Sequent::Core::Projector
     attr_reader :replay_count
 
+    manages_no_tables
     def initialize
+      super
       @replay_count = 0
     end
 
