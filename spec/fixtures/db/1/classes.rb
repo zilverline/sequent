@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_record'
 
 class AccountRecord < Sequent::ApplicationRecord; end
@@ -35,7 +37,7 @@ class MessageProjector < Sequent::Projector
     update_all_records(
       MessageRecord,
       event.attributes.slice(:aggregate_id),
-      event.attributes.slice(:message)
+      event.attributes.slice(:message),
     )
   end
 end

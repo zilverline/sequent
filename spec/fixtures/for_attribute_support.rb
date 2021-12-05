@@ -1,11 +1,15 @@
+# frozen_string_literal: true
+
 class NestedTestClass
-  include Sequent::Core::Helpers::AttributeSupport, ActiveModel::Validations
+  include ActiveModel::Validations
+  include Sequent::Core::Helpers::AttributeSupport
   attrs message: String
   validates_presence_of :message
 end
 
 class AttributeSupportTestClass
-  include Sequent::Core::Helpers::AttributeSupport, ActiveModel::Validations
+  include ActiveModel::Validations
+  include Sequent::Core::Helpers::AttributeSupport
   attrs message: String, nested_test_class: NestedTestClass
   validates_presence_of :message
   validates_with Sequent::Core::Helpers::AssociationValidator, associations: :nested_test_class
