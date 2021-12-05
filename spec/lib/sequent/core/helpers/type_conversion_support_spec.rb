@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe Sequent::Core::Helpers::TypeConversionSupport do
@@ -6,13 +8,13 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: String
     end
 
-    it "handles String" do
-      command = CommandWithString.new(value: "1")
+    it 'handles String' do
+      command = CommandWithString.new(value: '1')
       command = command.parse_attrs_to_correct_types
-      expect(command.value).to eq "1"
+      expect(command.value).to eq '1'
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithString.new(value: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
@@ -24,40 +26,39 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: Integer
     end
 
-    it "fails fast when invalid value" do
-      command = CommandWithInteger.new(value: "A")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for Integer(): "A"}
+    it 'fails fast when invalid value' do
+      command = CommandWithInteger.new(value: 'A')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid value for Integer(): "A"'
     end
 
-    it "fails with a generic Sequent error" do
-      command = CommandWithInteger.new(value: "A")
+    it 'fails with a generic Sequent error' do
+      command = CommandWithInteger.new(value: 'A')
       expect { command.parse_attrs_to_correct_types }.to raise_exception(Sequent::Core::TypeConversionError)
     end
 
-    it "parses to an Integer" do
-      command = CommandWithInteger.new(value: "1")
+    it 'parses to an Integer' do
+      command = CommandWithInteger.new(value: '1')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq 1
     end
 
-    it "handles Integers" do
+    it 'handles Integers' do
       command = CommandWithInteger.new(value: 1)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq 1
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithInteger.new(value: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
 
-    it "handles blank" do
-      command = CommandWithInteger.new(value: " ")
+    it 'handles blank' do
+      command = CommandWithInteger.new(value: ' ')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
-
   end
 
   context BigDecimal do
@@ -77,31 +78,31 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: Float
     end
 
-    it "fails fast when invalid value" do
-      command = CommandWithFloat.new(value: "A")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for Float(): "A"}
+    it 'fails fast when invalid value' do
+      command = CommandWithFloat.new(value: 'A')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid value for Float(): "A"'
     end
 
-    it "parses to an Float" do
-      command = CommandWithFloat.new(value: "1.123")
+    it 'parses to an Float' do
+      command = CommandWithFloat.new(value: '1.123')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq 1.123
     end
 
-    it "handles Floats" do
+    it 'handles Floats' do
       command = CommandWithFloat.new(value: 1.098)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq 1.098
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithFloat.new(value: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
 
-    it "handles blank" do
-      command = CommandWithFloat.new(value: " ")
+    it 'handles blank' do
+      command = CommandWithFloat.new(value: ' ')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
@@ -112,26 +113,26 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: Symbol
     end
 
-    it "parses to a Symbol" do
-      command = CommandWithSymbol.new(value: "test")
+    it 'parses to a Symbol' do
+      command = CommandWithSymbol.new(value: 'test')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq :test
     end
 
-    it "handles Symbols" do
+    it 'handles Symbols' do
       command = CommandWithSymbol.new(value: :test)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq :test
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithSymbol.new(value: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
 
-    it "handles blanks" do
-      command = CommandWithSymbol.new(value: " ")
+    it 'handles blanks' do
+      command = CommandWithSymbol.new(value: ' ')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
@@ -142,38 +143,38 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: Boolean
     end
 
-    it "parses to a true" do
-      command = CommandWithBoolean.new(value: "true")
+    it 'parses to a true' do
+      command = CommandWithBoolean.new(value: 'true')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq true
     end
 
-    it "parses to a false" do
-      command = CommandWithBoolean.new(value: "false")
+    it 'parses to a false' do
+      command = CommandWithBoolean.new(value: 'false')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq false
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithBoolean.new(value: nil)
       command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
 
-    it "handles true" do
+    it 'handles true' do
       command = CommandWithBoolean.new(value: true)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq true
     end
 
-    it "handles false" do
+    it 'handles false' do
       command = CommandWithBoolean.new(value: false)
       command.parse_attrs_to_correct_types
       expect(command.value).to eq false
     end
 
-    it "handles blank" do
-      command = CommandWithBoolean.new(value: " ")
+    it 'handles blank' do
+      command = CommandWithBoolean.new(value: ' ')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
@@ -186,36 +187,36 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
 
     let(:date) { Date.new(2015, 1, 1) }
 
-    it "parses to a Date" do
-      command = CommandWithDate.new(value: "2015-01-01")
+    it 'parses to a Date' do
+      command = CommandWithDate.new(value: '2015-01-01')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq date
     end
 
-    it "fails when not a valid Date format" do
-      command = CommandWithDate.new(value: "01-01-2015")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
+    it 'fails when not a valid Date format' do
+      command = CommandWithDate.new(value: '01-01-2015')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid date'
     end
 
-    it "fails when not a valid Date" do
-      command = CommandWithDate.new(value: "2015-31-31")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
+    it 'fails when not a valid Date' do
+      command = CommandWithDate.new(value: '2015-31-31')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid date'
     end
 
-    it "handles Dates" do
+    it 'handles Dates' do
       command = CommandWithDate.new(value: date)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq date
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithDate.new(value: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
 
-    it "handles blank" do
-      command = CommandWithDate.new(value: " ")
+    it 'handles blank' do
+      command = CommandWithDate.new(value: ' ')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
@@ -226,42 +227,41 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: DateTime
     end
 
-    let(:date_time) { DateTime.iso8601("2015-04-06T14:42:32+02:00") }
+    let(:date_time) { DateTime.iso8601('2015-04-06T14:42:32+02:00') }
 
-    it "parses to a DateTime" do
-      command = CommandWithDateTime.new(value: "2015-04-06T14:42:32+02:00")
+    it 'parses to a DateTime' do
+      command = CommandWithDateTime.new(value: '2015-04-06T14:42:32+02:00')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq date_time
     end
 
-    it "fails when not a valid DateTime format" do
-      command = CommandWithDateTime.new(value: "06-04-2015T14:42:32+02:00")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
+    it 'fails when not a valid DateTime format' do
+      command = CommandWithDateTime.new(value: '06-04-2015T14:42:32+02:00')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid date'
     end
 
-    it "fails when not a valid DateTime" do
-      command = CommandWithDateTime.new(value: "SSDFGS345345")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception "invalid date"
+    it 'fails when not a valid DateTime' do
+      command = CommandWithDateTime.new(value: 'SSDFGS345345')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid date'
     end
 
-    it "handles DateTimes" do
+    it 'handles DateTimes' do
       command = CommandWithDateTime.new(value: date_time)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq date_time
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithDateTime.new(value: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
 
-    it "handles blank" do
-      command = CommandWithDateTime.new(value: "")
+    it 'handles blank' do
+      command = CommandWithDateTime.new(value: '')
       command = command.parse_attrs_to_correct_types
       expect(command.value).to be_nil
     end
-
   end
 
   context Array do
@@ -269,33 +269,33 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs values: array(Integer)
     end
 
-    it "parses an array of Integers" do
-      command = CommandWithArray.new(values: ["1"])
+    it 'parses an array of Integers' do
+      command = CommandWithArray.new(values: ['1'])
       command = command.parse_attrs_to_correct_types
       expect(command.values).to eq [1]
     end
 
-    it "handles an array of Integers" do
+    it 'handles an array of Integers' do
       command = CommandWithArray.new(values: [1])
       command = command.parse_attrs_to_correct_types
       expect(command.values).to eq [1]
     end
 
-    it "handles an empty array" do
+    it 'handles an empty array' do
       command = CommandWithArray.new(values: [])
       command = command.parse_attrs_to_correct_types
       expect(command.values).to eq []
     end
 
-    it "handles nils" do
+    it 'handles nils' do
       command = CommandWithArray.new(values: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.values).to be_nil
     end
 
-    it "fails for a non-array value" do
-      command = CommandWithArray.new(values: "string")
-      expect { command.parse_attrs_to_correct_types }.to raise_exception %q{invalid value for array(): "string"}
+    it 'fails for a non-array value' do
+      command = CommandWithArray.new(values: 'string')
+      expect { command.parse_attrs_to_correct_types }.to raise_exception 'invalid value for array(): "string"'
     end
 
     context Sequent::Core::ValueObject do
@@ -306,29 +306,28 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
         attrs values: array(Litmanen)
       end
 
-      it "parses an array of ValueObjects" do
+      it 'parses an array of ValueObjects' do
         litmanen = Litmanen.new(value: 1)
         command = CommandWithArrayWithValueObjects.new(values: [litmanen])
         command = command.parse_attrs_to_correct_types
         expect(command.values).to eq [litmanen]
       end
 
-      it "handles nil" do
+      it 'handles nil' do
         command = CommandWithArrayWithValueObjects.new(values: nil)
         command = command.parse_attrs_to_correct_types
         expect(command.values).to be_nil
       end
 
-      it "handles an empty array" do
+      it 'handles an empty array' do
         command = CommandWithArrayWithValueObjects.new(values: [])
         command = command.parse_attrs_to_correct_types
         expect(command.values).to be_empty
       end
     end
-
   end
 
-  context "associations" do
+  context 'associations' do
     class Nesting < Sequent::Core::ValueObject
       attrs value: Integer
     end
@@ -337,19 +336,18 @@ describe Sequent::Core::Helpers::TypeConversionSupport do
       attrs value: Integer, nested: Nesting
     end
 
-    it "parses nested values of commands" do
-      command = CommandWithNesting.new(value: "1", nested: Nesting.new(value: "2"))
+    it 'parses nested values of commands' do
+      command = CommandWithNesting.new(value: '1', nested: Nesting.new(value: '2'))
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq 1
       expect(command.nested.value).to eq 2
     end
 
-    it "handles nils" do
-      command = CommandWithNesting.new(value: "1", nested: nil)
+    it 'handles nils' do
+      command = CommandWithNesting.new(value: '1', nested: nil)
       command = command.parse_attrs_to_correct_types
       expect(command.value).to eq 1
       expect(command.nested).to be_nil
     end
   end
-
 end
