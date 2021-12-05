@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'sequent/support'
 require 'tmpdir'
@@ -11,38 +13,39 @@ class MockEvent < Sequent::Core::Event
 end
 
 describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
-
   let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
   let(:record_class) { Sequent::Core::EventRecord }
   let(:mock_event) { MockEvent.new }
 
   context '#get_record!' do
     it 'fails when no object is found' do
-      expect { persistor.get_record!(record_class, { id: 1 }) }.to raise_error(/record #{record_class} not found}*/)
+      expect { persistor.get_record!(record_class, {id: 1}) }.to raise_error(/record #{record_class} not found}*/)
     end
   end
 
   context '#update_record' do
     it 'fails when no object is found' do
-      expect { persistor.update_record(record_class, mock_event, { id: 1 }) }.to raise_error(/record #{record_class} not found}*/)
+      expect do
+        persistor.update_record(record_class, mock_event, {id: 1})
+      end.to raise_error(/record #{record_class} not found}*/)
     end
   end
 
   context '#get_record' do
     it 'returns nil when no object is found' do
-      expect(persistor.get_record(record_class, { id: 1 })).to be_nil
+      expect(persistor.get_record(record_class, {id: 1})).to be_nil
     end
   end
 
   context '#find_records' do
     it 'returns empty array when no objects are found' do
-      expect(persistor.find_records(record_class, { id: 1 })).to be_empty
+      expect(persistor.find_records(record_class, {id: 1})).to be_empty
     end
   end
 
   context '#delete_all_records' do
     it 'does not fail when there is nothing to delete' do
-      persistor.delete_all_records(record_class, { id: 1 })
+      persistor.delete_all_records(record_class, {id: 1})
     end
   end
 
@@ -54,39 +57,39 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
   context '#update_all_records' do
     it 'does not fail when there is nothing to update' do
-      persistor.update_all_records(record_class, { id: 1 }, { sequence_number: 2 })
+      persistor.update_all_records(record_class, {id: 1}, {sequence_number: 2})
     end
   end
 
   it 'can save multiple objects at once' do
-    persistor.create_records(Sequent::Core::EventRecord, [{ id: 1 }, { id: 2 }])
-    object = persistor.get_record!(record_class, { id: 1 })
+    persistor.create_records(Sequent::Core::EventRecord, [{id: 1}, {id: 2}])
+    object = persistor.get_record!(record_class, {id: 1})
     expect(object.id).to eq 1
-    object = persistor.get_record!(record_class, { id: 2 })
+    object = persistor.get_record!(record_class, {id: 2})
     expect(object.id).to eq 2
   end
 
   context 'with an object' do
     before :each do
-      persistor.create_record(Sequent::Core::EventRecord, { id: 1 })
+      persistor.create_record(Sequent::Core::EventRecord, {id: 1})
     end
 
     context '#get_record!' do
       it 'returns the object' do
-        object = persistor.get_record!(record_class, { id: 1 })
+        object = persistor.get_record!(record_class, {id: 1})
         expect(object.id).to eq 1
       end
 
       context '#get_record' do
         it 'returns the object' do
-          object = persistor.get_record(record_class, { id: 1 })
+          object = persistor.get_record(record_class, {id: 1})
           expect(object.id).to eq 1
         end
       end
 
       context '#find_records' do
         it 'returns the object' do
-          objects = persistor.find_records(record_class, { id: 1 })
+          objects = persistor.find_records(record_class, {id: 1})
           expect(objects).to have(1).item
           expect(objects.first.id).to eq 1
         end
@@ -94,27 +97,27 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
       context '#delete_all_records' do
         it 'deletes the object' do
-          persistor.delete_all_records(record_class, { id: 1 })
+          persistor.delete_all_records(record_class, {id: 1})
 
-          objects = persistor.find_records(record_class, { id: 1 })
+          objects = persistor.find_records(record_class, {id: 1})
           expect(objects).to be_empty
         end
       end
 
       context '#delete_record' do
         it 'deletes the object' do
-          objects = persistor.find_records(record_class, { id: 1 })
+          objects = persistor.find_records(record_class, {id: 1})
           persistor.delete_record(record_class, objects.first)
 
-          expect(persistor.find_records(record_class, { id: 1 })).to be_empty
+          expect(persistor.find_records(record_class, {id: 1})).to be_empty
         end
       end
 
       context '#update_all_records' do
         it 'updates the records' do
-          persistor.update_all_records(record_class, { id: 1 }, { sequence_number: 3 })
+          persistor.update_all_records(record_class, {id: 1}, {sequence_number: 3})
 
-          objects = persistor.find_records(record_class, { id: 1 })
+          objects = persistor.find_records(record_class, {id: 1})
           expect(objects).to have(1).item
           expect(objects.first.id).to eq 1
           expect(objects.first.sequence_number).to eq 3
@@ -147,19 +150,19 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     end
 
     before :each do
-      File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|
-        f.write <<EOF
-class TestMigration < MigrationClass
-  def change
-    create_table "replay_optimized_postgres_tests", id: false do |t|
-      t.string "name", null: false
-      t.string "initials", default: [], array:true
-      t.timestamp "created_at", null: false
-      t.timestamp "updated_at", null: false
-    end
-  end
-end
-EOF
+      File.open(File.expand_path('1_test_migration.rb', migrations_path), 'w') do |f|
+        f.write <<~EOF
+          class TestMigration < MigrationClass
+            def change
+              create_table "replay_optimized_postgres_tests", id: false do |t|
+                t.string "name", null: false
+                t.string "initials", default: [], array:true
+                t.timestamp "created_at", null: false
+                t.timestamp "updated_at", null: false
+              end
+            end
+          end
+        EOF
         f.flush
         database.migrate(migrations_path, verbose: false)
       end
@@ -167,7 +170,7 @@ EOF
 
     context 'csv' do
       let(:insert_csv_size) { 0 }
-      let(:values) { { name: 'bén', initials: ['björ'], created_at: DateTime.now } }
+      let(:values) { {name: 'bén', initials: ['björ'], created_at: DateTime.now} }
 
       context 'values as with_indifferent_access' do
         it 'commits a persistor' do
@@ -186,7 +189,7 @@ EOF
 
     context 'batch inserts' do
       let(:insert_csv_size) { 1 }
-      let(:values) { { name: 'ben', initials: ['b'], created_at: DateTime.now } }
+      let(:values) { {name: 'ben', initials: ['b'], created_at: DateTime.now} }
 
       context 'values as with_indifferent_access' do
         it 'commits a persistor' do
@@ -209,20 +212,25 @@ EOF
   context 'with some records' do
     let(:aggregate_id) { Sequent.new_uuid }
     before :each do
-      persistor.create_record(Sequent::Core::EventRecord, { id: 1, command_record_id: 2 })
-      persistor.create_record(Sequent::Core::EventRecord, { id: 1, sequence_number: 2 })
-      persistor.create_record(Sequent::Core::EventRecord, { aggregate_id: aggregate_id, id: 2 })
+      persistor.create_record(Sequent::Core::EventRecord, {id: 1, command_record_id: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {id: 1, sequence_number: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, id: 2})
     end
 
-    let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(50, {
-      Sequent::Core::EventRecord => [[:id, :command_record_id], [:id, :sequence_number]]
-    }) }
+    let(:persistor) do
+      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
+        50,
+        {
+          Sequent::Core::EventRecord => [%i[id command_record_id], %i[id sequence_number]],
+        },
+      )
+    end
 
     context '#find_records' do
       let(:records) { persistor.find_records(record_class, where_clause) }
 
       context 'finding multiple records' do
-        let(:where_clause) { { id: 1 } }
+        let(:where_clause) { {id: 1} }
 
         it 'returns the correct number records' do
           expect(records).to have(2).items
@@ -230,7 +238,7 @@ EOF
       end
 
       context 'with an indexed where clause' do
-        let(:where_clause) { { id: 1, command_record_id: 2 } }
+        let(:where_clause) { {id: 1, command_record_id: 2} }
         it 'returns the correct number records' do
           expect(records).to have(1).item
         end
@@ -243,7 +251,7 @@ EOF
       end
 
       context 'stringified indexed where clause' do
-        let(:where_clause) { { 'id' => 1, 'command_record_id' => 2 } }
+        let(:where_clause) { {'id' => 1, 'command_record_id' => 2} }
 
         it 'returns the correct number records' do
           expect(records).to have(1).item
@@ -257,7 +265,7 @@ EOF
       end
 
       context 'arbitrary order in indexed where clause' do
-        let(:where_clause) { { 'command_record_id' => 2, 'id' => 1 } }
+        let(:where_clause) { {'command_record_id' => 2, 'id' => 1} }
 
         it 'returns the correct number records' do
           expect(records).to have(1).item
@@ -271,7 +279,7 @@ EOF
       end
 
       context 'on aggregate_id' do
-        let(:where_clause) { { aggregate_id: aggregate_id } }
+        let(:where_clause) { {aggregate_id: aggregate_id} }
 
         it 'returns the correct number records' do
           expect(records).to have(1).item
@@ -285,53 +293,53 @@ EOF
 
     context '#delete_all_records' do
       it 'deletes the object based on single column' do
-        expect(persistor.find_records(record_class, { id: 1 })).to have(2).items
+        expect(persistor.find_records(record_class, {id: 1})).to have(2).items
 
-        persistor.delete_all_records(record_class, { id: 1 })
+        persistor.delete_all_records(record_class, {id: 1})
 
-        expect(persistor.find_records(record_class, { id: 1 })).to be_empty
+        expect(persistor.find_records(record_class, {id: 1})).to be_empty
       end
 
       it 'deletes the object based on multiple columns with index' do
-        expect(persistor.find_records(record_class, { id: 1, command_record_id: 2 })).to have(1).item
+        expect(persistor.find_records(record_class, {id: 1, command_record_id: 2})).to have(1).item
 
-        persistor.delete_all_records(record_class, { id: 1, command_record_id: 2 })
+        persistor.delete_all_records(record_class, {id: 1, command_record_id: 2})
 
-        expect(persistor.find_records(record_class, { id: 1, command_record_id: 2 })).to be_empty
-        expect(persistor.find_records(record_class, { id: 1, sequence_number: 2 })).to have(1).item
+        expect(persistor.find_records(record_class, {id: 1, command_record_id: 2})).to be_empty
+        expect(persistor.find_records(record_class, {id: 1, sequence_number: 2})).to have(1).item
       end
     end
 
     context '#update_all_records' do
       it 'only updates the records adhering to the where clause' do
-        persistor.update_all_records(record_class, { id: 1, sequence_number: 2 }, { command_record_id: 10 })
+        persistor.update_all_records(record_class, {id: 1, sequence_number: 2}, {command_record_id: 10})
 
-        object = persistor.get_record!(record_class, { id: 1, sequence_number: 2 })
+        object = persistor.get_record!(record_class, {id: 1, sequence_number: 2})
         expect(object.id).to eq 1
         expect(object.command_record_id).to eq 10
       end
 
       context 'with an indexed where' do
         before do
-          persistor.update_all_records(record_class, where_clause, { sequence_number: 99 })
+          persistor.update_all_records(record_class, where_clause, {sequence_number: 99})
         end
         context 'in indexed order' do
-          let(:where_clause) { { id: 1, sequence_number: 2 } }
+          let(:where_clause) { {id: 1, sequence_number: 2} }
           it 'can update an indexed column' do
-            expect(persistor.get_record(record_class, { id: 1, sequence_number: 2 })).to be_nil
+            expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
 
-            object = persistor.get_record!(record_class, { id: 1, sequence_number: 99 })
+            object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
             expect(object.id).to eq 1
             expect(object.sequence_number).to eq 99
           end
         end
 
         context 'in reversed indexed order' do
-          let(:where_clause) { { sequence_number: 2, 'id' => 1 } }
+          let(:where_clause) { {sequence_number: 2, 'id' => 1} }
           it 'can update an indexed column' do
-            expect(persistor.get_record(record_class, { id: 1, sequence_number: 2 })).to be_nil
+            expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
 
-            object = persistor.get_record!(record_class, { id: 1, sequence_number: 99 })
+            object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
             expect(object.id).to eq 1
             expect(object.sequence_number).to eq 99
           end
@@ -339,21 +347,21 @@ EOF
       end
 
       it 'can update an indexed column' do
-        persistor.update_all_records(record_class, { id: 1, sequence_number: 2 }, { sequence_number: 99 })
+        persistor.update_all_records(record_class, {id: 1, sequence_number: 2}, {sequence_number: 99})
 
-        expect(persistor.get_record(record_class, { id: 1, sequence_number: 2 })).to be_nil
+        expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
 
-        object = persistor.get_record!(record_class, { id: 1, sequence_number: 99 })
+        object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
         expect(object.id).to eq 1
         expect(object.sequence_number).to eq 99
       end
 
       it 'can update an indexed column with reversed where' do
-        persistor.update_all_records(record_class, { sequence_number: 2, id: 1 }, { sequence_number: 99 })
+        persistor.update_all_records(record_class, {sequence_number: 2, id: 1}, {sequence_number: 99})
 
-        expect(persistor.get_record(record_class, { id: 1, sequence_number: 2 })).to be_nil
+        expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
 
-        object = persistor.get_record!(record_class, { id: 1, sequence_number: 99 })
+        object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
         expect(object.id).to eq 1
         expect(object.sequence_number).to eq 99
       end
@@ -366,34 +374,34 @@ EOF
       let(:index) do
         Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(
           {
-            Sequent::Core::EventRecord => indices
-          }
+            Sequent::Core::EventRecord => indices,
+          },
         )
       end
 
       context 'symbolized single indices' do
         let(:indices) { [[:id]] }
         it 'uses the index for strings and symbols where clause' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { id: 1 })).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, { "id" => 1 })).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
         end
 
         it 'does not use index for non indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { "command_record_id" => 1 })).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, { command_record_id: 1 })).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {'command_record_id' => 1})).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 1})).to be_falsey
         end
       end
 
       context 'string single indices' do
         let(:indices) { [['id']] }
         it 'uses the index for strings and symbols where clause' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { id: 1 })).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, { "id" => 1 })).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
         end
 
         it 'does not use index for non indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { "command_record_id" => 1 })).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, { command_record_id: 1 })).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {'command_record_id' => 1})).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 1})).to be_falsey
         end
       end
 
@@ -401,24 +409,23 @@ EOF
         let(:indices) { [['id'], [:id, 'command_record_id']] }
 
         it 'uses the index for strings and symbols where clause' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { id: 1 })).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, { "id" => 1, command_record_id: 10 })).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1, command_record_id: 10})).to be_truthy
         end
 
         it 'does not use index for non or partial indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { sequence_number: 1 })).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, { id: 1, sequence_number: 1 })).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {sequence_number: 1})).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1, sequence_number: 1})).to be_falsey
         end
       end
 
       context 'where clause order' do
-        let(:indices) { [[:id, :command_record_id]] }
+        let(:indices) { [%i[id command_record_id]] }
 
         it 'uses the index for strings and symbols where clause' do
-          expect(index.use_index?(Sequent::Core::EventRecord, { command_record_id: 10, id: 1 })).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 10, id: 1})).to be_truthy
         end
       end
     end
   end
-
 end
