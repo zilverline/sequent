@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe Sequent::Configuration do
@@ -5,9 +7,11 @@ describe Sequent::Configuration do
 
   context Sequent::Core::BaseCommandHandler do
     class SpecHandler < Sequent::Core::BaseCommandHandler
+      # rubocop:disable Lint/UselessMethodDefinition
       def repository
         super
       end
+      # rubocop:enable Lint/UselessMethodDefinition
     end
     let(:spec_handler) { SpecHandler.new }
 
@@ -28,5 +32,4 @@ describe Sequent::Configuration do
       expect(spec_handler.repository).to eq Sequent.configuration.aggregate_repository
     end
   end
-
 end
