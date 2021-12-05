@@ -1,68 +1,64 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
-
 describe Sequent::Migrations::MigrateEvents do
-
-  class Database::MigrateToVersion2
-    @@called = false
-
-    def self.called?
-      @@called
-    end
-
-    def self.reset
+  module Database
+    class MigrateToVersion2
       @@called = false
+
+      def self.called?
+        @@called
+      end
+
+      def self.reset
+        @@called = false
+      end
+
+      def initialize(_); end
+
+      def version
+        2
+      end
+
+      def migrate
+        @@called = true
+      end
     end
 
-    def initialize(_)
-
-    end
-
-    def version
-      2
-    end
-
-    def migrate
-      @@called = true
-    end
-  end
-
-  class Database::MigrateToVersion3
-    @@called = false
-
-    def self.called?
-      @@called
-    end
-
-    def self.reset
+    class MigrateToVersion3
       @@called = false
+
+      def self.called?
+        @@called
+      end
+
+      def self.reset
+        @@called = false
+      end
+
+      def initialize(_); end
+
+      def migrate
+        @@called = true
+      end
+
+      def version
+        3
+      end
     end
 
-    def initialize(_)
+    class MigrateToVersion4
+      def initialize(_); end
+
+      def migrate
+        fail 'for spec'
+      end
+
+      def version
+        4
+      end
     end
-
-    def migrate
-      @@called = true
-    end
-
-    def version
-      3
-    end
-
-  end
-
-  class Database::MigrateToVersion4
-    def initialize(_)
-    end
-
-    def migrate
-      raise 'for spec'
-    end
-
-    def version
-      4
-    end
-
   end
 
   after :each do
@@ -105,12 +101,10 @@ describe Sequent::Migrations::MigrateEvents do
       subject.execute_migrations(3, 4) do
         @after_hook_ran = true
       end
-    rescue => expected
+    rescue StandardError
       @exception_thrown = true
     end
     expect(@exception_thrown).to be_truthy
     expect(@after_hook_ran).to be_truthy
-
-
   end
 end

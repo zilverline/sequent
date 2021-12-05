@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../fixtures/spec_migrations'
 
@@ -92,9 +94,9 @@ describe Sequent::Migrations::Planner do
       end
 
       it 'fails when defining an AlterTable without the corresponding sql file' do
-        expect {
+        expect do
           planner.plan(0, 2)
-        }.to raise_error %r{db/tables/account_records_2.sql to apply for version 2}
+        end.to raise_error %r{db/tables/account_records_2.sql to apply for version 2}
       end
     end
 
@@ -125,7 +127,6 @@ describe Sequent::Migrations::Planner do
     end
 
     context 'alter table with replay table' do
-
       before :each do
         SpecMigrations.copy_and_add('1', [AccountProjector])
         SpecMigrations.copy_and_add('2', [Sequent::Migrations.alter_table(AccountRecord)])
@@ -152,10 +153,13 @@ describe Sequent::Migrations::Planner do
     context 'orders the migrations' do
       before do
         SpecMigrations.copy_and_add('1', [AccountProjector])
-        SpecMigrations.copy_and_add('3', [
-          MessageProjector,
-          Sequent::Migrations.alter_table(AccountRecord)
-        ])
+        SpecMigrations.copy_and_add(
+          '3',
+          [
+            MessageProjector,
+            Sequent::Migrations.alter_table(AccountRecord),
+          ],
+        )
         SpecMigrations.copy_and_add('2', [Sequent::Migrations.alter_table(AccountRecord)])
       end
 
@@ -164,7 +168,7 @@ describe Sequent::Migrations::Planner do
           Sequent::Migrations::ReplayTable.create(AccountRecord, '1'),
           Sequent::Migrations::AlterTable.create(AccountRecord, '2'),
           Sequent::Migrations::ReplayTable.create(MessageRecord, '3'),
-          Sequent::Migrations::AlterTable.create(AccountRecord, '3')
+          Sequent::Migrations::AlterTable.create(AccountRecord, '3'),
         ]
       end
     end
@@ -172,10 +176,13 @@ describe Sequent::Migrations::Planner do
     context 'AlterTable before ReplayTable' do
       before do
         SpecMigrations.copy_and_add('1', [AccountProjector])
-        SpecMigrations.copy_and_add('2', [
-          Sequent::Migrations.alter_table(AccountRecord),
-          Sequent::Migrations.alter_table(MessageRecord),
-        ])
+        SpecMigrations.copy_and_add(
+          '2',
+          [
+            Sequent::Migrations.alter_table(AccountRecord),
+            Sequent::Migrations.alter_table(MessageRecord),
+          ],
+        )
         SpecMigrations.copy_and_add('3', [AccountProjector])
       end
 
