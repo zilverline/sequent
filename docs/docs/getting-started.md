@@ -42,7 +42,7 @@ $ ruby -v
 ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-darwin20]
 ```
 
-Sequent requires Ruby version 2.5.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
+Sequent requires Ruby version 2.7.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
 
 #### Postgres
 
