@@ -1,7 +1,8 @@
+# frozen_string_literal: true
+
 module Sequent
   module Migrations
     class Migration
-
       module ClassMethods
         def create(record_class, version)
           migration = new(record_class)
@@ -11,6 +12,7 @@ module Sequent
       end
 
       def self.inherited(child_class)
+        super
         class << child_class
           include ClassMethods
         end
@@ -35,11 +37,11 @@ module Sequent
       def ==(other)
         return false unless other.class == self.class
 
-        self.table_name == other.table_name && version == other.version
+        table_name == other.table_name && version == other.version
       end
 
       def hash
-        self.table_name.hash + (version&.hash || 0)
+        table_name.hash + (version&.hash || 0)
       end
     end
 
@@ -48,7 +50,6 @@ module Sequent
     class ReplayTable < Migration; end
 
     module Functions
-
       module ClassMethods
         def alter_table(name)
           AlterTable.new(name)
@@ -62,13 +63,11 @@ module Sequent
         def all_projectors
           Sequent::Core::Migratable.all
         end
-
       end
 
       def self.included(base)
         base.extend(ClassMethods)
       end
-
     end
 
     include Functions

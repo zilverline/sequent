@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe 'dry run' do
@@ -9,7 +11,7 @@ describe 'dry run' do
           Sequent
             .aggregate_repository
             .add_aggregate(
-              pong
+              pong,
             )
           pong.ping('foo')
         end
@@ -56,7 +58,7 @@ describe 'dry run' do
     before :each do
       Sequent.configure do |config|
         config.command_handlers = [
-          command_handler.new
+          command_handler.new,
         ]
         config.event_handlers = [
           projector.new,
@@ -66,11 +68,11 @@ describe 'dry run' do
       end
     end
 
-    let(:create_test_aggregate) {
+    let(:create_test_aggregate) do
       Sequent::Fixtures::CreateTestAggregate.new(
         aggregate_id: Sequent.new_uuid,
       )
-    }
+    end
 
     it 'records consequences of a specific command' do
       result = Sequent.dry_run(create_test_aggregate)
@@ -87,12 +89,12 @@ describe 'dry run' do
     end
 
     context 'multiple commands' do
-      let(:ping_command) {
+      let(:ping_command) do
         Sequent::Fixtures::PingTestAggregate.new(
           aggregate_id: create_test_aggregate.aggregate_id,
-          message: 'pong ping'
+          message: 'pong ping',
         )
-      }
+      end
 
       it 'records consequences of all commands' do
         result = Sequent.dry_run(create_test_aggregate, ping_command)

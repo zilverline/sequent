@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_support/hash_with_indifferent_access'
 
 module Sequent
@@ -16,10 +18,10 @@ module Sequent
       end
 
       def self.read_config(env)
-        fail ArgumentError.new("env is mandatory") unless env
+        fail ArgumentError, 'env is mandatory' unless env
 
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
-        config = YAML.load(ERB.new(File.read(database_yml)).result)[env]
+        config = YAML.safe_load(ERB.new(File.read(database_yml)).result)[env]
         if Gem.loaded_specs['activerecord'].version >= Gem::Version.create('6.1.0')
           ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
         else
@@ -61,13 +63,14 @@ module Sequent
       end
 
       def self.with_schema_search_path(search_path, db_config, env = ENV['RACK_ENV'])
-        fail ArgumentError.new("env is required") unless env
+        fail ArgumentError, 'env is required' unless env
 
         disconnect!
         original_search_paths = db_config[:schema_search_path].dup
 
         if ActiveRecord::VERSION::MAJOR < 6
-          ActiveRecord::Base.configurations[env.to_s] = ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
+          ActiveRecord::Base.configurations[env.to_s] =
+            ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
         end
 
         db_config[:schema_search_path] = search_path
@@ -83,7 +86,7 @@ module Sequent
 
       def self.schema_exists?(schema)
         ActiveRecord::Base.connection.execute(
-          "SELECT schema_name FROM information_schema.schemata WHERE schema_name like '#{schema}'"
+          "SELECT schema_name FROM information_schema.schemata WHERE schema_name like '#{schema}'",
         ).count == 1
       end
 

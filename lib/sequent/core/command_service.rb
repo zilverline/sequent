@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'transactions/no_transactions'
 require_relative 'current_event'
 
@@ -39,7 +41,7 @@ module Sequent
       end
 
       def remove_event_handler(clazz)
-        warn "[DEPRECATION] `remove_event_handler` is deprecated"
+        warn '[DEPRECATION] `remove_event_handler` is deprecated'
         event_store.remove_event_handler(clazz)
       end
 
@@ -47,17 +49,13 @@ module Sequent
 
       def process_commands
         Sequent::Util.skip_if_already_processing(:command_service_process_commands) do
-          begin
-            transaction_provider.transactional do
-              while(!command_queue.empty?) do
-                process_command(command_queue.pop)
-              end
-              Sequent::Util.done_processing(:command_service_process_commands)
-            end
-          ensure
-            command_queue.clear
-            repository.clear
+          transaction_provider.transactional do
+            process_command(command_queue.pop) until command_queue.empty?
+            Sequent::Util.done_processing(:command_service_process_commands)
           end
+        ensure
+          command_queue.clear
+          repository.clear
         end
       end
 
@@ -68,10 +66,12 @@ module Sequent
 
         filters.each { |filter| filter.execute(command) }
 
-        raise CommandNotValid.new(command) unless command.valid?
+        fail CommandNotValid, command unless command.valid?
 
         parsed_command = command.parse_attrs_to_correct_types
-        command_handlers.select { |h| h.class.handles_message?(parsed_command) }.each { |h| h.handle_message parsed_command }
+        command_handlers.select do |h|
+          h.class.handles_message?(parsed_command)
+        end.each { |h| h.handle_message parsed_command }
         repository.commit(parsed_command)
       end
 
@@ -106,8 +106,8 @@ module Sequent
 
       def initialize(command)
         @command = command
-        msg = @command.respond_to?(:aggregate_id) ? " #{@command.aggregate_id}" : ""
-        super "Invalid command #{@command.class.to_s}#{msg}, errors: #{@command.validation_errors}"
+        msg = @command.respond_to?(:aggregate_id) ? " #{@command.aggregate_id}" : ''
+        super "Invalid command #{@command.class}#{msg}, errors: #{@command.validation_errors}"
       end
 
       def errors(prefix = nil)

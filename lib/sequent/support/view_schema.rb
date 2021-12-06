@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Support
     class ViewSchema < ActiveRecord::Schema

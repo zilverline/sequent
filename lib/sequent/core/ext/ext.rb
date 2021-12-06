@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Symbol
   def self.deserialize_from_json(value)
     value.blank? ? nil : value.try(:to_sym)
@@ -25,19 +27,25 @@ end
 class BigDecimal
   def self.deserialize_from_json(value)
     return nil if value.nil?
+
     BigDecimal(value)
   end
 end
 
 module Boolean
   def self.deserialize_from_json(value)
-    value.nil? ? nil : (value.present? ? value : false)
+    if value.nil?
+      nil
+    else
+      (value.present? ? value : false)
+    end
   end
 end
 
 class Date
   def self.from_params(value)
     return value if value.is_a?(Date)
+
     value.blank? ? nil : Date.iso8601(value.dup)
   rescue ArgumentError
     value

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     # Repository for aggregates.
@@ -38,7 +40,7 @@ module Sequent
       def add_aggregate(aggregate)
         existing = aggregates[aggregate.id]
         if existing && !existing.equal?(aggregate)
-          raise NonUniqueAggregateId.new(aggregate, aggregates[aggregate.id])
+          fail NonUniqueAggregateId.new(aggregate, aggregates[aggregate.id])
         else
           aggregates[aggregate.id] = aggregate
         end
@@ -69,30 +71,30 @@ module Sequent
       # +aggregate_ids+ The ids of the aggregates to be loaded
       # +clazz+ Optional argument that checks if all aggregates are of type +clazz+
       def load_aggregates(aggregate_ids, clazz = nil)
-        fail ArgumentError.new('aggregate_ids is required') unless aggregate_ids
+        fail ArgumentError, 'aggregate_ids is required' unless aggregate_ids
         return [] if aggregate_ids.empty?
 
-        _aggregate_ids = aggregate_ids.uniq
-        _aggregates = aggregates.values_at(*_aggregate_ids).compact
-        _query_ids = _aggregate_ids - _aggregates.map(&:id)
+        unique_ids = aggregate_ids.uniq
+        result = aggregates.values_at(*unique_ids).compact
+        query_ids = unique_ids - result.map(&:id)
 
-        _aggregates += Sequent.configuration.event_store.load_events_for_aggregates(_query_ids).map do |stream, events|
+        result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end
 
-        if _aggregates.count != _aggregate_ids.count
-          missing_aggregate_ids = _aggregate_ids - _aggregates.map(&:id)
-          raise AggregateNotFound.new(missing_aggregate_ids)
+        if result.count != unique_ids.count
+          missing_aggregate_ids = unique_ids - result.map(&:id)
+          fail AggregateNotFound, missing_aggregate_ids
         end
 
         if clazz
-          _aggregates.each do |aggregate|
-            raise TypeError, "#{aggregate.class} is not a #{clazz}" if !(aggregate.class <= clazz)
+          result.each do |aggregate|
+            fail TypeError, "#{aggregate.class} is not a #{clazz}" unless aggregate.class <= clazz
           end
         end
 
-        _aggregates.map do |aggregate|
+        result.map do |aggregate|
           aggregates[aggregate.id] = aggregate
         end
       end
@@ -119,8 +121,9 @@ module Sequent
       def commit(command)
         updated_aggregates = aggregates.values.reject { |x| x.uncommitted_events.empty? }
         return if updated_aggregates.empty?
+
         streams_with_events = updated_aggregates.map do |aggregate|
-          [ aggregate.event_stream, aggregate.uncommitted_events ]
+          [aggregate.event_stream, aggregate.uncommitted_events]
         end
         updated_aggregates.each(&:clear_events)
         store_events command, streams_with_events
@@ -136,6 +139,7 @@ module Sequent
       # A +HasUncommittedEvents+ is raised when there are uncommitted_events in the Unit of Work.
       def clear!
         fail HasUncommittedEvents if aggregates.values.any? { |x| !x.uncommitted_events.empty? }
+
         clear
       end
 

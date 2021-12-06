@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'fileutils'
 
 describe Sequent::Generator::Aggregate do
   let(:app_name) { 'blog' }
   let(:arg) { 'address' }
-  let(:tmp_path) { "tmp/sequent-generator-spec" }
+  let(:tmp_path) { 'tmp/sequent-generator-spec' }
   let(:app_dir) { [tmp_path, app_name].join('/') }
 
   subject(:execute) { Sequent::Generator::Aggregate.new(arg).execute }

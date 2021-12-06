@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_support'
 require_relative '../ext/ext'
 require_relative 'array_with_type'
@@ -40,15 +42,13 @@ module Sequent
         module ClassMethods
           def types
             @types ||= {}
-            if @merged_types
-              @merged_types
-            else
-              @merged_types = is_a?(Class) && superclass.respond_to?(:types) ? @types.merge(superclass.types) : @types
-              included_modules.select { |m| m.include? Sequent::Core::Helpers::AttributeSupport }.each do |mod|
-                @merged_types.merge!(mod.types)
-              end
-              @merged_types
+            return @merged_types if @merged_types
+
+            @merged_types = is_a?(Class) && superclass.respond_to?(:types) ? @types.merge(superclass.types) : @types
+            included_modules.select { |m| m.include? Sequent::Core::Helpers::AttributeSupport }.each do |mod|
+              @merged_types.merge!(mod.types)
             end
+            @merged_types
           end
 
           def attrs(args)
@@ -57,14 +57,15 @@ module Sequent
             associations = []
             args.each do |attribute, type|
               attr_accessor attribute
+
               if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport)
                 Sequent::Core::Helpers::DefaultValidators.for(type).add_validations_for(self, attribute)
               end
 
-              if type.class == Sequent::Core::Helpers::ArrayWithType
+              if type.instance_of?(Sequent::Core::Helpers::ArrayWithType)
                 associations << attribute
               elsif included_modules.include?(ActiveModel::Validations) &&
-                type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
+                    type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
                 associations << attribute
               end
             end
@@ -76,9 +77,9 @@ module Sequent
               def update_all_attributes(attrs)
                 super if defined?(super)
                 ensure_known_attributes(attrs)
-                #{@types.map { |attribute, _|
-              "@#{attribute} = attrs[:#{attribute}]"
-            }.join("\n            ")}
+                #{@types.map do |attribute, _|
+                    "@#{attribute} = attrs[:#{attribute}]"
+                  end.join("\n            ")}
                 self
               end
 EOS
@@ -86,9 +87,9 @@ EOS
             class_eval <<EOS
                def update_all_attributes_from_json(attrs)
                  super if defined?(super)
-                 #{@types.map { |attribute, type|
-              "@#{attribute} = #{type}.deserialize_from_json(attrs['#{attribute}'])"
-            }.join("\n           ")}
+                 #{@types.map do |attribute, type|
+                     "@#{attribute} = #{type}.deserialize_from_json(attrs['#{attribute}'])"
+                   end.join("\n           ")}
                end
 EOS
           end
@@ -105,7 +106,7 @@ EOS
 
           def deserialize_from_json(args)
             unless args.nil?
-              obj = allocate()
+              obj = allocate
 
               upcast!(args)
 
@@ -115,7 +116,9 @@ EOS
           end
 
           def numeric?(object)
-            true if Float(object) rescue false
+            true if Float(object)
+          rescue StandardError
+            false
           end
 
           def upcast(&block)
@@ -137,11 +140,10 @@ EOS
           host_class.extend(ClassMethods)
         end
 
-
         def attributes
           hash = HashWithIndifferentAccess.new
           self.class.types.each do |name, _|
-            value = self.instance_variable_get("@#{name}")
+            value = instance_variable_get("@#{name}")
             hash[name] = if value.respond_to?(:attributes)
                            value.attributes
                          else
@@ -154,7 +156,7 @@ EOS
         def as_json(opts = {})
           hash = HashWithIndifferentAccess.new
           self.class.types.each do |name, _|
-            value = self.instance_variable_get("@#{name}")
+            value = instance_variable_get("@#{name}")
             hash[name] = if value.respond_to?(:as_json)
                            value.as_json(opts)
                          else
@@ -171,15 +173,15 @@ EOS
         def validation_errors(prefix = nil)
           result = errors.to_hash
           self.class.types.each do |field|
-            value = self.instance_variable_get("@#{field[0]}")
+            value = instance_variable_get("@#{field[0]}")
             if value.respond_to? :validation_errors
-              value.validation_errors.each { |k, v| result["#{field[0].to_s}_#{k.to_s}".to_sym] = v }
-            elsif field[1].class == ArrayWithType and value.present?
+              value.validation_errors.each { |k, v| result["#{field[0]}_#{k}".to_sym] = v }
+            elsif field[1].instance_of?(ArrayWithType) && value.present?
               value
                 .select { |val| val.respond_to?(:validation_errors) }
                 .each_with_index do |val, index|
                 val.validation_errors.each do |k, v|
-                  result["#{field[0].to_s}_#{index}_#{k.to_s}".to_sym] = v
+                  result["#{field[0]}_#{index}_#{k}".to_sym] = v
                 end
               end
             end
@@ -191,7 +193,9 @@ EOS
           return unless Sequent.configuration.strict_check_attributes_on_apply_events
 
           unknowns = attrs.keys.map(&:to_s) - self.class.types.keys.map(&:to_s)
-          raise UnknownAttributeError.new("#{self.class.name} does not specify attrs: #{unknowns.join(", ")}") if unknowns.any?
+          if unknowns.any?
+            fail UnknownAttributeError, "#{self.class.name} does not specify attrs: #{unknowns.join(', ')}"
+          end
         end
       end
     end

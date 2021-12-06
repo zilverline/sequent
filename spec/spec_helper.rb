@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'bundler/setup'
 Bundler.setup
 
@@ -8,13 +10,13 @@ require_relative '../lib/sequent'
 require_relative '../lib/sequent/generator'
 require_relative './lib/sequent/fixtures/fixtures'
 require 'simplecov'
-SimpleCov.start if ENV["COVERAGE"]
+SimpleCov.start if ENV['COVERAGE']
 
 require_relative 'database'
 RSpec.configure do |c|
   c.before do
     Database.establish_connection
-    Sequent::ApplicationRecord.connection.execute("TRUNCATE command_records, stream_records CASCADE")
+    Sequent::ApplicationRecord.connection.execute('TRUNCATE command_records, stream_records CASCADE')
     Sequent::Configuration.reset
   end
 
@@ -28,9 +30,9 @@ RSpec.configure do |c|
       [
         [
           Sequent::Core::EventStream.new(aggregate_type: aggregate_type, aggregate_id: events.first.aggregate_id),
-          events
-        ]
-      ]
+          events,
+        ],
+      ],
     )
   end
 end
@@ -38,24 +40,27 @@ end
 RSpec::Matchers.define :have_schema do |expected|
   schemas = []
   match do |connection|
-    schemas = connection.execute('SELECT schema_name FROM information_schema.schemata').flat_map { |r| r.values }
+    schemas = connection.execute('SELECT schema_name FROM information_schema.schemata').flat_map(&:values)
     expect(schemas).to include(expected)
   end
 
   failure_message do |_actual|
-    %Q{expected database schemas:\n  #{schemas.join("\n  ")}\nto contain:\n  #{expected}}
+    %(expected database schemas:\n  #{schemas.join("\n  ")}\nto contain:\n  #{expected})
   end
 end
 
 RSpec::Matchers.define :have_view_schema_table do |expected|
   tables = []
   match do |connection|
-    tables = connection.execute("SELECT table_name FROM information_schema.tables where table_schema = '#{Sequent.configuration.view_schema_name}'").flat_map { |r| r.values }
+    tables = connection
+      .execute(<<~SQL.chomp).flat_map(&:values)
+        SELECT table_name FROM information_schema.tables where table_schema = '#{Sequent.configuration.view_schema_name}'
+      SQL
     expect(tables).to include(expected)
   end
 
   failure_message do |_actual|
-    %Q{expected view schema tables:\n  #{tables.join("\n  ")}\nto contain:\n  #{expected}}
+    %(expected view schema tables:\n  #{tables.join("\n  ")}\nto contain:\n  #{expected})
   end
 end
 
@@ -65,13 +70,13 @@ RSpec::Matchers.define :have_view_schema_index do |expected|
 
   match do |connection|
     index_names = connection
-                    .execute("SELECT tablename || '.' || indexname FROM pg_indexes where tablename = '#{table_name}'")
-                    .flat_map { |r| r.values }
+      .execute("SELECT tablename || '.' || indexname FROM pg_indexes where tablename = '#{table_name}'")
+      .flat_map(&:values)
     expect(index_names).to include(expected)
   end
 
   failure_message do |_actual|
-    %Q{expected indexes for table #{table_name}:\n  #{index_names.join("\n  ")}\nto contain:\n  #{expected}}
+    %(expected indexes for table #{table_name}:\n  #{index_names.join("\n  ")}\nto contain:\n  #{expected})
   end
 end
 
@@ -82,6 +87,6 @@ RSpec::Matchers.define :have_column do |expected|
   end
 
   failure_message do |actual|
-    %Q{expected table #{actual.table_name} to have column '#{expected}'}
+    %(expected table #{actual.table_name} to have column '#{expected}')
   end
 end

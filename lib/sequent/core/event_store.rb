@@ -1,10 +1,11 @@
+# frozen_string_literal: true
+
 require 'forwardable'
 require_relative 'event_record'
 require_relative 'sequent_oj'
 
 module Sequent
   module Core
-
     class EventStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
@@ -16,13 +17,13 @@ module Sequent
         attr_reader :event_hash
 
         def initialize(event_hash)
+          super()
           @event_hash = event_hash
         end
 
         def message
           "Event hash: #{event_hash.inspect}\nCause: #{cause.inspect}"
         end
-
       end
 
       def initialize
@@ -41,7 +42,7 @@ module Sequent
       #   `StreamRecord` to arrays ordered uncommitted `Event`s.
       #
       def commit_events(command, streams_with_events)
-        fail ArgumentError, "command is required" if command.nil?
+        fail ArgumentError, 'command is required' if command.nil?
 
         Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
 
@@ -61,27 +62,36 @@ module Sequent
 
         streams = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids)
 
-        query = aggregate_ids.uniq.map { |aggregate_id| aggregate_query(aggregate_id) }.join(" UNION ALL ")
+        query = aggregate_ids.uniq.map { |aggregate_id| aggregate_query(aggregate_id) }.join(' UNION ALL ')
         events = Sequent.configuration.event_record_class.connection.select_all(query).map do |event_hash|
           deserialize_event(event_hash)
         end
 
         events
-          .group_by { |event| event.aggregate_id }
-          .map { |aggregate_id, _events| [streams.find { |stream_record| stream_record.aggregate_id == aggregate_id }.event_stream, _events] }
+          .group_by(&:aggregate_id)
+          .map do |aggregate_id, es|
+          [
+            streams.find do |stream_record|
+              stream_record.aggregate_id == aggregate_id
+            end.event_stream,
+            es,
+          ]
+        end
       end
 
       def aggregate_query(aggregate_id)
-        %Q{(
-SELECT event_type, event_json
-  FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
-WHERE aggregate_id = #{quote(aggregate_id)}
-AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
-                                 FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS i
-                                 WHERE event_type = #{quote Sequent.configuration.snapshot_event_class.name}
-                                   AND i.aggregate_id = #{quote(aggregate_id)}), 0)
-ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuration.snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
-)}
+        <<~SQL.chomp
+          (
+          SELECT event_type, event_json
+            FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
+          WHERE aggregate_id = #{quote(aggregate_id)}
+          AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
+                                           FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS i
+                                           WHERE event_type = #{quote Sequent.configuration.snapshot_event_class.name}
+                                             AND i.aggregate_id = #{quote(aggregate_id)}), 0)
+          ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuration.snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
+          )
+        SQL
       end
 
       def stream_exists?(aggregate_id)
@@ -97,7 +107,7 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuratio
       # @param block that returns the events.
       # <b>DEPRECATED:</b> use <tt>replay_events_from_cursor</tt> instead.
       def replay_events
-        warn "[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`"
+        warn '[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`'
         events = yield.map { |event_hash| deserialize_event(event_hash) }
         publish_events(events)
       end
@@ -109,8 +119,7 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuratio
       #
       # @param get_events lambda that returns the events cursor
       # @param on_progress lambda that gets called on substantial progress
-      def replay_events_from_cursor(block_size: 2000,
-                                    get_events:,
+      def replay_events_from_cursor(get_events:, block_size: 2000,
                                     on_progress: PRINT_PROGRESS)
         progress = 0
         cursor = get_events.call
@@ -128,7 +137,7 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuratio
         on_progress[progress, true, ids_replayed]
       end
 
-      PRINT_PROGRESS = lambda do |progress, done, _|
+      PRINT_PROGRESS = ->(progress, done, _) do
         if done
           Sequent.logger.debug "Done replaying #{progress} events"
         else
@@ -142,38 +151,34 @@ ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuratio
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
         stream_table = quote_table_name Sequent.configuration.stream_record_class.table_name
         event_table = quote_table_name Sequent.configuration.event_record_class.table_name
-        query = %Q{
-SELECT aggregate_id
-  FROM #{stream_table} stream
- WHERE aggregate_id::varchar > COALESCE(#{quote last_aggregate_id}, '')
-   AND snapshot_threshold IS NOT NULL
-   AND snapshot_threshold <= (
-         (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE events.event_type <> #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = events.aggregate_id) -
-         COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{event_table} snapshots WHERE snapshots.event_type = #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = snapshots.aggregate_id), 0))
- ORDER BY aggregate_id
- LIMIT #{quote limit}
- FOR UPDATE
-}
+        query = <<~SQL.chomp
+          SELECT aggregate_id
+            FROM #{stream_table} stream
+           WHERE aggregate_id::varchar > COALESCE(#{quote last_aggregate_id}, '')
+             AND snapshot_threshold IS NOT NULL
+             AND snapshot_threshold <= (
+                   (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE events.event_type <> #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = events.aggregate_id) -
+                   COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{event_table} snapshots WHERE snapshots.event_type = #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = snapshots.aggregate_id), 0))
+           ORDER BY aggregate_id
+           LIMIT #{quote limit}
+           FOR UPDATE
+        SQL
         Sequent.configuration.event_record_class.connection.select_all(query).map { |x| x['aggregate_id'] }
       end
 
       def find_event_stream(aggregate_id)
         record = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_id).first
-        if record
-          record.event_stream
-        else
-          nil
-        end
+        record&.event_stream
       end
 
       private
 
       def column_names
         @column_names ||= Sequent
-                            .configuration
-                            .event_record_class
-                            .column_names
-                            .reject { |c| c == primary_key_event_records }
+          .configuration
+          .event_record_class
+          .column_names
+          .reject { |c| c == primary_key_event_records }
       end
 
       def primary_key_event_records
@@ -181,11 +186,11 @@ SELECT aggregate_id
       end
 
       def deserialize_event(event_hash)
-        event_type = event_hash.fetch("event_type")
-        event_json = Sequent::Core::Oj.strict_load(event_hash.fetch("event_json"))
+        event_type = event_hash.fetch('event_type')
+        event_json = Sequent::Core::Oj.strict_load(event_hash.fetch('event_json'))
         resolve_event_type(event_type).deserialize_from_json(event_json)
-      rescue
-        raise DeserializeEventError.new(event_hash)
+      rescue StandardError
+        raise DeserializeEventError, event_hash
       end
 
       def resolve_event_type(event_type)
@@ -215,13 +220,15 @@ SELECT aggregate_id
         end
         connection = Sequent.configuration.event_record_class.connection
         values = event_records
-                   .map { |r| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
-                   .join(',')
+          .map { |r| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
+          .join(',')
         columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
-        sql = %Q{insert into #{connection.quote_table_name(Sequent.configuration.event_record_class.table_name)} (#{columns}) values #{values}}
+        sql = <<~SQL.chomp
+          insert into #{connection.quote_table_name(Sequent.configuration.event_record_class.table_name)} (#{columns}) values #{values}
+        SQL
         Sequent.configuration.event_record_class.connection.insert(sql, nil, primary_key_event_records)
       rescue ActiveRecord::RecordNotUnique
-        fail OptimisticLockingError.new
+        raise OptimisticLockingError
       end
     end
   end

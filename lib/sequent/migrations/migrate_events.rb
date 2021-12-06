@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ##
 # When you need to upgrade the event store based on information of the previous schema version
 # this is the place you need to implement a migration.
@@ -20,11 +22,12 @@
 module Sequent
   module Migrations
     class MigrateEvents
-
       ##
       # @param env The string representing the current environment. E.g. "development", "production"
       def initialize(env)
-        warn '[DEPRECATED] Use of MigrateEvents is deprecated and will be removed from future version. Please use Sequent::Migrations::ViewSchema instead. See the changelog on how to update.'
+        warn <<~EOS
+          [DEPRECATED] Use of MigrateEvents is deprecated and will be removed from future version. Please use Sequent::Migrations::ViewSchema instead. See the changelog on how to update.
+        EOS
         @env = env
       end
 
@@ -32,9 +35,10 @@ module Sequent
       #
       # @param current_version The current version of the application. E.g. 10
       # @param new_version The version to migrate to. E.g. 11
-      # @param &after_migration_block an optional block (with the current upgrade version as param) to run after the migrations run. E.g. close resources
+      # @param &after_migration_block an optional block (with the current upgrade version as param)
+      #   to run after the migrations run. E.g. close resources
       #
-      def execute_migrations(current_version, new_version, &after_migration_block)
+      def execute_migrations(current_version, new_version)
         migrations(current_version, new_version).each do |migration_class|
           migration = migration_class.new(@env)
           begin
@@ -47,12 +51,11 @@ module Sequent
 
       def migrations(current_version, new_version)
         return [] if current_version == 0
+
         ((current_version + 1)..new_version).map do |upgrade_to_version|
-          begin
-            Class.const_get("Database::MigrateToVersion#{upgrade_to_version}")
-          rescue NameError
-            nil
-          end
+          Class.const_get("Database::MigrateToVersion#{upgrade_to_version}")
+        rescue NameError
+          nil
         end.compact
       end
 

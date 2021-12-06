@@ -1,9 +1,13 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'sequent/test/time_comparison'
 
-class ActiveSupport::TimeWithZone
-  def self.parse(str)
-    Time.zone.parse(str)
+module ActiveSupport
+  class TimeWithZone
+    def self.parse(str)
+      Time.zone.parse(str)
+    end
   end
 end
 
@@ -36,9 +40,9 @@ describe 'Time comparison' do
 
   context 'when other is nil' do
     it 'is not equal' do
-      expect(Time.now == nil).to be_falsey
-      expect(DateTime.now == nil).to be_falsey
-      expect(Time.current == nil).to be_falsey
+      expect(Time.now.nil?).to be_falsey
+      expect(DateTime.now.nil?).to be_falsey
+      expect(Time.current.nil?).to be_falsey
     end
   end
 

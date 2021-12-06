@@ -1,10 +1,11 @@
+# frozen_string_literal: true
+
 require 'active_record'
 require_relative './persistor'
 
 module Sequent
   module Core
     module Persistors
-
       #
       # The ActiveRecordPersistor uses ActiveRecord to update the projection
       #
@@ -17,14 +18,21 @@ module Sequent
       class ActiveRecordPersistor
         include Persistor
 
-        def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {}, &block)
+        def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
           record = record_class.unscoped.where(where_clause).first
-          raise("Record of class #{record_class} with where clause #{where_clause} not found while handling event #{event}") unless record
+          unless record
+            fail(<<~EOS)
+              Record of class #{record_class} with where clause #{where_clause} not found while handling event #{event}
+            EOS
+          end
+
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
           yield record if block_given?
-          update_sequence_number = options.key?(:update_sequence_number) ?
-                                     options[:update_sequence_number] :
+          update_sequence_number = if options.key?(:update_sequence_number)
+                                     options[:update_sequence_number]
+                                   else
                                      record.respond_to?(:sequence_number=)
+                                   end
           record.sequence_number = event.sequence_number if update_sequence_number
           record.save!
         end
@@ -42,11 +50,13 @@ module Sequent
           query = array_of_value_hashes.map do |values|
             insert_manager = new_insert_manager
             insert_manager.into(table)
-            insert_manager.insert(values.map do |key, value|
-              convert_to_values(key, table, value)
-            end)
+            insert_manager.insert(
+              values.map do |key, value|
+                convert_to_values(key, table, value)
+              end,
+            )
             insert_manager.to_sql
-          end.join(";")
+          end.join(';')
 
           execute_sql(query)
         end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'set'
 require 'active_record'
 require 'csv'
@@ -13,8 +15,9 @@ module Sequent
       # using normal sql.
       #
       # Rebuilding the view state (or projection) of an aggregate typically consists
-      # of an initial insert and then many updates and maybe a delete. With a normal Persistor (like ActiveRecordPersistor)
-      # each action is executed to the database. This persistor creates an in-memory store first and finally flushes
+      # of an initial insert and then many updates and maybe a delete.
+      # With a normal Persistor (like ActiveRecordPersistor) each action is executed to the database.
+      # This persistor creates an in-memory store first and finally flushes
       # the in-memory store to the database. This can significantly reduce the amount of queries to the database.
       # E.g. 1 insert, 6 updates is only a single insert using this Persistor.
       #
@@ -37,7 +40,8 @@ module Sequent
       #     end
       #   end
       #
-      # In this case it is wise to create an index on InvoiceRecord on the aggregate_id and recipient_id like you would in the database.
+      # In this case it is wise to create an index on InvoiceRecord on the aggregate_id and recipient_id
+      # like you would in the database.
       #
       # Example:
       #
@@ -67,17 +71,17 @@ module Sequent
         class Index
           def initialize(indexed_columns)
             @indexed_columns = Hash.new do |hash, record_class|
-              if record_class.column_names.include? 'aggregate_id'
-                hash[record_class] = ['aggregate_id']
-              else
-                hash[record_class] = []
-              end
+              hash[record_class] = if record_class.column_names.include? 'aggregate_id'
+                                     ['aggregate_id']
+                                   else
+                                     []
+                                   end
             end
 
             @indexed_columns = @indexed_columns.merge(
               indexed_columns.reduce({}) do |memo, (key, ics)|
-                memo.merge({ key => ics.map { |c| c.map(&:to_s) } })
-              end
+                memo.merge({key => ics.map { |c| c.map(&:to_s) }})
+              end,
             )
 
             @index = {}
@@ -88,10 +92,10 @@ module Sequent
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              @index[key.hash] = [] unless @index.has_key? key.hash
+              @index[key.hash] = [] unless @index.key? key.hash
               @index[key.hash] << record
 
-              @reverse_index[record.object_id.hash] = [] unless @reverse_index.has_key? record.object_id.hash
+              @reverse_index[record.object_id.hash] = [] unless @reverse_index.key? record.object_id.hash
               @reverse_index[record.object_id.hash] << key.hash
             end
           end
@@ -129,13 +133,13 @@ module Sequent
           end
 
           def use_index?(record_class, where_clause)
-            @indexed_columns.has_key?(record_class) && get_index(record_class, where_clause).present?
+            @indexed_columns.key?(record_class) && get_index(record_class, where_clause).present?
           end
 
           private
 
           def indexed?(record_class)
-            @indexed_columns.has_key?(record_class)
+            @indexed_columns.key?(record_class)
           end
 
           def get_keys(record_class, record)
@@ -160,30 +164,33 @@ module Sequent
         #
         # +indices+ Hash of indices to create in memory. Greatly speeds up the replaying.
         #   Key corresponds to the name of the 'Record'
-        #   Values contains list of lists on which columns to index. E.g. [[:first_index_column], [:another_index, :with_to_columns]]
+        #   Values contains list of lists on which columns to index.
+        #   E.g. [[:first_index_column], [:another_index, :with_to_columns]]
         def initialize(insert_with_csv_size = 50, indices = {})
           @insert_with_csv_size = insert_with_csv_size
           @record_store = Hash.new { |h, k| h[k] = Set.new }
           @record_index = Index.new(indices)
         end
 
-        def update_record(record_class, event, where_clause = { aggregate_id: event.aggregate_id }, options = {}, &block)
+        def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
           yield record if block_given?
           @record_index.update(record_class, record)
-          update_sequence_number = options.key?(:update_sequence_number) ?
-                                     options[:update_sequence_number] :
+          update_sequence_number = if options.key?(:update_sequence_number)
+                                     options[:update_sequence_number]
+                                   else
                                      record.respond_to?(:sequence_number=)
+                                   end
           record.sequence_number = event.sequence_number if update_sequence_number
         end
 
         def create_record(record_class, values)
           column_names = record_class.column_names
           values = record_class.column_defaults.with_indifferent_access.merge(values)
-          values.merge!(updated_at: values[:created_at]) if column_names.include?("updated_at")
-          struct_class_name = "#{record_class.to_s}Struct"
-          if self.class.struct_cache.has_key?(struct_class_name)
+          values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
+          struct_class_name = "#{record_class}Struct"
+          if self.class.struct_cache.key?(struct_class_name)
             struct_class = self.class.struct_cache[struct_class_name]
           else
             # We create a struct on the fly.
@@ -202,7 +209,9 @@ module Sequent
                 end
               end
             EOD
-            eval("#{class_def}")
+            # rubocop:disable Security/Eval
+            eval(class_def.to_s)
+            # rubocop:enable Security/Eval
             struct_class = ReplayOptimizedPostgresPersistor.const_get(struct_class_name)
             self.class.struct_cache[struct_class_name] = struct_class
           end
@@ -222,9 +231,7 @@ module Sequent
 
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
-          unless record
-            record = create_record(record_class, values.merge(created_at: created_at))
-          end
+          record ||= create_record(record_class, values.merge(created_at: created_at))
           yield record if block_given?
           @record_index.update(record_class, record)
           record
@@ -232,7 +239,10 @@ module Sequent
 
         def get_record!(record_class, where_clause)
           record = get_record(record_class, where_clause)
-          raise("record #{record_class} not found for #{where_clause}, store: #{@record_store[record_class]}") unless record
+          unless record
+            fail("record #{record_class} not found for #{where_clause}, store: #{@record_store[record_class]}")
+          end
+
           record
         end
 
@@ -281,10 +291,10 @@ module Sequent
           else
             @record_store[record_class].select do |record|
               where_clause.all? do |k, v|
-                expected_value = v.kind_of?(Symbol) ? v.to_s : v
+                expected_value = v.is_a?(Symbol) ? v.to_s : v
                 actual_value = record[k.to_sym]
-                actual_value = actual_value.to_s if actual_value.kind_of? Symbol
-                if expected_value.kind_of?(Array)
+                actual_value = actual_value.to_s if actual_value.is_a? Symbol
+                if expected_value.is_a?(Array)
                   expected_value.include?(actual_value)
                 else
                   actual_value == expected_value
@@ -303,39 +313,38 @@ module Sequent
           @record_store.each do |clazz, records|
             @column_cache ||= {}
             @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
-              hash.merge({ column.name => column })
+              hash.merge({column.name => column})
             end
             if records.size > @insert_with_csv_size
-              csv = CSV.new("")
-              column_names = clazz.column_names.reject { |name| name == "id" }
+              csv = CSV.new(StringIO.new)
+              column_names = clazz.column_names.reject { |name| name == 'id' }
               records.each do |record|
                 csv << column_names.map do |column_name|
                   cast_value_to_column_type(clazz, column_name, record)
                 end
               end
 
-              buf = ''
               conn = Sequent::ApplicationRecord.connection.raw_connection
-              copy_data = StringIO.new csv.string
+              copy_data = StringIO.new(csv.string)
               conn.transaction do
-                conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(",")}) FROM STDIN WITH csv") do
-                  while copy_data.read(1024, buf)
-                    conn.put_copy_data(buf)
+                conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
+                  while (out = copy_data.read(1024))
+                    conn.put_copy_data(out)
                   end
                 end
               end
             else
               clazz.unscoped do
                 inserts = []
-                column_names = clazz.column_names.reject { |name| name == "id" }
-                prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(",")
+                column_names = clazz.column_names.reject { |name| name == 'id' }
+                prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(',')
                 records.each do |record|
                   values = column_names.map do |column_name|
                     cast_value_to_column_type(clazz, column_name, record)
                   end
                   inserts << values
                 end
-                sql = %Q{insert into #{clazz.table_name} (#{column_names.join(",")}) values (#{prepared_values})}
+                sql = %{insert into #{clazz.table_name} (#{column_names.join(',')}) values (#{prepared_values})}
                 inserts.each do |insert|
                   clazz.connection.raw_connection.async_exec(sql, insert)
                 end

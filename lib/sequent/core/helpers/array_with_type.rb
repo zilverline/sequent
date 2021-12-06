@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Helpers
@@ -5,7 +7,8 @@ module Sequent
         attr_accessor :item_type
 
         def initialize(item_type)
-          raise "needs a item_type" unless item_type
+          fail 'needs a item_type' unless item_type
+
           @item_type = item_type
         end
 

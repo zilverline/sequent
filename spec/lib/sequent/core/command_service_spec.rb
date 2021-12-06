@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 class TestCommandHandler < Sequent::CommandHandler
-  class DummyCommand < Sequent::Core::Command;
+  class DummyCommand < Sequent::Core::Command
   end
 
   class DummyBaseCommand < Sequent::Core::BaseCommand
@@ -9,7 +11,7 @@ class TestCommandHandler < Sequent::CommandHandler
     validates_presence_of :mandatory_string
   end
 
-  class NotHandledCommand < Sequent::Core::Command;
+  class NotHandledCommand < Sequent::Core::Command
   end
 
   class WithIntegerCommand < Sequent::Command
@@ -56,7 +58,6 @@ class TestCommandHandler < Sequent::CommandHandler
 end
 
 describe Sequent::Core::CommandService do
-
   let(:event_store) { double }
 
   let(:command_handler) { TestCommandHandler.new }
@@ -68,31 +69,31 @@ describe Sequent::Core::CommandService do
     Sequent.configuration.command_service
   end
 
-  it "does not break when it does not handle a certain command" do
-    command_service.execute_commands(TestCommandHandler::NotHandledCommand.new(aggregate_id: "1"))
+  it 'does not break when it does not handle a certain command' do
+    command_service.execute_commands(TestCommandHandler::NotHandledCommand.new(aggregate_id: '1'))
     expect(command_handler.called).to be_nil
   end
 
-  it "calls a command handler when it does handle a certain command" do
-    command_service.execute_commands(TestCommandHandler::DummyCommand.new(aggregate_id: "1"))
-    expect(command_handler.called).to eq "DummyCommand"
+  it 'calls a command handler when it does handle a certain command' do
+    command_service.execute_commands(TestCommandHandler::DummyCommand.new(aggregate_id: '1'))
+    expect(command_handler.called).to eq 'DummyCommand'
   end
 
-  it "raises a CommandNotValid for invalid commands" do
+  it 'raises a CommandNotValid for invalid commands' do
     expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }
       .to raise_error(Sequent::Core::CommandNotValid)
   end
 
   context 'given multiple available locales' do
     before do
-      I18n.config.available_locales = %i{en nl}
-      I18n.backend.store_translations(:nl, {errors: { messages: { blank: 'Verplicht veld' } } })
+      I18n.config.available_locales = %i[en nl]
+      I18n.backend.store_translations(:nl, {errors: {messages: {blank: 'Verplicht veld'}}})
     end
 
-    it "raises a CommandNotValid for invalid commands in english" do
+    it 'raises a CommandNotValid for invalid commands in english' do
       expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
         an_instance_of(Sequent::Core::CommandNotValid)
-          .and having_attributes(errors: {mandatory_string: ["can't be blank"]})
+          .and(having_attributes(errors: {mandatory_string: ["can't be blank"]})),
       )
     end
 
@@ -100,22 +101,22 @@ describe Sequent::Core::CommandService do
       before { Sequent.configuration.error_locale_resolver = -> { :nl } }
       after { Sequent.configuration.error_locale_resolver = -> { :en } }
 
-      it "raises a CommandNotValid for invalid commands in dutch" do
+      it 'raises a CommandNotValid for invalid commands in dutch' do
         expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
           an_instance_of(Sequent::Core::CommandNotValid)
-            .and having_attributes(errors: {mandatory_string: ["Verplicht veld"]})
+            .and(having_attributes(errors: {mandatory_string: ['Verplicht veld']})),
         )
       end
     end
   end
 
-  it "always clear repository after execute" do
+  it 'always clear repository after execute' do
     expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }
       .to raise_error(Sequent::Core::CommandNotValid)
     expect(Thread.current[Sequent::Core::AggregateRepository::AGGREGATES_KEY]).to be_nil
   end
 
-  context "command value parsing" do
+  context 'command value parsing' do
     it 'parses secrets using bcrypt when executing' do
       command_service.execute_commands(TestCommandHandler::CommandWithSecret.new(password: 'secret'))
 
@@ -123,32 +124,32 @@ describe Sequent::Core::CommandService do
       expect(command_handler.password.verify_secret('secret')).to be_truthy
     end
 
-    it "parses the values in the command if it is valid" do
-      command_service.execute_commands(TestCommandHandler::WithIntegerCommand.new(aggregate_id: "1", value: "2"))
+    it 'parses the values in the command if it is valid' do
+      command_service.execute_commands(TestCommandHandler::WithIntegerCommand.new(aggregate_id: '1', value: '2'))
       expect(command_handler.called.value).to eq 2
     end
 
     it 'removes leading zeros if it is valid' do
-      command_service.execute_commands(TestCommandHandler::WithIntegerCommand.new(aggregate_id: "1", value: "02"))
+      command_service.execute_commands(TestCommandHandler::WithIntegerCommand.new(aggregate_id: '1', value: '02'))
       expect(command_handler.called.value).to eq 2
     end
 
-    it "does not parse values if the command is invalid" do
-      command = TestCommandHandler::WithIntegerCommand.new(value: "A", aggregate_id: '1')
+    it 'does not parse values if the command is invalid' do
+      command = TestCommandHandler::WithIntegerCommand.new(value: 'A', aggregate_id: '1')
       expect { command_service.execute_commands(command) }.to raise_error do |e|
         expect(e.errors[:value]).to eq ['is not a number']
       end
     end
 
-    it "does not removes leading zeros if command is invalid" do
-      command = TestCommandHandler::WithIntegerCommand.new(aggregate_id: "1", value: "0x")
+    it 'does not removes leading zeros if command is invalid' do
+      command = TestCommandHandler::WithIntegerCommand.new(aggregate_id: '1', value: '0x')
       expect { command_service.execute_commands(command) }.to raise_error do |e|
         expect(e.errors[:value]).to eq ['is not a number']
       end
     end
 
-    it "does not removes leading zeros when using hexadecimal values" do
-      command = TestCommandHandler::WithIntegerCommand.new(aggregate_id: "1", value: "0x10")
+    it 'does not removes leading zeros when using hexadecimal values' do
+      command = TestCommandHandler::WithIntegerCommand.new(aggregate_id: '1', value: '0x10')
       expect { command_service.execute_commands(command) }.to raise_error do |e|
         expect(e.errors[:value]).to eq ['is not a number']
       end
@@ -230,7 +231,6 @@ describe Sequent::Core::CommandService do
     end
 
     context 'with workflow' do
-
       it 'publishes events' do
         Sequent.command_service.execute_commands(
           Sequent::Fixtures::Command1.new(id: aggregate1),
@@ -239,7 +239,7 @@ describe Sequent::Core::CommandService do
           [
             [aggregate1, Sequent::Fixtures::Event1],
             [aggregate1, Sequent::Fixtures::Event3],
-          ]
+          ],
         )
       end
 
@@ -253,7 +253,7 @@ describe Sequent::Core::CommandService do
             [aggregate1, Sequent::Fixtures::Event1],
             [aggregate1, Sequent::Fixtures::Event2],
             [aggregate1, Sequent::Fixtures::Event3],
-          ]
+          ],
         )
       end
       context 'multiple aggregates' do
@@ -270,7 +270,7 @@ describe Sequent::Core::CommandService do
               [aggregate1, Sequent::Fixtures::Event2],
               [aggregate1, Sequent::Fixtures::Event3],
               [aggregate2, Sequent::Fixtures::Event3],
-            ]
+            ],
           )
         end
 
@@ -292,7 +292,7 @@ describe Sequent::Core::CommandService do
               [aggregate1, Sequent::Fixtures::Event2],
               [aggregate2, Sequent::Fixtures::Event2],
               [aggregate2, Sequent::Fixtures::Event2],
-            ]
+            ],
           )
         end
       end
@@ -300,15 +300,11 @@ describe Sequent::Core::CommandService do
   end
 
   context 'commands triggered by workflows' do
-    let(:handler_1) {
+    let(:handler_1) do
       Class.new(Sequent::CommandHandler) do
-        def ping_command
-          @ping_command
-        end
+        attr_reader :ping_command
 
-        def create_command
-          @create_command
-        end
+        attr_reader :create_command
 
         on Sequent::Fixtures::CreateTestAggregate do |command|
           @create_command = command
@@ -320,21 +316,19 @@ describe Sequent::Core::CommandService do
           @ping_command = command
         end
       end.new
-    }
+    end
 
-    let(:handler_2) {
+    let(:handler_2) do
       Class.new(Sequent::CommandHandler) do
-        def notify_command
-          @notify_command
-        end
+        attr_reader :notify_command
 
         on Sequent::Fixtures::NotifyTestAggregateCreated do |command|
           @notify_command = command
         end
       end.new
-    }
+    end
 
-    let(:workflow) {
+    let(:workflow) do
       Class.new(Sequent::Workflow) do
         on Sequent::Fixtures::TestAggregateCreated do |event|
           Sequent.command_service.execute_commands Sequent::Fixtures::NotifyTestAggregateCreated.new(
@@ -343,7 +337,7 @@ describe Sequent::Core::CommandService do
           )
         end
       end
-    }
+    end
 
     before :each do
       Sequent.configure do |config|
@@ -352,7 +346,7 @@ describe Sequent::Core::CommandService do
           handler_2,
         ]
         config.event_handlers = [
-          workflow.new
+          workflow.new,
         ]
       end
     end
@@ -361,12 +355,12 @@ describe Sequent::Core::CommandService do
       aggregate_id = Sequent.new_uuid
       Sequent.command_service.execute_commands(
         Sequent::Fixtures::CreateTestAggregate.new(
-          aggregate_id: aggregate_id
+          aggregate_id: aggregate_id,
         ),
         Sequent::Fixtures::PingTestAggregate.new(
           aggregate_id: aggregate_id,
           message: 'ping',
-        )
+        ),
       )
 
       # these commands should not be enriched with the event_aggregate_id
@@ -392,7 +386,7 @@ describe Sequent::Core::CommandService do
         Sequent::Fixtures::PingTestAggregate.new(
           aggregate_id: aggregate_id,
           message: 'pong',
-        )
+        ),
       )
 
       # executing a commands afterward should not have the event_aggregate_id
@@ -404,15 +398,11 @@ describe Sequent::Core::CommandService do
     end
 
     context 'super nested workflows' do
-      let(:handler_2) {
+      let(:handler_2) do
         Class.new(Sequent::CommandHandler) do
-          def notify_command
-            @notify_command
-          end
+          attr_reader :notify_command
 
-          def ping_received_command
-            @ping_received_command
-          end
+          attr_reader :ping_received_command
 
           on Sequent::Fixtures::NotifyTestAggregateCreated do |command|
             @notify_command = command
@@ -424,9 +414,9 @@ describe Sequent::Core::CommandService do
             @ping_received_command = command
           end
         end.new
-      }
+      end
 
-      let(:workflow) {
+      let(:workflow) do
         Class.new(Sequent::Workflow) do
           on Sequent::Fixtures::TestAggregateCreated do |event|
             Sequent.command_service.execute_commands Sequent::Fixtures::NotifyTestAggregateCreated.new(
@@ -442,14 +432,14 @@ describe Sequent::Core::CommandService do
             )
           end
         end
-      }
+      end
 
       it 'registers the correct event_aggregate_ids for super nested workflows' do
         aggregate_id = Sequent.new_uuid
         Sequent.command_service.execute_commands(
           Sequent::Fixtures::CreateTestAggregate.new(
-            aggregate_id: aggregate_id
-          )
+            aggregate_id: aggregate_id,
+          ),
         )
 
         expect(handler_2.notify_command.aggregate_id).to_not eq aggregate_id

@@ -1,7 +1,8 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 class SecretCommand < Sequent::Core::Command
-
   def initialize(args = {})
     super({aggregate_id: '1', name: 'Jari'}.merge(args))
   end

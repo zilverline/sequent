@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'tmpdir'
 require 'sequent/support'
@@ -27,53 +29,58 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
   after { FileUtils.rm_rf(migrations_path) }
 
   before :each do
-    File.open(File.expand_path("1_test_migration.rb", migrations_path), 'w') do |f|
-      f.write <<EOF
-class TestMigration < MigrationClass
-  def change
-    create_table "active_record_persistor_tests", id: false do |t|
-      t.string "name", null: false
-      t.string "initials", default: [], array:true
-      t.timestamp "created_at", null: false
-      t.timestamp "updated_at", null: false
-    end
-  end
-end
-EOF
+    File.open(File.expand_path('1_test_migration.rb', migrations_path), 'w') do |f|
+      f.write <<~EOF
+        class TestMigration < MigrationClass
+          def change
+            create_table "active_record_persistor_tests", id: false do |t|
+              t.string "name", null: false
+              t.string "initials", default: [], array:true
+              t.timestamp "created_at", null: false
+              t.timestamp "updated_at", null: false
+            end
+          end
+        end
+      EOF
       f.flush
       database.migrate(migrations_path, verbose: false)
     end
-
   end
 
   let(:persistor) { Sequent::Core::Persistors::ActiveRecordPersistor.new }
 
   context 'create_records' do
     it 'inserts records by batch' do
-      expect {
-        persistor.create_records(ActiveRecordPersistorTest, [
-          {name: 'kim', created_at: DateTime.now, updated_at: DateTime.now},
-          {name: 'ben', created_at: DateTime.now, updated_at: DateTime.now}
-        ])
-      }.to change { ActiveRecordPersistorTest.count }.by(2)
+      expect do
+        persistor.create_records(
+          ActiveRecordPersistorTest,
+          [
+            {name: 'kim', created_at: DateTime.now, updated_at: DateTime.now},
+            {name: 'ben', created_at: DateTime.now, updated_at: DateTime.now},
+          ],
+        )
+      end.to change { ActiveRecordPersistorTest.count }.by(2)
     end
 
     it 'can insert array values' do
-      expect {
-        persistor.create_records(ActiveRecordPersistorTest, [
-          {name: 'john', initials: ['j', 'f'], created_at: DateTime.now, updated_at: DateTime.now}
-        ])
-      }.to change { ActiveRecordPersistorTest.count }.by(1)
+      expect do
+        persistor.create_records(
+          ActiveRecordPersistorTest,
+          [
+            {name: 'john', initials: %w[j f], created_at: DateTime.now, updated_at: DateTime.now},
+          ],
+        )
+      end.to change { ActiveRecordPersistorTest.count }.by(1)
     end
   end
 
   context 'update_all_records' do
     it 'can updates records by batch' do
-      persistor.create_record(ActiveRecordPersistorTest, {name: 'kim', initials: ['j', 'j']})
+      persistor.create_record(ActiveRecordPersistorTest, {name: 'kim', initials: %w[j j]})
 
-      persistor.update_all_records(ActiveRecordPersistorTest, {name: 'kim'}, {initials: ['k', 'k']})
+      persistor.update_all_records(ActiveRecordPersistorTest, {name: 'kim'}, {initials: %w[k k]})
 
-      expect(persistor.get_record(ActiveRecordPersistorTest, {name: 'kim'}).initials).to eq ['k', 'k']
+      expect(persistor.get_record(ActiveRecordPersistorTest, {name: 'kim'}).initials).to eq %w[k k]
     end
   end
 end

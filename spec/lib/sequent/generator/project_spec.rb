@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'fileutils'
 
@@ -29,7 +31,12 @@ describe Sequent::Generator::Project do
 
   it 'copies the generator files' do
     execute
-    expect(FileUtils.cmp('blog-with_special-symbols/Gemfile', '../../lib/sequent/generator/template_project/Gemfile')).to be_truthy
+    expect(
+      FileUtils.cmp(
+        'blog-with_special-symbols/Gemfile',
+        '../../lib/sequent/generator/template_project/Gemfile',
+      ),
+    ).to be_truthy
   end
 
   it 'names the app' do
@@ -37,7 +44,9 @@ describe Sequent::Generator::Project do
     expect(File.exist?('blog-with_special-symbols/my_app.rb')).to be_falsey
     expect(File.exist?('blog-with_special-symbols/blog_with_special_symbols.rb')).to be_truthy
     expect(File.read('blog-with_special-symbols/blog_with_special_symbols.rb')).to_not include('module MyApp')
-    expect(File.read('blog-with_special-symbols/blog_with_special_symbols.rb')).to include('module BlogWithSpecialSymbols')
+    expect(
+      File.read('blog-with_special-symbols/blog_with_special_symbols.rb'),
+    ).to include('module BlogWithSpecialSymbols')
     expect(File.read('blog-with_special-symbols/Rakefile')).to_not include("require './my_app'")
     expect(File.read('blog-with_special-symbols/Rakefile')).to include("require './blog_with_special_symbols'")
   end
@@ -65,7 +74,9 @@ describe Sequent::Generator::Project do
         bundle exec rspec spec
       SCRIPT
 
+      # rubocop:disable Style/SpecialGlobalVars
       expect($?.to_i).to eq(0)
+      # rubocop:enable Style/SpecialGlobalVars
     end
   end
 end

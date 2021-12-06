@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Test
     ##
@@ -41,12 +43,14 @@ module Sequent
           @events = []
         end
 
+        # rubocop:disable Style/MissingRespondToMissing
         def method_missing(name, *args, &block)
           args = prepare_arguments(args)
           @events << FactoryBot.build(name, *args, &block)
         end
+        # rubocop:enable Style/MissingRespondToMissing
 
-      private
+        private
 
         def prepare_arguments(args)
           options = args.last.is_a?(Hash) ? args.pop : {}
@@ -68,10 +72,10 @@ module Sequent
         given_events(*event_stream(aggregate_id: aggregate_id, &block))
       end
 
-      def self.included(spec)
+      def self.included(_spec)
         require 'factory_bot'
       rescue LoadError
-        raise ArgumentError, "Factory bot is required to use the event stream helpers"
+        raise ArgumentError, 'Factory bot is required to use the event stream helpers'
       end
     end
   end

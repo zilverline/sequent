@@ -1,9 +1,10 @@
+# frozen_string_literal: true
+
 require_relative 'helpers/message_handler'
 require_relative './persistors/active_record_persistor'
 
 module Sequent
   module Core
-
     module Migratable
       module ClassMethods
         def manages_tables(*tables)
@@ -16,7 +17,7 @@ module Sequent
 
         def manages_no_tables
           @manages_no_tables = true
-          manages_tables *[]
+          manages_tables
         end
 
         def manages_no_tables?
@@ -26,11 +27,11 @@ module Sequent
         private
 
         def managed_tables_from_superclass
-          self.superclass.managed_tables if self.superclass.respond_to?(:managed_tables)
+          superclass.managed_tables if superclass.respond_to?(:managed_tables)
         end
 
         def manages_no_tables_from_superclass?
-          self.superclass.manages_no_tables? if self.superclass.respond_to?(:manages_no_tables?)
+          superclass.manages_no_tables? if superclass.respond_to?(:manages_no_tables?)
         end
       end
 
@@ -53,7 +54,6 @@ module Sequent
       def managed_tables
         self.class.managed_tables
       end
-
     end
 
     # Projectors listen to events and update the view state as they see fit.
@@ -87,7 +87,6 @@ module Sequent
       include Helpers::MessageHandler
       include Migratable
 
-
       def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
         ensure_valid!
         @persistor = persistor
@@ -98,28 +97,32 @@ module Sequent
       end
 
       def_delegators :@persistor,
-        :update_record,
-        :create_record,
-        :create_records,
-        :create_or_update_record,
-        :get_record!,
-        :get_record,
-        :delete_all_records,
-        :update_all_records,
-        :do_with_records,
-        :do_with_record,
-        :delete_record,
-        :find_records,
-        :last_record,
-        :execute_sql,
-        :commit
+                     :update_record,
+                     :create_record,
+                     :create_records,
+                     :create_or_update_record,
+                     :get_record!,
+                     :get_record,
+                     :delete_all_records,
+                     :update_all_records,
+                     :do_with_records,
+                     :do_with_record,
+                     :delete_record,
+                     :find_records,
+                     :last_record,
+                     :execute_sql,
+                     :commit
 
       private
 
       def ensure_valid!
         return if self.class.manages_no_tables?
 
-        fail "A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?" if self.class.managed_tables.nil? || self.class.managed_tables.empty?
+        if self.class.managed_tables.nil? || self.class.managed_tables.empty?
+          fail <<~EOS.chomp
+            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
+          EOS
+        end
       end
     end
   end

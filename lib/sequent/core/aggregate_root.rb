@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'base64'
 require_relative 'helpers/message_handler'
 require_relative 'helpers/autoset_attributes'
@@ -6,7 +8,6 @@ require_relative 'aggregate_roots'
 
 module Sequent
   module Core
-
     module SnapshotConfiguration
       module ClassMethods
         ##
@@ -42,16 +43,19 @@ module Sequent
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
 
       def self.inherited(subclass)
+        super
         AggregateRoots << subclass
       end
 
       def self.load_from_history(stream, events)
         first, *rest = events
         if first.is_a? SnapshotEvent
+          # rubocop:disable Security/MarshalLoad
           aggregate_root = Marshal.load(Base64.decode64(first.data))
+          # rubocop:enable Security/MarshalLoad
           rest.each { |x| aggregate_root.apply_event(x) }
         else
-          aggregate_root = allocate() # allocate without calling new
+          aggregate_root = allocate # allocate without calling new
           aggregate_root.load_from_history(stream, events)
         end
         aggregate_root
@@ -67,7 +71,8 @@ module Sequent
       end
 
       def load_from_history(stream, events)
-        raise "Empty history" if events.empty?
+        fail 'Empty history' if events.empty?
+
         @id = events.first.aggregate_id
         @uncommitted_events = []
         @sequence_number = 1
@@ -105,7 +110,7 @@ module Sequent
       #     apply InvoiceSentEvent, send_date: DateTime.now
       #   end
       #
-      def apply(event, params={})
+      def apply(event, params = {})
         event = build_event(event, params) if event.is_a?(Class)
         apply_event(event)
         @uncommitted_events << event
@@ -128,12 +133,11 @@ module Sequent
         if args.empty?
           apply event_class
         elsif self.class
-             .event_attribute_keys(event_class)
-             .any? { |k| instance_variable_get(:"@#{k.to_s}") != args[k.to_sym] }
+            .event_attribute_keys(event_class)
+            .any? { |k| instance_variable_get(:"@#{k}") != args[k.to_sym] }
           apply event_class, args
         end
       end
-
     end
   end
 end

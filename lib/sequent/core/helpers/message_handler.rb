@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Helpers
@@ -56,7 +58,7 @@ module Sequent
 
         def handle_message(message)
           handlers = self.class.message_mapping[message.class]
-          handlers.each { |handler| self.instance_exec(message, &handler) } if handlers
+          handlers&.each { |handler| instance_exec(message, &handler) }
         end
       end
     end

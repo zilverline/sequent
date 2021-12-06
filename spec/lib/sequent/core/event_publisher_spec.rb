@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe Sequent::Core::EventPublisher do
@@ -20,7 +22,7 @@ describe Sequent::Core::EventPublisher do
   end
 
   class TestCommandHandler < Sequent::Core::BaseCommandHandler
-    on TriggerTestCase do |command|
+    on TriggerTestCase do |_command|
       agg1 = TestAggregate.new(Sequent.new_uuid)
       agg2 = TestAggregate.new(Sequent.new_uuid)
 
@@ -67,6 +69,6 @@ describe Sequent::Core::EventPublisher do
 
     Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
 
-    expect(test_event_handler.sequence_numbers).to eq [1,2]
+    expect(test_event_handler.sequence_numbers).to eq [1, 2]
   end
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'core/event_store'
 require_relative 'core/command_service'
 require_relative 'core/transactions/no_transactions'
@@ -7,7 +9,6 @@ require 'logger'
 
 module Sequent
   class Configuration
-
     DEFAULT_VERSIONS_TABLE_NAME = 'sequent_versions'
     DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
 
@@ -16,7 +17,7 @@ module Sequent
     DEFAULT_DATABASE_SCHEMA_DIRECTORY = 'db'
 
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
-    DEFAULT_EVENT_STORE_SCHEMA_NAME= 'sequent_schema'
+    DEFAULT_EVENT_STORE_SCHEMA_NAME = 'sequent_schema'
 
     MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
 
@@ -31,41 +32,31 @@ module Sequent
 
     DEFAULT_ERROR_LOCALE_RESOLVER = -> { I18n.locale || :en }
 
-    attr_accessor :aggregate_repository
-
-    attr_accessor :event_store,
+    attr_accessor :aggregate_repository,
+                  :event_store,
                   :command_service,
                   :event_record_class,
                   :stream_record_class,
                   :snapshot_event_class,
                   :transaction_provider,
-                  :event_publisher
-
-    attr_accessor :event_record_hooks_class
-
-    attr_accessor :command_handlers,
-                  :command_filters
-
-    attr_accessor :event_handlers
-
-    attr_accessor :uuid_generator
-
-    attr_accessor :disable_event_handlers
-
-    attr_accessor :logger
-
-    attr_accessor :error_locale_resolver
-
-    attr_accessor :migration_sql_files_directory,
+                  :event_publisher,
+                  :event_record_hooks_class,
+                  :command_handlers,
+                  :command_filters,
+                  :event_handlers,
+                  :uuid_generator,
+                  :disable_event_handlers,
+                  :logger,
+                  :error_locale_resolver,
+                  :migration_sql_files_directory,
                   :view_schema_name,
                   :offline_replay_persistor_class,
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
                   :database_config_directory,
                   :database_schema_directory,
-                  :event_store_schema_name
-
-    attr_accessor :strict_check_attributes_on_apply_events
+                  :event_store_schema_name,
+                  :strict_check_attributes_on_apply_events
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -114,19 +105,19 @@ module Sequent
       self.database_schema_directory = DEFAULT_DATABASE_SCHEMA_DIRECTORY
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
-      self.logger = Logger.new(STDOUT).tap {|l| l.level = Logger::INFO }
+      self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
     end
 
     def replayed_ids_table_name=(table_name)
-      fail ArgumentError.new('table_name can not be nil') unless table_name
+      fail ArgumentError, 'table_name can not be nil' unless table_name
 
       @replayed_ids_table_name = table_name
       Sequent::Migrations::ViewSchema::ReplayedIds.table_name = table_name
     end
 
     def versions_table_name=(table_name)
-      fail ArgumentError.new('table_name can not be nil') unless table_name
+      fail ArgumentError, 'table_name can not be nil' unless table_name
 
       @versions_table_name = table_name
       Sequent::Migrations::ViewSchema::Versions.table_name = table_name
@@ -134,9 +125,11 @@ module Sequent
 
     def migrations_class_name=(class_name)
       migration_class = Class.const_get(class_name)
-      fail ArgumentError.new("#{migration_class} must extend Sequent::Migrations::Projectors") unless migration_class <= Sequent::Migrations::Projectors
+      unless migration_class <= Sequent::Migrations::Projectors
+        fail ArgumentError, "#{migration_class} must extend Sequent::Migrations::Projectors"
+      end
+
       @migrations_class_name = class_name
     end
-
   end
 end

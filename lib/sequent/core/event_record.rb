@@ -1,10 +1,11 @@
+# frozen_string_literal: true
+
 require 'active_record'
 require_relative 'sequent_oj'
-require_relative '../application_record.rb'
+require_relative '../application_record'
 
 module Sequent
   module Core
-
     # == Event Record Hooks
     #
     # These hooks are called during the life cycle of
@@ -27,7 +28,6 @@ module Sequent
     #     end
     #   end
     class EventRecordHooks
-
       # Called after assigning Sequent's event attributes to the +event_record+.
       #
       # *Params*
@@ -42,13 +42,12 @@ module Sequent
       def self.after_serialization(event_record, event)
         # noop
       end
-
     end
 
     module SerializesEvent
       def event
-        payload = Sequent::Core::Oj.strict_load(self.event_json)
-        Class.const_get(self.event_type).deserialize_from_json(payload)
+        payload = Sequent::Core::Oj.strict_load(event_json)
+        Class.const_get(event_type).deserialize_from_json(payload)
       end
 
       def event=(event)
@@ -76,7 +75,7 @@ module Sequent
     class EventRecord < Sequent::ApplicationRecord
       include SerializesEvent
 
-      self.table_name = "event_records"
+      self.table_name = 'event_records'
 
       belongs_to :stream_record
       belongs_to :command_record
@@ -98,6 +97,7 @@ module Sequent
 
       def find_origin(record)
         return find_origin(record.parent) if record.parent.present?
+
         record
       end
     end

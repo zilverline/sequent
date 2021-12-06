@@ -1,15 +1,12 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Transactions
-
       class ActiveRecordTransactionProvider
-        def transactional
-          Sequent::ApplicationRecord.transaction(requires_new: true) do
-            yield
-          end
-          while(!after_commit_queue.empty?) do
-            after_commit_queue.pop.call
-          end
+        def transactional(&block)
+          Sequent::ApplicationRecord.transaction(requires_new: true, &block)
+          after_commit_queue.pop.call until after_commit_queue.empty?
         ensure
           clear_after_commit_queue
         end
@@ -28,7 +25,6 @@ module Sequent
           after_commit_queue.clear
         end
       end
-
     end
   end
 end

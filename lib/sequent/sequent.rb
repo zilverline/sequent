@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'configuration'
 require_relative 'core/event'
 require_relative 'core/command'

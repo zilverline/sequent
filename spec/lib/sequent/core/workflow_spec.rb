@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'sequent/test/event_handler_helpers'
 
@@ -22,7 +24,6 @@ describe Sequent::Core::Workflow do
       apply WelcomeEmailWasSent
     end
   end
-
 
   class RegistrationCommandHandler < Sequent::CommandHandler
     class << self
@@ -74,7 +75,7 @@ describe Sequent::Core::Workflow do
     expect(RegistrationCommandHandler.commands.map(&:class)).to eq [
       CreateNotification,
       SendWelcomeEmail,
-      CreateNotification
+      CreateNotification,
     ]
   end
 end

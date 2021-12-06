@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative '../test/command_handler_helpers'
 
 module Sequent
@@ -33,10 +35,10 @@ module Sequent
         attr_reader :command_with_events, :event_store
 
         delegate :load_events_for_aggregates,
-          :load_events,
-          :publish_events,
-          :stream_exists?,
-          to: :event_store
+                 :load_events,
+                 :publish_events,
+                 :stream_exists?,
+                 to: :event_store
 
         def initialize(result)
           @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
@@ -59,6 +61,7 @@ module Sequent
         attr_reader :projectors, :workflows
 
         def initialize(result)
+          super()
           @result = result
         end
 
@@ -73,7 +76,7 @@ module Sequent
             else
               fail "Unrecognized event_handler #{handler.class} called for event #{event.class}"
             end
-          rescue
+          rescue StandardError
             raise PublishEventError.new(handler.class, event)
           end
         end
@@ -141,16 +144,16 @@ module Sequent
         #
         def print(io)
           tree.each_with_index do |(command, event_called_handlerss), index|
-            io.puts "+++++++++++++++++++++++++++++++++++" if index == 0
+            io.puts '+++++++++++++++++++++++++++++++++++' if index == 0
             io.puts "Command: #{command.class} resulted in #{event_called_handlerss.length} events"
             event_called_handlerss.each_with_index do |event_called_handlers, i|
-              io.puts "" if i > 0
+              io.puts '' if i > 0
               io.puts "-- Event #{event_called_handlers.event.class} was handled by:"
               io.puts "-- Projectors: [#{event_called_handlers.projectors.join(', ')}]"
               io.puts "-- Workflows: [#{event_called_handlers.workflows.join(', ')}]"
             end
 
-            io.puts "+++++++++++++++++++++++++++++++++++"
+            io.puts '+++++++++++++++++++++++++++++++++++'
           end
         end
 

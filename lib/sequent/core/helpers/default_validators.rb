@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'string_validator'
 require_relative 'boolean_validator'
 require_relative 'date_time_validator'
@@ -13,18 +15,18 @@ module Sequent
             klass.validates_numericality_of field, only_integer: true, allow_nil: true, allow_blank: true
           end,
           Date => ->(klass, field) do
-            klass.validates field, "sequent::Core::Helpers::Date" => true
+            klass.validates field, 'sequent::Core::Helpers::Date' => true
           end,
           DateTime => ->(klass, field) do
-            klass.validates field, "sequent::Core::Helpers::DateTime" => true
+            klass.validates field, 'sequent::Core::Helpers::DateTime' => true
           end,
-          Boolean => -> (klass, field) do
-            klass.validates field, "sequent::Core::Helpers::Boolean" => true
+          Boolean => ->(klass, field) do
+            klass.validates field, 'sequent::Core::Helpers::Boolean' => true
           end,
-          String => -> (klass, field) do
-            klass.validates field, "sequent::Core::Helpers::String" => true
+          String => ->(klass, field) do
+            klass.validates field, 'sequent::Core::Helpers::String' => true
           end,
-          Sequent::Core::Helpers::Secret => -> (klass, field) do
+          Sequent::Core::Helpers::Secret => ->(klass, field) do
             klass.after_validation do |object|
               if object.errors&.any?
                 object.send("#{field}=", nil)
@@ -33,8 +35,8 @@ module Sequent
                 object.send("#{field}=", Sequent::Secret.new(raw_value)) if raw_value
               end
             end
-          end
-        }
+          end,
+        }.freeze
 
         def self.for(type)
           new(type)
@@ -46,7 +48,7 @@ module Sequent
 
         def add_validations_for(klass, field)
           validator = VALIDATORS[@type]
-          validator.call(klass, field) if validator
+          validator&.call(klass, field)
         end
       end
     end

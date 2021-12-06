@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Fixtures
     Command1 = Class.new(Sequent::Core::BaseCommand) do

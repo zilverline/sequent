@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_record'
 require 'rake'
 require 'rake/tasklib'
@@ -12,13 +14,14 @@ module Sequent
 
       def register_tasks!
         namespace :sequent do
-          desc 'Rake task that runs before all sequent rake tasks. Hook applications can use to for instance run other rake tasks.'
+          desc <<~EOS
+            Rake task that runs before all sequent rake tasks. Hook applications can use to for instance run other rake tasks.
+          EOS
           task :init
 
           namespace :db do
-
             desc 'Creates the database and initializes the event_store schema for the current env'
-            task :create => ['sequent:init'] do
+            task create: ['sequent:init'] do
               ensure_rack_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -31,14 +34,18 @@ module Sequent
             task :drop, [:production] => ['sequent:init'] do |_t, args|
               ensure_rack_env_set!
 
-              fail "Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[yes_drop_production]" if @env == 'production' && args[:production] != 'yes_drop_production'
+              if @env == 'production' && args[:production] != 'yes_drop_production'
+                fail <<~OES
+                  Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[yes_drop_production]
+                OES
+              end
 
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.drop!(db_config)
             end
 
             desc 'Creates the view schema for the current env'
-            task :create_view_schema => ['sequent:init'] do
+            task create_view_schema: ['sequent:init'] do
               ensure_rack_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -47,33 +54,41 @@ module Sequent
             end
 
             desc 'Creates the event_store schema for the current env'
-            task :create_event_store => ['sequent:init'] do
+            task create_event_store: ['sequent:init'] do
               ensure_rack_env_set!
               db_config = Sequent::Support::Database.read_config(@env)
               create_event_store(db_config)
             end
 
+            # rubocop:disable Lint/NestedMethodDefinition
             def create_event_store(db_config)
               event_store_schema = Sequent.configuration.event_store_schema_name
               sequent_schema = File.join(Sequent.configuration.database_schema_directory, "#{event_store_schema}.rb")
-              fail "File #{sequent_schema} does not exist. Check your Sequent configuration." unless File.exists?(sequent_schema)
+              unless File.exist?(sequent_schema)
+                fail "File #{sequent_schema} does not exist. Check your Sequent configuration."
+              end
 
               Sequent::Support::Database.establish_connection(db_config)
-              fail "Schema #{event_store_schema} already exists in the database" if Sequent::Support::Database.schema_exists?(event_store_schema)
+              if Sequent::Support::Database.schema_exists?(event_store_schema)
+                fail "Schema #{event_store_schema} already exists in the database"
+              end
 
               Sequent::Support::Database.create_schema(event_store_schema)
               Sequent::Support::Database.with_schema_search_path(event_store_schema, db_config, @env) do
                 load(sequent_schema)
               end
             end
+            # rubocop:enable Lint/NestedMethodDefinition
           end
 
           namespace :migrate do
-            desc 'Rake task that runs before all migrate rake tasks. Hook applications can use to for instance run other rake tasks.'
+            desc <<~EOS
+              Rake task that runs before all migrate rake tasks. Hook applications can use to for instance run other rake tasks.
+            EOS
             task :init
 
             desc 'Prints the current version in the database'
-            task :current_version => ['sequent:init', :init] do
+            task current_version: ['sequent:init', :init] do
               ensure_rack_env_set!
 
               Sequent::Support::Database.connect!(@env)
@@ -81,8 +96,10 @@ module Sequent
               puts "Current version in the database is: #{Sequent::Migrations::ViewSchema::Versions.maximum(:version)}"
             end
 
-            desc 'Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.'
-            task :online => ['sequent:init', :init] do
+            desc <<~EOS
+              Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.
+            EOS
+            task online: ['sequent:init', :init] do
               ensure_rack_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -91,8 +108,10 @@ module Sequent
               view_schema.migrate_online
             end
 
-            desc 'Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.'
-            task :offline => ['sequent:init', :init] do
+            desc <<~EOS
+              Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.
+            EOS
+            task offline: ['sequent:init', :init] do
               ensure_rack_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -103,21 +122,35 @@ module Sequent
           end
 
           namespace :snapshots do
-            desc 'Rake task that runs before all snapshots rake tasks. Hook applications can use to for instance run other rake tasks.'
+            desc <<~EOS
+              Rake task that runs before all snapshots rake tasks. Hook applications can use to for instance run other rake tasks.
+            EOS
             task :init
 
-            task :set_snapshot_threshold, [:aggregate_type,:threshold] => ['sequent:init', :init] do |_t, args|
+            task :set_snapshot_threshold, %i[aggregate_type threshold] => ['sequent:init', :init] do |_t, args|
               aggregate_type = args['aggregate_type']
               threshold = args['threshold']
 
-              fail ArgumentError.new('usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]') unless aggregate_type
-              fail ArgumentError.new('usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]') unless threshold
+              unless aggregate_type
+                fail ArgumentError,
+                     'usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]'
+              end
+              unless threshold
+                fail ArgumentError,
+                     'usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]'
+              end
 
-              execute "UPDATE #{Sequent.configuration.stream_record_class} SET snapshot_threshold = #{threshold.to_i} WHERE aggregate_type = '#{aggregate_type}'"
+              execute <<~EOS
+                UPDATE #{Sequent.configuration.stream_record_class} SET snapshot_threshold = #{threshold.to_i} WHERE aggregate_type = '#{aggregate_type}'
+              EOS
             end
 
-            task :delete_all => ['sequent:init', :init] do
-              result = Sequent::ApplicationRecord.connection.execute("DELETE FROM #{Sequent.configuration.event_record_class.table_name} WHERE event_type = 'Sequent::Core::SnapshotEvent'")
+            task delete_all: ['sequent:init', :init] do
+              result = Sequent::ApplicationRecord
+                .connection
+                .execute(<<~EOS)
+                  DELETE FROM #{Sequent.configuration.event_record_class.table_name} WHERE event_type = 'Sequent::Core::SnapshotEvent'
+                EOS
               Sequent.logger.info "Deleted #{result.cmd_tuples} aggregate snapshots from the event store"
             end
           end
@@ -125,9 +158,12 @@ module Sequent
       end
 
       private
+
+      # rubocop:disable Naming/MemoizedInstanceVariableName
       def ensure_rack_env_set!
-        @env ||= ENV['RACK_ENV'] || fail("RACK_ENV not set")
+        @env ||= ENV['RACK_ENV'] || fail('RACK_ENV not set')
       end
+      # rubocop:enable Naming/MemoizedInstanceVariableName
     end
   end
 end

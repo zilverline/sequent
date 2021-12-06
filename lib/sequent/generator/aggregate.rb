@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'fileutils'
 require 'active_support'
 require 'active_support/core_ext/string'
@@ -7,8 +9,6 @@ class TargetAlreadyExists < StandardError; end
 module Sequent
   module Generator
     class Aggregate
-      attr_reader :name
-
       def initialize(name)
         @name = name
       end
@@ -18,6 +18,10 @@ module Sequent
         copy_files
         rename_files
         replace_template_aggregate
+      end
+
+      def name
+        @name ||= File.basename(path)
       end
 
       private
@@ -30,8 +34,14 @@ module Sequent
         FileUtils.mv("#{path}/template_aggregate.rb", "#{path}/#{name_underscored}.rb")
         FileUtils.mv("#{path}/template_aggregate", "#{path}/#{name_underscored}")
 
-        FileUtils.mv("#{path}/#{name_underscored}/template_aggregate_command_handler.rb", "#{path}/#{name_underscored}/#{name_underscored}_command_handler.rb")
-        FileUtils.mv("#{path}/#{name_underscored}/template_aggregate.rb", "#{path}/#{name_underscored}/#{name_underscored}.rb")
+        FileUtils.mv(
+          "#{path}/#{name_underscored}/template_aggregate_command_handler.rb",
+          "#{path}/#{name_underscored}/#{name_underscored}_command_handler.rb",
+        )
+        FileUtils.mv(
+          "#{path}/#{name_underscored}/template_aggregate.rb",
+          "#{path}/#{name_underscored}/#{name_underscored}.rb",
+        )
       end
 
       def replace_template_aggregate
@@ -46,11 +56,7 @@ module Sequent
       end
 
       def path
-        @path ||= File.expand_path("lib")
-      end
-
-      def name
-        @name ||= File.basename(path)
+        @path ||= File.expand_path('lib')
       end
 
       def name_underscored
@@ -63,7 +69,7 @@ module Sequent
 
       def ensure_not_used!
         if File.directory?("#{path}/#{name_underscored}") || File.exist?("#{path}/#{name_underscored}.rb")
-          raise TargetAlreadyExists
+          fail TargetAlreadyExists
         end
       end
     end
