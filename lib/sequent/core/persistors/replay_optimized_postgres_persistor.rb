@@ -51,6 +51,7 @@ module Sequent
       #   )
       class ReplayOptimizedPostgresPersistor
         include Persistor
+        CHUNK_SIZE = 1024
 
         attr_reader :record_store
         attr_accessor :insert_with_csv_size
@@ -328,7 +329,7 @@ module Sequent
               copy_data = StringIO.new(csv.string)
               conn.transaction do
                 conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
-                  while (out = copy_data.read(1024))
+                  while (out = copy_data.read(CHUNK_SIZE))
                     conn.put_copy_data(out)
                   end
                 end
