@@ -21,7 +21,7 @@ module Sequent
         fail ArgumentError, 'env is mandatory' unless env
 
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
-        config = YAML.safe_load(ERB.new(File.read(database_yml)).result)[env]
+        config = YAML.safe_load(ERB.new(File.read(database_yml)).result, aliases: true)[env]
         if Gem.loaded_specs['activerecord'].version >= Gem::Version.create('6.1.0')
           ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
         else
