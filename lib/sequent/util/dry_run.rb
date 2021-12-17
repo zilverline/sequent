@@ -38,6 +38,7 @@ module Sequent
                  :load_events,
                  :publish_events,
                  :stream_exists?,
+                 :events_exists?,
                  to: :event_store
 
         def initialize(result, current_event_store)
