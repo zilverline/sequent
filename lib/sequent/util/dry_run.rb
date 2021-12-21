@@ -41,12 +41,8 @@ module Sequent
                  :events_exists?,
                  to: :event_store
 
-        def initialize(result, current_event_store)
-          @event_store = if ENV['RACK_ENV'] == 'test'
-                           Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
-                         else
-                           current_event_store
-                         end
+        def initialize(result, event_store)
+          @event_store = event_store
           @command_with_events = {}
           @result = result
         end
@@ -183,8 +179,13 @@ module Sequent
         current_event_store = Sequent.configuration.event_store
         current_event_publisher = Sequent.configuration.event_publisher
         result = Result.new
+        event_store = if ENV['RACK_ENV'] == 'test'
+                        Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+                      else
+                        current_event_store
+                      end
 
-        Sequent.configuration.event_store = EventStoreProxy.new(result, current_event_store)
+        Sequent.configuration.event_store = EventStoreProxy.new(result, event_store)
         Sequent.configuration.event_publisher = RecordingEventPublisher.new(result)
 
         Sequent.command_service.execute_commands(*commands)
