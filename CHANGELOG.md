@@ -1,3 +1,13 @@
+# Changelog 4.1.0 (changes since 4.0)
+
+- Improve performance when running specs by not using `descendants`
+- Support for ActiveRecord 6.1.x
+- Fixed some rake tasks for snapshotting (Thanks HEROGWP)
+- Improve `ReplayOptimizedPostgresPersistor::Index`
+- Various improvements to the database config (to use database url and aliases) (Thanks Bér Kessels)
+- Allow for event upcasting
+- Add rubocop
+
 # Changelog 4.0 (changes since 3.5)
 
 - Changed default ruby to 3.0.0 release
