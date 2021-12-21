@@ -50,6 +50,54 @@ event_record.origin
 event_record.children
 ```
 
+## Upcasting
+
+When designing your domain (`AggregateRoot`s, `Event`s, `Command`s) over time it can happen
+that you want to change a particular Event. Perhaps you want to rename an attribute or something.
+One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still 
+in the startup phase and really exploring the domain, this could certainly be an option. However it does go
+against the immutable nature of an EventStore.
+In order to accommodate for refactorings like renaming, typically called upcasting in event sourcing, Sequent
+allows you to register upcasters in `Event`s and `ValueObject`s like so:
+
+```ruby
+# Initial version of the InvoiceSent event
+class InvoiceSent < Sequent::Event
+  attrs send_date: Date
+end
+
+# a few months into production, the term invoice_date better
+# fits the domain you decide to refactor and rename the attribute
+# 
+# The new InvoiceSent event
+class InvoiceSent < Sequent::Event
+  attrs invoice_date: Date
+  
+  upcast do |hash|
+    hash['invoice_date'] = hash['send_date']
+  end
+end
+```
+
+Old events (persisted as version 1) will still contain `send_date` as attribute in the `event_json`.
+Later versions will persist the attribute as `invoice_date`. The old events will not be changed in the
+event store.
+You can define multiple upcasters, they run in the order in which they are defined:
+
+```ruby
+class InvoiceSet < Sequent::Event
+  attrs invoice_date: Date, full_name: String
+  
+  upcast do |hash|
+    hash['full_name'] = hash['fullname']
+  end
+  
+  upcast do |hash|
+    hash['invoice_date'] = hash['send_date']
+  end
+end
+```
+
 ## What if scenarios
 
 Sometimes it can be useful to first check what will happen if a Command
