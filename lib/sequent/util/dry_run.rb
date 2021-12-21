@@ -36,7 +36,6 @@ module Sequent
 
         delegate :load_events_for_aggregates,
                  :load_events,
-                 :publish_events,
                  :stream_exists?,
                  :events_exists?,
                  to: :event_store
@@ -48,7 +47,7 @@ module Sequent
         end
 
         def commit_events(command, streams_with_events)
-          event_store.commit_events(command, streams_with_events)
+          Sequent.configuration.event_publisher.publish_events(streams_with_events.flat_map { |_, events| events })
 
           new_events = streams_with_events.flat_map { |_, events| events }
           @result.published_command_with_events(command, new_events)
