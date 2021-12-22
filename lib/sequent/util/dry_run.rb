@@ -177,6 +177,8 @@ module Sequent
       def self.these_commands(commands)
         current_event_store = Sequent.configuration.event_store
         current_event_publisher = Sequent.configuration.event_publisher
+        current_transaction_provider = Sequent.configuration.transaction_provider
+
         result = Result.new
         event_store = if ENV['RACK_ENV'] == 'test'
                         Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
@@ -186,6 +188,8 @@ module Sequent
 
         Sequent.configuration.event_store = EventStoreProxy.new(result, event_store)
         Sequent.configuration.event_publisher = RecordingEventPublisher.new(result)
+        Sequent.configuration.transaction_provider =
+          Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider.new(current_transaction_provider)
 
         Sequent.command_service.execute_commands(*commands)
 
@@ -193,6 +197,7 @@ module Sequent
       ensure
         Sequent.configuration.event_store = current_event_store
         Sequent.configuration.event_publisher = current_event_publisher
+        Sequent.configuration.transaction_provider = current_transaction_provider
       end
     end
   end
