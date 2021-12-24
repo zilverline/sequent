@@ -18,10 +18,7 @@ module Sequent
             raise
           ensure
             deregister_call
-            if stack_size == 0
-              Sequent::ApplicationRecord.connection.execute('SET TRANSACTION READ WRITE') unless @skip_set_transaction
-              reset_stack_size
-            end
+            reset_stack_size if stack_size == 0
           end
         end
 
@@ -30,6 +27,7 @@ module Sequent
         def stack_size
           Thread.current[:read_only_active_record_transaction_provider_calls]
         end
+
         def register_call
           Thread.current[:read_only_active_record_transaction_provider_calls] ||= 0
           Thread.current[:read_only_active_record_transaction_provider_calls] += 1

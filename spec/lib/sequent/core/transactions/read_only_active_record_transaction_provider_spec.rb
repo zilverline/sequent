@@ -20,6 +20,14 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
     end
   end
 
+  it 'should be able to do only read queries' do
+    expect do
+      subject.transactional do
+        Sequent::ApplicationRecord.connection.execute('select count(*) from command_records')
+      end
+    end.to_not raise_error
+  end
+
   context 'after the readonly block' do
     after do
       Sequent::ApplicationRecord.connection.execute('drop table if exists foos')
