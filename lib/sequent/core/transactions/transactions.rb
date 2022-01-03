@@ -2,3 +2,4 @@
 
 require_relative 'active_record_transaction_provider'
 require_relative 'no_transactions'
+require_relative 'read_only_active_record_transaction_provider'

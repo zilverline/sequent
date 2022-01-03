@@ -36,18 +36,18 @@ module Sequent
 
         delegate :load_events_for_aggregates,
                  :load_events,
-                 :publish_events,
                  :stream_exists?,
+                 :events_exists?,
                  to: :event_store
 
-        def initialize(result)
-          @event_store = Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+        def initialize(result, event_store)
+          @event_store = event_store
           @command_with_events = {}
           @result = result
         end
 
         def commit_events(command, streams_with_events)
-          event_store.commit_events(command, streams_with_events)
+          Sequent.configuration.event_publisher.publish_events(streams_with_events.flat_map { |_, events| events })
 
           new_events = streams_with_events.flat_map { |_, events| events }
           @result.published_command_with_events(command, new_events)
@@ -177,10 +177,19 @@ module Sequent
       def self.these_commands(commands)
         current_event_store = Sequent.configuration.event_store
         current_event_publisher = Sequent.configuration.event_publisher
-        result = Result.new
+        current_transaction_provider = Sequent.configuration.transaction_provider
 
-        Sequent.configuration.event_store = EventStoreProxy.new(result)
+        result = Result.new
+        event_store = if ENV['RACK_ENV'] == 'test'
+                        Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
+                      else
+                        current_event_store
+                      end
+
+        Sequent.configuration.event_store = EventStoreProxy.new(result, event_store)
         Sequent.configuration.event_publisher = RecordingEventPublisher.new(result)
+        Sequent.configuration.transaction_provider =
+          Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider.new(current_transaction_provider)
 
         Sequent.command_service.execute_commands(*commands)
 
@@ -188,6 +197,7 @@ module Sequent
       ensure
         Sequent.configuration.event_store = current_event_store
         Sequent.configuration.event_publisher = current_event_publisher
+        Sequent.configuration.transaction_provider = current_transaction_provider
       end
     end
   end
