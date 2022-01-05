@@ -56,14 +56,20 @@ describe 'dry run' do
     end
 
     before :each do
+      allow(Sequent::Core::Workflows).to receive(:all).and_return([workflow])
+      allow(Sequent::Core::Projectors).to receive(:all).and_return([projector, projector_2])
+      # stub for current_event_store declaration in DryRun.these_commands method
+      allow(Sequent.configuration)
+        .to receive(:event_store)
+        .and_return(Sequent::Test::CommandHandlerHelpers::FakeEventStore.new)
+      # unstub to actually use it during dry run
+      allow(Sequent.configuration)
+        .to receive(:event_store)
+        .and_call_original
+
       Sequent.configure do |config|
         config.command_handlers = [
           command_handler.new,
-        ]
-        config.event_handlers = [
-          projector.new,
-          projector_2.new,
-          workflow.new,
         ]
       end
     end
