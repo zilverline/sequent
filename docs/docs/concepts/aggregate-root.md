@@ -74,7 +74,7 @@ To access and do something with an AggregateRoot you need to load it from the da
 
 ```ruby
   # Load an AggregateRoot from the event store
-  user = Sequent.aggregate_repository.load_aggregate(user_id)
+  user = Sequent.aggregate_repository.load_aggregate(user_id, User)
 ```
 
 ## Changing an AggregateRoot

@@ -59,7 +59,7 @@ it will fail if the type of the loaded AggregateRoot differs.
 Sequent.aggregate_repository.ensure_exists(aggregate_id, clazz)
 
 # Returns true or false
-Sequent.aggregate_repository.contains_aggregate(aggregate_id)
+Sequent.aggregate_repository.contains_aggregate?(aggregate_id)
 
 ```
 

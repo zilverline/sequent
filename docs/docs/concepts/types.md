@@ -17,6 +17,7 @@ Out of the box Sequent supports the following types:
 1. [Integer](#integer)
 1. [Date](#date)
 1. [DateTime](#datetime)
+1. [Boolean](#boolean)
 1. [Symbol](#symbol)
 1. [ValueObjects](#valueobjects)
 1. [Lists](#lists)
