@@ -14,6 +14,7 @@ module Sequent
       def execute
         make_directory
         copy_files
+        rename_ruby_version
         rename_app_file
         replace_app_name
       end
@@ -26,6 +27,12 @@ module Sequent
 
       def copy_files
         FileUtils.copy_entry(File.expand_path('template_project', __dir__), path)
+      end
+
+      # Hidden files are by default excluded from gem build.
+      # Therefor we need to rename the ruby-version to .ruby-version.
+      def rename_ruby_version
+        FileUtils.mv("#{path}/ruby-version", "#{path}/.ruby-version")
       end
 
       def rename_app_file

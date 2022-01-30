@@ -39,6 +39,11 @@ describe Sequent::Generator::Project do
     ).to be_truthy
   end
 
+  it 'copies the ruby-version to .ruby-version' do
+    execute
+    expect(File.exist?('blog-with_special-symbols/.ruby-version')).to be_truthy
+  end
+
   it 'names the app' do
     execute
     expect(File.exist?('blog-with_special-symbols/my_app.rb')).to be_falsey
