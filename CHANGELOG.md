@@ -1,3 +1,10 @@
+# Changelog 4.1.1 (changes since 4.1.0)
+
+- Various documentation fixes
+- Upgrade to latest ar 6.1.4.x version
+- Various setup fixes when doing `sequent new myapp`
+- Improve `dry_run` feature by using real event store
+
 # Changelog 4.1.0 (changes since 4.0)
 
 - Improve performance when running specs by not using `descendants`
