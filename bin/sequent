@@ -24,6 +24,7 @@ def new_project(args)
 
     To finish setting up your app:
       cd #{name}
+      bundle install
       bundle exec rake sequent:db:create
       bundle exec rake sequent:db:create_view_schema
       bundle exec rake sequent:migrate:online
