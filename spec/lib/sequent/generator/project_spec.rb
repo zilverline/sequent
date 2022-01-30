@@ -56,7 +56,7 @@ describe Sequent::Generator::Project do
     expect(File.read('blog-with_special-symbols/Rakefile')).to include("require './blog_with_special_symbols'")
   end
 
-  it 'has working example with specs' do
+  xit 'has working example with specs' do
     execute
 
     Bundler.with_unbundled_env do
