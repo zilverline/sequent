@@ -20,7 +20,7 @@ def new_project(args)
     Success!
 
     Your brand spanking new sequent app is waiting for you in:
-      #{File.expand_path(name, __dir__)}
+      #{File.expand_path(name, Dir.pwd)}
 
     To finish setting up your app:
       cd #{name}
