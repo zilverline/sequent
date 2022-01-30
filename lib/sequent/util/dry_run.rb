@@ -66,18 +66,18 @@ module Sequent
         end
 
         def process_event(event)
-          Sequent.configuration.event_handlers.each do |handler|
-            next unless handler.class.handles_message?(event)
+          [*Sequent::Core::Workflows.all, *Sequent::Core::Projectors.all].each do |handler_class|
+            next unless handler_class.handles_message?(event)
 
-            if handler.is_a?(Sequent::Workflow)
-              @result.invoked_workflow(EventInvokedHandler.new(event, handler.class))
-            elsif handler.is_a?(Sequent::Projector)
-              @result.invoked_projector(EventInvokedHandler.new(event, handler.class))
+            if handler_class < Sequent::Workflow
+              @result.invoked_workflow(EventInvokedHandler.new(event, handler_class))
+            elsif handler_class < Sequent::Projector
+              @result.invoked_projector(EventInvokedHandler.new(event, handler_class))
             else
-              fail "Unrecognized event_handler #{handler.class} called for event #{event.class}"
+              fail "Unrecognized event_handler #{handler_class} called for event #{event.class}"
             end
           rescue StandardError
-            raise PublishEventError.new(handler.class, event)
+            raise PublishEventError.new(handler_class, event)
           end
         end
       end
@@ -180,13 +180,8 @@ module Sequent
         current_transaction_provider = Sequent.configuration.transaction_provider
 
         result = Result.new
-        event_store = if ENV['RACK_ENV'] == 'test'
-                        Sequent::Test::CommandHandlerHelpers::FakeEventStore.new
-                      else
-                        current_event_store
-                      end
 
-        Sequent.configuration.event_store = EventStoreProxy.new(result, event_store)
+        Sequent.configuration.event_store = EventStoreProxy.new(result, current_event_store)
         Sequent.configuration.event_publisher = RecordingEventPublisher.new(result)
         Sequent.configuration.transaction_provider =
           Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider.new(current_transaction_provider)

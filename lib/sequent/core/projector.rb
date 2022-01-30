@@ -92,6 +92,11 @@ module Sequent
         @persistor = persistor
       end
 
+      def self.inherited(subclass)
+        super
+        Projectors << subclass
+      end
+
       def self.replay_persistor
         nil
       end
@@ -122,6 +127,29 @@ module Sequent
           fail <<~EOS.chomp
             A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
           EOS
+        end
+      end
+    end
+
+    #
+    # Utility class containing all subclasses of Projector
+    #
+    class Projectors
+      class << self
+        def projectors
+          @projectors ||= []
+        end
+
+        def all
+          projectors
+        end
+
+        def <<(projector)
+          projectors << projector
+        end
+
+        def find(projector_name)
+          projectors.find { |c| c.name == projector_name }
         end
       end
     end

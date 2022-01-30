@@ -8,6 +8,11 @@ module Sequent
     class Workflow
       include Helpers::MessageHandler
 
+      def self.inherited(subclass)
+        super
+        Workflows << subclass
+      end
+
       def self.on(*message_classes, &block)
         decorated_block = ->(event) do
           begin
@@ -39,6 +44,29 @@ module Sequent
           Sequent.logger.warn("An exception was raised in an after_commit hook: #{e}, #{e.inspect}")
         else
           raise e
+        end
+      end
+    end
+
+    #
+    # Utility class containing all subclasses of Workflow
+    #
+    class Workflows
+      class << self
+        def workflows
+          @workflows ||= []
+        end
+
+        def all
+          workflows
+        end
+
+        def <<(workflow)
+          workflows << workflow
+        end
+
+        def find(workflow_name)
+          workflows.find { |c| c.name == workflow_name }
         end
       end
     end
