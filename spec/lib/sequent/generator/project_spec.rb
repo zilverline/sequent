@@ -56,16 +56,16 @@ describe Sequent::Generator::Project do
     expect(File.read('blog-with_special-symbols/Rakefile')).to include("require './blog_with_special_symbols'")
   end
 
-  xit 'has working example with specs' do
+  it 'has working example with specs' do
     execute
 
-    Bundler.with_clean_env do
+    Bundler.with_unbundled_env do
       system 'bash', '-cex', <<~SCRIPT
         cd blog-with_special-symbols
         export RACK_ENV=test
-        source ~/.bash_profile
 
         if which rbenv; then
+          eval "$(rbenv init - bash)"
           rbenv shell $(cat ./.ruby-version)
           rbenv install --skip-existing
         fi
@@ -74,6 +74,7 @@ describe Sequent::Generator::Project do
         bundle install
         bundle exec rake sequent:db:drop
         bundle exec rake sequent:db:create
+        bundle exec rake sequent:db:create_view_schema
         bundle exec rake sequent:migrate:online
         bundle exec rake sequent:migrate:offline
         bundle exec rspec spec
