@@ -53,11 +53,11 @@ module Sequent
       ##
       # Returns all events for the aggregate ordered by sequence_number
       #
-      def load_events(aggregate_id)
-        load_events_for_aggregates([aggregate_id])[0]
+      def load_events(aggregate_id, load_until: nil)
+        load_events_for_aggregates([aggregate_id], load_until: load_until)[0]
       end
 
-      def load_events_for_aggregates(aggregate_ids)
+      def load_events_for_aggregates(aggregate_ids, load_until: nil)
         return [] if aggregate_ids.none?
 
         streams = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids)
@@ -67,6 +67,8 @@ module Sequent
           deserialize_event(event_hash)
         end
 
+        fail ArgumentError, 'invalid load until' if load_until && load_until < events.first.created_at
+
         events
           .group_by(&:aggregate_id)
           .map do |aggregate_id, es|
@@ -74,7 +76,7 @@ module Sequent
             streams.find do |stream_record|
               stream_record.aggregate_id == aggregate_id
             end.event_stream,
-            es,
+            es.select { |e| load_until ? e.created_at <= load_until : e },
           ]
         end
       end

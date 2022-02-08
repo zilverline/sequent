@@ -70,7 +70,9 @@ module Sequent
       #
       # +aggregate_ids+ The ids of the aggregates to be loaded
       # +clazz+ Optional argument that checks if all aggregates are of type +clazz+
-      def load_aggregates(aggregate_ids, clazz = nil)
+      #
+      # +load_until+ Optional timestamp argument that defines up until which point in time an aggregate should be loaded
+      def load_aggregates(aggregate_ids, clazz = nil, load_until: nil)
         fail ArgumentError, 'aggregate_ids is required' unless aggregate_ids
         return [] if aggregate_ids.empty?
 
@@ -78,7 +80,7 @@ module Sequent
         result = aggregates.values_at(*unique_ids).compact
         query_ids = unique_ids - result.map(&:id)
 
-        result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids).map do |stream, events|
+        result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids, load_until: load_until).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end

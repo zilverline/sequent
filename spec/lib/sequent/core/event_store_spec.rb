@@ -183,27 +183,78 @@ describe Sequent::Core::EventStore do
     let(:aggregate_id_1) { Sequent.new_uuid }
     let(:aggregate_id_2) { Sequent.new_uuid }
 
-    before :each do
-      event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
-        [
+    context 'loading all events' do
+      before :each do
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
           [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
-            [MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1)],
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
+              [MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1)],
+            ],
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_2),
+              [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)],
+            ],
           ],
-          [
-            Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_2),
-            [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)],
-          ],
-        ],
-      )
+        )
+      end
+      it 'returns the stream and events for multiple aggregates' do
+        streams_with_events = event_store.load_events_for_aggregates([aggregate_id_1, aggregate_id_2])
+        expect(streams_with_events).to have(2).items
+        expect(streams_with_events[0]).to have(2).items
+        expect(streams_with_events[1]).to have(2).items
+      end
     end
-    it 'returns the stream and events for multiple aggregates' do
-      streams_with_events = event_store.load_events_for_aggregates([aggregate_id_1, aggregate_id_2])
 
-      expect(streams_with_events).to have(2).items
-      expect(streams_with_events[0]).to have(2).items
-      expect(streams_with_events[1]).to have(2).items
+    describe 'using #load_until' do
+      let!(:frozen_time) { Time.parse('2022-02-06 14:15:00 +0200') }
+      before :each do
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
+          [
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
+              [
+                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time + 5.minutes),
+                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 10.minutes),
+                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 3, created_at: frozen_time + 30.minutes),
+                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 4, created_at: frozen_time + 40.minutes),
+              ],
+            ],
+          ],
+        )
+      end
+
+      context 'valid value' do
+        it 'returns the stream and events before #load_until timestamp for aggregate' do
+          streams_with_events = event_store.load_events_for_aggregates(
+            [aggregate_id_1],
+            load_until: frozen_time + 15.minutes,
+          )
+          expect(streams_with_events).to have(1).items
+          expect(streams_with_events[0]).to have(2).items
+          expect(streams_with_events[0][1]).to have(2).items
+        end
+
+        it 'returns the stream and all events if no #load_until timestamp for aggregate is passed' do
+          streams_with_events = event_store.load_events_for_aggregates([aggregate_id_1])
+          expect(streams_with_events).to have(1).items
+          expect(streams_with_events[0]).to have(2).items
+          expect(streams_with_events[0][1]).to have(4).items
+        end
+      end
+
+      context '#load_until value before first event' do
+        it 'raises an error' do
+          expect do
+            event_store.load_events_for_aggregates(
+              [aggregate_id_1],
+              load_until: frozen_time - 15.minutes,
+            )
+          end.to raise_error ArgumentError, 'invalid load until'
+        end
+      end
     end
   end
 
