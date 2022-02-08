@@ -46,9 +46,12 @@ Sequent.aggregate_repository.load_aggregate('23456', Invoice)
 
 # or multiple in single call
 Sequent.aggregate_repository.load_aggregate(['65432', '23456'], Invoice)
+
+# load an aggregate up to a certain point in time by adding load_until named parameter
+Sequent.aggregate_repository.load_aggregate(['23456'], Invoice, load_until: Time.now - 1.day)
 ```
 
-The last parameter, the type of AggregateRoot, is optional. If given
+The second parameter, the type of AggregateRoot, is optional. If given
 it will fail if the type of the loaded AggregateRoot differs.
 
 ## Check if AggregateRoots exists
