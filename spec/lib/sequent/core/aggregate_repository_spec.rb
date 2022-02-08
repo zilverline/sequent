@@ -194,7 +194,10 @@ describe Sequent::Core::AggregateRepository do
 
     context 'with an empty store' do
       it 'raises an error when nothing is found' do
-        allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id], load_until: nil).and_return([]).once
+        allow(event_store).to receive(:load_events_for_aggregates).with(
+          [aggregate.id],
+          load_until: nil,
+        ).and_return([]).once
 
         expect do
           repository.load_aggregates([aggregate.id])

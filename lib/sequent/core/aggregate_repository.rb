@@ -80,7 +80,10 @@ module Sequent
         result = aggregates.values_at(*unique_ids).compact
         query_ids = unique_ids - result.map(&:id)
 
-        result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids, load_until: load_until).map do |stream, events|
+        result += Sequent.configuration.event_store.load_events_for_aggregates(
+          query_ids,
+          load_until: load_until,
+        ).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end
