@@ -17,6 +17,18 @@ describe Sequent::Core::BaseCommand do
       expect { Sequent::Core::Command.new }.to raise_error(/Missing aggregate_id/)
     end
 
+    it "after_initialize works" do
+      class AfterInitCommand < Sequent::Command
+        attrs flag: Boolean
+
+        after_initialize do
+          @flag = true if @flag.nil?
+        end
+      end
+
+      expect(AfterInitCommand.new.flag).to eq true
+    end
+
     context 'validations' do
       class ValidationCommand < Sequent::Command
         attrs flag: Boolean,
