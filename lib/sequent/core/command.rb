@@ -31,9 +31,13 @@ module Sequent
 
       attrs created_at: DateTime
 
+      define_model_callbacks :initialize, only: :after
+
       def initialize(args = {})
         update_all_attributes args
         @created_at = DateTime.now
+
+        _run_initialize_callbacks
       end
 
       def self.inherited(subclass)

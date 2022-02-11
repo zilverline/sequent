@@ -26,7 +26,8 @@ describe Sequent::Core::BaseCommand do
         end
       end
 
-      expect(AfterInitCommand.new.flag).to eq true
+      cmd = AfterInitCommand.new(aggregate_id: Sequent.new_uuid)
+      expect(cmd.flag).to eq true
     end
 
     context 'validations' do
