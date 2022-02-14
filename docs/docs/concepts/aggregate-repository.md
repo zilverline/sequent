@@ -55,7 +55,8 @@ Sequent.aggregate_repository.load_aggregate_for_snapshotting('12345', Invoice, l
 The second parameter, the type of AggregateRoot, is optional. If given
 it will fail if the type of the loaded AggregateRoot differs.
 
-The third parameter, the load_until time, is also optional. If given it will
+The third parameter, the load_until parameter, is also optional and only available
+for the load_aggregate_for_snapshotting method. If given it will
 load the AggregateRoot up until that moment in time.
 
 ## Check if AggregateRoots exists
