@@ -57,6 +57,26 @@ module Sequent
         load_aggregates([aggregate_id], clazz)[0]
       end
 
+      # Optimizing for loading lots of events and ignore snapshot events
+      def load_aggregate_for_snapshotting(aggregate_id, _clazz = nil, load_until: nil)
+        fail ArgumentError, 'aggregate_id is required' unless aggregate_id
+        return [] if aggregate_id.blank?
+
+        stream = Sequent
+          .configuration
+          .event_store
+          .get_event_stream(aggregate_id)
+        aggregate = Class.const_get(stream.aggregate_type).stream_from_history(stream)
+
+        Sequent
+          .configuration
+          .event_store
+          .stream_events_for_aggregate(aggregate_id, load_until: load_until) do |event_stream|
+            aggregate.stream_from_history(event_stream)
+          end
+        aggregate
+      end
+
       ##
       # Loads multiple aggregates at once.
       # Returns the ones in the current Unit Of Work otherwise loads it from history.

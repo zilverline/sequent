@@ -61,15 +61,6 @@ module Sequent
         aggregate_root
       end
 
-      def initialize(id)
-        @id = id
-        @uncommitted_events = []
-        @sequence_number = 1
-        @event_stream = EventStream.new aggregate_type: self.class.name,
-                                        aggregate_id: id,
-                                        snapshot_threshold: self.class.snapshot_default_threshold
-      end
-
       def load_from_history(stream, events)
         fail 'Empty history' if events.empty?
 
@@ -78,6 +69,35 @@ module Sequent
         @sequence_number = 1
         @event_stream = stream
         events.each { |event| apply_event(event) }
+      end
+
+      def initialize_for_streaming(stream)
+        @uncommitted_events = []
+        @sequence_number = 1
+        @event_stream = stream
+      end
+
+      def stream_from_history(stream_events)
+        _stream, events = stream_events
+        fail 'Empty history' if events.empty?
+
+        @id ||= events.first.aggregate_id
+        events.each { |event| apply_event(event) }
+      end
+
+      def self.stream_from_history(stream)
+        aggregate_root = allocate
+        aggregate_root.initialize_for_streaming(stream)
+        aggregate_root
+      end
+
+      def initialize(id)
+        @id = id
+        @uncommitted_events = []
+        @sequence_number = 1
+        @event_stream = EventStream.new aggregate_type: self.class.name,
+                                        aggregate_id: id,
+                                        snapshot_threshold: self.class.snapshot_default_threshold
       end
 
       def to_s

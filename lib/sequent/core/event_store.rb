@@ -51,7 +51,34 @@ module Sequent
       end
 
       ##
-      # Returns all events for the aggregate ordered by sequence_number
+      # Returns all events for the aggregate ordered by sequence_number, disregarding snapshot events
+      #
+      def stream_events_for_aggregate(aggregate_id, load_until: nil)
+        stream = get_event_stream(aggregate_id)
+        fail ArgumentError, 'no stream found for this aggregate' if stream.blank?
+
+        q = Sequent
+          .configuration
+          .event_record_class
+          .where(aggregate_id: aggregate_id)
+          .where.not(event_type: Sequent.configuration.snapshot_event_class.name)
+          .order(:sequence_number)
+        q = q.where('created_at < ?', load_until) if load_until.present?
+        fail ArgumentError, 'no events for this aggregate' if q.blank?
+
+        q.select('id, event_type, event_json').in_batches do |event_records|
+          events = event_records.map { |e| deserialize_event(e.attributes) }
+          yield([stream, events])
+        end
+      end
+
+      def get_event_stream(aggregate_id)
+        Sequent.configuration.stream_record_class.find_by(aggregate_id: aggregate_id)
+      end
+
+      ##
+      # Returns all events for the aggregate ordered by sequence_number, loading them from the latest snapshot
+      # event onwards, if a snapshot is present
       #
       def load_events(aggregate_id)
         load_events_for_aggregates([aggregate_id])[0]
