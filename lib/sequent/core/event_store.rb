@@ -64,12 +64,14 @@ module Sequent
           .where.not(event_type: Sequent.configuration.snapshot_event_class.name)
           .order(:sequence_number)
         q = q.where('created_at < ?', load_until) if load_until.present?
-        fail ArgumentError, 'no events for this aggregate' if q.blank?
+        has_events = false
 
         q.select('id, event_type, event_json').in_batches do |event_records|
+          has_events = true
           events = event_records.map { |e| deserialize_event(e.attributes) }
           yield([stream, events])
         end
+        fail ArgumentError, 'no events for this aggregate' unless has_events
       end
 
       def get_event_stream(aggregate_id)

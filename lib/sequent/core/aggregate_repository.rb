@@ -58,9 +58,8 @@ module Sequent
       end
 
       # Optimizing for loading lots of events and ignore snapshot events
-      def load_aggregate_for_snapshotting(aggregate_id, _clazz = nil, load_until: nil)
-        fail ArgumentError, 'aggregate_id is required' unless aggregate_id
-        return [] if aggregate_id.blank?
+      def load_aggregate_for_snapshotting(aggregate_id, clazz = nil, load_until: nil)
+        fail ArgumentError, 'aggregate_id is required' if aggregate_id.blank?
 
         stream = Sequent
           .configuration
@@ -72,8 +71,12 @@ module Sequent
           .configuration
           .event_store
           .stream_events_for_aggregate(aggregate_id, load_until: load_until) do |event_stream|
-            aggregate.stream_from_history(event_stream)
-          end
+          aggregate.stream_from_history(event_stream)
+        end
+
+        if clazz
+          fail TypeError, "#{aggregate.class} is not a #{clazz}" unless aggregate.class <= clazz
+        end
         aggregate
       end
 
