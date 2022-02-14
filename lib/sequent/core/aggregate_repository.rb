@@ -57,7 +57,15 @@ module Sequent
         load_aggregates([aggregate_id], clazz)[0]
       end
 
-      # Optimizing for loading lots of events and ignore snapshot events
+      # Optimised for loading lots of events and ignore snapshot events. To get the correct historical state of an
+      # AggregateRoot it is necessary to be able to ignore snapshots. For a nested AggregateRoot, there will not be a
+      # sequence number known, so a load_until timestamp can be used instead.
+      #
+      # +aggregate_id+ The id of the aggregate to be loaded
+      #
+      # +clazz+ Optional argument that checks if aggregate is of type +clazz+
+      #
+      # +load_until+ Optional argument that defines up until what point in time the AggregateRoot will be rebuilt.
       def load_aggregate_for_snapshotting(aggregate_id, clazz = nil, load_until: nil)
         fail ArgumentError, 'aggregate_id is required' if aggregate_id.blank?
 
