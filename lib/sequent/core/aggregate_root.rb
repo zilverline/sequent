@@ -91,7 +91,7 @@ module Sequent
         fail 'Empty history' if events.empty?
 
         @id ||= events.first.aggregate_id
-        events.each { |event| apply_event(event) }
+        events.sort_by(&:sequence_number).each { |event| apply_event(event) }
       end
 
       def self.stream_from_history(stream)
