@@ -210,6 +210,27 @@ describe Sequent::Core::EventStore do
   describe 'stream events for aggregate' do
     let(:aggregate_id_1) { Sequent.new_uuid }
     let(:frozen_time) { Time.parse('2022-02-08 14:15:00 +0200') }
+    let(:stream_record) do
+      Sequent::Core::StreamRecord.create!(
+        aggregate_type: 'Sequent::Core::AggregateRoot',
+        aggregate_id: aggregate_id_1,
+        created_at: DateTime.now,
+      )
+    end
+    let(:event_1) { MyEvent.new(id: 3, aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time) }
+    let(:event_2) do
+      MyEvent.new(id: 2, aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 5.minutes)
+    end
+    let(:event_3) do
+      MyEvent.new(id: 1, aggregate_id: aggregate_id_1, sequence_number: 3, created_at: frozen_time + 10.minutes)
+    end
+    let(:snapshot_event) do
+      Sequent::Core::SnapshotEvent.new(
+        aggregate_id: aggregate_id_1,
+        sequence_number: 3,
+        created_at: frozen_time + 8.minutes,
+      )
+    end
 
     context 'with a snapshot event' do
       before :each do
@@ -217,51 +238,46 @@ describe Sequent::Core::EventStore do
           Sequent::Core::CommandRecord.new,
           [
             [
-              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id_1,
+                stream_record_id: stream_record.id,
+              ),
               [
-                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time),
-                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 5.minutes),
-                Sequent::Core::SnapshotEvent.new(
-                  aggregate_id: aggregate_id_1,
-                  sequence_number: 3,
-                  created_at: frozen_time + 8.minutes,
-                ),
-                MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 4, created_at: frozen_time + 10.minutes),
+                event_1,
+                event_2,
+                snapshot_event,
+                event_3,
               ],
             ],
           ],
         )
       end
 
-      context 'returning events except snapshot events' do
+      context 'returning events except snapshot events in order of sequence_number' do
         it 'all events up until now' do
-          event_store.stream_events_for_aggregate(aggregate_id_1, load_until: Time.now) do |streamed_events|
-            expect(streamed_events).to have(2).items
-            expect(streamed_events[1]).to have(3).items
-          end
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: Time.now, &block)
+          end.to yield_successive_args([stream_record, event_1], [stream_record, event_2], [stream_record, event_3])
         end
 
         it 'all events if no load_until is passed' do
-          event_store.stream_events_for_aggregate(aggregate_id_1) do |streamed_events|
-            expect(streamed_events).to have(2).items
-            expect(streamed_events[1]).to have(3).items
-          end
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, &block)
+          end.to yield_successive_args([stream_record, event_1], [stream_record, event_2], [stream_record, event_3])
         end
 
         it 'events up until the specified time for the aggregate' do
-          event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time + 3.minutes) do |s_e|
-            expect(s_e).to have(2).items
-            expect(s_e[1]).to have(1).items
-          end
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time + 1.minute, &block)
+          end.to yield_successive_args([stream_record, event_1])
         end
       end
 
       context 'failure' do
         it 'argument error for no events' do
-          expect do
-            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time - 1.year) do |_s_e|
-              # no-op
-            end
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time - 1.year, &block)
           end.to raise_error(ArgumentError, 'no events for this aggregate')
         end
       end

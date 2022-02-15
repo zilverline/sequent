@@ -59,7 +59,6 @@ module Sequent
       # @param aggregate_id Aggregate id of the AggregateRoot
       # @param load_until The timestamp up until which you want to built the aggregate. Optional.
       # @param &block Block that should be passed to handle the batches returned from this method
-      #
       def stream_events_for_aggregate(aggregate_id, load_until: nil, &block)
         stream = get_event_stream(aggregate_id)
         fail ArgumentError, 'no stream found for this aggregate' if stream.blank?
@@ -69,13 +68,14 @@ module Sequent
           .event_record_class
           .where(aggregate_id: aggregate_id)
           .where.not(event_type: Sequent.configuration.snapshot_event_class.name)
+          .order(:sequence_number)
         q = q.where('created_at < ?', load_until) if load_until.present?
         has_events = false
 
-        q.select('id, event_type, event_json').in_batches do |event_records|
+        q.select('event_type, event_json').each_row do |event_hash|
           has_events = true
-          events = event_records.map { |e| deserialize_event(e.attributes) }
-          block.call([stream, events])
+          event = deserialize_event(event_hash)
+          block.call([stream, event])
         end
         fail ArgumentError, 'no events for this aggregate' unless has_events
       end

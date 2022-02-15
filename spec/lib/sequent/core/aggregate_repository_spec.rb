@@ -190,7 +190,7 @@ describe Sequent::Core::AggregateRepository do
 
       context 'without snapshot events' do
         let(:event_1) { MyEvent.new(aggregate_id: aggregate.id, sequence_number: 1) }
-        let(:aggregate_stream_with_events) { [aggregate.event_stream, [event_1]] }
+        let(:aggregate_stream_with_events) { [aggregate.event_stream, event_1] }
 
         it 'returns the stream' do
           allow(event_store).to receive(:get_event_stream)

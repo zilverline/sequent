@@ -87,11 +87,11 @@ module Sequent
       end
 
       def stream_from_history(stream_events)
-        _stream, events = stream_events
-        fail 'Empty history' if events.empty?
+        _stream, event = stream_events
+        fail 'Empty history' if event.blank?
 
-        @id ||= events.first.aggregate_id
-        events.sort_by(&:sequence_number).each { |event| apply_event(event) }
+        @id ||= event.aggregate_id
+        apply_event(event)
       end
 
       def self.stream_from_history(stream)
