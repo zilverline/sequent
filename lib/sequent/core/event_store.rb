@@ -60,7 +60,7 @@ module Sequent
       # @param load_until The timestamp up until which you want to built the aggregate. Optional.
       # @param &block Block that should be passed to handle the batches returned from this method
       def stream_events_for_aggregate(aggregate_id, load_until: nil, &block)
-        stream = get_event_stream(aggregate_id)
+        stream = find_event_stream(aggregate_id)
         fail ArgumentError, 'no stream found for this aggregate' if stream.blank?
 
         q = Sequent
@@ -78,10 +78,6 @@ module Sequent
           block.call([stream, event])
         end
         fail ArgumentError, 'no events for this aggregate' unless has_events
-      end
-
-      def get_event_stream(aggregate_id)
-        Sequent.configuration.stream_record_class.find_by(aggregate_id: aggregate_id)
       end
 
       ##

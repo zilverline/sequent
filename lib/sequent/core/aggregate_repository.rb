@@ -72,7 +72,7 @@ module Sequent
         stream = Sequent
           .configuration
           .event_store
-          .get_event_stream(aggregate_id)
+          .find_event_stream(aggregate_id)
         aggregate = Class.const_get(stream.aggregate_type).stream_from_history(stream)
 
         Sequent
