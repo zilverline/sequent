@@ -217,6 +217,7 @@ describe Sequent::Core::EventStore do
         created_at: DateTime.now,
       )
     end
+    let(:event_stream) { instance_of(Sequent::Core::EventStream) }
     let(:event_1) { MyEvent.new(id: 3, aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time) }
     let(:event_2) do
       MyEvent.new(id: 2, aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 5.minutes)
@@ -258,19 +259,19 @@ describe Sequent::Core::EventStore do
         it 'all events up until now' do
           expect do |block|
             event_store.stream_events_for_aggregate(aggregate_id_1, load_until: Time.now, &block)
-          end.to yield_successive_args([stream_record, event_1], [stream_record, event_2], [stream_record, event_3])
+          end.to yield_successive_args([event_stream, event_1], [event_stream, event_2], [event_stream, event_3])
         end
 
         it 'all events if no load_until is passed' do
           expect do |block|
             event_store.stream_events_for_aggregate(aggregate_id_1, &block)
-          end.to yield_successive_args([stream_record, event_1], [stream_record, event_2], [stream_record, event_3])
+          end.to yield_successive_args([event_stream, event_1], [event_stream, event_2], [event_stream, event_3])
         end
 
         it 'events up until the specified time for the aggregate' do
           expect do |block|
             event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time + 1.minute, &block)
-          end.to yield_successive_args([stream_record, event_1])
+          end.to yield_successive_args([event_stream, event_1])
         end
       end
 
