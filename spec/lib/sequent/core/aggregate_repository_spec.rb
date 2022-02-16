@@ -193,7 +193,7 @@ describe Sequent::Core::AggregateRepository do
         let(:aggregate_stream_with_events) { [aggregate.event_stream, event_1] }
 
         it 'returns the stream' do
-          allow(event_store).to receive(:get_event_stream)
+          allow(event_store).to receive(:find_event_stream)
             .with(aggregate.id).and_return(aggregate.event_stream)
 
           allow(event_store).to receive(:stream_events_for_aggregate)
