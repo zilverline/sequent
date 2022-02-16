@@ -210,13 +210,6 @@ describe Sequent::Core::EventStore do
   describe 'stream events for aggregate' do
     let(:aggregate_id_1) { Sequent.new_uuid }
     let(:frozen_time) { Time.parse('2022-02-08 14:15:00 +0200') }
-    let(:stream_record) do
-      Sequent::Core::StreamRecord.create!(
-        aggregate_type: 'Sequent::Core::AggregateRoot',
-        aggregate_id: aggregate_id_1,
-        created_at: DateTime.now,
-      )
-    end
     let(:event_stream) { instance_of(Sequent::Core::EventStream) }
     let(:event_1) { MyEvent.new(id: 3, aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time) }
     let(:event_2) do
@@ -242,7 +235,6 @@ describe Sequent::Core::EventStore do
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
                 aggregate_id: aggregate_id_1,
-                stream_record_id: stream_record.id,
               ),
               [
                 event_1,
