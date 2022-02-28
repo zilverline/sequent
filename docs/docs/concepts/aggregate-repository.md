@@ -46,10 +46,18 @@ Sequent.aggregate_repository.load_aggregate('23456', Invoice)
 
 # or multiple in single call
 Sequent.aggregate_repository.load_aggregate(['65432', '23456'], Invoice)
+
+# load single AggregateRoot up until a moment in time, skipping possible 
+# snapshotevents
+Sequent.aggregate_repository.load_aggregate_for_snapshotting('12345', Invoice, load_until: '2022-02-14 13:20:48')
 ```
 
-The last parameter, the type of AggregateRoot, is optional. If given
+The second parameter, the type of AggregateRoot, is optional. If given
 it will fail if the type of the loaded AggregateRoot differs.
+
+The third parameter, the load_until parameter, is also optional and only available
+for the load_aggregate_for_snapshotting method. If given it will
+load the AggregateRoot up until that moment in time.
 
 ## Check if AggregateRoots exists
 

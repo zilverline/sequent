@@ -6,6 +6,7 @@ Bundler.setup
 ENV['RACK_ENV'] ||= 'test'
 
 require 'rspec/collection_matchers'
+require 'timecop'
 require_relative '../lib/sequent'
 require_relative '../lib/sequent/generator'
 require_relative './lib/sequent/fixtures/fixtures'

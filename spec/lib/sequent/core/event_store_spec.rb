@@ -207,6 +207,83 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe 'stream events for aggregate' do
+    let(:aggregate_id_1) { Sequent.new_uuid }
+    let(:frozen_time) { Time.parse('2022-02-08 14:15:00 +0200') }
+    let(:event_stream) { instance_of(Sequent::Core::EventStream) }
+    let(:event_1) { MyEvent.new(id: 3, aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time) }
+    let(:event_2) do
+      MyEvent.new(id: 2, aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 5.minutes)
+    end
+    let(:event_3) do
+      MyEvent.new(id: 1, aggregate_id: aggregate_id_1, sequence_number: 3, created_at: frozen_time + 10.minutes)
+    end
+    let(:snapshot_event) do
+      Sequent::Core::SnapshotEvent.new(
+        aggregate_id: aggregate_id_1,
+        sequence_number: 3,
+        created_at: frozen_time + 8.minutes,
+      )
+    end
+
+    context 'with a snapshot event' do
+      before :each do
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id_1,
+              ),
+              [
+                event_1,
+                event_2,
+                snapshot_event,
+                event_3,
+              ],
+            ],
+          ],
+        )
+      end
+
+      context 'returning events except snapshot events in order of sequence_number' do
+        it 'all events up until now' do
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: Time.now, &block)
+          end.to yield_successive_args([event_stream, event_1], [event_stream, event_2], [event_stream, event_3])
+        end
+
+        it 'all events if no load_until is passed' do
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, &block)
+          end.to yield_successive_args([event_stream, event_1], [event_stream, event_2], [event_stream, event_3])
+        end
+
+        it 'events up until the specified time for the aggregate' do
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time + 1.minute, &block)
+          end.to yield_successive_args([event_stream, event_1])
+        end
+      end
+
+      context 'failure' do
+        it 'argument error for no events' do
+          expect do |block|
+            event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time - 1.year, &block)
+          end.to raise_error(ArgumentError, 'no events for this aggregate')
+        end
+      end
+
+      it 'returns all events from the snapshot onwards for #load_events_for_aggregates' do
+        streamed_events = event_store.load_events_for_aggregates([aggregate_id_1])
+        expect(streamed_events).to have(1).items
+        expect(streamed_events[0]).to have(2).items
+        expect(streamed_events[0][1]).to have(2).items
+      end
+    end
+  end
+
   describe 'error handling for publishing events' do
     class TestRecord; end
     class RecordingHandler < Sequent::Core::Projector

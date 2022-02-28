@@ -80,6 +80,26 @@ module Sequent
         events.each { |event| apply_event(event) }
       end
 
+      def initialize_for_streaming(stream)
+        @uncommitted_events = []
+        @sequence_number = 1
+        @event_stream = stream
+      end
+
+      def stream_from_history(stream_events)
+        _stream, event = stream_events
+        fail 'Empty history' if event.blank?
+
+        @id ||= event.aggregate_id
+        apply_event(event)
+      end
+
+      def self.stream_from_history(stream)
+        aggregate_root = allocate
+        aggregate_root.initialize_for_streaming(stream)
+        aggregate_root
+      end
+
       def to_s
         "#{self.class.name}: #{@id}"
       end

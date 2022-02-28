@@ -51,7 +51,38 @@ module Sequent
       end
 
       ##
-      # Returns all events for the aggregate ordered by sequence_number
+      # Returns all events for the AggregateRoot ordered by sequence_number, disregarding snapshot events.
+      #
+      # This streaming is done in batches to prevent loading many events in memory all at once. A usecase for ignoring
+      # the snapshots is when events of a nested AggregateRoot need to be loaded up until a certain moment in time.
+      #
+      # @param aggregate_id Aggregate id of the AggregateRoot
+      # @param load_until The timestamp up until which you want to built the aggregate. Optional.
+      # @param &block Block that should be passed to handle the batches returned from this method
+      def stream_events_for_aggregate(aggregate_id, load_until: nil, &block)
+        stream = find_event_stream(aggregate_id)
+        fail ArgumentError, 'no stream found for this aggregate' if stream.blank?
+
+        q = Sequent
+          .configuration
+          .event_record_class
+          .where(aggregate_id: aggregate_id)
+          .where.not(event_type: Sequent.configuration.snapshot_event_class.name)
+          .order(:sequence_number)
+        q = q.where('created_at < ?', load_until) if load_until.present?
+        has_events = false
+
+        q.select('event_type, event_json').each_row do |event_hash|
+          has_events = true
+          event = deserialize_event(event_hash)
+          block.call([stream, event])
+        end
+        fail ArgumentError, 'no events for this aggregate' unless has_events
+      end
+
+      ##
+      # Returns all events for the aggregate ordered by sequence_number, loading them from the latest snapshot
+      # event onwards, if a snapshot is present
       #
       def load_events(aggregate_id)
         load_events_for_aggregates([aggregate_id])[0]

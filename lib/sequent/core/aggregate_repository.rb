@@ -57,6 +57,37 @@ module Sequent
         load_aggregates([aggregate_id], clazz)[0]
       end
 
+      # Optimised for loading lots of events and ignore snapshot events. To get the correct historical state of an
+      # AggregateRoot it is necessary to be able to ignore snapshots. For a nested AggregateRoot, there will not be a
+      # sequence number known, so a load_until timestamp can be used instead.
+      #
+      # +aggregate_id+ The id of the aggregate to be loaded
+      #
+      # +clazz+ Optional argument that checks if aggregate is of type +clazz+
+      #
+      # +load_until+ Optional argument that defines up until what point in time the AggregateRoot will be rebuilt.
+      def load_aggregate_for_snapshotting(aggregate_id, clazz = nil, load_until: nil)
+        fail ArgumentError, 'aggregate_id is required' if aggregate_id.blank?
+
+        stream = Sequent
+          .configuration
+          .event_store
+          .find_event_stream(aggregate_id)
+        aggregate = Class.const_get(stream.aggregate_type).stream_from_history(stream)
+
+        Sequent
+          .configuration
+          .event_store
+          .stream_events_for_aggregate(aggregate_id, load_until: load_until) do |event_stream|
+          aggregate.stream_from_history(event_stream)
+        end
+
+        if clazz
+          fail TypeError, "#{aggregate.class} is not a #{clazz}" unless aggregate.class <= clazz
+        end
+        aggregate
+      end
+
       ##
       # Loads multiple aggregates at once.
       # Returns the ones in the current Unit Of Work otherwise loads it from history.
