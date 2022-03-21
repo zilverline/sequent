@@ -1,4 +1,10 @@
-# Changelog 4.1.1 (changes since 4.1.0)
+# Changelog 4.3.0 (changes since 4.2.0)
+
+- Add ability to to load aggregates up until a certain point in time (use with caution)
+- Support for ActiveStar 7.x
+- Support for Ruby 3.1
+
+# Changelog 4.2.0 (changes since 4.1.0)
 
 - Various documentation fixes
 - Upgrade to latest ar 6.1.4.x version
