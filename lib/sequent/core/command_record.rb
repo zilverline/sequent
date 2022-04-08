@@ -8,7 +8,7 @@ module Sequent
     module SerializesCommand
       def command
         args = Sequent::Core::Oj.strict_load(command_json)
-        Class.const_get(command_type.to_sym).deserialize_from_json(args)
+        Class.const_get(command_type).deserialize_from_json(args)
       end
 
       def command=(command)
