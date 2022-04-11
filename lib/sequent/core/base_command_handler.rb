@@ -22,6 +22,8 @@ module Sequent
       include Sequent::Core::Helpers::UuidHelper
       include Sequent::Core::Helpers::MessageHandler
 
+      message_base_class Sequent::Core::BaseCommand
+
       protected
 
       def repository

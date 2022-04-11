@@ -87,6 +87,8 @@ module Sequent
       include Helpers::MessageHandler
       include Migratable
 
+      message_base_class Sequent::Core::Event
+
       def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
         ensure_valid!
         @persistor = persistor

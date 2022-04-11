@@ -8,6 +8,8 @@ module Sequent
     class Workflow
       include Helpers::MessageHandler
 
+      message_base_class Sequent::Core::Event
+
       def self.inherited(subclass)
         super
         Workflows << subclass

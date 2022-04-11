@@ -40,6 +40,8 @@ module Sequent
       include Helpers::AutosetAttributes
       include SnapshotConfiguration
 
+      message_base_class Sequent::Core::Event
+
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
 
       def self.inherited(subclass)
