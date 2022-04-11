@@ -29,6 +29,8 @@ module Sequent
       include ActiveModel::Validations::Callbacks
       include Sequent::Core::Helpers::TypeConversionSupport
 
+      extend ActiveSupport::DescendantsTracker
+
       attrs created_at: DateTime
 
       def initialize(args = {})

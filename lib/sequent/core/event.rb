@@ -13,6 +13,9 @@ module Sequent
       include Sequent::Core::Helpers::AttributeSupport
       include Sequent::Core::Helpers::EqualSupport
       include Sequent::Core::Helpers::StringSupport
+
+      extend ActiveSupport::DescendantsTracker
+
       attrs aggregate_id: String, sequence_number: Integer, created_at: DateTime
 
       def initialize(args = {})
