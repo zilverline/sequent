@@ -35,6 +35,8 @@ module Sequent
       # The order of which handler block is executed first is not guaranteed.
       #
       module MessageHandler
+        class ConfigurationError < StandardError; end
+
         module ClassMethods
           def on(*message_classes, &block)
             message_classes.each do |message_class|
@@ -60,7 +62,20 @@ module Sequent
           end
 
           def get_message_base_class
-            @message_base_class
+            current = self
+
+            loop do
+              message_base_class = current.instance_variable_get(:@message_base_class)
+              return message_base_class if message_base_class
+              break unless superclass < MessageHandler
+
+              current = superclass
+            end
+
+            fail(
+              ConfigurationError,
+              "Missing message base class configuration for '#{name}', please configure it using `message_base_class`",
+            )
           end
 
           def reset_message_base_class
@@ -71,6 +86,11 @@ module Sequent
 
           def register_message_class(message_class, block)
             message_classes_to_register(message_class).each do |clazz|
+              message_base_class = get_message_base_class
+              unless clazz == message_base_class || clazz < message_base_class
+                fail ConfigurationError, "Expected '#{clazz.name}' to be a descendant from '#{message_base_class.name}'"
+              end
+
               message_mapping[clazz] ||= []
               message_mapping[clazz] << block
             end

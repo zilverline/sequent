@@ -17,6 +17,8 @@ describe Sequent::Core::Helpers::MessageHandler do
   class MyHandler
     include Sequent::Core::Helpers::MessageHandler
 
+    message_base_class Sequent::Event
+
     attr_reader :first_block_called, :last_block_called
 
     on MessageHandlerEvent, MessageHandlerEventOtherEvent do
@@ -110,6 +112,31 @@ describe Sequent::Core::Helpers::MessageHandler do
       end
     end
 
+    context 'given a message which does not descend from message_base_class' do
+      class SomeMessage; end
+
+      it 'fails' do
+        expect { SomeHandler.on(SomeMessage) }.to raise_error(
+          Sequent::Core::Helpers::MessageHandler::ConfigurationError,
+          "Expected 'SomeMessage' to be a descendant from 'Sequent::Core::Event'",
+        )
+      end
+    end
+
+    context 'given no configured message_base_class' do
+      class HandlerWithoutMessageBaseClass
+        include Sequent::Core::Helpers::MessageHandler
+      end
+
+      it 'fails' do
+        expect { HandlerWithoutMessageBaseClass.on(MyEventModule) }.to raise_error(
+          Sequent::Core::Helpers::MessageHandler::ConfigurationError,
+          "Missing message base class configuration for 'HandlerWithoutMessageBaseClass', " \
+          'please configure it using `message_base_class`',
+        )
+      end
+    end
+
     describe '.message_base_class' do
       class AnotherHandler
         include Sequent::Core::Helpers::MessageHandler
@@ -129,10 +156,9 @@ describe Sequent::Core::Helpers::MessageHandler do
         let(:message_base_class) { Sequent::Event }
 
         it 'sets the message base class' do
-          expect { subject }
-            .to change { AnotherHandler.get_message_base_class }
-            .from(nil)
-            .to(message_base_class)
+          subject
+
+          expect(AnotherHandler.get_message_base_class).to eq(message_base_class)
         end
       end
 
@@ -141,7 +167,10 @@ describe Sequent::Core::Helpers::MessageHandler do
 
         it 'fails' do
           expect { subject }
-            .to raise_error(ArgumentError, "'message_base_class' should be an ActiveSupport::DescendantsTracker")
+            .to raise_error(
+              ArgumentError,
+              "'message_base_class' should be an ActiveSupport::DescendantsTracker",
+            )
         end
       end
 
@@ -150,7 +179,10 @@ describe Sequent::Core::Helpers::MessageHandler do
 
         it 'fails' do
           expect { subject }
-            .to raise_error(ArgumentError, "'message_base_class' should be an ActiveSupport::DescendantsTracker")
+            .to raise_error(
+              ArgumentError,
+              "'message_base_class' should be an ActiveSupport::DescendantsTracker",
+            )
         end
       end
     end
