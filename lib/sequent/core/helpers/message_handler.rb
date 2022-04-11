@@ -38,8 +38,7 @@ module Sequent
         module ClassMethods
           def on(*message_classes, &block)
             message_classes.each do |message_class|
-              message_mapping[message_class] ||= []
-              message_mapping[message_class] << block
+              register_message_class(message_class, block)
             end
           end
 
@@ -49,6 +48,47 @@ module Sequent
 
           def handles_message?(message)
             message_mapping.keys.include? message.class
+          end
+
+          def message_base_class(clazz)
+            unless clazz.is_a?(ActiveSupport::DescendantsTracker)
+              fail ArgumentError,
+                   "'message_base_class' should be an ActiveSupport::DescendantsTracker"
+            end
+
+            @message_base_class = clazz
+          end
+
+          def get_message_base_class
+            @message_base_class
+          end
+
+          def reset_message_base_class
+            @message_base_class = nil
+          end
+
+          private
+
+          def register_message_class(message_class, block)
+            message_classes_to_register(message_class).each do |clazz|
+              message_mapping[clazz] ||= []
+              message_mapping[clazz] << block
+            end
+          end
+
+          def message_classes_to_register(message_class)
+            case message_class
+            when Class
+              [message_class, *message_class.descendants]
+            when Module
+              get_message_base_class
+                .descendants
+                .select do |descendant_class|
+                  descendant_class.include?(message_class)
+                end
+            else
+              fail ArgumentError, "Required argument 'message_class' should be either a Class or Module"
+            end
           end
         end
 
