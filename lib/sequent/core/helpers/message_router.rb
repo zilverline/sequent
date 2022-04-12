@@ -22,7 +22,7 @@ module Sequent
         end
 
         ##
-        # Returns a set of handlers that match the given message, or an empty array when none match.
+        # Returns a set of handlers that match the given message, or an empty set when none match.
         #
         def match_message(message)
           @routes
