@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative 'message_router'
+require_relative 'message_dispatcher'
+
 module Sequent
   module Core
     module Helpers
@@ -37,18 +40,19 @@ module Sequent
       module MessageHandler
         module ClassMethods
           def on(*message_classes, &block)
-            message_classes.each do |message_class|
-              message_mapping[message_class] ||= []
-              message_mapping[message_class] << block
-            end
+            message_router.register_messages(*message_classes, block)
           end
 
           def message_mapping
-            @message_mapping ||= {}
+            message_router.routes
           end
 
           def handles_message?(message)
-            message_mapping.keys.include? message.class
+            message_router.matches_message?(message)
+          end
+
+          def message_router
+            @message_router ||= MessageRouter.new
           end
         end
 
@@ -57,8 +61,13 @@ module Sequent
         end
 
         def handle_message(message)
-          handlers = self.class.message_mapping[message.class]
-          handlers&.each { |handler| instance_exec(message, &handler) }
+          message_dispatcher.dispatch_message(message)
+        end
+
+        private
+
+        def message_dispatcher
+          MessageDispatcher.new(self.class.message_router, self)
         end
       end
     end
