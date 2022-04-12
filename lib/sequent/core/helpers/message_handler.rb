@@ -40,11 +40,17 @@ module Sequent
       module MessageHandler
         module ClassMethods
           def on(*message_classes, &block)
-            message_router.register_messages(*message_classes, block)
+            message_router.register_matchers(
+              *message_classes.map { |x| ClassMatcher.new(expected_class: x) },
+              block,
+            )
           end
 
           def message_mapping
-            message_router.routes
+            message_router
+              .routes
+              .map { |k, v| [k.expected_class, v] }
+              .to_h
           end
 
           def handles_message?(message)

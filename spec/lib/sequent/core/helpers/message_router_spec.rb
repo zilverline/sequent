@@ -15,7 +15,7 @@ describe Sequent::Core::Helpers::MessageRouter do
 
     let(:attrs) { {aggregate_id: 'x', sequence_number: 1} }
 
-    context 'given no registered message classes' do
+    context 'given no registered matchers' do
       let(:message) { MyMessage.new(attrs) }
 
       it 'returns an empty set' do
@@ -23,9 +23,12 @@ describe Sequent::Core::Helpers::MessageRouter do
       end
     end
 
-    context 'given a registered message class' do
+    context 'given a registered ClassMatcher' do
       before do
-        message_router.register_messages(MyMessage, handler)
+        message_router.register_matchers(
+          Sequent::Core::Helpers::ClassMatcher.new(expected_class: MyMessage),
+          handler,
+        )
       end
 
       context 'and the message matches on class' do
@@ -37,7 +40,10 @@ describe Sequent::Core::Helpers::MessageRouter do
 
         context 'and the message class is registered multiple times' do
           before do
-            message_router.register_messages(MyMessage, other_handler)
+            message_router.register_matchers(
+              Sequent::Core::Helpers::ClassMatcher.new(expected_class: MyMessage),
+              other_handler,
+            )
           end
 
           context 'and the handlers are different' do
@@ -79,7 +85,10 @@ describe Sequent::Core::Helpers::MessageRouter do
       end
 
       before do
-        message_router.register_messages(MyModule, handler)
+        message_router.register_matchers(
+          Sequent::Core::Helpers::ClassMatcher.new(expected_class: MyModule),
+          handler,
+        )
       end
 
       context 'and the message matches on module' do
@@ -91,7 +100,10 @@ describe Sequent::Core::Helpers::MessageRouter do
 
         context 'and the message module is registered multiple times' do
           before do
-            message_router.register_messages(MyModule, other_handler)
+            message_router.register_matchers(
+              Sequent::Core::Helpers::ClassMatcher.new(expected_class: MyModule),
+              other_handler,
+            )
           end
 
           context 'and the handlers are different' do
@@ -111,7 +123,10 @@ describe Sequent::Core::Helpers::MessageRouter do
 
         context 'and a registered message class that includes the module' do
           before do
-            message_router.register_messages(MyMessageWithModule, other_handler)
+            message_router.register_matchers(
+              Sequent::Core::Helpers::ClassMatcher.new(expected_class: MyMessageWithModule),
+              other_handler,
+            )
           end
 
           it 'returns all registered handlers' do

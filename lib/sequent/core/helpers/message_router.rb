@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative './matchers/matchers'
+
 module Sequent
   module Core
     module Helpers
@@ -13,11 +15,14 @@ module Sequent
         end
 
         ##
-        # Registers the given handler for the given message classes.
+        # Registers a handler for the given matchers.
         #
-        def register_messages(*message_classes, handler)
-          message_classes.each do |message_class|
-            @routes[message_class] << handler
+        # A matcher must implement #matches_message?(message) and return a truthy value when it matches,
+        # or a falsey value otherwise.
+        #
+        def register_matchers(*matchers, handler)
+          matchers.each do |matcher|
+            @routes[matcher] << handler
           end
         end
 
@@ -26,8 +31,8 @@ module Sequent
         #
         def match_message(message)
           @routes
-            .reduce(NO_MATCH.call) do |memo, (message_class, handlers)|
-              memo = memo.merge(handlers) if message.is_a?(message_class)
+            .reduce(NO_MATCH.call) do |memo, (matcher, handlers)|
+              memo = memo.merge(handlers) if matcher.matches_message?(message)
               memo
             end
         end
