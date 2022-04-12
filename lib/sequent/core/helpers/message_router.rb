@@ -7,7 +7,7 @@ module Sequent
         attr_reader :routes
 
         def initialize
-          @routes = Hash.new { |h, k| h[k] = [] }
+          @routes = Hash.new { |h, k| h[k] = Set.new }
         end
 
         ##
