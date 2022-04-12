@@ -12,7 +12,6 @@ describe Sequent::Core::Helpers::MessageRouter do
     subject { message_router.match_message(message) }
 
     class MyMessage < Sequent::Event; end
-    class MyOtherMessage < Sequent::Event; end
 
     let(:attrs) { {aggregate_id: 'x', sequence_number: 1} }
 
@@ -29,7 +28,7 @@ describe Sequent::Core::Helpers::MessageRouter do
         message_router.register_messages(MyMessage, handler)
       end
 
-      context 'and the message matches on class name' do
+      context 'and the message matches on class' do
         let(:message) { MyMessage.new(attrs) }
 
         it 'returns the registered handlers' do
@@ -58,7 +57,77 @@ describe Sequent::Core::Helpers::MessageRouter do
       end
 
       context 'and the message does not match' do
+        class MyOtherMessage < Sequent::Event; end
+
         let(:message) { MyOtherMessage.new(attrs) }
+
+        it 'returns an empty set' do
+          expect(subject).to eq(Set.new)
+        end
+      end
+    end
+
+    context 'given a registered message module' do
+      module MyModule; end
+
+      class MyMessageWithModule < Sequent::Event
+        include MyModule
+      end
+
+      class OtherMessageWithModule < Sequent::Event
+        include MyModule
+      end
+
+      before do
+        message_router.register_messages(MyModule, handler)
+      end
+
+      context 'and the message matches on module' do
+        let(:message) { MyMessageWithModule.new(attrs) }
+
+        it 'returns the registered handlers' do
+          expect(subject).to eq(Set[handler])
+        end
+
+        context 'and the message module is registered multiple times' do
+          before do
+            message_router.register_messages(MyModule, other_handler)
+          end
+
+          context 'and the handlers are different' do
+            it 'returns all registered handlers' do
+              expect(subject).to eq(Set[handler, other_handler])
+            end
+          end
+
+          context 'and the handlers are equal' do
+            let(:other_handler) { handler }
+
+            it 'returns unique handlers' do
+              expect(subject).to eq(Set[handler])
+            end
+          end
+        end
+
+        context 'and a registered message class that includes the module' do
+          before do
+            message_router.register_messages(MyMessageWithModule, other_handler)
+          end
+
+          it 'returns all registered handlers' do
+            expect(subject).to eq(Set[handler, other_handler])
+          end
+        end
+      end
+
+      context 'and the message does not match' do
+        module OtherModule; end
+
+        class MyMessageWithOtherModule < Sequent::Event
+          include OtherModule
+        end
+
+        let(:message) { MyMessageWithOtherModule.new(attrs) }
 
         it 'returns an empty set' do
           expect(subject).to eq(Set.new)

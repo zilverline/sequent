@@ -4,10 +4,12 @@ module Sequent
   module Core
     module Helpers
       class MessageRouter
+        NO_MATCH = -> { Set.new }
+
         attr_reader :routes
 
         def initialize
-          @routes = Hash.new { |h, k| h[k] = Set.new }
+          @routes = Hash.new { |h, k| h[k] = NO_MATCH.call }
         end
 
         ##
@@ -20,10 +22,14 @@ module Sequent
         end
 
         ##
-        # Returns a list of handlers that match the given message, or an empty array when none match.
+        # Returns a set of handlers that match the given message, or an empty array when none match.
         #
         def match_message(message)
-          @routes[message.class]
+          @routes
+            .reduce(NO_MATCH.call) do |memo, (message_class, handlers)|
+              memo = memo.merge(handlers) if message.is_a?(message_class)
+              memo
+            end
         end
 
         ##
