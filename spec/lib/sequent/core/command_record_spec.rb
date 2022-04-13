@@ -12,7 +12,7 @@ describe Sequent::Core::CommandRecord do
       subject.command = command
     end
 
-    it 'returns the original command command' do
+    it 'returns the original command' do
       expect(subject.command).to eq command
     end
   end
