@@ -74,8 +74,12 @@ module Sequent
                 .uniq
 
               if duplicates.any?
+                humanized_duplicates = duplicates
+                  .map { |x| x.try(:matcher_description) || x.to_s }
+                  .join(', ')
+
                 fail ArgumentError,
-                     "Arguments to 'on' must be unique, duplicates: #{duplicates.join(', ')}"
+                     "Arguments to 'on' must be unique, duplicates: #{humanized_duplicates}"
               end
             end
           end
