@@ -28,7 +28,7 @@ command_record.parent
 # this CommandRecord.
 command_record.origin
 
-# Returns the EventRecords caused by this command 
+# Returns the EventRecords caused by this command
 command_record.children
 ```
 
@@ -36,17 +36,17 @@ From a `Sequent::Core::EventRecord`
 ```ruby
 event_record = Sequent::Core::EventRecord.find(1)
 
-# Returns the Sequent::Core::CommandRecord that 'caused' this Event 
+# Returns the Sequent::Core::CommandRecord that 'caused' this Event
 event_record.parent
 
 # Returns the top level Sequent::Core::CommandRecord that 'caused'
 # this Event. This traverses all the way up.
 # When coming from Sequent < 3.2 this can also
-# be an EventRecord. 
+# be an EventRecord.
 event_record.origin
 
 # Returns the Sequent::Core::CommandRecord's that were execute because
-# of this event 
+# of this event
 event_record.children
 ```
 
@@ -54,7 +54,7 @@ event_record.children
 
 When designing your domain (`AggregateRoot`s, `Event`s, `Command`s) over time it can happen
 that you want to change a particular Event. Perhaps you want to rename an attribute or something.
-One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still 
+One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still
 in the startup phase and really exploring the domain, this could certainly be an option. However it does go
 against the immutable nature of an EventStore.
 In order to accommodate for refactorings like renaming, typically called upcasting in event sourcing, Sequent
@@ -68,11 +68,11 @@ end
 
 # a few months into production, the term invoice_date better
 # fits the domain you decide to refactor and rename the attribute
-# 
+#
 # The new InvoiceSent event
 class InvoiceSent < Sequent::Event
   attrs invoice_date: Date
-  
+
   upcast do |hash|
     hash['invoice_date'] = hash['send_date']
   end
@@ -87,11 +87,11 @@ You can define multiple upcasters, they run in the order in which they are defin
 ```ruby
 class InvoiceSet < Sequent::Event
   attrs invoice_date: Date, full_name: String
-  
+
   upcast do |hash|
     hash['full_name'] = hash['fullname']
   end
-  
+
   upcast do |hash|
     hash['invoice_date'] = hash['send_date']
   end
@@ -137,4 +137,82 @@ Command: SendInvoice resulted in 2 events
 -- Projectors: [InvoiceRecordProjector]
 -- Workflows: [EmailWorkflow]
 +++++++++++++++++++++++++++++++++++
+```
+
+## Message matching
+
+Since Sequent 5.0, each `Sequent::Core::Helpers::MessageHandler` (`Sequent::AggregateRoot`, `Sequent::Projector`, `Sequent::Workflow` and `Sequent::CommandHandler`) has support for declarative matching of messages.
+
+This works as follows:
+
+```ruby
+module MyModule; end
+
+class MyEvent < Sequent::Event
+  include MyModule
+end
+
+class MyExcludedEvent < Sequent::Event
+  include MyModule
+end
+
+class MyHandler
+  include Sequent::Core::Helpers::MessageHandler
+
+  on MyEvent do |event|
+    # you can keep matching on class name
+  end
+
+  on is_a(MyModule) do |event|
+    # matches any event whose class includes MyModule
+  end
+
+  on is_a(MyModule, except: MyExcludedEvent) do |event|
+    # matches any event whose class includes MyModule, but not MyExcludedEvent
+  end
+
+  on is_a(Sequent::Event) do |event|
+    # matches any event whose super class is Sequent::Event
+  end
+
+  on any do |event|
+    # matches any event
+  end
+end
+```
+
+For a list of supported built-in matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/MessageMatchers.
+
+## Custom message matcher
+
+You can also provide your own custom message matchers as follows:
+
+```ruby
+MyMatcher = Struct.new(:expected_argument) do
+  def matches_message?(message)
+    # return a truthy value if it matches, or falsey otherwise.
+  end
+
+  def matcher_description
+    "my_matcher(#{expected_argument})"
+  end
+end
+
+Sequent::Core::Helpers::MessageMatchers.define_matcher :my_matcher, MyMatcher
+```
+
+> Be sure to use `Struct` as a basis for your matcher, otherwise you have to manually do a proper 'equals'
+implementation by overriding the `#==` and `#hash` methods.
+
+Your custom matcher can be used as follows (note that the first (`name`) argument provided to `define_matcher` becomes
+the method name used in `on` (ie. `my_matcher`)):
+
+```ruby
+class MyHandler
+  include Sequent::Core::Helpers::MessageHandler
+
+  on my_matcher('some constraint') do |event|
+    # ...
+  end
+end
 ```
