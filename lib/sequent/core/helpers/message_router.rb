@@ -6,12 +6,10 @@ module Sequent
   module Core
     module Helpers
       class MessageRouter
-        NO_MATCH = -> { Set.new }
-
         attr_reader :routes
 
         def initialize
-          @routes = Hash.new { |h, k| h[k] = NO_MATCH.call }
+          @routes = Hash.new { |h, k| h[k] = Set.new }
         end
 
         ##
@@ -31,7 +29,7 @@ module Sequent
         #
         def match_message(message)
           @routes
-            .reduce(NO_MATCH.call) do |memo, (matcher, handlers)|
+            .reduce(Set.new) do |memo, (matcher, handlers)|
               memo = memo.merge(handlers) if matcher.matches_message?(message)
               memo
             end
