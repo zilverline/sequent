@@ -3,11 +3,13 @@
 require 'spec_helper'
 
 describe Sequent::Core::Helpers::MessageHandler do
-  class MessageHandlerEvent < Sequent::Event
+  class BaseMessageHandlerEvent < Sequent::Event
     def initialize
       super(aggregate_id: '1', sequence_number: 1)
     end
   end
+
+  class MessageHandlerEvent < BaseMessageHandlerEvent; end
 
   class MessageHandlerEventOtherEvent < Sequent::Event; end
 
@@ -16,13 +18,12 @@ describe Sequent::Core::Helpers::MessageHandler do
 
     attr_reader :first_block_called, :last_block_called
 
-    on MessageHandlerEvent, MessageHandlerEventOtherEvent do
-      @first_block_called = true
-    end
+    FIRST_HANDLER = ->(_event) { @first_block_called = true }
+    LAST_HANDLER = ->(_event) { @last_block_called = true }
 
-    on MessageHandlerEvent do
-      @last_block_called = true
-    end
+    on MessageHandlerEvent, MessageHandlerEventOtherEvent, &FIRST_HANDLER
+
+    on MessageHandlerEvent, &LAST_HANDLER
   end
 
   let(:handler) { MyHandler.new }
@@ -32,6 +33,38 @@ describe Sequent::Core::Helpers::MessageHandler do
 
     expect(handler.first_block_called).to be_truthy
     expect(handler.last_block_called).to be_truthy
+  end
+
+  describe '.message_mapping' do
+    subject { MyHandler.message_mapping }
+
+    it 'returns a mapping of message classes to handlers' do
+      expect(subject).to eq(
+        MessageHandlerEvent => Set[MyHandler::FIRST_HANDLER, MyHandler::LAST_HANDLER],
+        MessageHandlerEventOtherEvent => Set[MyHandler::FIRST_HANDLER],
+      )
+    end
+
+    context 'given a non-class/module argument' do
+      module EventModule; end
+      class OtherHandlerEvent < BaseMessageHandlerEvent
+        include EventModule
+      end
+
+      class OtherHandler
+        include Sequent::Core::Helpers::MessageHandler
+
+        HANDLER = ->(_event) {}
+
+        on is_a(EventModule), &HANDLER
+      end
+
+      subject { OtherHandler.message_mapping }
+
+      it 'only returns a mapping of message classes to handlers' do
+        expect(subject).to be_empty
+      end
+    end
   end
 
   describe Sequent::Core::Helpers::MessageHandler::OnArgumentsValidator do
