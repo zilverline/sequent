@@ -87,11 +87,13 @@ module Sequent
         end
 
         class OnArgumentCoercer
+          extend MessageMatchers
+
           class << self
             def coerce_argment(arg)
               fail ArgumentError, "Argument to 'on' cannot be nil" if arg.nil?
 
-              return MessageMatchers::ClassEquals.new(arg) if [Class, Module].include?(arg.class)
+              return class_equals(arg) if [Class, Module].include?(arg.class)
               return arg if arg.respond_to?(:matches_message?)
 
               fail ArgumentError,
