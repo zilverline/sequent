@@ -34,6 +34,36 @@ describe Sequent::Core::Helpers::MessageHandler do
     expect(handler.last_block_called).to be_truthy
   end
 
+  describe Sequent::Core::Helpers::MessageHandler::OnArgumentsValidator do
+    describe '.validate_arguments!' do
+      subject { Sequent::Core::Helpers::MessageHandler::OnArgumentsValidator.validate_arguments!(*args) }
+
+      context 'given no arguments' do
+        let(:args) { [] }
+
+        it 'fails' do
+          expect { subject }.to raise_error(ArgumentError, "Must provide at least one argument to 'on'")
+        end
+      end
+
+      context 'given unique arguments' do
+        let(:args) { %i[a b] }
+
+        it 'does not fail' do
+          expect { subject }.to_not raise_error
+        end
+      end
+
+      context 'given duplicate arguments' do
+        let(:args) { %i[a b a b c] }
+
+        it 'fails' do
+          expect { subject }.to raise_error(ArgumentError, "Arguments to 'on' must be unique, duplicates: a, b")
+        end
+      end
+    end
+  end
+
   describe Sequent::Core::Helpers::MessageHandler::OnArgumentCoercer do
     describe '.coerce_argument' do
       subject { Sequent::Core::Helpers::MessageHandler::OnArgumentCoercer.coerce_argment(arg) }

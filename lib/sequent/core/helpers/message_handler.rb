@@ -40,6 +40,8 @@ module Sequent
       module MessageHandler
         module ClassMethods
           def on(*args, &block)
+            OnArgumentsValidator.validate_arguments!(*args)
+
             message_router.register_matchers(
               *args.map { |arg| OnArgumentCoercer.coerce_argment(arg) },
               block,
@@ -59,6 +61,23 @@ module Sequent
 
           def message_router
             @message_router ||= MessageRouter.new
+          end
+        end
+
+        class OnArgumentsValidator
+          class << self
+            def validate_arguments!(*args)
+              fail ArgumentError, "Must provide at least one argument to 'on'" if args.empty?
+
+              duplicates = args
+                .select { |arg| args.count(arg) > 1 }
+                .uniq
+
+              if duplicates.any?
+                fail ArgumentError,
+                     "Arguments to 'on' must be unique, duplicates: #{duplicates.join(', ')}"
+              end
+            end
           end
         end
 
