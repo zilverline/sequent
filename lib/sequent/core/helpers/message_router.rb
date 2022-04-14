@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative './matchers/matchers'
+require_relative './message_matchers/message_matchers'
 
 module Sequent
   module Core
