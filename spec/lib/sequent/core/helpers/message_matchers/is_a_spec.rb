@@ -4,7 +4,8 @@ require 'spec_helper'
 require_relative 'test_messages'
 
 describe Sequent::Core::Helpers::MessageMatchers::IsA do
-  let(:matcher) { Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class) }
+  let(:matcher) { Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class, **opts) }
+  let(:opts) { {} }
 
   describe '#matches_message?' do
     subject { matcher.matches_message?(message) }
@@ -49,6 +50,52 @@ describe Sequent::Core::Helpers::MessageMatchers::IsA do
 
       it 'returns true' do
         expect(subject).to be_truthy
+      end
+
+      context 'and the message class is excluded' do
+        let(:opts) { {except: except} }
+
+        context 'and except is a single value' do
+          let(:except) { TestMessage }
+
+          it 'returns false' do
+            expect(subject).to be_falsey
+          end
+
+          context 'nil' do
+            let(:except) { nil }
+
+            it 'returns true' do
+              expect(subject).to be_truthy
+            end
+          end
+        end
+
+        context 'and except is an array' do
+          context 'and any matches' do
+            let(:except) { [TestMessage, OtherTestMessage] }
+
+            it 'returns false' do
+              expect(subject).to be_falsey
+            end
+          end
+
+          context 'and none matches' do
+            let(:except) { [OtherTestMessage] }
+
+            it 'returns true' do
+              expect(subject).to be_truthy
+            end
+          end
+
+          context 'and no entries' do
+            let(:except) { [] }
+
+            it 'returns true' do
+              expect(subject).to be_truthy
+            end
+          end
+        end
       end
     end
   end
