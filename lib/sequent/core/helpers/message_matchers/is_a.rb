@@ -8,6 +8,10 @@ module Sequent
           def matches_message?(message)
             message.is_a?(expected_class)
           end
+
+          def matcher_description
+            "is_a(#{expected_class})"
+          end
         end
       end
     end
