@@ -41,7 +41,7 @@ module Sequent
         module ClassMethods
           def on(*message_classes, &block)
             message_router.register_matchers(
-              *message_classes.map { |x| MessageMatchers::ClassMatcher.new(expected_class: x) },
+              *message_classes.map { |x| MessageMatchers::IsA.new(expected_class: x) },
               block,
             )
           end

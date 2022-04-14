@@ -23,10 +23,10 @@ describe Sequent::Core::Helpers::MessageRouter do
       end
     end
 
-    context 'given a registered ClassMatcher' do
+    context 'given a registered IsA' do
       before do
         message_router.register_matchers(
-          Sequent::Core::Helpers::MessageMatchers::ClassMatcher.new(expected_class: MyMessage),
+          Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class: MyMessage),
           handler,
         )
       end
@@ -41,7 +41,7 @@ describe Sequent::Core::Helpers::MessageRouter do
         context 'and the message class is registered multiple times' do
           before do
             message_router.register_matchers(
-              Sequent::Core::Helpers::MessageMatchers::ClassMatcher.new(expected_class: MyMessage),
+              Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class: MyMessage),
               other_handler,
             )
           end
@@ -86,7 +86,7 @@ describe Sequent::Core::Helpers::MessageRouter do
 
       before do
         message_router.register_matchers(
-          Sequent::Core::Helpers::MessageMatchers::ClassMatcher.new(expected_class: MyModule),
+          Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class: MyModule),
           handler,
         )
       end
@@ -101,7 +101,7 @@ describe Sequent::Core::Helpers::MessageRouter do
         context 'and the message module is registered multiple times' do
           before do
             message_router.register_matchers(
-              Sequent::Core::Helpers::MessageMatchers::ClassMatcher.new(expected_class: MyModule),
+              Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class: MyModule),
               other_handler,
             )
           end
@@ -124,7 +124,7 @@ describe Sequent::Core::Helpers::MessageRouter do
         context 'and a registered message class that includes the module' do
           before do
             message_router.register_matchers(
-              Sequent::Core::Helpers::MessageMatchers::ClassMatcher.new(expected_class: MyMessageWithModule),
+              Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class: MyMessageWithModule),
               other_handler,
             )
           end
