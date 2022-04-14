@@ -39,9 +39,9 @@ module Sequent
       #
       module MessageHandler
         module ClassMethods
-          def on(*message_classes, &block)
+          def on(*args, &block)
             message_router.register_matchers(
-              *message_classes.map { |x| MessageMatchers::IsA.new(expected_class: x) },
+              *args.map { |arg| OnArgumentCoercer.coerce_argment(arg) },
               block,
             )
           end
@@ -59,6 +59,21 @@ module Sequent
 
           def message_router
             @message_router ||= MessageRouter.new
+          end
+        end
+
+        class OnArgumentCoercer
+          class << self
+            def coerce_argment(arg)
+              fail ArgumentError, "Argument to 'on' cannot be nil" if arg.nil?
+
+              return MessageMatchers::ClassEquals.new(expected_class: arg) if [Class, Module].include?(arg.class)
+              return arg if arg.respond_to?(:matches_message?)
+
+              fail ArgumentError,
+                   "Can't coerce argument '#{arg}'; " \
+                   'must be either a Class, Module or message matcher (respond to :matches_message?)'
+            end
           end
         end
 
