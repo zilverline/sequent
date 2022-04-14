@@ -3,9 +3,11 @@
 module Sequent
   module Core
     module Helpers
-      ClassMatcher = Struct.new(:expected_class, keyword_init: true) do
-        def matches_message?(message)
-          message.is_a?(expected_class)
+      module MessageMatchers
+        ClassMatcher = Struct.new(:expected_class, keyword_init: true) do
+          def matches_message?(message)
+            message.is_a?(expected_class)
+          end
         end
       end
     end
