@@ -4,7 +4,7 @@ require 'spec_helper'
 require_relative 'test_messages'
 
 describe Sequent::Core::Helpers::MessageMatchers::ClassEquals do
-  let(:matcher) { Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(expected_class: expected_class) }
+  let(:matcher) { Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(expected_class) }
 
   describe '#matches_message?' do
     subject { matcher.matches_message?(message) }

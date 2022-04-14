@@ -4,7 +4,7 @@ module Sequent
   module Core
     module Helpers
       module MessageMatchers
-        ClassEquals = Struct.new(:expected_class, keyword_init: true) do
+        ClassEquals = Struct.new(:expected_class) do
           def matches_message?(message)
             message.instance_of?(expected_class)
           end
@@ -17,3 +17,8 @@ module Sequent
     end
   end
 end
+
+Sequent::Core::Helpers::MessageMatchers.register_matcher(
+  :class_equals,
+  Sequent::Core::Helpers::MessageMatchers::ClassEquals,
+)

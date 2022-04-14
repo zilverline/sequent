@@ -91,7 +91,7 @@ module Sequent
             def coerce_argment(arg)
               fail ArgumentError, "Argument to 'on' cannot be nil" if arg.nil?
 
-              return MessageMatchers::ClassEquals.new(expected_class: arg) if [Class, Module].include?(arg.class)
+              return MessageMatchers::ClassEquals.new(arg) if [Class, Module].include?(arg.class)
               return arg if arg.respond_to?(:matches_message?)
 
               fail ArgumentError,
@@ -103,7 +103,7 @@ module Sequent
 
         def self.included(host_class)
           host_class.extend(ClassMethods)
-          host_class.include(MessageMatchers::DSL)
+          host_class.extend(MessageMatchers)
         end
 
         def handle_message(message)

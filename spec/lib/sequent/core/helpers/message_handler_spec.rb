@@ -116,7 +116,7 @@ describe Sequent::Core::Helpers::MessageHandler do
         let(:arg) { MyEvent }
 
         it 'returns the argument wrapped in a MessageMatchers::ClassEquals' do
-          expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(expected_class: arg))
+          expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(arg))
         end
       end
 
@@ -124,12 +124,12 @@ describe Sequent::Core::Helpers::MessageHandler do
         let(:arg) { MyModule }
 
         it 'returns the argument wrapped in a MessageMatchers::ClassEquals' do
-          expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(expected_class: arg))
+          expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(arg))
         end
       end
 
       context 'given the argument responds to :matches_message?' do
-        let(:arg) { Sequent::Core::Helpers::MessageMatchers::IsA.new(expected_class: MyModule) }
+        let(:arg) { Sequent::Core::Helpers::MessageMatchers::IsA.new(MyModule) }
 
         it 'returns that argument' do
           expect(subject).to eq(arg)

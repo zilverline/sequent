@@ -4,7 +4,7 @@ module Sequent
   module Core
     module Helpers
       module MessageMatchers
-        IsA = Struct.new(:expected_class, keyword_init: true) do
+        IsA = Struct.new(:expected_class) do
           def matches_message?(message)
             message.is_a?(expected_class)
           end
@@ -17,3 +17,8 @@ module Sequent
     end
   end
 end
+
+Sequent::Core::Helpers::MessageMatchers.register_matcher(
+  :is_a,
+  Sequent::Core::Helpers::MessageMatchers::IsA,
+)
