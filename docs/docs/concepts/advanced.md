@@ -156,9 +156,7 @@ class MyExcludedEvent < Sequent::Event
   include MyModule
 end
 
-class MyHandler
-  include Sequent::Core::Helpers::MessageHandler
-
+class MyWorkflow < Sequent::Workflow
   on MyEvent do |event|
     # you can keep matching on class name
   end
@@ -208,9 +206,7 @@ Your custom matcher can be used as follows (note that the first (`name`) argumen
 the method name used in `on` (ie. `my_matcher`)):
 
 ```ruby
-class MyHandler
-  include Sequent::Core::Helpers::MessageHandler
-
+class MyWorkfow < Sequent::Workflow
   on my_matcher('some constraint') do |event|
     # ...
   end
