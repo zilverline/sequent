@@ -11,8 +11,8 @@ module Sequent
     # This provides a nice DSL for event based testing of your CommandHandler like
     #
     # given_events InvoiceCreatedEvent.new(args)
-    # when_command PayInvoiceCommand(args)
-    # then_events InvoicePaidEvent(args)
+    # when_command PayInvoiceCommand.new(args)
+    # then_events InvoicePaidEvent.new(args)
     #
     # Example for Rspec config
     #
