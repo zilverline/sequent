@@ -45,7 +45,7 @@ to ensure the Unit-Of-Work is cleaned using `clear` or `clear!`
 Sequent.aggregate_repository.load_aggregate('23456', Invoice)
 
 # or multiple in single call
-Sequent.aggregate_repository.load_aggregate(['65432', '23456'], Invoice)
+Sequent.aggregate_repository.load_aggregates(['65432', '23456'], Invoice)
 
 # load single AggregateRoot up until a moment in time, skipping possible 
 # snapshotevents
