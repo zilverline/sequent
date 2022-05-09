@@ -13,7 +13,11 @@ module Sequent
 
           def matches_message?(message)
             expected_attrs.all? do |(name, value)|
-              message.attributes[name] == value
+              if value.respond_to?(:matches_attr?)
+                value.matches_attr?(message.attributes[name])
+              else
+                message.attributes[name] == value
+              end
             end
           end
 

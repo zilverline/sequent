@@ -106,6 +106,7 @@ module Sequent
         def self.included(host_class)
           host_class.extend(ClassMethods)
           host_class.extend(MessageMatchers)
+          host_class.extend(AttrMatchers)
         end
 
         def handle_message(message)

@@ -16,6 +16,19 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
       it 'returns true' do
         expect(subject).to be_truthy
       end
+
+      context 'and an expected value is a message matcher' do
+        let(:expected_attrs) do
+          {
+            aggregate_id: 'x',
+            sequence_number: Sequent::Core::Helpers::AttrMatchers::GreaterThanEquals.new(0),
+          }
+        end
+
+        it 'evaluates and returns true' do
+          expect(subject).to be_truthy
+        end
+      end
     end
 
     context 'given the message matches some of the expected attrs' do
@@ -23,6 +36,19 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
 
       it 'returns false' do
         expect(subject).to be_falsey
+      end
+
+      context 'and an expected value is a message matcher' do
+        let(:expected_attrs) do
+          {
+            aggregate_id: 'x',
+            sequence_number: Sequent::Core::Helpers::AttrMatchers::GreaterThanEquals.new(3),
+          }
+        end
+
+        it 'evaluates and returns false' do
+          expect(subject).to be_falsey
+        end
       end
     end
 
