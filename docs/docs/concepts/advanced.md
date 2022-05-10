@@ -221,7 +221,7 @@ MyMessageMatcher = Struct.new(:expected_argument) do
   end
 
   def matcher_description
-    "my_message_matcher(#{expected_argument})"
+    "my_message_matcher(#{Sequent::Core::Helpers::MessageMatchers::ArgumentSerializer.serialize_value(expected_value)})"
   end
 end
 
@@ -253,7 +253,7 @@ MyAttrMatcher = Struct.new(:expected_value) do
   end
 
   def matcher_description
-    "my_attr_matcher(#{ArgumentSerializer.serialize_value(expected_value)})"
+    "my_attr_matcher(#{Sequent::Core::Helpers::AttrMatchers::ArgumentSerializer.serialize_value(expected_value)})"
   end
 end
 
