@@ -8,10 +8,9 @@ module Sequent
           private
 
           def excluded?(message)
-            return false unless except
-
             [except]
               .flatten
+              .compact
               .any? { |x| message.is_a?(x) }
           end
 
