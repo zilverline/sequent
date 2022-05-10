@@ -4,14 +4,28 @@ module Sequent
   module Core
     module Helpers
       module MessageMatchers
-        HasAttrs = Struct.new(:expected_attrs) do
-          def initialize(expected_attrs)
+        HasAttrs = Struct.new(:message_matcher, :expected_attrs) do
+          def initialize(message_matcher, expected_attrs)
             super
 
+            fail ArgumentError, 'Missing required message matcher' if message_matcher.nil?
             fail ArgumentError, 'Missing required expected attrs' if expected_attrs.blank?
+
+            self.message_matcher = ArgumentCoercer.coerce_argument(message_matcher)
           end
 
           def matches_message?(message)
+            message_matcher.matches_message?(message) &&
+              matches_attrs?(message)
+          end
+
+          def matcher_description
+            "has_attrs(#{message_matcher.try(:matcher_description) || message_matcher.to_s}, #{matcher_arguments})"
+          end
+
+          private
+
+          def matches_attrs?(message)
             expected_attrs.all? do |(name, value)|
               if value.respond_to?(:matches_attr?)
                 value.matches_attr?(message.attributes[name])
@@ -20,12 +34,6 @@ module Sequent
               end
             end
           end
-
-          def matcher_description
-            "has_attrs(#{matcher_arguments})"
-          end
-
-          private
 
           def matcher_arguments
             expected_attrs
