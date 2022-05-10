@@ -43,7 +43,7 @@ module Sequent
             OnArgumentsValidator.validate_arguments!(*args)
 
             message_router.register_matchers(
-              *args.map { |arg| OnArgumentCoercer.coerce_argment(arg) },
+              *args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) },
               block,
             )
           end
@@ -82,23 +82,6 @@ module Sequent
                 fail ArgumentError,
                      "Arguments to 'on' must be unique, duplicates: #{humanized_duplicates}"
               end
-            end
-          end
-        end
-
-        class OnArgumentCoercer
-          extend MessageMatchers
-
-          class << self
-            def coerce_argment(arg)
-              fail ArgumentError, "Argument to 'on' cannot be nil" if arg.nil?
-
-              return class_equals(arg) if [Class, Module].include?(arg.class)
-              return arg if arg.respond_to?(:matches_message?)
-
-              fail ArgumentError,
-                   "Can't coerce argument '#{arg}'; " \
-                   'must be either a Class, Module or message matcher (respond to :matches_message?)'
             end
           end
         end
