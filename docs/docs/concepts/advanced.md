@@ -148,8 +148,15 @@ This works as follows:
 ```ruby
 module MyModule; end
 
+class Money < Sequent::ValueObject
+  attrs cents: Integer, currency: String
+end
+
 class MyEvent < Sequent::Event
   include MyModule
+
+  attrs some_attribute: String,
+        amount: Money
 end
 
 class MyExcludedEvent < Sequent::Event
@@ -176,38 +183,92 @@ class MyWorkflow < Sequent::Workflow
   on any do |event|
     # matches any event
   end
+
+  on any(except: MyExcludedEvent) do |event|
+    # matches any event except MyExcludedEvent
+  end
+
+  on has_attrs(MyEvent, sequence_number: gt(100)) do |event|
+    # matches events of class MyEvent with a sequence number greater than 100
+  end
+
+  on has_attrs(MyEvent, amount: {cents: gt(100), currency: neq('USD')}) do |event|
+    # matches events of class MyEvent and have an amount of cents greater than 100 and a currency not equal to USD
+  end
+
+  on has_attrs(is_a(MyModule), some_attribute: eq('some value')) do |event|
+    # matches events that include MyModule and have some_attribute with a value of 'some value'
+  end
+
+  on has_attrs(MyEvent, some_attribute: 'some value') do |event|
+    # eq can also be omitted, since it's the default matcher of an attr value
+  end
 end
 ```
 
-For a list of supported built-in matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/MessageMatchers.
+For a list of supported built-in message matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/MessageMatchers.
+
+For a list of supported built-in attr matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/AttrMatchers.
 
 ## Custom message matcher
 
 You can also provide your own custom message matchers as follows:
 
 ```ruby
-MyMatcher = Struct.new(:expected_argument) do
+MyMessageMatcher = Struct.new(:expected_argument) do
   def matches_message?(message)
     # return a truthy value if it matches, or falsey otherwise.
   end
 
   def matcher_description
-    "my_matcher(#{expected_argument})"
+    "my_message_matcher(#{Sequent::Core::Helpers::MessageMatchers::ArgumentSerializer.serialize_value(expected_value)})"
   end
 end
 
-Sequent::Core::Helpers::MessageMatchers.define_matcher :my_matcher, MyMatcher
+Sequent::Core::Helpers::MessageMatchers.register_matcher :my_message_matcher, MyMessageMatcher
 ```
 
 > Be sure to use `Struct` as a basis for your matcher, otherwise you have to manually do a proper 'equals'
 implementation by overriding the `#==`, `#eql?` and `#hash` methods.
 
-Your custom matcher can be used as follows (note that the first (`name`) argument provided to `define_matcher` becomes
-the method name used in `on` (ie. `my_matcher`)):
+Your custom matcher can be used as follows (note that the first (`name`) argument provided to `register_matcher` becomes
+the method name used in `on` (ie. `my_message_matcher`)):
 
 ```ruby
 class MyWorkfow < Sequent::Workflow
-  on my_matcher('some constraint') do |event|
+  on my_message_matcher('some constraint') do |event|
+    # ...
+  end
+end
+```
+
+## Custom attr matcher
+
+You can also provide your own custom attr matchers as follows:
+
+```ruby
+MyAttrMatcher = Struct.new(:expected_value) do
+  def matches_message?(actual_value)
+    # return a truthy value if it matches, or falsey otherwise.
+  end
+
+  def matcher_description
+    "my_attr_matcher(#{Sequent::Core::Helpers::AttrMatchers::ArgumentSerializer.serialize_value(expected_value)})"
+  end
+end
+
+Sequent::Core::Helpers::AttrMatchers.register_matcher :my_attr_matcher, MyAttrMatcher
+```
+
+> Be sure to use `Struct` as a basis for your matcher, otherwise you have to manually do a proper 'equals'
+implementation by overriding the `#==`, `#eql?` and `#hash` methods.
+
+Your custom matcher can be used as follows (note that the first (`name`) argument provided to `register_matcher` becomes
+the method name used in `on` (ie. `my_attr_matcher`)):
+
+```ruby
+class MyWorkfow < Sequent::Workflow
+  on has_attrs(MyEvent, my_attribute: my_attr_matcher('expected value')) do |event|
     # ...
   end
 end

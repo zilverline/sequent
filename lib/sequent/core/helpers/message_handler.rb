@@ -43,7 +43,7 @@ module Sequent
             OnArgumentsValidator.validate_arguments!(*args)
 
             message_router.register_matchers(
-              *args.map { |arg| OnArgumentCoercer.coerce_argment(arg) },
+              *args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) },
               block,
             )
           end
@@ -51,7 +51,7 @@ module Sequent
           def message_mapping
             message_router
               .routes
-              .select { |matcher, _handlers| matcher.is_a?(MessageMatchers::ClassEquals) }
+              .select { |matcher, _handlers| matcher.is_a?(MessageMatchers::InstanceOf) }
               .map { |k, v| [k.expected_class, v] }
               .to_h
           end
@@ -76,7 +76,7 @@ module Sequent
 
               if duplicates.any?
                 humanized_duplicates = duplicates
-                  .map { |x| x.try(:matcher_description) || x.to_s }
+                  .map { |x| MessageMatchers::ArgumentSerializer.serialize_value(x) }
                   .join(', ')
 
                 fail ArgumentError,
@@ -86,26 +86,10 @@ module Sequent
           end
         end
 
-        class OnArgumentCoercer
-          extend MessageMatchers
-
-          class << self
-            def coerce_argment(arg)
-              fail ArgumentError, "Argument to 'on' cannot be nil" if arg.nil?
-
-              return class_equals(arg) if [Class, Module].include?(arg.class)
-              return arg if arg.respond_to?(:matches_message?)
-
-              fail ArgumentError,
-                   "Can't coerce argument '#{arg}'; " \
-                   'must be either a Class, Module or message matcher (respond to :matches_message?)'
-            end
-          end
-        end
-
         def self.included(host_class)
           host_class.extend(ClassMethods)
           host_class.extend(MessageMatchers)
+          host_class.extend(AttrMatchers)
         end
 
         def handle_message(message)
