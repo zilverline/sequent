@@ -150,6 +150,8 @@ module MyModule; end
 
 class MyEvent < Sequent::Event
   include MyModule
+
+  attr some_attribute: String
 end
 
 class MyExcludedEvent < Sequent::Event
@@ -179,6 +181,14 @@ class MyWorkflow < Sequent::Workflow
 
   on any(except: MyExcludedEvent) do |event|
     # matches any event except MyExcludedEvent
+  end
+
+  on has_attrs(MyEvent, sequence_number: gt(100)) do |event|
+    # matches events of class MyEvent with a sequence number greater than 100
+  end
+
+  on has_attrs(is_a(MyModule), some_attribute: eq('some value')) do |event|
+    # matches events that include MyModule and have some_attribute with a value of 'some value'
   end
 end
 ```
