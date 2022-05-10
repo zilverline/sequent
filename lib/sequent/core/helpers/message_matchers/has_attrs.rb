@@ -46,7 +46,7 @@ module Sequent
           def serialize_value(value)
             return value unless value.is_a?(String)
 
-            "'#{value}'"
+            %("#{value}")
           end
         end
       end

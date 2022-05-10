@@ -116,7 +116,7 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
     subject { matcher.matcher_description }
 
     it 'returns a description for the matcher including all expected attrs' do
-      expect(subject).to eq(%[has_attrs(TestMessage, aggregate_id: 'x', sequence_number: 1)])
+      expect(subject).to eq(%[has_attrs(TestMessage, aggregate_id: "x", sequence_number: 1)])
     end
   end
 end
