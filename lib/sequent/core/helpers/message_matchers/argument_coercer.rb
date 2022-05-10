@@ -9,7 +9,7 @@ module Sequent
             def coerce_argument(arg)
               fail ArgumentError, 'Cannot coerce nil argument' if arg.nil?
 
-              return MessageMatchers::ClassEquals.new(arg) if [Class, Module].include?(arg.class)
+              return MessageMatchers::InstanceOf.new(arg) if [Class, Module].include?(arg.class)
               return arg if arg.respond_to?(:matches_message?)
 
               fail ArgumentError,

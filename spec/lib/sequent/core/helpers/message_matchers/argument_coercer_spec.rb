@@ -20,16 +20,16 @@ describe Sequent::Core::Helpers::MessageMatchers::ArgumentCoercer do
     context 'given a Class argument' do
       let(:arg) { MyEvent }
 
-      it 'returns the argument wrapped in a MessageMatchers::ClassEquals' do
-        expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(arg))
+      it 'returns the argument wrapped in a MessageMatchers::InstanceOf' do
+        expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(arg))
       end
     end
 
     context 'given a module argument' do
       let(:arg) { MyModule }
 
-      it 'returns the argument wrapped in a MessageMatchers::ClassEquals' do
-        expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::ClassEquals.new(arg))
+      it 'returns the argument wrapped in a MessageMatchers::InstanceOf' do
+        expect(subject).to eq(Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(arg))
       end
     end
 
