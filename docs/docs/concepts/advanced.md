@@ -196,13 +196,13 @@ MyMatcher = Struct.new(:expected_argument) do
   end
 end
 
-Sequent::Core::Helpers::MessageMatchers.define_matcher :my_matcher, MyMatcher
+Sequent::Core::Helpers::MessageMatchers.register_matcher :my_matcher, MyMatcher
 ```
 
 > Be sure to use `Struct` as a basis for your matcher, otherwise you have to manually do a proper 'equals'
 implementation by overriding the `#==`, `#eql?` and `#hash` methods.
 
-Your custom matcher can be used as follows (note that the first (`name`) argument provided to `define_matcher` becomes
+Your custom matcher can be used as follows (note that the first (`name`) argument provided to `register_matcher` becomes
 the method name used in `on` (ie. `my_matcher`)):
 
 ```ruby
