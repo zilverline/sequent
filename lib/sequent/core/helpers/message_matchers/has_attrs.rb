@@ -35,10 +35,7 @@ module Sequent
             if expected_value.is_a?(Hash)
               matches_attrs?(message, expected_value, path)
             else
-              unless expected_value.respond_to?(:matches_attr?)
-                expected_value = AttrMatchers::Equals.new(expected_value)
-              end
-
+              expected_value = AttrMatchers::Equals.new(expected_value) unless expected_value.respond_to? :matches_attr?
               expected_value.matches_attr?(message.attributes.dig(*path))
             end
           end
