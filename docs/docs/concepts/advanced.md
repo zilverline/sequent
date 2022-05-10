@@ -148,10 +148,15 @@ This works as follows:
 ```ruby
 module MyModule; end
 
+class Money < Sequent::ValueObject
+  attrs cents: Integer, currency: String
+end
+
 class MyEvent < Sequent::Event
   include MyModule
 
-  attr some_attribute: String
+  attrs some_attribute: String,
+        amount: Money
 end
 
 class MyExcludedEvent < Sequent::Event
@@ -185,6 +190,10 @@ class MyWorkflow < Sequent::Workflow
 
   on has_attrs(MyEvent, sequence_number: gt(100)) do |event|
     # matches events of class MyEvent with a sequence number greater than 100
+  end
+
+  on has_attrs(MyEvent, amount: {cents: gt(100), currency: neq('USD')}) do |event|
+    # matches events of class MyEvent and have an amount of cents greater than 100 and a currency not equal to USD
   end
 
   on has_attrs(is_a(MyModule), some_attribute: eq('some value')) do |event|
