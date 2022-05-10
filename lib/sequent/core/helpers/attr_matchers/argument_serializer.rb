@@ -7,9 +7,10 @@ module Sequent
         class ArgumentSerializer
           class << self
             def serialize_value(value)
-              return value unless value.is_a?(String)
+              return value.matcher_description if value.respond_to?(:matches_attr?)
+              return %("#{value}") if value.is_a?(String)
 
-              %("#{value}")
+              value
             end
           end
         end
