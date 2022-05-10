@@ -10,7 +10,7 @@ module Sequent
           end
 
           def matcher_description
-            "greater_than_equals(#{expected_value})"
+            "gte(#{expected_value})"
           end
         end
       end
@@ -19,6 +19,6 @@ module Sequent
 end
 
 Sequent::Core::Helpers::AttrMatchers.register_matcher(
-  :greater_than_equals,
+  :gte,
   Sequent::Core::Helpers::AttrMatchers::GreaterThanEquals,
 )

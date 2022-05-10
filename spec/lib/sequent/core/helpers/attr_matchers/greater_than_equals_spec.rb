@@ -42,7 +42,7 @@ describe Sequent::Core::Helpers::AttrMatchers::GreaterThanEquals do
     subject { matcher.matcher_description }
 
     it 'returns a description for the matcher' do
-      expect(subject).to eq(%[greater_than_equals(1)])
+      expect(subject).to eq('gte(1)')
     end
   end
 end
