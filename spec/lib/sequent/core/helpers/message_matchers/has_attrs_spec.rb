@@ -10,6 +10,14 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
   let(:message_matcher) { TestMessage }
   let(:expected_attrs) { {aggregate_id: 'x', sequence_number: 1} }
 
+  class Money < Sequent::ValueObject
+    attrs cents: Integer, currency: String
+  end
+
+  class TestMessageWithNesting < Sequent::Event
+    attrs amount: Money
+  end
+
   describe '#matches_message?' do
     subject { matcher.matches_message?(message) }
 
@@ -27,6 +35,25 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
               {
                 aggregate_id: 'x',
                 sequence_number: Sequent::Core::Helpers::AttrMatchers::GreaterThanEquals.new(0),
+              }
+            end
+
+            it 'evaluates and returns true' do
+              expect(subject).to be_truthy
+            end
+          end
+
+          context 'and a matching attr is nested' do
+            let(:message) { TestMessageWithNesting.new(attrs) }
+            let(:message_matcher) { TestMessageWithNesting }
+            let(:attrs) { {aggregate_id: 'x', sequence_number: 1, amount: Money.new(cents: 1000, currency: 'EUR')} }
+            let(:expected_attrs) do
+              {
+                aggregate_id: 'x',
+                amount: {
+                  cents: Sequent::Core::Helpers::AttrMatchers::Equals.new(1000),
+                  currency: Sequent::Core::Helpers::AttrMatchers::NotEquals.new('USD'),
+                },
               }
             end
 

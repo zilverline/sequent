@@ -16,7 +16,7 @@ module Sequent
 
           def matches_message?(message)
             message_matcher.matches_message?(message) &&
-              matches_attrs?(message)
+              matches_attrs?(message, expected_attrs)
           end
 
           def matcher_description
@@ -25,13 +25,21 @@ module Sequent
 
           private
 
-          def matches_attrs?(message)
-            expected_attrs.all? do |(name, value)|
-              if value.respond_to?(:matches_attr?)
-                value.matches_attr?(message.attributes[name])
-              else
-                message.attributes[name] == value
+          def matches_attrs?(message, expected_attrs, path = [])
+            expected_attrs.all? do |(name, expected_value)|
+              matches_attr?(message, expected_value, path.dup.push(name))
+            end
+          end
+
+          def matches_attr?(message, expected_value, path)
+            if expected_value.is_a?(Hash)
+              matches_attrs?(message, expected_value, path)
+            else
+              unless expected_value.respond_to?(:matches_attr?)
+                expected_value = AttrMatchers::Equals.new(expected_value)
               end
+
+              expected_value.matches_attr?(message.attributes.dig(*path))
             end
           end
 
