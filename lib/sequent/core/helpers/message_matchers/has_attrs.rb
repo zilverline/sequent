@@ -38,15 +38,9 @@ module Sequent
           def matcher_arguments
             expected_attrs
               .map do |(name, value)|
-                "#{name}: #{serialize_value(value)}"
+                "#{name}: #{ArgumentSerializer.serialize_value(value)}"
               end
               .join(', ')
-          end
-
-          def serialize_value(value)
-            return value unless value.is_a?(String)
-
-            %("#{value}")
           end
         end
       end
