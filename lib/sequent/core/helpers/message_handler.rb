@@ -76,7 +76,7 @@ module Sequent
 
               if duplicates.any?
                 humanized_duplicates = duplicates
-                  .map { |x| x.try(:matcher_description) || x.to_s }
+                  .map { |x| MessageMatchers::ArgumentSerializer.serialize_value(x) }
                   .join(', ')
 
                 fail ArgumentError,

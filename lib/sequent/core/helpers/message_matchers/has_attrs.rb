@@ -20,7 +20,7 @@ module Sequent
           end
 
           def matcher_description
-            "has_attrs(#{message_matcher.try(:matcher_description) || message_matcher.to_s}, #{matcher_arguments})"
+            "has_attrs(#{ArgumentSerializer.serialize_value(message_matcher)}, #{matcher_arguments})"
           end
 
           private
