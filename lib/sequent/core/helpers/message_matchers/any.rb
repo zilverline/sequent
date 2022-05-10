@@ -8,7 +8,9 @@ module Sequent
           include ExceptOpt
 
           def matches_message?(message)
-            true unless excluded?(message)
+            return false if excluded?(message)
+
+            true
           end
 
           def matcher_description
