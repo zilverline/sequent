@@ -199,6 +199,10 @@ class MyWorkflow < Sequent::Workflow
   on has_attrs(is_a(MyModule), some_attribute: eq('some value')) do |event|
     # matches events that include MyModule and have some_attribute with a value of 'some value'
   end
+
+  on has_attrs(MyEvent, some_attribute: 'some value') do |event|
+    # eq can also be omitted, since it's the default matcher of an attr value
+  end
 end
 ```
 
