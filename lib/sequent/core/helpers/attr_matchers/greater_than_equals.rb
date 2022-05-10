@@ -10,7 +10,7 @@ module Sequent
           end
 
           def matcher_description
-            "gte(#{expected_value})"
+            "gte(#{ArgumentSerializer.serialize_value(expected_value)})"
           end
         end
       end
