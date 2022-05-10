@@ -176,6 +176,10 @@ class MyWorkflow < Sequent::Workflow
   on any do |event|
     # matches any event
   end
+
+  on any(except: MyExcludedEvent) do |event|
+    # matches any event except MyExcludedEvent
+  end
 end
 ```
 
