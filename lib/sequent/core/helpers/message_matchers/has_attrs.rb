@@ -32,12 +32,12 @@ module Sequent
           end
 
           def matches_attr?(message, expected_value, path)
-            if expected_value.is_a?(Hash)
-              matches_attrs?(message, expected_value, path)
-            else
-              expected_value = AttrMatchers::Equals.new(expected_value) unless expected_value.respond_to? :matches_attr?
-              expected_value.matches_attr?(message.attributes.dig(*path))
-            end
+            return matches_attrs?(message, expected_value, path) if expected_value.is_a?(Hash)
+
+            expected_value = AttrMatchers::Equals.new(expected_value) unless expected_value.respond_to?(:matches_attr?)
+            value = path.reduce(message) { |memo, p| memo.public_send(p) }
+
+            expected_value.matches_attr?(value)
           end
 
           def matcher_arguments

@@ -18,6 +18,14 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
     attrs amount: Money
   end
 
+  class TestMessageWithMethod < Sequent::Event
+    attrs value: String
+
+    def value
+      @value.to_sym
+    end
+  end
+
   describe '#matches_message?' do
     subject { matcher.matches_message?(message) }
 
@@ -89,6 +97,25 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
 
           it 'returns false' do
             expect(subject).to be_falsey
+          end
+        end
+
+        context 'and class has overridden one of the expected attrs' do
+          let(:message_matcher) { TestMessageWithMethod }
+          let(:message) { TestMessageWithMethod.new(attrs) }
+          let(:attrs) { {aggregate_id: 'x', sequence_number: 1, value: 'foo'} }
+          context 'and it matches the overridden attr' do
+            let(:expected_attrs) { {aggregate_id: 'x', sequence_number: 1, value: :foo} }
+            it 'returns true' do
+              expect(subject).to be_truthy
+            end
+          end
+
+          context 'and it does not match the overridden attr' do
+            let(:expected_attrs) { {aggregate_id: 'x', sequence_number: 1, value: 'foo'} }
+            it 'returns false' do
+              expect(subject).to be_falsey
+            end
           end
         end
       end
