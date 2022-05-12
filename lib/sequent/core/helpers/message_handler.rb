@@ -51,8 +51,8 @@ module Sequent
             )
 
             message_matchers.each do |matcher|
-              opts.each do |name, values|
-                option_registry.call_option(self, name, matcher, *values)
+              opts.each do |name, value|
+                option_registry.call_option(self, name, matcher, value)
               end
             end
           end
