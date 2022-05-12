@@ -7,7 +7,7 @@ module Sequent
         attr_reader :entries
 
         def initialize
-          @entries = {}
+          clear_options
         end
 
         ##
@@ -25,6 +25,13 @@ module Sequent
         def call_option(context, name, *args)
           handler = find_option(name)
           context.instance_exec(*args, &handler)
+        end
+
+        ##
+        # Removes all options from the registry.
+        #
+        def clear_options
+          @entries = {}
         end
 
         private
