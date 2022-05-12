@@ -10,7 +10,7 @@ module Sequent
         attr_reader :routes
 
         def initialize
-          @routes = Hash.new { |h, k| h[k] = Set.new }
+          clear_routes
         end
 
         ##
@@ -41,6 +41,13 @@ module Sequent
         #
         def matches_message?(message)
           match_message(message).any?
+        end
+
+        ##
+        # Removes all routes from the router.
+        #
+        def clear_routes
+          @routes = Hash.new { |h, k| h[k] = Set.new }
         end
       end
     end
