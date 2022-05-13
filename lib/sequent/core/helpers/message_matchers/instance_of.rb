@@ -9,7 +9,7 @@ module Sequent
             message.instance_of?(expected_class)
           end
 
-          def matcher_description
+          def to_s
             expected_class
           end
         end

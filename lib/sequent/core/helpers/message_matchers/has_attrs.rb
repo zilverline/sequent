@@ -19,7 +19,7 @@ module Sequent
               matches_attrs?(message, expected_attrs)
           end
 
-          def matcher_description
+          def to_s
             "has_attrs(#{ArgumentSerializer.serialize_value(message_matcher)}, #{matcher_arguments})"
           end
 

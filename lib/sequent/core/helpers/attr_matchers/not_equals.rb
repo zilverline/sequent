@@ -9,7 +9,7 @@ module Sequent
             actual_value != expected_value
           end
 
-          def matcher_description
+          def to_s
             "neq(#{ArgumentSerializer.serialize_value(expected_value)})"
           end
         end

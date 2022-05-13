@@ -220,7 +220,7 @@ MyMessageMatcher = Struct.new(:expected_argument) do
     # return a truthy value if it matches, or falsey otherwise.
   end
 
-  def matcher_description
+  def to_s
     "my_message_matcher(#{Sequent::Core::Helpers::MessageMatchers::ArgumentSerializer.serialize_value(expected_value)})"
   end
 end
@@ -252,7 +252,7 @@ MyAttrMatcher = Struct.new(:expected_value) do
     # return a truthy value if it matches, or falsey otherwise.
   end
 
-  def matcher_description
+  def to_s
     "my_attr_matcher(#{Sequent::Core::Helpers::AttrMatchers::ArgumentSerializer.serialize_value(expected_value)})"
   end
 end

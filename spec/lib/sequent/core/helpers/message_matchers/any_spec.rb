@@ -41,8 +41,8 @@ describe Sequent::Core::Helpers::MessageMatchers::Any do
     end
   end
 
-  describe '#matcher_description' do
-    subject { matcher.matcher_description }
+  describe '#to_s' do
+    subject { matcher.to_s }
 
     context 'given no opts' do
       let(:opts) { {} }

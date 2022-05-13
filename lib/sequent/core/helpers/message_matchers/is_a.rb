@@ -11,7 +11,7 @@ module Sequent
             message.is_a?(expected_class) unless excluded?(message)
           end
 
-          def matcher_description
+          def to_s
             "is_a(#{matcher_arguments})"
           end
 
