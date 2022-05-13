@@ -210,7 +210,7 @@ For a list of supported built-in message matchers, see: https://www.rubydoc.info
 
 For a list of supported built-in attr matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/AttrMatchers.
 
-## Custom message matcher
+### Custom message matcher
 
 You can also provide your own custom message matchers as follows:
 
@@ -242,7 +242,7 @@ class MyWorkfow < Sequent::Workflow
 end
 ```
 
-## Custom attr matcher
+### Custom attr matcher
 
 You can also provide your own custom attr matchers as follows:
 
