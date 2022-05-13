@@ -13,7 +13,7 @@ module Sequent
             true
           end
 
-          def matcher_description
+          def to_s
             "any#{matcher_arguments}"
           end
 

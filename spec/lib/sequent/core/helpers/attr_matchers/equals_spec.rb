@@ -29,8 +29,8 @@ describe Sequent::Core::Helpers::AttrMatchers::Equals do
     end
   end
 
-  describe '#matcher_description' do
-    subject { matcher.matcher_description }
+  describe '#to_s' do
+    subject { matcher.to_s }
 
     it 'returns a description for the matcher' do
       expect(subject).to eq('eq("foo")')
