@@ -43,7 +43,7 @@ module Sequent
           @entries[name] || fail(
             ArgumentError,
             "Unsupported option: '#{name}'; " \
-            "#{@entries.keys.any? ? "registered options: #{@entries.keys.join(', ')}" : 'no registered options' }",
+            "#{@entries.keys.any? ? "registered options: #{@entries.keys.join(', ')}" : 'no registered options'}",
           )
         end
 
