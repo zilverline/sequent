@@ -13,7 +13,7 @@ module Sequent
         Workflows << subclass
       end
 
-      def self.on(*message_classes, &block)
+      def self.on(*args, **opts, &block)
         decorated_block = ->(event) do
           begin
             old_event = CurrentEvent.current
@@ -23,7 +23,7 @@ module Sequent
             CurrentEvent.current = old_event
           end
         end
-        super(*message_classes, &decorated_block)
+        super(*args, **opts, &decorated_block)
       end
 
       def execute_commands(*commands)

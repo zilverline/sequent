@@ -35,6 +35,121 @@ describe Sequent::Core::Helpers::MessageHandler do
     expect(handler.last_block_called).to be_truthy
   end
 
+  describe 'options' do
+    class HandlerWithOption
+      include Sequent::Core::Helpers::MessageHandler
+
+      class_attribute :called_options, default: []
+    end
+
+    before do
+      HandlerWithOption.message_router.clear_routes
+      HandlerWithOption.option_registry.clear_options
+    end
+
+    it 'calls registered options' do
+      expect do
+        HandlerWithOption.option :my_option do |matcher, argument|
+          called_options.push([:my_option, matcher, argument])
+        end
+
+        HandlerWithOption.on MessageHandlerEvent, my_option: :my_value do
+          # ...
+        end
+      end
+        .to change { HandlerWithOption.called_options }
+        .from([])
+        .to(
+          [
+            [
+              :my_option,
+              Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MessageHandlerEvent),
+              :my_value,
+            ],
+          ],
+        )
+    end
+
+    context 'given no option with the given name is registered' do
+      it 'fails' do
+        expect do
+          HandlerWithOption.on MessageHandlerEvent, my_option: :my_value do
+            # ...
+          end
+        end.to raise_error(ArgumentError, "Unsupported option: 'my_option'; no registered options")
+      end
+    end
+
+    describe 'option isolation' do
+      class SubclassHandlerWithOption < HandlerWithOption
+      end
+
+      class UnrelatedHandlerWithOption
+        include Sequent::Core::Helpers::MessageHandler
+
+        class_attribute :called_options, default: []
+      end
+
+      before do
+        SubclassHandlerWithOption.message_router.clear_routes
+        SubclassHandlerWithOption.option_registry.clear_options
+        UnrelatedHandlerWithOption.message_router.clear_routes
+        UnrelatedHandlerWithOption.option_registry.clear_options
+      end
+
+      before do
+        HandlerWithOption.option :my_option do |matcher, argument|
+          called_options.push([:my_option, matcher, argument])
+        end
+
+        HandlerWithOption.on MessageHandlerEvent, my_option: :my_value do
+          # ...
+        end
+      end
+
+      context 'given a registered option in a super class' do
+        context 'and registering an option with the same name in a sub class' do
+          it 'fails' do
+            expect do
+              SubclassHandlerWithOption.option :my_option do |matcher, argument|
+                called_options.push([:my_option, matcher, argument])
+              end
+
+              SubclassHandlerWithOption.on MessageHandlerEvent, my_option: :my_value do
+                # ...
+              end
+            end.to raise_error(ArgumentError, "Option with name 'my_option' already registered")
+          end
+        end
+
+        context 'and registering an option with the same name in an unrelated class' do
+          it 'calls registered options' do
+            expect do
+              UnrelatedHandlerWithOption.option :my_option do |matcher, argument|
+                called_options.push([:my_option, matcher, argument])
+              end
+
+              UnrelatedHandlerWithOption.on MessageHandlerEvent, my_option: :my_value do
+                # ...
+              end
+            end
+              .to change { UnrelatedHandlerWithOption.called_options }
+              .from([])
+              .to(
+                [
+                  [
+                    :my_option,
+                    Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MessageHandlerEvent),
+                    :my_value,
+                  ],
+                ],
+              )
+          end
+        end
+      end
+    end
+  end
+
   describe '.message_mapping' do
     subject { MyHandler.message_mapping }
 

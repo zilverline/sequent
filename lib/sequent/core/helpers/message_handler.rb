@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'message_handler_option_registry'
 require_relative 'message_router'
 require_relative 'message_dispatcher'
 
@@ -39,13 +40,25 @@ module Sequent
       #
       module MessageHandler
         module ClassMethods
-          def on(*args, &block)
+          def on(*args, **opts, &block)
             OnArgumentsValidator.validate_arguments!(*args)
 
+            message_matchers = args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) }
+
             message_router.register_matchers(
-              *args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) },
+              *message_matchers,
               block,
             )
+
+            message_matchers.each do |matcher|
+              opts.each do |name, value|
+                option_registry.call_option(self, name, matcher, value)
+              end
+            end
+          end
+
+          def option(name, &block)
+            option_registry.register_option(name, block)
           end
 
           def message_mapping
@@ -90,6 +103,8 @@ module Sequent
           host_class.extend(ClassMethods)
           host_class.extend(MessageMatchers)
           host_class.extend(AttrMatchers)
+
+          host_class.class_attribute :option_registry, default: MessageHandlerOptionRegistry.new
         end
 
         def handle_message(message)
