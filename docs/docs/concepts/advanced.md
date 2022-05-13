@@ -273,3 +273,27 @@ class MyWorkfow < Sequent::Workflow
   end
 end
 ```
+
+## Message handler load-time options
+
+Since Sequent 5.0, each `Sequent::Core::Helpers::MessageHandler` (`Sequent::AggregateRoot`, `Sequent::Projector`, `Sequent::Workflow` and `Sequent::CommandHandler`) has support for processing load-time options.
+
+This works as follows:
+
+```ruby
+class MyBaseWorkflow < Sequent::Workflow
+  option :deduplicate_on do |matcher, attributes|
+    # This block is called only during initialisation, for each matcher declared in an `on` definition.
+
+    attributes == %i[aggregate_id] # true
+  end
+end
+
+class MyWorkflow < MyBaseWorkflow
+  on MyEvent, deduplicate_on: %i[aggregate_id] do |event|
+    # ...
+  end
+end
+```
+
+Registered options are scoped per class hierarchy, so in the above example, all workflows extending from `MyBaseWorkflow` support the `deduplicate_on` option in `on` definitions. Classes in other hierarchies (like a `Sequent::Projector`) will not have this option (but can register their own options of course).
