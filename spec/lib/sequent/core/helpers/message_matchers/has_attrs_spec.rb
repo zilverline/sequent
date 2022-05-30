@@ -169,8 +169,19 @@ describe Sequent::Core::Helpers::MessageMatchers::HasAttrs do
   describe '#to_s' do
     subject { matcher.to_s }
 
+    let(:expected_attrs) do
+      {
+        aggregate_id: Sequent::Core::Helpers::AttrMatchers::Equals.new('x'),
+        amount: {
+          cents: Sequent::Core::Helpers::AttrMatchers::Equals.new(1000),
+          currency: Sequent::Core::Helpers::AttrMatchers::NotEquals.new('USD'),
+        },
+      }
+    end
+
     it 'returns a description for the matcher including all expected attrs' do
-      expect(subject).to eq(%[has_attrs(TestMessage, aggregate_id: "x", sequence_number: 1)])
+      expect(subject)
+        .to eq(%[has_attrs(TestMessage, aggregate_id: eq("x"), amount: {cents: eq(1000), currency: neq("USD")})])
     end
   end
 end

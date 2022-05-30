@@ -20,7 +20,10 @@ module Sequent
           end
 
           def to_s
-            "has_attrs(#{ArgumentSerializer.serialize_value(message_matcher)}, #{matcher_arguments})"
+            'has_attrs(' \
+              "#{MessageMatchers::ArgumentSerializer.serialize_value(message_matcher)}, " \
+              "#{AttrMatchers::ArgumentSerializer.serialize_value(expected_attrs)}" \
+            ')'
           end
 
           private
@@ -38,14 +41,6 @@ module Sequent
             value = path.reduce(message) { |memo, p| memo.public_send(p) }
 
             expected_value.matches_attr?(value)
-          end
-
-          def matcher_arguments
-            expected_attrs
-              .map do |(name, value)|
-                "#{name}: #{ArgumentSerializer.serialize_value(value)}"
-              end
-              .join(', ')
           end
         end
       end
