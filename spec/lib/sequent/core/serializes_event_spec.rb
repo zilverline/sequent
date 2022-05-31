@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../../fixtures/for_attribute_support'
 
 describe Sequent::Core::SerializesEvent do
   class RecordMock
@@ -10,10 +11,6 @@ describe Sequent::Core::SerializesEvent do
                   :event_type,
                   :created_at,
                   :event_json
-  end
-
-  class RecordValueObject < Sequent::Core::ValueObject
-    attrs value: String
   end
 
   class RecordEvent < Sequent::Core::Event

@@ -1,14 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-
-class Person < Sequent::Core::ValueObject
-  attrs name: String
-end
-
-class House < Sequent::Core::ValueObject
-  attrs owner: Person
-end
+require_relative '../../../../fixtures/for_attribute_support'
 
 describe Sequent::Core::Helpers::ParamSupport do
   let(:ben) { Person.new(name: 'Ben Vonk') }
