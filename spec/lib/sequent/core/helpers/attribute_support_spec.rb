@@ -75,6 +75,16 @@ describe Sequent::Core::Helpers::AttributeSupport do
     end
   end
 
+  context 'duplicate attributes' do
+    it 'fails' do
+      expect do
+        class SomeEvent < Sequent::Core::Event
+          attrs message: String
+        end
+      end.to raise_error(ArgumentError, 'Attributes already defined: message')
+    end
+  end
+
   context '.validation_errors' do
     it 'returns validation errors as hash' do
       subject = NestedTestClass.new

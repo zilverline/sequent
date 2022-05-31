@@ -53,6 +53,9 @@ module Sequent
 
           def attrs(args)
             @types ||= {}
+
+            validate_attrs!(args)
+
             @types.merge!(args)
             associations = []
             args.each do |attribute, type|
@@ -126,12 +129,20 @@ EOS
             @upcasters.push(block)
           end
 
+          private
+
           def upcast!(hash)
             return if @upcasters.nil?
 
             @upcasters.each do |upcaster|
               upcaster.call(hash)
             end
+          end
+
+          def validate_attrs!(args)
+            duplicate_attrs = @types.keys & args.keys
+
+            fail ArgumentError, "Attributes already defined: #{duplicate_attrs.join(', ')}" if duplicate_attrs.any?
           end
         end
 
