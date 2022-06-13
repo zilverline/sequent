@@ -63,7 +63,7 @@ describe Sequent::Core::Helpers::MessageHandler do
           [
             [
               :my_option,
-              Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MessageHandlerEvent),
+              [Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MessageHandlerEvent)],
               :my_value,
             ],
           ],
@@ -139,7 +139,7 @@ describe Sequent::Core::Helpers::MessageHandler do
                 [
                   [
                     :my_option,
-                    Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MessageHandlerEvent),
+                    [Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MessageHandlerEvent)],
                     :my_value,
                   ],
                 ],
