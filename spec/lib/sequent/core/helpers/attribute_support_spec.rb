@@ -83,6 +83,32 @@ describe Sequent::Core::Helpers::AttributeSupport do
         end
       end.to raise_error(ArgumentError, 'Attributes already defined: message')
     end
+
+    context 'with subclassing' do
+      it 'fails' do
+        expect do
+          class SomeEventSubclass < SomeEvent
+            attrs message: String
+          end
+        end.to raise_error(ArgumentError, 'Attributes already defined: message')
+      end
+    end
+
+    context 'with included module' do
+      it 'fails' do
+        expect do
+          module SomeEventModule
+            def self.included(base)
+              base.attrs message: String
+            end
+          end
+
+          class SomeEvent
+            include SomeEventModule
+          end
+        end.to raise_error(ArgumentError, 'Attributes already defined: message')
+      end
+    end
   end
 
   context '.validation_errors' do

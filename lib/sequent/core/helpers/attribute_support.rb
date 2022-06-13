@@ -42,13 +42,12 @@ module Sequent
         module ClassMethods
           def types
             @types ||= {}
-            return @merged_types if @merged_types
 
-            @merged_types = is_a?(Class) && superclass.respond_to?(:types) ? @types.merge(superclass.types) : @types
+            merged_types = is_a?(Class) && superclass.respond_to?(:types) ? @types.merge(superclass.types) : @types
             included_modules.select { |m| m.include? Sequent::Core::Helpers::AttributeSupport }.each do |mod|
-              @merged_types.merge!(mod.types)
+              merged_types.merge!(mod.types)
             end
-            @merged_types
+            merged_types
           end
 
           def attrs(args)
@@ -140,7 +139,7 @@ EOS
           end
 
           def validate_attrs!(args)
-            duplicate_attrs = @types.keys & args.keys
+            duplicate_attrs = types.keys & args.keys
 
             fail ArgumentError, "Attributes already defined: #{duplicate_attrs.join(', ')}" if duplicate_attrs.any?
           end
