@@ -108,6 +108,75 @@ describe Sequent::Core::EventStore do
                expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)
              }
     end
+
+    context 'publishing events' do
+      subject(:commit_events) do
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+                snapshot_threshold: 13,
+              ),
+              events,
+            ],
+          ],
+        )
+      end
+
+      let(:event_handler_class) do
+        Class.new(Sequent::Core::Workflow) do
+          attr_reader :published_events
+
+          def initialize
+            @published_events = []
+          end
+
+          on MyEvent do |event|
+            @published_events.push(event)
+          end
+        end
+      end
+
+      let(:event_handler) { event_handler_class.new }
+
+      before do
+        Sequent.configuration.event_handlers << event_handler
+      end
+
+      context 'given one event' do
+        let(:events) do
+          [
+            MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
+          ]
+        end
+
+        it 'publishes the stored event containing a backreference to EventRecord (by id)' do
+          commit_events
+
+          expect(event_handler.published_events).to eq(events)
+          expect(event_handler.published_events.first._event_record_id).to eq(Sequent::Core::EventRecord.last.id)
+        end
+      end
+
+      context 'given multiple events' do
+        let(:events) do
+          [
+            MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
+            MyEvent.new(aggregate_id: aggregate_id, sequence_number: 2),
+          ]
+        end
+
+        it 'publishes the stored events containing a backreference to EventRecord (by id)' do
+          commit_events
+
+          expect(event_handler.published_events).to eq(events)
+          expect(event_handler.published_events.map(&:_event_record_id)).to eq(Sequent::Core::EventRecord.pluck(:id))
+        end
+      end
+    end
   end
 
   describe '#events_exists?' do

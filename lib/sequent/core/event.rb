@@ -15,6 +15,8 @@ module Sequent
       include Sequent::Core::Helpers::StringSupport
       attrs aggregate_id: String, sequence_number: Integer, created_at: DateTime
 
+      attr_accessor :_event_record_id
+
       def initialize(args = {})
         update_all_attributes args
         fail 'Missing aggregate_id' unless @aggregate_id

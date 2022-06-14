@@ -234,7 +234,7 @@ module Sequent
 
       def store_events(command, streams_with_events = [])
         command_record = CommandRecord.create!(command: command)
-        event_records = streams_with_events.flat_map do |event_stream, uncommitted_events|
+        event_records_and_events = streams_with_events.flat_map do |event_stream, uncommitted_events|
           unless event_stream.stream_record_id
             stream_record = Sequent.configuration.stream_record_class.new
             stream_record.event_stream = event_stream
@@ -242,22 +242,29 @@ module Sequent
             event_stream.stream_record_id = stream_record.id
           end
           uncommitted_events.map do |event|
-            Sequent.configuration.event_record_class.new.tap do |record|
-              record.command_record_id = command_record.id
-              record.stream_record_id = event_stream.stream_record_id
-              record.event = event
-            end
+            [
+              Sequent.configuration.event_record_class.new.tap do |record|
+                record.command_record_id = command_record.id
+                record.stream_record_id = event_stream.stream_record_id
+                record.event = event
+              end,
+              event,
+            ]
           end
         end
         connection = Sequent.configuration.event_record_class.connection
-        values = event_records
-          .map { |r| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
+        values = event_records_and_events
+          .map { |(r, _event)| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
           .join(',')
         columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
         sql = <<~SQL.chomp
           insert into #{connection.quote_table_name(Sequent.configuration.event_record_class.table_name)} (#{columns}) values #{values}
         SQL
-        Sequent.configuration.event_record_class.connection.insert(sql, nil, primary_key_event_records)
+        result = connection.exec_insert(sql, nil, [], primary_key_event_records)
+        event_record_ids = result.rows.flatten
+        event_records_and_events.each_with_index do |(_event_record, event), index|
+          event._event_record_id = event_record_ids[index]
+        end
       rescue ActiveRecord::RecordNotUnique
         raise OptimisticLockingError
       end
