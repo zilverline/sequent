@@ -1,3 +1,12 @@
+# Changelog 5.0.0 (changes since 4.3.0)
+
+- Introduce several advanced features for `Sequent::Core::Helpers::MessageHandler`s (ie. `Sequent::AggregateRoot`, `Sequent::Projector`, `Sequent::Workflow` and `Sequent::CommandHandler`), namely:
+  - Message matching (see https://www.sequent.io/docs/concepts/advanced.html#message-matching)
+  - Load time options (see https://www.sequent.io/docs/concepts/advanced.html#message-handler-load-time-options)
+- `on MyEvent, MyEvent` will now raise an error stating the duplicate arguments
+- `on` without arguments will now raise an error
+- Declaring duplicate `attrs` will now raise an error
+
 # Changelog 4.3.0 (changes since 4.2.0)
 
 - Add ability to to load aggregates up until a certain point in time (use with caution)
@@ -30,7 +39,7 @@
 - Moved to Github Actions for CI
 - Allow splitting of indices and table definition in sql files
   to speed up replaying projectors
-  
+
 # Changes since 3.4
 
 - Changed default ruby to latest 2.6 release
