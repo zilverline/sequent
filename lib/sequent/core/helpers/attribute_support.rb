@@ -40,19 +40,17 @@ module Sequent
 
         # module containing class methods to be added
         module ClassMethods
-          def types
-            @types ||= {}
+          attr_reader :types
 
-            merged_types = is_a?(Class) && superclass.respond_to?(:types) ? @types.merge(superclass.types) : @types
-            included_modules.select { |m| m.include? Sequent::Core::Helpers::AttributeSupport }.each do |mod|
-              merged_types.merge!(mod.types)
-            end
-            merged_types
+          # Called when this module is included or when a class which includes this module is inherited from.
+          #
+          # All declared attrs are merged into @types in order to prevent superfluous calculation of types in a class
+          # hierarchy.
+          def initialize_types
+            @types = inherited_types
           end
 
           def attrs(args)
-            @types ||= {}
-
             validate_attrs!(args)
 
             @types.merge!(args)
@@ -130,6 +128,16 @@ EOS
 
           private
 
+          def inherited_types
+            merged_types = is_a?(Class) && superclass.respond_to?(:types) ? superclass.types.dup : {}
+
+            included_modules
+              .select { |m| m.include? Sequent::Core::Helpers::AttributeSupport }
+              .reduce(merged_types) do |memo, mod|
+                memo.merge(mod.types)
+              end
+          end
+
           def upcast!(hash)
             return if @upcasters.nil?
 
@@ -143,11 +151,18 @@ EOS
 
             fail ArgumentError, "Attributes already defined: #{duplicate_attrs.join(', ')}" if duplicate_attrs.any?
           end
+
+          def inherited(subclass)
+            super
+
+            subclass.initialize_types
+          end
         end
 
         # extend host class with class methods when we're included
         def self.included(host_class)
           host_class.extend(ClassMethods)
+          host_class.initialize_types
         end
 
         def attributes
