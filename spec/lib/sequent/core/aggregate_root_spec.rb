@@ -112,6 +112,20 @@ describe Sequent::Core::AggregateRoot do
       expect(subject.first_name).to eq 'bos'
       expect(subject.last_name).to eq 'kim'
     end
+
+    context 'given a message matcher argument' do
+      it 'autosets attributes' do
+        subject = PersonAggregate.new('2')
+
+        subject.set_age(12)
+        expect(subject.age).to eq 12
+        expect(subject.status).to eq(:immature)
+
+        subject.set_age(20)
+        expect(subject.age).to eq 20
+        expect(subject.status).to eq(:mature)
+      end
+    end
   end
 
   context 'apply_if_changed' do

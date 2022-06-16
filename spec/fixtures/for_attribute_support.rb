@@ -23,3 +23,15 @@ end
 class SomeEvent < Sequent::Core::Event
   attrs message: String
 end
+
+class Person < Sequent::Core::ValueObject
+  attrs name: String
+end
+
+class House < Sequent::Core::ValueObject
+  attrs owner: Person
+end
+
+class RecordValueObject < Sequent::Core::ValueObject
+  attrs value: String
+end

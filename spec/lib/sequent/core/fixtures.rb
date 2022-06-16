@@ -1,13 +1,29 @@
 # frozen_string_literal: true
 
+module Statusable
+  def self.included(base)
+    base.attrs status: String
+  end
+end
+
 class NameSet < Sequent::Event
   attrs first_name: String, last_name: String
 end
 
-class PersonAggregate < Sequent::Core::AggregateRoot
-  attr_reader :first_name, :last_name
+class AgeSet < Sequent::Event
+  include Statusable
 
-  autoset_attributes_for_events(NameSet)
+  attrs age: Integer
+end
+
+class PersonAggregate < Sequent::Core::AggregateRoot
+  attr_reader :first_name,
+              :last_name,
+              :age,
+              :status
+
+  autoset_attributes_for_events NameSet,
+                                is_a(Statusable)
 
   def initialize(id)
     super(id)
@@ -16,6 +32,10 @@ class PersonAggregate < Sequent::Core::AggregateRoot
 
   def set_name(first_name, last_name)
     apply NameSet, first_name: first_name, last_name: last_name
+  end
+
+  def set_age(age)
+    apply AgeSet, age: age, status: age >= 18 ? :mature : :immature
   end
 
   def set_name_with_unknown_event_attribute

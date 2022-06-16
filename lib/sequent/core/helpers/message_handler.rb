@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require_relative 'message_handler_option_registry'
+require_relative 'message_router'
+require_relative 'message_dispatcher'
+
 module Sequent
   module Core
     module Helpers
@@ -36,29 +40,79 @@ module Sequent
       #
       module MessageHandler
         module ClassMethods
-          def on(*message_classes, &block)
-            message_classes.each do |message_class|
-              message_mapping[message_class] ||= []
-              message_mapping[message_class] << block
+          def on(*args, **opts, &block)
+            OnArgumentsValidator.validate_arguments!(*args)
+
+            message_matchers = args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) }
+
+            message_router.register_matchers(
+              *message_matchers,
+              block,
+            )
+
+            opts.each do |name, value|
+              option_registry.call_option(self, name, message_matchers, value)
             end
           end
 
+          def option(name, &block)
+            option_registry.register_option(name, block)
+          end
+
           def message_mapping
-            @message_mapping ||= {}
+            message_router
+              .routes
+              .select { |matcher, _handlers| matcher.is_a?(MessageMatchers::InstanceOf) }
+              .map { |k, v| [k.expected_class, v] }
+              .to_h
           end
 
           def handles_message?(message)
-            message_mapping.keys.include? message.class
+            message_router.matches_message?(message)
+          end
+
+          def message_router
+            @message_router ||= MessageRouter.new
+          end
+        end
+
+        class OnArgumentsValidator
+          class << self
+            def validate_arguments!(*args)
+              fail ArgumentError, "Must provide at least one argument to 'on'" if args.empty?
+
+              duplicates = args
+                .select { |arg| args.count(arg) > 1 }
+                .uniq
+
+              if duplicates.any?
+                humanized_duplicates = duplicates
+                  .map { |x| MessageMatchers::ArgumentSerializer.serialize_value(x) }
+                  .join(', ')
+
+                fail ArgumentError,
+                     "Arguments to 'on' must be unique, duplicates: #{humanized_duplicates}"
+              end
+            end
           end
         end
 
         def self.included(host_class)
           host_class.extend(ClassMethods)
+          host_class.extend(MessageMatchers)
+          host_class.extend(AttrMatchers)
+
+          host_class.class_attribute :option_registry, default: MessageHandlerOptionRegistry.new
         end
 
         def handle_message(message)
-          handlers = self.class.message_mapping[message.class]
-          handlers&.each { |handler| instance_exec(message, &handler) }
+          message_dispatcher.dispatch_message(message)
+        end
+
+        private
+
+        def message_dispatcher
+          MessageDispatcher.new(self.class.message_router, self)
         end
       end
     end

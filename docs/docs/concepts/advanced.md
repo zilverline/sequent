@@ -28,7 +28,7 @@ command_record.parent
 # this CommandRecord.
 command_record.origin
 
-# Returns the EventRecords caused by this command 
+# Returns the EventRecords caused by this command
 command_record.children
 ```
 
@@ -36,17 +36,17 @@ From a `Sequent::Core::EventRecord`
 ```ruby
 event_record = Sequent::Core::EventRecord.find(1)
 
-# Returns the Sequent::Core::CommandRecord that 'caused' this Event 
+# Returns the Sequent::Core::CommandRecord that 'caused' this Event
 event_record.parent
 
 # Returns the top level Sequent::Core::CommandRecord that 'caused'
 # this Event. This traverses all the way up.
 # When coming from Sequent < 3.2 this can also
-# be an EventRecord. 
+# be an EventRecord.
 event_record.origin
 
 # Returns the Sequent::Core::CommandRecord's that were execute because
-# of this event 
+# of this event
 event_record.children
 ```
 
@@ -54,7 +54,7 @@ event_record.children
 
 When designing your domain (`AggregateRoot`s, `Event`s, `Command`s) over time it can happen
 that you want to change a particular Event. Perhaps you want to rename an attribute or something.
-One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still 
+One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still
 in the startup phase and really exploring the domain, this could certainly be an option. However it does go
 against the immutable nature of an EventStore.
 In order to accommodate for refactorings like renaming, typically called upcasting in event sourcing, Sequent
@@ -68,11 +68,11 @@ end
 
 # a few months into production, the term invoice_date better
 # fits the domain you decide to refactor and rename the attribute
-# 
+#
 # The new InvoiceSent event
 class InvoiceSent < Sequent::Event
   attrs invoice_date: Date
-  
+
   upcast do |hash|
     hash['invoice_date'] = hash['send_date']
   end
@@ -87,11 +87,11 @@ You can define multiple upcasters, they run in the order in which they are defin
 ```ruby
 class InvoiceSet < Sequent::Event
   attrs invoice_date: Date, full_name: String
-  
+
   upcast do |hash|
     hash['full_name'] = hash['fullname']
   end
-  
+
   upcast do |hash|
     hash['invoice_date'] = hash['send_date']
   end
@@ -138,3 +138,172 @@ Command: SendInvoice resulted in 2 events
 -- Workflows: [EmailWorkflow]
 +++++++++++++++++++++++++++++++++++
 ```
+
+## Message matching
+
+Since Sequent 5.0, each `Sequent::Core::Helpers::MessageHandler` (`Sequent::AggregateRoot`, `Sequent::Projector`, `Sequent::Workflow` and `Sequent::CommandHandler`) has support for declarative matching of messages.
+
+This works as follows:
+
+```ruby
+module MyModule; end
+
+class Money < Sequent::ValueObject
+  attrs cents: Integer, currency: String
+end
+
+class MyEvent < Sequent::Event
+  include MyModule
+
+  attrs some_attribute: String,
+        amount: Money
+end
+
+class MyExcludedEvent < Sequent::Event
+  include MyModule
+end
+
+class MyWorkflow < Sequent::Workflow
+  on MyEvent do |event|
+    # you can keep matching on class name
+  end
+
+  on is_a(MyModule) do |event|
+    # matches any event whose class includes MyModule
+  end
+
+  on is_a(MyModule, except: MyExcludedEvent) do |event|
+    # matches any event whose class includes MyModule, but not MyExcludedEvent
+  end
+
+  on is_a(Sequent::Event) do |event|
+    # matches any event whose super class is Sequent::Event
+  end
+
+  on any do |event|
+    # matches any event
+  end
+
+  on any(except: MyExcludedEvent) do |event|
+    # matches any event except MyExcludedEvent
+  end
+
+  on has_attrs(MyEvent, sequence_number: gt(100)) do |event|
+    # matches events of class MyEvent with a sequence number greater than 100
+  end
+
+  on has_attrs(MyEvent, amount: {cents: gt(100), currency: neq('USD')}) do |event|
+    # matches events of class MyEvent and have an amount of cents greater than 100 and a currency not equal to USD
+  end
+
+  on has_attrs(is_a(MyModule), some_attribute: eq('some value')) do |event|
+    # matches events that include MyModule and have some_attribute with a value of 'some value'
+  end
+
+  on has_attrs(MyEvent, some_attribute: 'some value') do |event|
+    # eq can also be omitted, since it's the default matcher of an attr value
+  end
+end
+```
+
+For a list of supported built-in message matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/MessageMatchers.
+
+For a list of supported built-in attr matchers, see: https://www.rubydoc.info/gems/sequent/Sequent/Core/Helpers/AttrMatchers.
+
+### Custom message matcher
+
+You can also provide your own custom message matchers as follows:
+
+```ruby
+MyMessageMatcher = Struct.new(:expected_argument) do
+  def matches_message?(message)
+    # return a truthy value if it matches, or falsey otherwise.
+  end
+
+  def to_s
+    "my_message_matcher(#{Sequent::Core::Helpers::MessageMatchers::ArgumentSerializer.serialize_value(expected_value)})"
+  end
+end
+
+Sequent::Core::Helpers::MessageMatchers.register_matcher :my_message_matcher, MyMessageMatcher
+```
+
+> Be sure to use `Struct` as a basis for your matcher, otherwise you have to manually do a proper 'equals'
+implementation by overriding the `#==`, `#eql?` and `#hash` methods.
+
+Your custom matcher can be used as follows (note that the first (`name`) argument provided to `register_matcher` becomes
+the method name used in `on` (ie. `my_message_matcher`)):
+
+```ruby
+class MyWorkfow < Sequent::Workflow
+  on my_message_matcher('some constraint') do |event|
+    # ...
+  end
+end
+```
+
+### Custom attr matcher
+
+You can also provide your own custom attr matchers as follows:
+
+```ruby
+MyAttrMatcher = Struct.new(:expected_value) do
+  def matches_message?(actual_value)
+    # return a truthy value if it matches, or falsey otherwise.
+  end
+
+  def to_s
+    "my_attr_matcher(#{Sequent::Core::Helpers::AttrMatchers::ArgumentSerializer.serialize_value(expected_value)})"
+  end
+end
+
+Sequent::Core::Helpers::AttrMatchers.register_matcher :my_attr_matcher, MyAttrMatcher
+```
+
+> Be sure to use `Struct` as a basis for your matcher, otherwise you have to manually do a proper 'equals'
+implementation by overriding the `#==`, `#eql?` and `#hash` methods.
+
+Your custom matcher can be used as follows (note that the first (`name`) argument provided to `register_matcher` becomes
+the method name used in `on` (ie. `my_attr_matcher`)):
+
+```ruby
+class MyWorkfow < Sequent::Workflow
+  on has_attrs(MyEvent, my_attribute: my_attr_matcher('expected value')) do |event|
+    # ...
+  end
+end
+```
+
+## Message handler load-time options
+
+Since Sequent 5.0, each `Sequent::Core::Helpers::MessageHandler` (`Sequent::AggregateRoot`, `Sequent::Projector`, `Sequent::Workflow` and `Sequent::CommandHandler`) has support for processing load-time options.
+
+This works as follows:
+
+```ruby
+class MyBaseWorkflow < Sequent::Workflow
+  option :deduplicate_on do |matchers, attributes|
+    # This block is called for each defined `on` block that provides the corresponding option.
+    #
+    # In this example this is only once (for `on MyEvent, deduplicate_on: %i[aggregate_id]`, not for `on OtherEvent`).
+    #
+    # The first argument to this block is a list of message matchers (as defined in the `on` definition).
+    # The second argument is the value specified as an argument to the option in the `on` definition.
+
+    matchers == [Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MyEvent)] # true
+    attributes == %i[aggregate_id] # true
+  end
+end
+
+class MyWorkflow < MyBaseWorkflow
+  on MyEvent, deduplicate_on: %i[aggregate_id] do |event|
+    # ...
+  end
+
+  on OtherEvent do |event|
+    # ...
+  end
+end
+```
+
+Registered options are scoped per class hierarchy, so in the above example, all workflows extending from `MyBaseWorkflow` support the `deduplicate_on` option in `on` definitions. Classes in other hierarchies (like a `Sequent::Projector`) will not have this option (but can register their own options of course).

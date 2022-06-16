@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../../fixtures/for_attribute_support'
 
 describe Sequent::Core::SerializesCommand do
   class RecordMock
@@ -13,10 +14,6 @@ describe Sequent::Core::SerializesCommand do
                   :event_aggregate_id,
                   :event_sequence_number,
                   :organization_id
-  end
-
-  class RecordValueObject < Sequent::Core::ValueObject
-    attrs value: String
   end
 
   class RecordCommand < Sequent::Core::Command

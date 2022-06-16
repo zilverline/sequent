@@ -1,12 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../../fixtures/for_attribute_support'
 
 describe Sequent::Core::Event do
-  class Person < Sequent::Core::ValueObject
-    attrs name: String
-  end
-
   class TestEventEvent < Sequent::Core::Event
     attrs organization_id: String, name: String, date_time: DateTime, owner: Person
   end

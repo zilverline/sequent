@@ -36,11 +36,11 @@ module Sequent
             event_class.types.keys.reject { |k| @@autoset_ignore_attributes.include?(k.to_s) }
           end
 
-          def autoset_attributes_for_events(*event_classes)
-            event_classes.each do |event_class|
-              on event_class do |event|
-                self.class.event_attribute_keys(event_class).each do |attribute_name|
-                  instance_variable_set(:"@#{attribute_name}", event.send(attribute_name.to_sym))
+          def autoset_attributes_for_events(*args)
+            args.each do |arg|
+              on arg do |event|
+                self.class.event_attribute_keys(event.class).each do |attribute_name|
+                  instance_variable_set(:"@#{attribute_name}", event.public_send(attribute_name.to_sym))
                 end
               end
             end
