@@ -283,7 +283,12 @@ This works as follows:
 ```ruby
 class MyBaseWorkflow < Sequent::Workflow
   option :deduplicate_on do |matchers, attributes|
-    # This block is called only during initialisation, and is passed each matcher declarared in an `on` definition.
+    # This block is called for each defined `on` block that provides the corresponding option.
+    #
+    # In this example this is only once (for `on MyEvent, deduplicate_on: %i[aggregate_id]`, not for `on OtherEvent`).
+    #
+    # The first argument to this block is a list of message matchers (as defined in the `on` definition).
+    # The second argument is the value specified as an argument to the option in the `on` definition.
 
     matchers == [Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MyEvent)] # true
     attributes == %i[aggregate_id] # true
@@ -292,6 +297,10 @@ end
 
 class MyWorkflow < MyBaseWorkflow
   on MyEvent, deduplicate_on: %i[aggregate_id] do |event|
+    # ...
+  end
+
+  on OtherEvent do |event|
     # ...
   end
 end
