@@ -6,20 +6,12 @@ require 'active_support/hash_with_indifferent_access'
 require_relative '../fixtures/spec_migrations'
 
 describe Sequent::Migrations::ViewSchema do
-  let(:view_schema) { 'test_view_schema' }
   let(:opts) { {db_config: db_config} }
   let(:migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
-  let(:db_config) do
-    ActiveSupport::HashWithIndifferentAccess
-      .new(Database.test_config.merge(schema_search_path: "#{view_schema},public"))
-      .stringify_keys
-  end
-
+  let(:db_config) { Database.test_config }
+  let(:view_schema) { Sequent.configuration.view_schema_name }
   before :each do
     SpecMigrations.reset
-    Sequent.configure do |config|
-      config.view_schema_name = view_schema
-    end
     Sequent::Support::Database.disconnect!
     Sequent::Support::Database.establish_connection(db_config)
     exec_sql("drop schema if exists #{view_schema} cascade")

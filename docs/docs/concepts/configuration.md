@@ -126,3 +126,6 @@ For the most recent possibilities please check the `Sequent::Configuration` impl
 |versions_table_name|The name of the table in which Sequent checks which [migration version](migrations.html) is currently active|`sequent_versions`|
 |replayed_ids_table_name|The name of the table in which Sequent keeps track of which events are already replayed during a [migration](migrations.html)|`sequent_replayed_ids`|
 |error_locale_resolver|A lambda that returns the desired locale for command validation errors|<code>-> { I18n.locale &#124;&#124; :en }</code>|
+|enable_multiple_database_support|A boolean to indicate if multiple databases are being used by ActiveRecord (such as a read replica)|`false`|                                                             |
+|primary_database_key|A symbol indicating the primary database if multiple databases are specified within the provided db_config|`:primary`|  
+|primary_database_role|A symbol indicating the primary database role if using multiple databases with active record|`:writing`| 
