@@ -58,7 +58,7 @@ module Sequent
         rescue StandardError => e
           publish_event_error = PublishEventError.new(handler.class, event)
           publish_event_error.set_backtrace(e.backtrace)
-          fail publish_event_error
+          raise publish_event_error
         end
       end
 
