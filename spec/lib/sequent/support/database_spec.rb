@@ -9,14 +9,23 @@ require 'sequent/support'
 describe Sequent::Support::Database do
   let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
-    Database.test_config.merge(
-      'database' => database_name,
-    )
+    if Sequent.configuration.enable_multiple_database_support
+      return Database
+          .test_config
+          .deep_merge(Sequent.configuration.primary_database_key => {'database' => database_name}).stringify_keys
+    else
+      return Database.test_config.merge(
+        'database' => database_name,
+      )
+    end
   end
 
-  describe 'class methods' do
+  shared_examples 'class methods' do
     describe '.create' do
-      after { Sequent::Support::Database.drop!(db_config) }
+      after do
+        Sequent::Support::Database.disconnect!
+        Sequent::Support::Database.drop!(db_config)
+      end
       it 'creates the database' do
         expect { Sequent::Support::Database.create!(db_config) }.to change { database_exists? }.from(false).to(true)
       end
@@ -42,13 +51,35 @@ describe Sequent::Support::Database do
       end
     end
 
+    describe '.with_schema_search_path' do
+      before { Sequent::Support::Database.create!(db_config) }
+      after do
+        Sequent::Support::Database.disconnect!
+        Sequent::Support::Database.drop!(db_config)
+      end
+
+      it 'connects the Sequent::ApplicationRecord pool' do
+        Sequent::Support::Database.with_schema_search_path('test2', db_config) do
+          expect(Sequent::ApplicationRecord.connection).to be_active
+        end
+      end
+    end
+
     describe '.read_config' do
       let(:test_config) do
         File.join(Sequent.configuration.database_config_directory, 'database.yml')
       end
       before do
         Sequent.configuration.database_config_directory = 'tmp'
-        File.write(test_config, {'test' => Database.test_config.to_h}.to_yaml)
+        if Sequent.configuration.enable_multiple_database_support
+          db_config = {}
+          db_config[Sequent.configuration.primary_database_key.to_s] =
+            Database.test_config[Sequent.configuration.primary_database_key.to_s].to_h
+          db_config = db_config.to_h
+          File.write(test_config, {'test' => db_config}.to_yaml)
+        else
+          File.write(test_config, {'test' => Database.test_config.to_h}.to_yaml)
+        end
       end
       # after { File.delete(test_config) }
 
@@ -58,15 +89,18 @@ describe Sequent::Support::Database do
     end
   end
 
-  context 'instance methods' do
-    before do
-      Sequent::Support::Database.create!(db_config)
-      Sequent::Support::Database.establish_connection(db_config)
+  describe 'class methods' do
+    context 'with multiple database support' do
+      before { Sequent.configuration.enable_multiple_database_support = true }
+      include_examples 'class methods'
+      after { Sequent.configuration.enable_multiple_database_support = false }
     end
-    after { Sequent::Support::Database.drop!(db_config) }
+    context 'no multiple database support' do
+      include_examples 'class methods'
+    end
+  end
 
-    subject(:database) { Sequent::Support::Database.new }
-
+  shared_examples 'instance methods' do
     describe '#create_schema!' do
       it 'creates the schema' do
         expect { database.create_schema!('eventstore') }.to change {
@@ -114,6 +148,30 @@ describe Sequent::Support::Database do
           }.from(false).to(true)
         end
       end
+    end
+  end
+
+  describe 'instance methods' do
+    subject(:database) { Sequent::Support::Database.new }
+    context 'with multiple database support' do
+      before do
+        Sequent.configuration.enable_multiple_database_support = true
+        Sequent::Support::Database.create!(db_config)
+        Sequent::Support::Database.establish_connection(db_config)
+      end
+      after { Sequent::Support::Database.drop!(db_config) }
+      after :all do
+        Sequent.configuration.enable_multiple_database_support = false
+      end
+      include_examples 'instance methods'
+    end
+    context 'no multiple database support' do
+      before do
+        Sequent::Support::Database.create!(db_config)
+        Sequent::Support::Database.establish_connection(db_config)
+      end
+      after { Sequent::Support::Database.drop!(db_config) }
+      include_examples 'instance methods'
     end
   end
 

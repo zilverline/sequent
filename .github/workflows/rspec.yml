@@ -55,7 +55,7 @@ jobs:
           bundler-cache: true
       - name: Setup database
         run: |
-          bundle exec rake db:create
+          bundle exec rake sequent:db:drop sequent:db:create
       - name: Run tests
         run: bundle exec rspec
       - name: rubocop

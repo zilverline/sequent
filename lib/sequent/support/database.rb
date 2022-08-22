@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'erb'
 require 'active_support/hash_with_indifferent_access'
 
 module Sequent
@@ -30,17 +31,37 @@ module Sequent
       end
 
       def self.create!(db_config)
-        ActiveRecord::Base.establish_connection(db_config.merge(database: 'postgres'))
-        ActiveRecord::Base.connection.create_database(db_config[:database])
+        establish_connection(db_config, {database: 'postgres'})
+        ActiveRecord::Base.connection.create_database(get_db_config_attribute(db_config, :database))
       end
 
       def self.drop!(db_config)
-        ActiveRecord::Base.establish_connection(db_config.merge(database: 'postgres'))
-        ActiveRecord::Base.connection.drop_database(db_config[:database])
+        establish_connection(db_config, {database: 'postgres'})
+        ActiveRecord::Base.connection.drop_database(get_db_config_attribute(db_config, :database))
       end
 
-      def self.establish_connection(db_config)
-        ActiveRecord::Base.establish_connection(db_config)
+      def self.get_db_config_attribute(db_config, attribute)
+        if Sequent.configuration.can_use_multiple_databases?
+          db_config[Sequent.configuration.primary_database_key][attribute]
+        else
+          db_config[attribute]
+        end
+      end
+
+      def self.establish_connection(db_config, db_config_overrides = {})
+        if Sequent.configuration.can_use_multiple_databases?
+          db_config = db_config.deep_merge(
+            Sequent.configuration.primary_database_key => db_config_overrides,
+          ).stringify_keys
+          ActiveRecord.legacy_connection_handling = false
+          ActiveRecord::Base.configurations = db_config.stringify_keys
+          ActiveRecord::Base.connects_to database: {
+            Sequent.configuration.primary_database_role => Sequent.configuration.primary_database_key,
+          }
+        else
+          db_config = db_config.merge(db_config_overrides)
+          ActiveRecord::Base.establish_connection(db_config)
+        end
       end
 
       def self.disconnect!
@@ -66,21 +87,16 @@ module Sequent
         fail ArgumentError, 'env is required' unless env
 
         disconnect!
-        original_search_paths = db_config[:schema_search_path].dup
 
         if ActiveRecord::VERSION::MAJOR < 6
           ActiveRecord::Base.configurations[env.to_s] =
             ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
         end
 
-        db_config[:schema_search_path] = search_path
-
-        ActiveRecord::Base.establish_connection db_config
-
+        establish_connection(db_config, {schema_search_path: search_path})
         yield
       ensure
         disconnect!
-        db_config[:schema_search_path] = original_search_paths
         establish_connection(db_config)
       end
 

@@ -56,7 +56,10 @@ module Sequent
                   :database_config_directory,
                   :database_schema_directory,
                   :event_store_schema_name,
-                  :strict_check_attributes_on_apply_events
+                  :strict_check_attributes_on_apply_events,
+                  :enable_multiple_database_support,
+                  :primary_database_role,
+                  :primary_database_key
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -107,6 +110,14 @@ module Sequent
 
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
+
+      self.enable_multiple_database_support = false
+      self.primary_database_role = :writing
+      self.primary_database_key = :primary
+    end
+
+    def can_use_multiple_databases?
+      enable_multiple_database_support && ActiveRecord.version > Gem::Version.new('6.1.0')
     end
 
     def replayed_ids_table_name=(table_name)
