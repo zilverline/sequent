@@ -60,15 +60,29 @@ describe Sequent::Core::EventPublisher do
     end
   end
 
-  it 'handles events in the proper order' do
+  before do
     Sequent::Configuration.reset
-    test_event_handler = TestEventHandler.new
     Sequent.configuration.event_handlers << TestWorkflow.new
     Sequent.configuration.event_handlers << test_event_handler
     Sequent.configuration.command_handlers << TestCommandHandler.new
+  end
 
+  let(:test_event_handler) { TestEventHandler.new }
+
+  it 'handles events in the proper order' do
     Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
-
     expect(test_event_handler.sequence_numbers).to eq [1, 2]
+  end
+
+  context 'given an error' do
+    before do
+      expect_any_instance_of(TestEventHandler).to receive(:handle_message).and_raise(RuntimeError.new('oops!'))
+    end
+
+    it 'fails with a PublishEventError' do
+      expect do
+        Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+      end.to raise_error(Sequent::Core::EventPublisher::PublishEventError)
+    end
   end
 end

@@ -55,8 +55,10 @@ module Sequent
 
         configuration.event_handlers.each do |handler|
           handler.handle_message event
-        rescue StandardError
-          raise PublishEventError.new(handler.class, event)
+        rescue StandardError => e
+          publish_event_error = PublishEventError.new(handler.class, event)
+          publish_event_error.set_backtrace(e.backtrace)
+          fail publish_event_error
         end
       end
 
