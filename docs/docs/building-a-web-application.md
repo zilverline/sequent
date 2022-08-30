@@ -187,6 +187,22 @@ class Web < Sinatra::Base
 end
 ```
 
+If you are using the multiple db feature and have more than one role for your database you need to clear the connection
+for each role:
+```ruby
+class Web < Sinatra::Base
+  ...
+
+  after do
+    ActiveRecord::Base.connection_handler.all_connection_pools.map(&:role).each do |role|
+      ActiveRecord::Base.connection_handler.clear_active_connections!(role)
+    end
+  end
+
+  ...
+end
+```
+
 After we restart the app and fill in a name and email let's see what happens.
 
 `Success!`
