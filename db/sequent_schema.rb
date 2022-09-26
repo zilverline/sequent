@@ -58,7 +58,12 @@ ALTER TABLE event_records ADD CONSTRAINT stream_fkey FOREIGN KEY (stream_record_
 }
 
   execute %q{
-CREATE OR REPLACE FUNCTION load_events(_aggregate_ids JSONB, _snapshot_event_type event_records.event_type%TYPE, _use_snapshots BOOLEAN DEFAULT TRUE) RETURNS SETOF event_records AS $$
+CREATE OR REPLACE FUNCTION load_events(
+  _aggregate_ids JSONB,
+  _snapshot_event_type event_records.event_type%TYPE,
+  _use_snapshots BOOLEAN DEFAULT TRUE,
+  _until event_records.created_at%TYPE DEFAULT NULL
+) RETURNS SETOF event_records AS $$
 DECLARE
   _aggregate_id event_records.aggregate_id%TYPE;
   _snapshot_event event_records;
@@ -85,6 +90,7 @@ BEGIN
                   WHERE aggregate_id = _aggregate_id
                     AND sequence_number >= _snapshot_event_sequence_number
                     AND event_type <> _snapshot_event_type
+                    AND (_until IS NULL OR created_at < _until)
                   ORDER BY sequence_number;
   END LOOP;
 END;
