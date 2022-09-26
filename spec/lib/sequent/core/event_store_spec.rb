@@ -6,6 +6,7 @@ require 'postgresql_cursor'
 
 describe Sequent::Core::EventStore do
   class MyEvent < Sequent::Core::Event
+    attrs data: String
   end
 
   let(:event_store) { Sequent.configuration.event_store }
@@ -50,7 +51,7 @@ describe Sequent::Core::EventStore do
               aggregate_id: aggregate_id,
               snapshot_threshold: 13,
             ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1, data: "with ' unsafe SQL characters;\n")],
           ],
         ],
       )
@@ -62,6 +63,7 @@ describe Sequent::Core::EventStore do
       expect(stream.aggregate_id).to eq(aggregate_id)
       expect(events.first.aggregate_id).to eq(aggregate_id)
       expect(events.first.sequence_number).to eq(1)
+      expect(events.first.data).to eq("with ' unsafe SQL characters;\n")
     end
 
     it 'can find streams that need snapshotting' do

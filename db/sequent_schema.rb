@@ -96,5 +96,51 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE PROCEDURE store_events(_command_record_id command_records.id%TYPE, _streams_with_events JSONB) AS $$
+DECLARE
+  _stream JSONB;
+  _stream_without_nulls JSONB;
+  _events JSONB;
+  _event JSONB;
+  _aggregate_id stream_records.aggregate_id%TYPE;
+  _stream_record_id stream_records.id%TYPE;
+  _created_at stream_records.created_at%TYPE;
+  _snapshot_threshold stream_records.snapshot_threshold%TYPE;
+  _sequence_number event_records.sequence_number%TYPE;
+BEGIN
+  FOR _stream, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_streams_with_events) AS row LOOP
+    _aggregate_id = _stream->>'aggregate_id';
+    _stream_without_nulls = jsonb_strip_nulls(_stream);
+    _snapshot_threshold = _stream_without_nulls->'snapshot_threshold';
+
+    SELECT id INTO _stream_record_id FROM stream_records WHERE aggregate_id = _aggregate_id;
+    IF NOT FOUND THEN
+      _created_at = _events->0->'created_at';
+      INSERT INTO stream_records (created_at, aggregate_type, aggregate_id, snapshot_threshold)
+           VALUES (_created_at, _stream->>'aggregate_type', _aggregate_id, _snapshot_threshold)
+        RETURNING id
+             INTO STRICT _stream_record_id;
+    END IF;
+
+    FOR _event IN SELECT * FROM jsonb_array_elements(_events) LOOP
+      _created_at = _event->'created_at';
+      _sequence_number = _event->'sequence_number';
+      INSERT INTO event_records (aggregate_id, sequence_number, created_at, event_type, event_json, command_record_id, stream_record_id)
+           VALUES (
+             _event->>'aggregate_id',
+             _sequence_number,
+             _created_at,
+             _event->>'event_type',
+             _event - 'event_type',
+             _command_record_id,
+             _stream_record_id
+           );
+    END LOOP;
+  END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
 }
 end

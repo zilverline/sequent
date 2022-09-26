@@ -68,10 +68,9 @@ module Sequent
         stream = find_event_stream(aggregate_id)
         fail ArgumentError, 'no stream found for this aggregate' if stream.blank?
 
-        query = aggregates_query([aggregate_id], false, load_until)
         has_events = false
 
-        connection.select_all(query).each do |event_hash|
+        query_events([aggregate_id], false, load_until).each do |event_hash|
           has_events = true
           event = deserialize_event(event_hash)
           block.call([stream, event])
@@ -92,8 +91,7 @@ module Sequent
 
         streams = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids)
 
-        query = aggregates_query(aggregate_ids)
-        events = connection.select_all(query).map do |event_hash|
+        events = query_events(aggregate_ids).map do |event_hash|
           deserialize_event(event_hash)
         end
 
@@ -109,13 +107,9 @@ module Sequent
           end
       end
 
-      def aggregates_query(aggregate_ids, use_snapshots = true, load_until = nil)
-        <<~SQL.chomp
-          (
-          SELECT event_type, event_json
-            FROM load_events(#{quote(aggregate_ids.to_json)}, #{quote Sequent.configuration.snapshot_event_class.name}, #{use_snapshots}, #{load_until.present? ? quote(load_until) : "NULL"})
-          )
-        SQL
+      def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
+        query = "SELECT event_type, event_json FROM load_events($1, $2, $3, $4)"
+        connection.exec_query(query, "load_events", [aggregate_ids.to_json, Sequent.configuration.snapshot_event_class.name, use_snapshots, load_until])
       end
 
       def stream_exists?(aggregate_id)
@@ -239,29 +233,17 @@ module Sequent
 
       def store_events(command, streams_with_events = [])
         command_record = CommandRecord.create!(command: command)
-        event_records = streams_with_events.flat_map do |event_stream, uncommitted_events|
-          unless event_stream.stream_record_id
-            stream_record = Sequent.configuration.stream_record_class.new
-            stream_record.event_stream = event_stream
-            stream_record.save!
-            event_stream.stream_record_id = stream_record.id
-          end
-          uncommitted_events.map do |event|
-            Sequent.configuration.event_record_class.new.tap do |record|
-              record.command_record_id = command_record.id
-              record.stream_record_id = event_stream.stream_record_id
-              record.event = event
-            end
-          end
-        end
-        values = event_records
-          .map { |r| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
-          .join(',')
-        columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
-        sql = <<~SQL.chomp
-          insert into #{connection.quote_table_name(Sequent.configuration.event_record_class.table_name)} (#{columns}) values #{values}
-        SQL
-        Sequent.configuration.event_record_class.connection.insert(sql, nil, primary_key_event_records)
+        json = streams_with_events.map do |event_stream, uncommitted_events|
+          stream = Oj.strict_load(Oj.dump(event_stream))
+          [stream, uncommitted_events.map { |event|
+             r = Oj.strict_load(Sequent.configuration.event_record_class.serialize_to_json(event))
+             # Since Rails uses `TIMESTAMP WITHOUT TIME ZONE` we need to manually convert database timestamps to UTC on serialization
+             r['created_at'] = event.created_at.utc
+             r['event_type'] = event.class.name
+             r
+           }]
+        end.to_json
+        connection.exec_update("CALL store_events($1, $2)", "store_events", [command_record.id, json])
       rescue ActiveRecord::RecordNotUnique
         raise OptimisticLockingError
       end
