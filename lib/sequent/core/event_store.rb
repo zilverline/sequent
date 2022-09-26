@@ -98,7 +98,7 @@ module Sequent
 
         streams = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids)
 
-        query = aggregate_ids.uniq.map { |aggregate_id| aggregate_query(aggregate_id) }.join(' UNION ALL ')
+        query = aggregates_query(aggregate_ids)
         events = Sequent.configuration.event_record_class.connection.select_all(query).map do |event_hash|
           deserialize_event(event_hash)
         end
@@ -115,17 +115,11 @@ module Sequent
           end
       end
 
-      def aggregate_query(aggregate_id)
+      def aggregates_query(aggregate_ids)
         <<~SQL.chomp
           (
           SELECT event_type, event_json
-            FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
-          WHERE aggregate_id = #{quote(aggregate_id)}
-          AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
-                                           FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS i
-                                           WHERE event_type = #{quote Sequent.configuration.snapshot_event_class.name}
-                                             AND i.aggregate_id = #{quote(aggregate_id)}), 0)
-          ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuration.snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
+            FROM load_events(#{quote(aggregate_ids.to_json)}, #{quote Sequent.configuration.snapshot_event_class.name}, TRUE)
           )
         SQL
       end

@@ -57,4 +57,38 @@ ALTER TABLE event_records ADD CONSTRAINT command_fkey FOREIGN KEY (command_recor
 ALTER TABLE event_records ADD CONSTRAINT stream_fkey FOREIGN KEY (stream_record_id) REFERENCES stream_records (id)
 }
 
+  execute %q{
+CREATE OR REPLACE FUNCTION load_events(_aggregate_ids JSONB, _snapshot_event_type event_records.event_type%TYPE, _use_snapshots BOOLEAN DEFAULT TRUE) RETURNS SETOF event_records AS $$
+DECLARE
+  _aggregate_id event_records.aggregate_id%TYPE;
+  _snapshot_event event_records;
+  _snapshot_event_sequence_number INTEGER;
+BEGIN
+  FOR _aggregate_id IN SELECT * FROM jsonb_array_elements_text(_aggregate_ids) LOOP
+    _snapshot_event = NULL;
+    _snapshot_event_sequence_number = 0;
+    IF _use_snapshots THEN
+      SELECT * INTO _snapshot_event
+        FROM event_records
+       WHERE aggregate_id = _aggregate_id
+         AND event_type = _snapshot_event_type
+       ORDER BY sequence_number DESC
+       LIMIT 1;
+      IF FOUND THEN
+        RETURN NEXT _snapshot_event;
+        _snapshot_event_sequence_number = _snapshot_event.sequence_number;
+      END IF;
+    END IF;
+
+    RETURN QUERY SELECT *
+                   FROM event_records
+                  WHERE aggregate_id = _aggregate_id
+                    AND sequence_number >= _snapshot_event_sequence_number
+                    AND event_type <> _snapshot_event_type
+                  ORDER BY sequence_number;
+  END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
+}
 end
