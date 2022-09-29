@@ -70,7 +70,18 @@ module Sequent
 
         has_events = false
 
-        query_events([aggregate_id], false, load_until).each do |event_hash|
+        # PostgreSQLCursor::Cursor does not support bind parameters, so bind parameters manually instead.
+        sql = ActiveRecord::Base.sanitize_sql_array(
+          [
+            "SELECT * FROM load_events(:aggregate_ids, :snapshot_event_type, FALSE, :load_until)", {
+              aggregate_ids: [aggregate_id].to_json,
+              snapshot_event_type: Sequent.configuration.snapshot_event_class.name,
+              load_until: load_until
+            }
+          ]
+        )
+
+        PostgreSQLCursor::Cursor.new(sql, { connection: connection }).each_row do |event_hash|
           has_events = true
           event = deserialize_event(event_hash)
           block.call([stream, event])
@@ -107,11 +118,6 @@ module Sequent
           end
       end
 
-      def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
-        query = "SELECT event_type, event_json FROM load_events($1, $2, $3, $4)"
-        connection.exec_query(query, "load_events", [aggregate_ids.to_json, Sequent.configuration.snapshot_event_class.name, use_snapshots, load_until])
-      end
-
       def stream_exists?(aggregate_id)
         Sequent.configuration.stream_record_class.exists?(aggregate_id: aggregate_id)
       end
@@ -119,6 +125,7 @@ module Sequent
       def events_exists?(aggregate_id)
         Sequent.configuration.event_record_class.exists?(aggregate_id: aggregate_id)
       end
+
       ##
       # Replays all events in the event store to the registered event_handlers.
       #
@@ -201,6 +208,11 @@ module Sequent
 
       def connection
         Sequent.configuration.event_record_class.connection
+      end
+
+      def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
+        query = "SELECT event_type, event_json FROM load_events($1::JSONB, $2, $3, $4)"
+        connection.exec_query(query, "load_events", [aggregate_ids.to_json, Sequent.configuration.snapshot_event_class.name, use_snapshots, load_until])
       end
 
       def column_names
