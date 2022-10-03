@@ -248,7 +248,7 @@ module Sequent
         json = streams_with_events.map do |event_stream, uncommitted_events|
           stream = Oj.strict_load(Oj.dump(event_stream))
           [stream, uncommitted_events.map { |event|
-             r = Oj.strict_load(Sequent.configuration.event_record_class.serialize_to_json(event))
+             r = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
              # Since Rails uses `TIMESTAMP WITHOUT TIME ZONE` we need to manually convert database timestamps to UTC on serialization
              r['created_at'] = event.created_at.utc
              r['event_type'] = event.class.name
