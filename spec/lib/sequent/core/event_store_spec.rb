@@ -9,7 +9,7 @@ describe Sequent::Core::EventStore do
   end
 
   let(:event_store) { Sequent.configuration.event_store }
-  let(:aggregate_id) { "aggregate-#{rand(10_000_000)}" }
+  let(:aggregate_id) { Sequent.new_uuid }
 
   context '.configure' do
     it 'can be configured using a ActiveRecord class' do

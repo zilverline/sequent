@@ -108,7 +108,7 @@ end
 
 post '/create' do
   create_user = CreateUser.new(
-    aggregate_id: 'id',
+    aggregate_id: Sequent.new_uuid,
     email: params[:email],
     password: params[:password],
   )

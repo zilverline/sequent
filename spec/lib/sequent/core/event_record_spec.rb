@@ -42,7 +42,7 @@ describe Sequent::Core::EventRecord do
 
     context 'event=' do
       it 'assigns attributes from an event' do
-        aggregate_id = 'aggregate-id'
+        aggregate_id = Sequent.new_uuid
         sequence_number = 1
         created_at = DateTime.new(2019, 1, 1)
 
