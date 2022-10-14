@@ -176,19 +176,8 @@ module Sequent
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
         stream_table = quote_table_name Sequent.configuration.stream_record_class.table_name
         event_table = quote_table_name Sequent.configuration.event_record_class.table_name
-        query = <<~SQL.chomp
-          SELECT aggregate_id
-            FROM #{stream_table} stream
-           WHERE aggregate_id::varchar > COALESCE(#{quote last_aggregate_id}, '')
-             AND snapshot_threshold IS NOT NULL
-             AND snapshot_threshold <= (
-                   (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE events.event_type <> #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = events.aggregate_id) -
-                   COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{event_table} snapshots WHERE snapshots.event_type = #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = snapshots.aggregate_id), 0))
-           ORDER BY aggregate_id
-           LIMIT #{quote limit}
-           FOR UPDATE
-        SQL
-        connection.select_all(query).map { |x| x['aggregate_id'] }
+        query = "SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2, $3)"
+        connection.exec_query(query, "aggregates_that_need_snapshots", [last_aggregate_id, limit, Sequent.configuration.snapshot_event_class.name]).map { |x| x['aggregate_id'] }
       end
 
       def find_event_stream(aggregate_id)

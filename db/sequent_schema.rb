@@ -63,7 +63,8 @@ CREATE OR REPLACE FUNCTION load_events(
   _snapshot_event_type event_records.event_type%TYPE,
   _use_snapshots BOOLEAN DEFAULT TRUE,
   _until event_records.created_at%TYPE DEFAULT NULL
-) RETURNS SETOF event_records AS $$
+) RETURNS SETOF event_records AS
+$$
 DECLARE
   _aggregate_id event_records.aggregate_id%TYPE;
   _snapshot_event event_records;
@@ -96,9 +97,11 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
+}
 
-
-CREATE OR REPLACE PROCEDURE store_events(_command_record_id command_records.id%TYPE, _streams_with_events JSONB) AS $$
+  execute %q{
+CREATE OR REPLACE PROCEDURE store_events(_command_record_id command_records.id%TYPE, _streams_with_events JSONB) AS
+$$
 DECLARE
   _stream JSONB;
   _stream_without_nulls JSONB;
@@ -144,6 +147,26 @@ BEGIN
            );
     END LOOP;
   END LOOP;
+END;
+$$
+LANGUAGE plpgsql;
+}
+
+  execute %q{
+CREATE OR REPLACE FUNCTION aggregates_that_need_snapshots(_last_aggregate_id stream_records.aggregate_id%TYPE, _limit INTEGER, _snapshot_event_type TEXT)
+  RETURNS TABLE (aggregate_id stream_records.aggregate_id%TYPE) AS
+$$
+BEGIN
+  RETURN QUERY SELECT stream.aggregate_id
+    FROM stream_records stream
+   WHERE (_last_aggregate_id IS NULL OR stream.aggregate_id > _last_aggregate_id)
+     AND snapshot_threshold IS NOT NULL
+     AND snapshot_threshold <= (
+           (SELECT MAX(events.sequence_number) FROM event_records events WHERE events.event_type <> _snapshot_event_type AND stream.aggregate_id = events.aggregate_id) -
+           COALESCE((SELECT MAX(snapshots.sequence_number) FROM event_records snapshots WHERE snapshots.event_type = _snapshot_event_type AND stream.aggregate_id = snapshots.aggregate_id), 0))
+   ORDER BY 1
+   LIMIT _limit
+     FOR UPDATE;
 END;
 $$
 LANGUAGE plpgsql;
