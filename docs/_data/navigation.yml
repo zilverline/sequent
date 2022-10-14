@@ -58,3 +58,5 @@ docs:
         url: /docs/concepts/configuration.html
       - title: "17. Advanced topics"
         url: /docs/concepts/advanced.html
+      - title: "18. GDPR"
+        url: /docs/concepts/gdpr.html
