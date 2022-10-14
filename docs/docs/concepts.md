@@ -49,3 +49,7 @@ This is basically how you do stuff in Sequent. Please checkout all concepts to g
 
 - [Snapshotting](concepts/snapshotting.html))
 - [EventStore](concepts/event_store.html))
+
+## Miscellaneous
+
+- [GDPR](concepts/gpdr.html)
