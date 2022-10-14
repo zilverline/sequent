@@ -1,6 +1,7 @@
 # Changelog 5.x (changes since 5.0.0)
 
 - Changed the default type of `aggregate_id` in `sequent_schema` to `uuid` since Postgres support this for quite long.
+- Added support for applications using ActiveRecord multiple database connections feature
 
 # Changelog 5.0.0 (changes since 4.3.0)
 
