@@ -15,6 +15,7 @@ Add to your `Gemfile`:
 gem 'sinatra'
 gem 'sinatra-flash'
 gem 'sinatra-contrib'
+gem 'webrick'
 ```
 
 And then run `bundle install`. We will setup Sinatra to run as a [modular application](https://github.com/sinatra/sinatra#serving-a-modular-application).
