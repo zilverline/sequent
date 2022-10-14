@@ -1,3 +1,7 @@
+# Changelog 5.x (changes since 5.0.0)
+
+- Changed the default type of `aggregate_id` in `sequent_schema` to `uuid` since Postgres support this for quite long.
+
 # Changelog 5.0.0 (changes since 4.3.0)
 
 - Introduce several advanced features for `Sequent::Core::Helpers::MessageHandler`s (ie. `Sequent::AggregateRoot`, `Sequent::Projector`, `Sequent::Workflow` and `Sequent::CommandHandler`), namely:

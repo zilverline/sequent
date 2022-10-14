@@ -46,7 +46,7 @@ user and database first:
 ```sh
 createuser -D -s -R sequent
 createdb sequent_spec_db -O sequent
-bundle exec rake db:create
+RACK_ENV=test bundle exec rake sequent:db:create
 ```
 
 The data in this database is deleted every time you run the specs!
