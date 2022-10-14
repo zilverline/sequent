@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
     'bforma@zilverline.com',
     'erozendaal@zilverline.com',
     'mvdiepen@zilverline.com',
-    'svdiepen@zilverline.com',
+    'stephan@vandiepen.info',
   ]
   s.files = Dir['lib/**/*', 'db/**/*']
   s.executables << 'sequent'
