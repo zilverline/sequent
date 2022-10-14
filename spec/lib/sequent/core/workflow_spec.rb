@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'sequent/test/event_handler_helpers'
+require 'sequent/test/workflow_helpers'
 
 describe Sequent::Core::Workflow do
   class RegisterUser < Sequent::Command; end

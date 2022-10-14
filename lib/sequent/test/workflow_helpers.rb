@@ -5,7 +5,7 @@ module Sequent
     ##
     # Use in tests
     #
-    # This provides a nice DSL for testing your event handlers.
+    # This provides a nice DSL for testing your Workflows.
     # E.g.
     #
     # when_event UserWasRegistered.new(args)
@@ -14,12 +14,15 @@ module Sequent
     # Example for Rspec config
     #
     # RSpec.configure do |config|
-    #   config.include Sequent::Test::WorkflowHelpers
+    #   config.include Sequent::Test::WorkflowHelpers, workflows: true
     # end
     #
-    # Then in a spec
+    # Please note that you **must** add the metadata tag `workflows` since
+    # the WorkflowHelpers will use a `FakeCommandService` to track
+    # the commands enqueued for execution. You can set the metadata
+    # on group level or on an individual spec.
     #
-    # describe SendWelcomeMailWorkflow do
+    # describe SendWelcomeMailWorkflow, workflows: true do
     #   let(:workflow) { SendWelcomeMailWorkflow.new }
     #
     #   it "sends a welcome mail" do
@@ -86,13 +89,22 @@ module Sequent
       end
 
       def self.included(spec)
+        fail "Missing metadata argument `workflows: true` when including #{name}" unless spec.metadata[:workflows]
+
         spec.let(:fake_command_service) { FakeCommandService.new }
         spec.let(:fake_transaction_provider) { FakeTransactionProvider.new }
-        spec.before do
-          Sequent.configure do |c|
-            c.command_service = fake_command_service
-            c.transaction_provider = fake_transaction_provider
-          end
+        spec.let(:old_config) { Sequent.configuration }
+        spec.before :each, :workflows do
+          new_config = old_config.dup
+
+          new_config.command_service = fake_command_service
+          new_config.transaction_provider = fake_transaction_provider
+
+          Sequent::Configuration.restore(new_config)
+        end
+
+        spec.after :each, :workflows do
+          Sequent::Configuration.restore(old_config)
         end
       end
     end
