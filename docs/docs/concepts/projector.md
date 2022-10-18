@@ -127,7 +127,7 @@ end
 
 **Tip**: You can access all `attrs` from an Event via the `attributes` method. This returns a `Hash` on
 which you can call `slice` which returns a `Hash` containing the key value pairs of the
-keys you requested. This is extra handy of the name in the `attrs` are the same as the column
+keys you requested. This is extra handy if the name in the `attrs` are the same as the column
 names in your table definition.
 {: .notice--success}
 

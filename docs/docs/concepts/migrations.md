@@ -164,8 +164,8 @@ after you put you application in maintenance mode and **ensure that no new Event
 To minimize downtime when replaying offline the event stream is scoped to the last 24 hours.
 {: .notice--info}
 
-**Pro-Tip**You can also choose to keep the application running in
-readonly mode. Then you need to ensure no state changes will occur while running the last part of the migration. You can use [CommandFilters](configuration.html#commandfilters) e.g. rejecting all commands to achieve this. This will minimize downtime event further.
+**Pro-Tip** You can also choose to keep the application running in
+read-only mode. Then you need to ensure no state changes will occur while running the last part of the migration. You can use [CommandFilters](configuration.html#commandfilters) e.g. rejecting all commands to achieve this. This will minimize downtime event further.
 {: .notice--info}
 
 This is step in which the [AlterTable](#AlterTable) migrations are executed.
