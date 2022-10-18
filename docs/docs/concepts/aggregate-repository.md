@@ -6,7 +6,7 @@ The AggregateRepository is the interface for accessing Aggregates in the EventSt
 
 The AggregateRepository is typically used in [CommandHandlers](command-handler.html) to load and add [AggregateRoots](aggregate-root.html).
 
-The AggregateRepository the Unit-Of-Work and Identity-Map patterns
+The AggregateRepository uses the Unit-Of-Work and Identity-Map patterns
 to ensure each AggregateRoot is only loaded once per transaction
 and that you always get the same AggregateRoot instance back.
 
@@ -20,7 +20,7 @@ When both threads make changes to the AggregateRoot then, upon commit, one
 of the threads will "win". The other thread will fail with a `Sequent::Core::EventStore::OptimisticLockingError`. 
 
 When you use the `AggregateRepository` outside a CommandHandler
-and therefore outside of the scope of the [CommandService][command-service.md] you need to manage
+and therefore outside of the scope of the [CommandService](command-service.html) you need to manage
 the state yourself.
 {: .notice--danger}
 

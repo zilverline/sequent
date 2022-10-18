@@ -11,7 +11,7 @@ overriding `event_record_class`
 
 ## Tables in the EventStore
 
-The initial EventStore in Sequent consist of a postgres schema containing three tables:
+The initial EventStore in Sequent consists of a postgres schema containing three tables:
 
 - [event_records](#event_records)
 - [command_records](#command_records)

@@ -70,7 +70,7 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
     ```
 
     **It is important** that `public` comes first. The first schema
-    is used by Rails ActiveRecord and will therefor contain all
+    is used by Rails ActiveRecord and will therefore contain all
     your non event sourced tables.
     {: .notice--warning}
 

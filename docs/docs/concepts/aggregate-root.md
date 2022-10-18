@@ -4,7 +4,7 @@ title: AggregateRoot
 
 An AggregateRoot is the class that encapsulates your domain or business logic. Your aggregates form the heart of your application.
 In event sourcing state changes are described by [Events](event.html). All Events of a particular AggregateRoot are called an [EventStream](event_stream.html). An EventStream is an immutable ordered list of Events.
-Therefor the state of an AggregateRoot is the result of applying all Events for that AggregateRoot.
+Therefore the state of an AggregateRoot is the result of applying all Events for that AggregateRoot.
 
 For example the EventStream of an AggregateRoot called User can be:
 ```ruby
