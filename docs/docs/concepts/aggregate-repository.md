@@ -6,7 +6,7 @@ The AggregateRepository is the interface for accessing Aggregates in the EventSt
 
 The AggregateRepository is typically used in [CommandHandlers](command-handler.html) to load and add [AggregateRoots](aggregate-root.html).
 
-The AggregateRepository the Unit-Of-Work and Identity-Map patterns
+The AggregateRepository uses the Unit-Of-Work and Identity-Map patterns
 to ensure each AggregateRoot is only loaded once per transaction
 and that you always get the same AggregateRoot instance back.
 
