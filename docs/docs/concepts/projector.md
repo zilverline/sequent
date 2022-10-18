@@ -15,7 +15,7 @@ in a Projection you need 3 things in `Sequent`:
     on [Migrations](migrations.html)  for an in-depth description on how migrations work in Sequent.
 
 The nature of view state in event sourced applications is not compatible with `ActiveRecord` migration
-model. Therefor we don't use it. In event sourced applications the view state is **always derived**
+model. Therefore we don't use it. In event sourced applications the view state is **always derived**
 from Events. So when you want to have another view state, (maybe you add a column, or group some attributes)
 you replay the affected Projectors.
 {: .notice--info}
