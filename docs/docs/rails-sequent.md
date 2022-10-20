@@ -13,6 +13,11 @@ to support any other databases.
 
 You are already familiar with Ruby on Rails and the core [Concepts](concepts.html) of Sequent.
 
+For a seamless integration with the latest Rails best is to adhere to the Rails naming conventions. In Rails everything under the `app` directory is autoloaded.
+To make use of this feature best is to put your domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`.
+In this case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`.
+See for more details the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html).
+
 1. Add `gem 'sequent', git: 'https://github.com/zilverline/sequent'`  to your `Gemfile`
 
 2. Run `bundle install`
@@ -52,12 +57,16 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
     
     require 'sequent/rake/migration_tasks'
     
-    require_relative 'config/initializers/sequent'
     Sequent::Rake::MigrationTasks.new.register_tasks!
     
-    task "sequent:migrate:init" => [:sequent_db_connect]
+    # The dependency of sequent:init on :environment ensures the Rails app is loaded
+    # when running the sequent migrations. This is needed otherwise
+    # the sequent initializer doesn't run which is needed to run
+    # these rake tasks.
+    task 'sequent:init' => [:environment]
+    task 'sequent:migrate:init' => [:sequent_db_connect]
     
-    task "sequent_db_connect" do
+    task 'sequent_db_connect' do
       Sequent::Support::Database.connect!(ENV['RACK_ENV'])
     end
     ```
@@ -78,25 +87,29 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
 
     ```ruby
     require_relative '../../db/sequent_migrations'
+   
+    Rails.application.reloader.to_prepare do
+      Sequent.configure do |config|
+        config.migrations_class_name = 'SequentMigrations'
     
-    Sequent.configure do |config|
-      config.migrations_class_name = 'SequentMigrations'
+        config.command_handlers = [
+          # add you Sequent::CommandHandler's here
+        ]
     
-      config.command_handlers = [
-        # add you Sequent::CommandHandler's here
-      ]
-    
-      config.event_handlers = [
-        # add you Sequent::Projector's or Sequent::Workflows's here
-      ]
+        config.event_handlers = [
+          # add you Sequent::Projector's or Sequent::Workflows's here
+        ]
 
-      config.database_config_directory = 'config'
+        config.database_config_directory = 'config'
       
-      # this is the location of your sql files for your view_schema
-      config.migration_sql_files_directory = 'db/sequent'
+        # this is the location of your sql files for your view_schema
+        config.migration_sql_files_directory = 'db/sequent'
+      end
     end
-    
     ```
+
+    **You must** wrap the sequent initializer code in `Rails.application.reloader.to_prepare` because during
+    initialization the autoloading didn't run yet.
 
 8. Run the following commands to create the `sequent_schema` and `view_schema`  
 
@@ -111,4 +124,14 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
 
 9. `rails s`
 
+### Rails Engines
+
+Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html) work basically the same as a normal Rails application.
+Some things to remember when working with Rails Engines:
+
+1. The Sequent config must be in the main application `config/initializers`
+2. The main application is the maintainer of the `sequent_schema` and `view_schema`. 
+   So copy over the migration sql files to the main application directory like you would when an Engine provides active record migrations.
+
 Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples) Github repository.
+
