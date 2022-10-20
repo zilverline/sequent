@@ -124,4 +124,14 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
 
 9. `rails s`
 
+### Rails Engines
+
+Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html) work basically the same as a normal Rails application.
+Some things to remember when working with Rails Engines:
+
+1. The Sequent config must be in the main application `config/initializers`
+2. The main application is the maintainer of the `sequent_schema` and `view_schema`. 
+   So copy over the migration sql files to the main application directory like you would when an Engine provides active record migrations.
+
 Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples) Github repository.
+
