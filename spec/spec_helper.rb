@@ -10,15 +10,22 @@ require 'timecop'
 require_relative '../lib/sequent'
 require_relative '../lib/sequent/generator'
 require_relative './lib/sequent/fixtures/fixtures'
+require './lib/sequent/test/database_helpers'
 require 'simplecov'
 SimpleCov.start if ENV['COVERAGE']
 
 require_relative 'database'
+
+Sequent.configuration.database_config_directory = 'tmp'
+Database.write_database_yml_for_test(env: ENV['RACK_ENV'])
+Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['RACK_ENV'])
+
 RSpec.configure do |c|
   c.before do
     Database.establish_connection
     Sequent::ApplicationRecord.connection.execute('TRUNCATE command_records, stream_records CASCADE')
     Sequent::Configuration.reset
+    Sequent.configuration.database_config_directory = 'tmp'
   end
 
   def exec_sql(sql)

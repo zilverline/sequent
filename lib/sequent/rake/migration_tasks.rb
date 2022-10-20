@@ -6,6 +6,7 @@ require 'rake/tasklib'
 
 require 'sequent/support'
 require 'sequent/migrations/view_schema'
+require 'sequent/migrations/sequent_schema'
 
 module Sequent
   module Rake
@@ -27,7 +28,7 @@ module Sequent
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.create!(db_config)
 
-              create_event_store(db_config)
+              Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
             end
 
             desc 'Drops the database for the current env'
@@ -48,37 +49,14 @@ module Sequent
             task create_view_schema: ['sequent:init'] do
               ensure_rack_env_set!
 
-              db_config = Sequent::Support::Database.read_config(@env)
-              Sequent::Support::Database.establish_connection(db_config)
-              Sequent::Migrations::ViewSchema.new(db_config: db_config).create_view_schema_if_not_exists
+              Sequent::Migrations::ViewSchema.create_view_schema_if_not_exists(env: @env)
             end
 
             desc 'Creates the event_store schema for the current env'
             task create_event_store: ['sequent:init'] do
               ensure_rack_env_set!
-              db_config = Sequent::Support::Database.read_config(@env)
-              create_event_store(db_config)
+              Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
             end
-
-            # rubocop:disable Lint/NestedMethodDefinition
-            def create_event_store(db_config)
-              event_store_schema = Sequent.configuration.event_store_schema_name
-              sequent_schema = File.join(Sequent.configuration.database_schema_directory, "#{event_store_schema}.rb")
-              unless File.exist?(sequent_schema)
-                fail "File #{sequent_schema} does not exist. Check your Sequent configuration."
-              end
-
-              Sequent::Support::Database.establish_connection(db_config)
-              if Sequent::Support::Database.schema_exists?(event_store_schema)
-                fail "Schema #{event_store_schema} already exists in the database"
-              end
-
-              Sequent::Support::Database.create_schema(event_store_schema)
-              Sequent::Support::Database.with_schema_search_path(event_store_schema, db_config, @env) do
-                load(sequent_schema)
-              end
-            end
-            # rubocop:enable Lint/NestedMethodDefinition
           end
 
           namespace :migrate do
