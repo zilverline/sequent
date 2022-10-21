@@ -8,15 +8,36 @@ require_relative '../fixtures/spec_migrations'
 describe Sequent::Migrations::ViewSchema do
   let(:opts) { {db_config: db_config} }
   let(:migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
-  let(:db_config) { Database.test_config }
+  let(:database_name) { Sequent.new_uuid }
+  let(:db_config) do
+    Database.test_config.merge(
+      'database' => database_name,
+    )
+  end
+  before(:each) do
+    @original_config = Sequent.configuration.database_config_directory
+    Sequent.configuration.database_config_directory = "tmp/view_schema_spec/#{database_name}"
+    Database.write_database_yml_for_test(env: 'test', database_name: database_name)
+  end
+
+  after(:each) do
+    FileUtils.rm_rf('tmp/view_schema_spec')
+
+    Sequent.configuration.database_config_directory = @original_config
+  end
+
+  before do
+    Sequent::Support::Database.create!(db_config)
+    ActiveRecord::Base.establish_connection(db_config)
+  end
+  after do
+    Sequent::Support::Database.drop!(db_config)
+    Sequent::Support::Database.disconnect!
+  end
+
   let(:view_schema) { Sequent.configuration.view_schema_name }
   before :each do
     SpecMigrations.reset
-    Sequent::Support::Database.disconnect!
-    Sequent::Support::Database.establish_connection(db_config)
-    exec_sql("drop schema if exists #{view_schema} cascade")
-    exec_sql("drop table if exists #{Sequent.configuration.versions_table_name} cascade")
-    exec_sql("delete from #{Sequent.configuration.event_record_class.table_name}")
   end
 
   context '#create_view_schema_if_not_exists' do
@@ -67,6 +88,8 @@ describe Sequent::Migrations::ViewSchema do
     let(:new_version) { SpecMigrations.version }
 
     before :each do
+      Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: 'test')
+
       AccountRecord.table_name = 'account_records'
       AccountRecord.reset_column_information
       MessageRecord.table_name = 'message_records'
@@ -266,6 +289,8 @@ describe Sequent::Migrations::ViewSchema do
     let(:new_version) { SpecMigrations.version }
 
     before :each do
+      Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: 'test')
+
       AccountRecord.table_name = 'account_records'
       AccountRecord.reset_column_information
       MessageRecord.table_name = 'message_records'

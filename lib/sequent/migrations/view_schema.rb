@@ -79,6 +79,18 @@ module Sequent
 
       attr_reader :view_schema, :db_config, :logger
 
+      class << self
+        # @see #create_view_tables
+        # @param env [String] The environment used for connecting the database
+        def create_view_tables(env:)
+          fail ArgumentError, 'env is required' if env.blank?
+
+          db_config = Sequent::Support::Database.read_config(env)
+          Sequent::Support::Database.establish_connection(db_config)
+          new(db_config: db_config).create_view_tables
+        end
+      end
+
       def initialize(db_config:)
         @db_config = db_config
         @view_schema = Sequent.configuration.view_schema_name
@@ -98,6 +110,9 @@ module Sequent
       # the entire view schema without replaying the events
       def create_view_tables
         create_view_schema_if_not_exists
+        return if Sequent.migration_class == Sequent::Migrations::Projectors
+        return if Sequent.new_version == current_version
+
         in_view_schema do
           Sequent::Core::Migratable.all.flat_map(&:managed_tables).each do |table|
             sql_file = "#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}.sql"
@@ -112,6 +127,7 @@ module Sequent
               statements.each(&method(:exec_sql))
             end
           end
+          Versions.create!(version: Sequent.new_version)
         end
       end
 

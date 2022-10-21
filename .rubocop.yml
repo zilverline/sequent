@@ -204,6 +204,8 @@ Layout/MultilineArrayBraceLayout:
 Layout/MultilineArrayLineBreaks:
   Enabled: true
 
+Layout/SpaceAfterColon:
+  Enabled: false
 ##
 # Multi-line formatting (methods/arguments)
 ##
@@ -332,4 +334,26 @@ Style/HashTransformValues:
 Lint/FloatComparison:
   Enabled: false
 Style/ClassVars:
+  Enabled: false
+Gemspec/DateAssignment: # new in 1.10
+  Enabled: false
+Layout/LineEndStringConcatenationIndentation: # new in 1.18
+  Enabled: false
+Lint/AmbiguousRange: # new in 1.19
+  Enabled: false
+Lint/EmptyInPattern: # new in 1.16
+  Enabled: false
+Naming/InclusiveLanguage: # new in 1.18
+  Enabled: false
+Style/HashConversion: # new in 1.10
+  Enabled: false
+Style/InPatternThen: # new in 1.16
+  Enabled: false
+Style/MultilineInPatternThen: # new in 1.16
+  Enabled: false
+Style/QuotedSymbols: # new in 1.16
+  Enabled: false
+Style/RedundantSelfAssignmentBranch: # new in 1.19
+  Enabled: false
+Style/StringChars: # new in 1.12
   Enabled: false
