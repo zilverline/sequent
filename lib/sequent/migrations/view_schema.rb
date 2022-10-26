@@ -135,8 +135,12 @@ module Sequent
       # Utility method that replays events for all managed_tables from all Sequent::Core::Projector's
       #
       # This method is mainly useful in test scenario's or development tasks
-      def replay_all!
-        replay!(Sequent.configuration.online_replay_persistor_class.new)
+      def replay_all!(group_exponent: 1)
+        replay!(
+          Sequent.configuration.online_replay_persistor_class.new,
+          projectors: Core::Migratable.projectors,
+          group_exponent: group_exponent,
+        )
       end
 
       ##
