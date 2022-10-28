@@ -3,7 +3,7 @@
 require 'bundler/setup'
 Bundler.setup
 
-ENV['RACK_ENV'] ||= 'test'
+ENV['SEQUENT_ENV'] ||= 'test'
 
 require 'rspec/collection_matchers'
 require 'timecop'
@@ -17,8 +17,8 @@ SimpleCov.start if ENV['COVERAGE']
 require_relative 'database'
 
 Sequent.configuration.database_config_directory = 'tmp'
-Database.write_database_yml_for_test(env: ENV['RACK_ENV'])
-Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['RACK_ENV'])
+Database.write_database_yml_for_test(env: ENV['SEQUENT_ENV'])
+Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['SEQUENT_ENV'])
 
 RSpec.configure do |c|
   c.before do

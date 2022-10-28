@@ -40,16 +40,14 @@ Then run `rake release`. A git tag will be created and pushed, and the new versi
 
 ## Running the specs
 
-If you wish to make changes to the `sequent` gem you can use `rake spec` to run the tests. Before doing so you need to create a postgres
-user and database first:
+First create the database if you did not already do so:
 
 ```sh
 createuser -D -s -R sequent
-createdb sequent_spec_db -O sequent
-RACK_ENV=test bundle exec rake sequent:db:create
+SEQUENT_ENV=test bundle exec rake sequent:db:create
 ```
 
-The data in this database is deleted every time you run the specs!
+Run `rspec spec` to run the tests.
 
 ## Changelog
 
