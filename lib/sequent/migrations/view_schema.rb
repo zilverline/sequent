@@ -89,6 +89,17 @@ module Sequent
           Sequent::Support::Database.establish_connection(db_config)
           new(db_config: db_config).create_view_tables
         end
+
+        # @see #create_view_schema_if_not_exists
+        # @param env [String] The environment used for connecting the database
+        def create_view_schema_if_not_exists(env:)
+          fail ArgumentError, 'env is required' if env.blank?
+
+          db_config = Sequent::Support::Database.read_config(env)
+          Sequent::Support::Database.establish_connection(db_config)
+
+          new(db_config: db_config).create_view_schema_if_not_exists
+        end
       end
 
       def initialize(db_config:)
