@@ -57,6 +57,20 @@ module Sequent
               ensure_rack_env_set!
               Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
             end
+
+            desc 'Utility tasks that can be used to guard against unsafe usage of rails db:migrate directly'
+            task :dont_use_db_migrate_directly do
+              fail <<~EOS unless ENV['SEQUENT_MIGRATION_SCHEMAS'].present?
+                Don't call rails db:migrate directly but wrap in your own task instead:
+
+                  task :migrate_db do
+                    ENV['SEQUENT_SCHEMAS'] = 'public'
+                    Rake::Task['db:migrate'].invoke
+                  end
+
+                You can choose whatever name for migrate_db you like.
+              EOS
+            end
           end
 
           namespace :migrate do

@@ -69,19 +69,36 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
     task 'sequent_db_connect' do
       Sequent::Support::Database.connect!(ENV['RACK_ENV'])
     end
+   
+    # Create custom rake task setting the SEQUENT_MIGRATION_SCHEMAS for
+    # running the Rails migrations 
+    task :migrate_public_schema do
+      ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
+      Rake::Task['db:migrate'].invoke
+    end
+
+    # Prevent rails db:migrate from being executed directly.
+    Rake::Task['db:migrate'].enhance([:'sequent:db:dont_use_db_migrate_directly'])
     ```
+
+
+    **You can't use rails db:migrate directly** anymore since  
+    that will add all the tables of the `view_schema` and `sequent_schema`
+    to the `schema.rb` file after running a Rails migration. To fix this
+    the `rails db:migrate` must be wrapped in your own task setting the
+    environment variable `SEQUENT_MIGRATION_SCHEMAS`.
+    For safety reasons you can enchance and prepend the `rails db:migrate`
+    with Sequents `sequent:db:dont_use_db_migrate_directly` Rake task
+    so running it without `SEQUENT_MIGRATION_SCHEMAS` set will fail.
+    {: .notice--warning}
 
 6. Ensure your `database.yml` contains the schema_search_path: 
 
     ```yaml
     default:
-      schema_search_path: "public, sequent_schema, view_schema"
+      schema_search_path: <%= ENV['SEQUENT_MIGRATION_SCHEMAS'] || 'public, sequent_schema, view_schema' %>
     ```
 
-    **It is important** that `public` comes first. The first schema
-    is used by Rails ActiveRecord and will therefore contain all
-    your non event sourced tables.
-    {: .notice--warning}
 
 7. Add `./config/initializers/sequent.rb` containing at least:
 
