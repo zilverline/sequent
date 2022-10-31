@@ -454,4 +454,29 @@ describe Sequent::Core::CommandService do
       end
     end
   end
+
+  describe 'command middleware' do
+    before do
+      Sequent.configure do |config|
+        config.command_middleware.add(middleware)
+      end
+    end
+
+    after do
+      Sequent.configure do |config|
+        config.command_middleware.clear
+      end
+    end
+
+    let(:middleware) { double('middleware') }
+    let(:some_command) { TestCommandHandler::DummyCommand.new(aggregate_id: 'some-id') }
+    let(:another_command) { TestCommandHandler::DummyCommand.new(aggregate_id: 'another-id') }
+
+    it 'invokes command middleware for each command to execute' do
+      expect(middleware).to receive(:call).ordered.with(some_command)
+      expect(middleware).to receive(:call).ordered.with(another_command)
+
+      command_service.execute_commands(some_command, another_command)
+    end
+  end
 end
