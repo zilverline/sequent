@@ -22,7 +22,7 @@ Database.write_database_yml_for_test(env: 'test')
 task 'sequent:migrate:init' => [:db_connect]
 
 task 'db_connect' do
-  Sequent::Support::Database.connect!(ENV['RACK_ENV'])
+  Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
 end
 
 Bundler::GemHelper.install_tasks

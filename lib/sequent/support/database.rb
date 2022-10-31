@@ -83,7 +83,7 @@ module Sequent
         execute_sql "DROP SCHEMA if exists #{schema_name} cascade"
       end
 
-      def self.with_schema_search_path(search_path, db_config, env = ENV['RACK_ENV'])
+      def self.with_schema_search_path(search_path, db_config, env = ENV['SEQUENT_ENV'])
         fail ArgumentError, 'env is required' unless env
 
         disconnect!

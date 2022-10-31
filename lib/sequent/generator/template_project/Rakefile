@@ -1,4 +1,4 @@
-ENV['RACK_ENV'] ||= 'development'
+ENV['SEQUENT_ENV'] ||= 'development'
 
 require './my_app'
 require 'sequent/rake/migration_tasks'
@@ -8,5 +8,5 @@ Sequent::Rake::MigrationTasks.new.register_tasks!
 task "sequent:migrate:init" => [:db_connect]
 
 task "db_connect" do
-  Sequent::Support::Database.connect!(ENV['RACK_ENV'])
+  Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
 end

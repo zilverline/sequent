@@ -2,7 +2,12 @@
 
 - Changed the default type of `aggregate_id` in `sequent_schema` to `uuid` since Postgres support this for quite long.
 - Added support for applications using ActiveRecord multiple database connections feature
-**BREAKING CHANGES**: 
+- Improved out-of-the-box Rails support by fixing various bugs and providing Rake task to ease integration. See
+  for more details: https://www.sequent.io/docs/rails-sequent.html
+- Introduce `SEQUENT_ENV` instead of `RACK_ENV`. `SEQUENT_ENV` defaults to the value of `RAILS_ENV` or `RACK_ENV`.
+
+**BREAKING CHANGES**:
+
 - Renamed file of `Sequent::Test::WorkflowHelpers` to `workflow_helpers`. If you require this file manually you will need to update it's references
 - You now must "tag" specs using `Sequent::Test::WorkflowHelpers` with the following metadata `workflows: true` to avoid collision with other specs
 

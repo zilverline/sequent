@@ -62,7 +62,7 @@ describe Sequent::Generator::Project do
     Bundler.with_unbundled_env do
       system 'bash', '-cex', <<~SCRIPT
         cd blog-with_special-symbols
-        export RACK_ENV=test
+        export SEQUENT_ENV=test
 
         if which rbenv; then
           eval "$(rbenv init - bash)"

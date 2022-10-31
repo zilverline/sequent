@@ -9,7 +9,7 @@ on:
       - '**'
 
 env:
-  RACK_ENV: test
+  SEQUENT_ENV: test
   POSTGRES_USERNAME: sequent
   POSTGRES_PASSWORD: sequent
   POSTGRES_DB: sequent_spec_db

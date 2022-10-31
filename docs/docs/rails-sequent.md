@@ -51,9 +51,9 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
 5. Add the following snippet to your `Rakefile`
 
     ```ruby
-    # Sequent requires a `RACK_ENV` environment to be set
+    # Sequent requires a `SEQUENT_ENV` environment to be set
     # next to a `RAILS_ENV` 
-    ENV['RACK_ENV'] = ENV['RAILS_ENV'] ||= 'development'
+    ENV['SEQUENT_ENV'] = ENV['RAILS_ENV'] ||= 'development'
     
     require 'sequent/rake/migration_tasks'
     
@@ -67,7 +67,7 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
     task 'sequent:migrate:init' => [:sequent_db_connect]
     
     task 'sequent_db_connect' do
-      Sequent::Support::Database.connect!(ENV['RACK_ENV'])
+      Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
     end
    
     # Create custom rake task setting the SEQUENT_MIGRATION_SCHEMAS for

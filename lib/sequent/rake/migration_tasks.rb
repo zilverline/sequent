@@ -16,14 +16,25 @@ module Sequent
       def register_tasks!
         namespace :sequent do
           desc <<~EOS
-            Rake task that runs before all sequent rake tasks. Hook applications can use to for instance run other rake tasks.
+            Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
-          task :init
+          task :environment do
+            ENV['SEQUENT_ENV'] ||= RAILS['ENV'] || RACK_ENV['ENV']
+          end
+
+          desc <<~EOS
+            Rake task that runs before all sequent rake tasks and after the environment is set.#{' '}
+            Hook applications can use to for instance run other rake tasks:
+
+              Rake::Task['sequent:init'].enhance(['my_task'])
+
+          EOS
+          task init: :environment
 
           namespace :db do
             desc 'Creates the database and initializes the event_store schema for the current env'
             task create: ['sequent:init'] do
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.create!(db_config)
@@ -33,7 +44,7 @@ module Sequent
 
             desc 'Drops the database for the current env'
             task :drop, [:production] => ['sequent:init'] do |_t, args|
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
 
               if @env == 'production' && args[:production] != 'yes_drop_production'
                 fail <<~OES
@@ -47,14 +58,14 @@ module Sequent
 
             desc 'Creates the view schema for the current env'
             task create_view_schema: ['sequent:init'] do
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
 
               Sequent::Migrations::ViewSchema.create_view_schema_if_not_exists(env: @env)
             end
 
             desc 'Creates the event_store schema for the current env'
             task create_event_store: ['sequent:init'] do
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
               Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
             end
 
@@ -81,7 +92,7 @@ module Sequent
 
             desc 'Prints the current version in the database'
             task current_version: ['sequent:init', :init] do
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
 
               Sequent::Support::Database.connect!(@env)
 
@@ -92,7 +103,7 @@ module Sequent
               Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.
             EOS
             task online: ['sequent:init', :init] do
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
               view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
@@ -104,7 +115,7 @@ module Sequent
               Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.
             EOS
             task offline: ['sequent:init', :init] do
-              ensure_rack_env_set!
+              ensure_sequent_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
               view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
@@ -152,8 +163,8 @@ module Sequent
       private
 
       # rubocop:disable Naming/MemoizedInstanceVariableName
-      def ensure_rack_env_set!
-        @env ||= ENV['RACK_ENV'] || fail('RACK_ENV not set')
+      def ensure_sequent_env_set!
+        @env ||= ENV['SEQUENT_ENV'] || fail('SEQUENT_ENV not set')
       end
       # rubocop:enable Naming/MemoizedInstanceVariableName
     end

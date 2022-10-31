@@ -1,7 +1,7 @@
 require 'bundler/setup'
 Bundler.setup
 
-ENV['RACK_ENV'] ||= 'test'
+ENV['SEQUENT_ENV'] ||= 'test'
 
 require 'sequent/test'
 require 'database_cleaner'
