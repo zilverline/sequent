@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Sequent
   module Core
     module Middleware
@@ -19,7 +21,7 @@ module Sequent
         def invoke(*args, &invoker)
           chain = @entries.dup
 
-          traverse_chain = lambda do
+          traverse_chain = -> do
             if chain.empty?
               invoker.call
             else

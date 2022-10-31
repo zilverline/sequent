@@ -43,6 +43,7 @@ module Sequent
                   :event_record_hooks_class,
                   :command_handlers,
                   :command_filters,
+                  :command_middleware,
                   :event_handlers,
                   :uuid_generator,
                   :disable_event_handlers,
@@ -81,6 +82,7 @@ module Sequent
       self.command_handlers = []
       self.command_filters = []
       self.event_handlers = []
+      self.command_middleware = Sequent::Core::Middleware::Chain.new
 
       self.aggregate_repository = Sequent::Core::AggregateRepository.new
       self.event_store = Sequent::Core::EventStore.new
