@@ -19,7 +19,7 @@ module Sequent
             Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
           task :environment do
-            ENV['SEQUENT_ENV'] ||= RAILS['ENV'] || RACK_ENV['ENV']
+            ENV['SEQUENT_ENV'] ||= ENV['RAILS_ENV'] || ENV['RACK_ENV']
           end
 
           desc <<~EOS
