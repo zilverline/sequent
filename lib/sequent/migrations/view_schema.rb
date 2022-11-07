@@ -341,10 +341,11 @@ module Sequent
 
       def aggregate_id_ranges(exponent)
         fail "Exponent must be in range #{ALLOWED_REPLAY_EXPONENT}" unless ALLOWED_REPLAY_EXPONENT.include? exponent
-        all_prefixes = (0...16**exponent).map do |i|
-          prefix = "%0*x" % [exponent, i]
-          lowerbound = prefix + '00000000-0000-0000-0000-000000000000'[exponent .. -1]
-          upperbound = prefix + 'ffffffff-ffff-ffff-ffff-ffffffffffff'[exponent .. -1]
+
+        (0...16**exponent).map do |i|
+          prefix = format('%0*x', exponent, i)
+          lowerbound = prefix + '00000000-0000-0000-0000-000000000000'[exponent..-1]
+          upperbound = prefix + 'ffffffff-ffff-ffff-ffff-ffffffffffff'[exponent..-1]
           (lowerbound .. upperbound)
         end
       end
@@ -397,8 +398,9 @@ module Sequent
       end
 
       def event_stream(aggregate_id_range, event_types, exclude_already_replayed)
-        event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
-        event_stream = event_stream.where('aggregate_id BETWEEN ? AND ?', aggregate_id_range.first, aggregate_id_range.last)
+        event_stream = Sequent.configuration.event_record_class
+          .where(event_type: event_types)
+          .where('aggregate_id BETWEEN ? AND ?', aggregate_id_range.first, aggregate_id_range.last)
         if exclude_already_replayed
           event_stream = event_stream
             .where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)")
