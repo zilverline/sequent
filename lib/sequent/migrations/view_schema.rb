@@ -60,15 +60,7 @@ module Sequent
     #
     # end
     class ViewSchema
-      # Corresponds with the index on aggregate_id column in the event_records table
-      #
-      # Since we replay in batches of the first 3 chars of the uuid we created an index on
-      # these 3 characters. Hence the name ;-)
-      #
-      # This also means that the online replay is divided up into 16**3 groups
-      # This might seem a lot for starting event store, but when you will get more
-      # events, you will see that this is pretty good partitioned.
-      LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE = 3
+      ALLOWED_REPLAY_EXPONENT = (1..4)
 
       include Sequent::Util::Timer
       include Sequent::Util::Printer
@@ -288,29 +280,29 @@ module Sequent
         with_sequent_config(replay_persistor, projectors) do
           logger.info 'Start replaying events'
 
-          time("#{16**group_exponent} groups replayed") do
+          number_of_groups = 16**group_exponent
+          time("#{number_of_groups} groups replayed") do
             event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
 
-            number_of_groups = 16**group_exponent
-            groups = groups_of_aggregate_id_prefixes(number_of_groups)
+            groups = aggregate_id_ranges(group_exponent)
 
             @connected = false
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
             result = Parallel.map_with_index(
               groups,
               in_processes: Sequent.configuration.number_of_replay_processes,
-            ) do |aggregate_prefixes, index|
+            ) do |aggregate_id_range, index|
               @connected ||= establish_connection
               msg = <<~EOS.chomp
-                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed
+                Group (#{aggregate_id_range.first}-#{aggregate_id_range.last}) #{index + 1}/#{number_of_groups} replayed
               EOS
               time(msg) do
-                replay_events(aggregate_prefixes, event_types, exclude_ids, replay_persistor, &insert_ids)
+                replay_events(aggregate_id_range, event_types, exclude_ids, replay_persistor, &insert_ids)
               end
               nil
             rescue StandardError => e
-              logger.error "Replaying failed for ids: ^#{aggregate_prefixes.first} - #{aggregate_prefixes.last}"
+              logger.error "Replaying failed for ids: ^#{aggregate_id_range.first} - #{aggregate_id_range.last}"
               logger.error '+++++++++++++++ ERROR +++++++++++++++'
               recursively_print(e)
               raise Parallel::Kill # immediately kill all sub-processes
@@ -321,10 +313,10 @@ module Sequent
         end
       end
 
-      def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, replay_persistor, &on_progress)
+      def replay_events(aggregate_id_range, event_types, exclude_already_replayed, replay_persistor, &on_progress)
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
-          get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
+          get_events: -> { event_stream(aggregate_id_range, event_types, exclude_already_replayed) },
           on_progress: on_progress,
         )
 
@@ -347,20 +339,14 @@ module Sequent
         exec_sql("truncate table #{ReplayedIds.table_name}")
       end
 
-      def groups_of_aggregate_id_prefixes(number_of_groups)
-        all_prefixes = (0...16**LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE).to_a.map do |i|
-          i.to_s(16)
+      def aggregate_id_ranges(exponent)
+        fail "Exponent must be in range #{ALLOWED_REPLAY_EXPONENT}" unless ALLOWED_REPLAY_EXPONENT.include? exponent
+        all_prefixes = (0...16**exponent).map do |i|
+          prefix = "%0*x" % [exponent, i]
+          lowerbound = prefix + '00000000-0000-0000-0000-000000000000'[exponent .. -1]
+          upperbound = prefix + 'ffffffff-ffff-ffff-ffff-ffffffffffff'[exponent .. -1]
+          (lowerbound .. upperbound)
         end
-        all_prefixes = all_prefixes.map { |s| s.length == 3 ? s : "#{'0' * (3 - s.length)}#{s}" }
-
-        logger.info "Number of groups #{number_of_groups}"
-
-        logger.debug "Prefixes: #{all_prefixes.length}"
-        if number_of_groups > all_prefixes.length
-          fail "Can not have more groups #{number_of_groups} than number of prefixes #{all_prefixes.length}"
-        end
-
-        all_prefixes.each_slice(all_prefixes.length / number_of_groups).to_a
       end
 
       def in_view_schema(&block)
@@ -410,13 +396,9 @@ module Sequent
         Sequent::Configuration.restore(old_config)
       end
 
-      def event_stream(aggregate_prefixes, event_types, exclude_already_replayed)
-        fail ArgumentError, 'aggregate_prefixes is mandatory' unless aggregate_prefixes.present?
-
+      def event_stream(aggregate_id_range, event_types, exclude_already_replayed)
         event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
-        event_stream = event_stream.where(<<~SQL, aggregate_prefixes)
-          substring(aggregate_id::varchar from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)
-        SQL
+        event_stream = event_stream.where('aggregate_id BETWEEN ? AND ?', aggregate_id_range.first, aggregate_id_range.last)
         if exclude_already_replayed
           event_stream = event_stream
             .where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)")
