@@ -99,8 +99,15 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
       schema_search_path: <%= ENV['SEQUENT_MIGRATION_SCHEMAS'] || 'public, sequent_schema, view_schema' %>
     ```
 
+7. Enable eager loading on all environments
 
-7. Add `./config/initializers/sequent.rb` containing at least:
+Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
+`AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
+For this to work properly all classes must be eager loaded otherwise code depending on this fact might
+produce unpredictable results. So set the `config.eager_load` to `true` for all environments 
+(in production the Rails default is already `true`).
+
+8. Add `./config/initializers/sequent.rb` containing at least:
 
     ```ruby
     require_relative '../../db/sequent_migrations'
@@ -114,7 +121,7 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
         ]
     
         config.event_handlers = [
-          # add you Sequent::Projector's or Sequent::Workflows's here
+          # add you Sequent::Projector's or Sequent::Workflow's here
         ]
 
         config.database_config_directory = 'config'
@@ -128,7 +135,7 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
     **You must** wrap the sequent initializer code in `Rails.application.reloader.to_prepare` because during
     initialization the autoloading didn't run yet.
 
-8. Run the following commands to create the `sequent_schema` and `view_schema`  
+9. Run the following commands to create the `sequent_schema` and `view_schema`  
 
     ```bash
     bundle exec rake sequent:db:create_event_store
@@ -139,7 +146,51 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
     bundle exec rake sequent:migrate:offline    
     ```
 
-9. `rails s`
+10. `rails s`
+
+
+### Where to put your domain classes
+
+As said earlier Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk) for autoloading and reloading. To ensure your domain classes will also benefit from
+this feature put them under a subdirectory of the `app` folder and adhere to the naming Rails conventions.
+
+One caveat is that you will quickly notice that this leads to an explosion of small files containing the `Event`s and `Command`s.
+The preference of the Sequent team is to group all `Event`s and `Command`s in a single file (e.g. `events|commands.rb`).
+Luckily in Zeitwerk this is still possible. As an example folder structure:
+
+```
+app/
+  controllers/
+  models/
+  domain/ # <- you can pick any name
+    banking/ # <- optional subdirectory
+      bank_account.rb
+      events.rb
+      command_handler.rb
+```
+
+In the above example the `bank_account.rb` contains the `AggregateRoot` and looks as follows:
+
+```ruby
+module Banking # <- corresponds to the subdirectory banking
+   class BankAccount < Sequent::AggregateRoot
+   end
+end
+```
+
+The `events.rb` file:
+
+```ruby
+module Banking
+   module Events # <- because our file is called `events.rb` it expects a module Events to exist.
+      class BankAccountCreated < Sequent::Event; end
+      class BankAccountClosed < Sequent::Event; end
+   end
+end
+```
+
+The "downside" here is that you need to introduce an extra layer of naming to be able to group your events
+in a single file. 
 
 ### Rails Engines
 
