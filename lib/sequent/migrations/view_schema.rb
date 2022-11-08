@@ -346,7 +346,7 @@ module Sequent
           prefix = format('%0*x', exponent, i)
           lowerbound = prefix + '00000000-0000-0000-0000-000000000000'[exponent..-1]
           upperbound = prefix + 'ffffffff-ffff-ffff-ffff-ffffffffffff'[exponent..-1]
-          (lowerbound .. upperbound)
+          (lowerbound..upperbound)
         end
       end
 
