@@ -422,7 +422,9 @@ module Sequent
             .where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)")
         end
         event_stream = event_stream.where('event_records.created_at > ?', 1.day.ago) if exclude_already_replayed
-        event_stream.order('sequence_number ASC').select('id, event_type, event_json, sequence_number')
+        event_stream
+          .order('aggregate_id ASC, sequence_number ASC')
+          .select('id, event_type, event_json, sequence_number')
       end
 
       ## shortcut methods
