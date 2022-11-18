@@ -100,11 +100,11 @@ LANGUAGE plpgsql;
 }
 
   execute %q{
-CREATE OR REPLACE PROCEDURE store_events(_command_record_id command_records.id%TYPE, _streams_with_events JSONB) AS
+CREATE OR REPLACE PROCEDURE store_events(_command_record_id command_records.id%TYPE, _aggregates_with_events JSONB) AS
 $$
 DECLARE
-  _stream JSONB;
-  _stream_without_nulls JSONB;
+  _aggregate JSONB;
+  _aggregate_without_nulls JSONB;
   _events JSONB;
   _event JSONB;
   _aggregate_id stream_records.aggregate_id%TYPE;
@@ -113,21 +113,21 @@ DECLARE
   _snapshot_threshold stream_records.snapshot_threshold%TYPE;
   _sequence_number event_records.sequence_number%TYPE;
 BEGIN
-  FOR _stream, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_streams_with_events) AS row LOOP
-    _aggregate_id = _stream->>'aggregate_id';
-    _stream_without_nulls = jsonb_strip_nulls(_stream);
-    _snapshot_threshold = _stream_without_nulls->'snapshot_threshold';
+  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
+    _aggregate_id = _aggregate->>'aggregate_id';
+    _aggregate_without_nulls = jsonb_strip_nulls(_aggregate);
+    _snapshot_threshold = _aggregate_without_nulls->'snapshot_threshold';
 
     SELECT id INTO _stream_record_id FROM stream_records WHERE aggregate_id = _aggregate_id;
     IF NOT FOUND THEN
       _created_at = _events->0->'created_at';
       _sequence_number = _events->0->'sequence_number';
       IF _sequence_number <> 1 THEN
-        RAISE EXCEPTION 'sequence number of first event new stream must be 1, was %', _sequence_number;
+        RAISE EXCEPTION 'sequence number of first event new aggregate must be 1, was %', _sequence_number;
       END IF;
 
       INSERT INTO stream_records (created_at, aggregate_type, aggregate_id, snapshot_threshold)
-           VALUES (_created_at, _stream->>'aggregate_type', _aggregate_id, _snapshot_threshold)
+           VALUES (_created_at, _aggregate->>'aggregate_type', _aggregate_id, _snapshot_threshold)
         RETURNING id
              INTO STRICT _stream_record_id;
     END IF;
