@@ -92,7 +92,7 @@ class User < Sequent::AggregateRoot
   end
 
   on UserNameSet do |event|
-    @name = name
+    @name = event.name
   end
 end
 ```
