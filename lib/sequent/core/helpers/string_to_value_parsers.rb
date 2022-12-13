@@ -16,6 +16,7 @@ module Sequent
           ::Boolean => ->(value) { parse_to_bool(value) },
           ::Date => ->(value) { parse_to_date(value) },
           ::DateTime => ->(value) { parse_to_date_time(value) },
+          ::Time => ->(value) { parse_to_time(value) },
           ::Sequent::Core::Helpers::ArrayWithType => ->(values, type_in_array) { parse_array(values, type_in_array) },
           ::Sequent::Core::Helpers::Secret => ->(value) { Sequent::Core::Helpers::Secret.new(value).encrypt },
         }.freeze
@@ -50,6 +51,10 @@ module Sequent
 
         def self.parse_to_date_time(value)
           value.is_a?(DateTime) ? value : DateTime.deserialize_from_json(value)
+        end
+
+        def self.parse_to_time(value)
+          value.is_a?(Time) ? value : Time.deserialize_from_json(value)
         end
 
         def self.parse_array(values, type_in_array)

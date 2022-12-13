@@ -6,6 +6,7 @@ require_relative 'array_with_type'
 require_relative 'default_validators'
 require_relative 'type_conversion_support'
 require_relative 'date_time_validator'
+require_relative 'time_validator'
 require_relative 'association_validator'
 
 module Sequent

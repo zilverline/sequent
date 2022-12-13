@@ -68,6 +68,18 @@ class DateTime
   end
 end
 
+class Time
+  def self.from_params(value)
+    value.blank? ? nil : Time.iso8601(value.dup)
+  rescue ArgumentError
+    value
+  end
+
+  def self.deserialize_from_json(value)
+    value.blank? ? nil : Time.iso8601(value.dup)
+  end
+end
+
 class Array
   def self.deserialize_from_json(value)
     value

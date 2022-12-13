@@ -29,13 +29,13 @@ module Sequent
       include ActiveModel::Validations::Callbacks
       include Sequent::Core::Helpers::TypeConversionSupport
 
-      attrs created_at: DateTime
+      attrs created_at: Time
 
       define_model_callbacks :initialize, only: :after
 
       def initialize(args = {})
         update_all_attributes args
-        @created_at = DateTime.now
+        @created_at = Time.now
 
         _run_initialize_callbacks
       end

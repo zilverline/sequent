@@ -1,13 +1,18 @@
-# Changelog 5.x (changes since 5.0.0)
+# Changelog 6.x (changes since 5.0.0)
 
 - Changed the default type of `aggregate_id` in `sequent_schema` to `uuid` since Postgres support this for quite long.
 - Added support for applications using ActiveRecord multiple database connections feature
 - Improved out-of-the-box Rails support by fixing various bugs and providing Rake task to ease integration. See
   for more details: https://www.sequent.io/docs/rails-sequent.html
 - Introduce `SEQUENT_ENV` instead of `RACK_ENV`. `SEQUENT_ENV` defaults to the value of `RAILS_ENV` or `RACK_ENV`.
+- Introduce `Sequent.configuration.time_precision` which defaults to `ActiveSupport::JSON::Encoding.time_precision`
+  which is the precision "after seconds" to store time in json format when an event is serialized.
 
 **BREAKING CHANGES**:
 
+- Since `DateTime` is deprecated in the Ruby std lib the standard attribute `created_at` of `Event` and `Command` is now a `Time`.
+  This should not be a problem when serializing an deserializing but might be breaking in your could if you rely on the fact
+  it being a `DateTime` rather then a `Time`.
 - Renamed file of `Sequent::Test::WorkflowHelpers` to `workflow_helpers`. If you require this file manually you will need to update it's references
 - You now must "tag" specs using `Sequent::Test::WorkflowHelpers` with the following metadata `workflows: true` to avoid collision with other specs
 
