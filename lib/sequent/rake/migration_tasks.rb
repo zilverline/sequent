@@ -18,18 +18,18 @@ module Sequent
           desc <<~EOS
             Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
-          task :environment do
+          task :set_env_var do
             ENV['SEQUENT_ENV'] ||= ENV['RAILS_ENV'] || ENV['RACK_ENV']
           end
 
           desc <<~EOS
-            Rake task that runs before all sequent rake tasks and after the environment is set.#{' '}
+            Rake task that runs before all sequent rake tasks and after the environment is set.
             Hook applications can use to for instance run other rake tasks:
 
               Rake::Task['sequent:init'].enhance(['my_task'])
 
           EOS
-          task init: :environment
+          task init: :set_env_var
 
           namespace :db do
             desc 'Creates the database and initializes the event_store schema for the current env'
