@@ -114,4 +114,14 @@ describe Sequent::Core::Event do
       expect(event.attributes[:owner]).to_not have_key(:validation_context)
     end
   end
+
+  context 'created_at time' do
+    it 'will allow dates when already stored' do
+      event = {created_at: Date.new(2022, 1, 1), sequence_number: 1, aggregate_id: '1'}
+      deserialized_event = Sequent::Core::Event.deserialize_from_json(
+        Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)),
+      )
+      expect(deserialized_event.created_at).to eq Time.parse('2022-01-01')
+    end
+  end
 end

@@ -77,6 +77,10 @@ class Time
 
   def self.deserialize_from_json(value)
     value.blank? ? nil : Time.iso8601(value.dup)
+  rescue ArgumentError => e
+    return Time.parse(value.dup) if e.message =~ /invalid xmlschema format/
+
+    raise
   end
 end
 
