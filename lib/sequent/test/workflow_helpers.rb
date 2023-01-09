@@ -78,7 +78,9 @@ module Sequent
       end
 
       def when_event(event)
-        workflow.handle_message event
+        fake_transaction_provider.transactional do
+          workflow.handle_message event
+        end
       end
 
       def then_commands(*commands)
