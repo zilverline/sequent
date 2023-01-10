@@ -26,8 +26,21 @@ module Sequent
         end
       end
 
-      def initialize
-        @event_types = ThreadSafe::Cache.new
+      ##
+      # Disables event type caching (ie. for in development).
+      #
+      class NoEventTypesCache
+        def fetch_or_store(event_type)
+          yield(event_type)
+        end
+      end
+
+      def initialize(cache_event_types: true)
+        @event_types = if cache_event_types
+                         ThreadSafe::Cache.new
+                       else
+                         NoEventTypesCache.new
+                       end
       end
 
       ##

@@ -177,6 +177,33 @@ describe Sequent::Core::EventStore do
       expect(stream).to be
       expect(events).to be
     end
+
+    context 'and event type caching disabled' do
+      let(:event_store) { Sequent::Core::EventStore.new(cache_event_types: false) }
+
+      it 'returns the stream and events for existing aggregates' do
+        event_store.commit_events(
+          Sequent::Core::CommandRecord.new,
+          [
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            ],
+          ],
+        )
+        stream, events = event_store.load_events(aggregate_id)
+        expect(stream).to be
+        expect(events).to eq([MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)])
+
+        # redefine MyEvent class (ie. simulate Rails auto-loading)
+        OldMyEvent = MyEvent
+        MyEvent = Class.new(Sequent::Core::Event)
+
+        stream, events = event_store.load_events(aggregate_id)
+        expect(stream).to be
+        expect(events).to eq([MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)])
+      end
+    end
   end
 
   describe '#load_events_for_aggregates' do
