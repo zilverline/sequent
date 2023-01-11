@@ -17,11 +17,8 @@ module Sequent
         # omit nsec in datetime comparisons
         def <=>(other)
           if other&.is_a?(DateTimePatches::Normalize)
-            result = normalize.iso8601 <=> other.normalize.iso8601
-            return result unless result == 0
-
-            # use usec here, which *truncates* the nsec (ie. like Postgres)
-            return normalize.usec <=> other.normalize.usec
+            precision = Sequent.configuration.time_precision
+            return normalize.iso8601(precision) <=> other.normalize.iso8601(precision)
           end
           public_send(:'___<=>', other)
         end

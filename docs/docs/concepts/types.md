@@ -17,6 +17,7 @@ Out of the box Sequent supports the following types:
 1. [Integer](#integer)
 1. [Date](#date)
 1. [DateTime](#datetime)
+1. [Time](#time)
 1. [Boolean](#boolean)
 1. [Symbol](#symbol)
 1. [ValueObjects](#valueobjects)
@@ -58,9 +59,19 @@ a Command is passed to the [CommandService](command-service.html).
 
 ## DateTime
 
+**DEPRECATED** Use `Time` instead
+
 Usage `attrs created_at: DateTime`
 
 Accepts all `DateTime` objects. To accommodate user input valid
+iso8601 datetime Strings are parsed automatically when
+a Command is passed to the CommandService.
+
+## Time
+
+Usage `attrs created_at: Time`
+
+Accepts all `Time` objects. To accommodate user input valid
 iso8601 datetime Strings are parsed automatically when
 a Command is passed to the CommandService.
 

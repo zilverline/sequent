@@ -83,6 +83,8 @@ module Sequent
             val.iso8601
           elsif val.is_a? Date
             val.iso8601
+          elsif val.is_a? Time
+            val.iso8601(Sequent.configuration.time_precision)
           else
             val
           end
