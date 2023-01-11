@@ -11,8 +11,8 @@
 **BREAKING CHANGES**:
 
 - Since `DateTime` is deprecated in the Ruby std lib the standard attribute `created_at` of `Event` and `Command` is now a `Time`.
-  This should not be a problem when serializing an deserializing but might be breaking in your could if you rely on the fact
-  it being a `DateTime` rather then a `Time`.
+  This should not be a problem when serializing an deserializing but might be breaking if you rely on the fact
+  it being a `DateTime` rather than a `Time`.
 - Renamed file of `Sequent::Test::WorkflowHelpers` to `workflow_helpers`. If you require this file manually you will need to update it's references
 - You now must "tag" specs using `Sequent::Test::WorkflowHelpers` with the following metadata `workflows: true` to avoid collision with other specs
 
