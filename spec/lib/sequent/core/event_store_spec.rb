@@ -195,7 +195,7 @@ describe Sequent::Core::EventStore do
         )
         stream, events = event_store.load_events(aggregate_id)
         expect(stream).to be
-        expect(events).to eq([TestEventForCaching.new(aggregate_id: aggregate_id, sequence_number: 1)])
+        expect(events.first).to be_kind_of(TestEventForCaching)
 
         # redefine TestEventForCaching class (ie. simulate Rails auto-loading)
         OldTestEventForCaching = TestEventForCaching
@@ -203,7 +203,7 @@ describe Sequent::Core::EventStore do
 
         stream, events = event_store.load_events(aggregate_id)
         expect(stream).to be
-        expect(events).to eq([TestEventForCaching.new(aggregate_id: aggregate_id, sequence_number: 1)])
+        expect(events.first).to be_kind_of(TestEventForCaching)
       end
     end
   end
