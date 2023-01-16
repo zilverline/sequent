@@ -39,13 +39,9 @@ module Sequent
       include Helpers::MessageHandler
       include Helpers::AutosetAttributes
       include SnapshotConfiguration
+      extend ActiveSupport::DescendantsTracker
 
       attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
-
-      def self.inherited(subclass)
-        super
-        AggregateRoots << subclass
-      end
 
       def self.load_from_history(stream, events)
         first, *rest = events
