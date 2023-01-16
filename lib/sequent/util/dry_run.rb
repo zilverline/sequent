@@ -66,7 +66,7 @@ module Sequent
         end
 
         def process_event(event)
-          [*Sequent::Core::Workflows.all, *Sequent::Core::Projector.descendants].each do |handler_class|
+          [*Sequent::Core::Workflow.descendants, *Sequent::Core::Projector.descendants].each do |handler_class|
             next unless handler_class.handles_message?(event)
 
             if handler_class < Sequent::Workflow
