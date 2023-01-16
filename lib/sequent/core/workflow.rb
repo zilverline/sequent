@@ -7,11 +7,7 @@ module Sequent
   module Core
     class Workflow
       include Helpers::MessageHandler
-
-      def self.inherited(subclass)
-        super
-        Workflows << subclass
-      end
+      extend ActiveSupport::DescendantsTracker
 
       def self.on(*args, **opts, &block)
         decorated_block = ->(event) do
@@ -49,20 +45,25 @@ module Sequent
     end
 
     #
-    # Utility class containing all subclasses of Workflow
+    # Utility class containing all subclasses of Workflow.
+    #
+    # WARNING: This class is deprecated and will be removed in the next major release.
+    # Please use Sequent::Workflow.descendants instead.
     #
     class Workflows
       class << self
         def workflows
-          @workflows ||= []
+          ActiveSupport::Deprecation.warn(<<-MSG.squish)
+            Sequent::Core::Workflows is deprecated and will be removed in the next major release.
+
+            Use Sequent::Workflow.descendants instead.
+          MSG
+
+          Sequent::Workflow.descendants
         end
 
         def all
           workflows
-        end
-
-        def <<(workflow)
-          workflows << workflow
         end
 
         def find(workflow_name)
