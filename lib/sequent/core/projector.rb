@@ -92,11 +92,6 @@ module Sequent
         @persistor = persistor
       end
 
-      def self.inherited(subclass)
-        super
-        Projectors << subclass
-      end
-
       def self.replay_persistor
         nil
       end
@@ -132,20 +127,25 @@ module Sequent
     end
 
     #
-    # Utility class containing all subclasses of Projector
+    # Utility class containing all subclasses of Projector.
+    #
+    # WARNING: This class is deprecated and will be removed in the next major release.
+    # Please use Sequent::Projector.descendants instead.
     #
     class Projectors
       class << self
         def projectors
-          @projectors ||= []
+          ActiveSupport::Deprecation.warn(<<-MSG.squish)
+            Sequent::Core::Projectors is deprecated and will be removed in the next major release.
+
+            Use Sequent::Projector.descendants instead.
+          MSG
+
+          Sequent::Projector.descendants
         end
 
         def all
           projectors
-        end
-
-        def <<(projector)
-          projectors << projector
         end
 
         def find(projector_name)
