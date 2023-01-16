@@ -57,7 +57,7 @@ describe 'dry run' do
 
     before :each do
       allow(Sequent::Core::Workflows).to receive(:all).and_return([workflow])
-      allow(Sequent::Core::Projectors).to receive(:all).and_return([projector, projector_2])
+      allow(Sequent::Core::Projector).to receive(:descendants).and_return([projector, projector_2])
       # stub for current_event_store declaration in DryRun.these_commands method
       allow(Sequent.configuration)
         .to receive(:event_store)
