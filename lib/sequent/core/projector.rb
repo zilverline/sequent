@@ -86,6 +86,7 @@ module Sequent
       extend Forwardable
       include Helpers::MessageHandler
       include Migratable
+      extend ActiveSupport::DescendantsTracker
 
       def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
         ensure_valid!
