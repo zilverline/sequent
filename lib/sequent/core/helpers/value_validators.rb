@@ -16,6 +16,7 @@ module Sequent
           ::Integer => ->(value) { valid_integer?(value) },
           ::Boolean => ->(value) { valid_bool?(value) },
           ::Date => ->(value) { valid_date?(value) },
+          ::Time => ->(value) { valid_time?(value) },
           ::DateTime => ->(value) { valid_date_time?(value) },
         }.freeze
 
@@ -48,6 +49,16 @@ module Sequent
 
           begin
             value.is_a?(DateTime) || !!DateTime.iso8601(value.dup)
+          rescue StandardError
+            false
+          end
+        end
+
+        def self.valid_time?(value)
+          return true if value.blank?
+
+          begin
+            value.is_a?(Time) || !!Time.iso8601(value.dup)
           rescue StandardError
             false
           end

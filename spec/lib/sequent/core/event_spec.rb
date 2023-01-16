@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require_relative '../../../fixtures/for_attribute_support'
+require 'sequent/test/time_comparison'
 
 describe Sequent::Core::Event do
   class TestEventEvent < Sequent::Core::Event
@@ -45,7 +46,8 @@ describe Sequent::Core::Event do
 
   it 'events are equal when deserialized from same attributes' do
     event1 = TestEventEvent.new(aggregate_id: 'foo', organization_id: 'bar', sequence_number: 1)
-    created_at = event1.created_at.iso8601
+    created_at = event1.created_at.iso8601(Sequent.configuration.time_precision)
+
     event2 = TestEventEvent.deserialize_from_json(
       'aggregate_id' => 'foo',
       'organization_id' => 'bar',
@@ -110,6 +112,16 @@ describe Sequent::Core::Event do
       event = TestEventEvent.new(aggregate_id: '1', sequence_number: 2, organization_id: '3', owner: person)
       expect(event.attributes[:owner]).to_not have_key(:errors)
       expect(event.attributes[:owner]).to_not have_key(:validation_context)
+    end
+  end
+
+  context 'created_at time' do
+    it 'will allow dates when already stored' do
+      event = {created_at: Date.new(2022, 1, 1), sequence_number: 1, aggregate_id: '1'}
+      deserialized_event = Sequent::Core::Event.deserialize_from_json(
+        Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)),
+      )
+      expect(deserialized_event.created_at).to eq Time.parse('2022-01-01')
     end
   end
 end

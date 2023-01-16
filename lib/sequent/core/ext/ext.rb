@@ -68,6 +68,23 @@ class DateTime
   end
 end
 
+class Time
+  def self.from_params(value)
+    value.blank? ? nil : Time.iso8601(value.dup)
+  rescue ArgumentError
+    value
+  end
+
+  def self.deserialize_from_json(value)
+    value.blank? ? nil : Time.iso8601(value.dup)
+  rescue ArgumentError => e
+    return Time.parse(value.dup) if e.message =~ /invalid xmlschema format/ # ruby >= 3
+    return Time.parse(value.dup) if e.message =~ /invalid date:/ # ruby 2.7
+
+    raise
+  end
+end
+
 class Array
   def self.deserialize_from_json(value)
     value

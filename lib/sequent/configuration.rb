@@ -32,6 +32,8 @@ module Sequent
 
     DEFAULT_ERROR_LOCALE_RESOLVER = -> { I18n.locale || :en }
 
+    DEFAULT_TIME_PRECISION = ActiveSupport::JSON::Encoding.time_precision
+
     attr_accessor :aggregate_repository,
                   :event_store,
                   :command_service,
@@ -59,7 +61,8 @@ module Sequent
                   :strict_check_attributes_on_apply_events,
                   :enable_multiple_database_support,
                   :primary_database_role,
-                  :primary_database_key
+                  :primary_database_key,
+                  :time_precision
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -114,6 +117,8 @@ module Sequent
       self.enable_multiple_database_support = false
       self.primary_database_role = :writing
       self.primary_database_key = :primary
+
+      self.time_precision = DEFAULT_TIME_PRECISION
     end
 
     def can_use_multiple_databases?

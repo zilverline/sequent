@@ -17,6 +17,9 @@ module Sequent
           Date => ->(klass, field) do
             klass.validates field, 'sequent::Core::Helpers::Date' => true
           end,
+          Time => ->(klass, field) do
+            klass.validates field, 'sequent::Core::Helpers::Time' => true
+          end,
           DateTime => ->(klass, field) do
             klass.validates field, 'sequent::Core::Helpers::DateTime' => true
           end,

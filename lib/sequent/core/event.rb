@@ -13,14 +13,14 @@ module Sequent
       include Sequent::Core::Helpers::AttributeSupport
       include Sequent::Core::Helpers::EqualSupport
       include Sequent::Core::Helpers::StringSupport
-      attrs aggregate_id: String, sequence_number: Integer, created_at: DateTime
+      attrs aggregate_id: String, sequence_number: Integer, created_at: Time
 
       def initialize(args = {})
         update_all_attributes args
         fail 'Missing aggregate_id' unless @aggregate_id
         fail 'Missing sequence_number' unless @sequence_number
 
-        @created_at ||= DateTime.now
+        @created_at ||= Time.now
       end
 
       def payload

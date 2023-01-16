@@ -127,7 +127,7 @@ module Sequent
       # Provide subclasses nice DSL to 'apply' events via:
       #
       #   def send_invoice
-      #     apply InvoiceSentEvent, send_date: DateTime.now
+      #     apply InvoiceSentEvent, send_date: Time.now
       #   end
       #
       def apply(event, params = {})
