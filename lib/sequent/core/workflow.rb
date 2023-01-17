@@ -47,18 +47,9 @@ module Sequent
     #
     # Utility class containing all subclasses of Workflow.
     #
-    # WARNING: This class is deprecated and will be removed in the next major release.
-    # Please use Sequent::Workflow.descendants instead.
-    #
     class Workflows
       class << self
         def workflows
-          ActiveSupport::Deprecation.warn(<<-MSG.squish)
-            Sequent::Core::Workflows is deprecated and will be removed in the next major release.
-
-            Use Sequent::Workflow.descendants instead.
-          MSG
-
           Sequent::Workflow.descendants
         end
 

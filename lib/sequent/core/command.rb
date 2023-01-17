@@ -58,18 +58,9 @@ module Sequent
     #
     # Utility class containing all subclasses of BaseCommand.
     #
-    # WARNING: This class is deprecated and will be removed in the next major release.
-    # Please use Sequent::Core::BaseCommand.descendants instead.
-    #
     class Commands
       class << self
         def commands
-          ActiveSupport::Deprecation.warn(<<-MSG.squish)
-            Sequent::Core::Commands is deprecated and will be removed in the next major release.
-
-            Use Sequent::Core::BaseCommand.descendants instead.
-          MSG
-
           Sequent::Core::BaseCommand.descendants
         end
 

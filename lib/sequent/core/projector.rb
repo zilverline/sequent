@@ -130,18 +130,9 @@ module Sequent
     #
     # Utility class containing all subclasses of Projector.
     #
-    # WARNING: This class is deprecated and will be removed in the next major release.
-    # Please use Sequent::Projector.descendants instead.
-    #
     class Projectors
       class << self
         def projectors
-          ActiveSupport::Deprecation.warn(<<-MSG.squish)
-            Sequent::Core::Projectors is deprecated and will be removed in the next major release.
-
-            Use Sequent::Projector.descendants instead.
-          MSG
-
           Sequent::Projector.descendants
         end
 
