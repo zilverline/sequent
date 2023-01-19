@@ -92,6 +92,9 @@ Events (ordered as they occurred) as a result from the Command `MarkInvoicesPaid
 
 You can add middleware to the CommandService. You can use this to execute code before and after a command is executed.
 You can add multiple middlewares to the CommandService. The order in which they are executed is the order in which they are added.
+Each middleware is executed once per execution of a command.
+
+Each middleware needs to quack to `def call(command)`. For example:
 
 ```ruby
 class LoggingCommandMiddleware
