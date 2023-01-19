@@ -7,11 +7,7 @@ module Sequent
   module Core
     class Workflow
       include Helpers::MessageHandler
-
-      def self.inherited(subclass)
-        super
-        Workflows << subclass
-      end
+      extend ActiveSupport::DescendantsTracker
 
       def self.on(*args, **opts, &block)
         decorated_block = ->(event) do
@@ -49,20 +45,16 @@ module Sequent
     end
 
     #
-    # Utility class containing all subclasses of Workflow
+    # Utility class containing all subclasses of Workflow.
     #
     class Workflows
       class << self
         def workflows
-          @workflows ||= []
+          Sequent::Workflow.descendants
         end
 
         def all
           workflows
-        end
-
-        def <<(workflow)
-          workflows << workflow
         end
 
         def find(workflow_name)

@@ -86,15 +86,11 @@ module Sequent
       extend Forwardable
       include Helpers::MessageHandler
       include Migratable
+      extend ActiveSupport::DescendantsTracker
 
       def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
         ensure_valid!
         @persistor = persistor
-      end
-
-      def self.inherited(subclass)
-        super
-        Projectors << subclass
       end
 
       def self.replay_persistor
@@ -132,20 +128,16 @@ module Sequent
     end
 
     #
-    # Utility class containing all subclasses of Projector
+    # Utility class containing all subclasses of Projector.
     #
     class Projectors
       class << self
         def projectors
-          @projectors ||= []
+          Sequent::Projector.descendants
         end
 
         def all
           projectors
-        end
-
-        def <<(projector)
-          projectors << projector
         end
 
         def find(projector_name)

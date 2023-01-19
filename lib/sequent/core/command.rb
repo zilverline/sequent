@@ -28,6 +28,7 @@ module Sequent
       include ActiveModel::Validations
       include ActiveModel::Validations::Callbacks
       include Sequent::Core::Helpers::TypeConversionSupport
+      extend ActiveSupport::DescendantsTracker
 
       attrs created_at: Time
 
@@ -38,11 +39,6 @@ module Sequent
         @created_at = Time.now
 
         _run_initialize_callbacks
-      end
-
-      def self.inherited(subclass)
-        super
-        Commands << subclass
       end
     end
 
@@ -60,20 +56,16 @@ module Sequent
     end
 
     #
-    # Utility class containing all subclasses of BaseCommand
+    # Utility class containing all subclasses of BaseCommand.
     #
     class Commands
       class << self
         def commands
-          @commands ||= []
+          Sequent::Core::BaseCommand.descendants
         end
 
         def all
           commands
-        end
-
-        def <<(command)
-          commands << command
         end
 
         def find(command_name)
