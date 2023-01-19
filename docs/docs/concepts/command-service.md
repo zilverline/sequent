@@ -87,3 +87,28 @@ Given the above example the order in which the events are published is:
 
 Since `invoice_1` is loaded first from the AggregateRepository all it's
 Events (ordered as they occurred) as a result from the Command `MarkInvoicesPaid` will be published first. Then all events from `invoice_2` will be published.
+
+## Middleware
+
+You can add middleware to the CommandService. You can use this to execute code before and after a command is executed.
+You can add multiple middlewares to the CommandService. The order in which they are executed is the order in which they are added.
+
+```ruby
+class LoggingCommandMiddleware
+  def call(command)
+    puts "Before executing command #{command}"
+
+    yield # Don't forget to yield (this will call the next middleware in the chain (or execute the command when last in the chain)) 
+  rescue StandardError => e
+    puts "Error executing command #{command}"
+
+    raise e
+  ensure
+    puts "After executing command #{command}"
+  end
+end
+
+Sequent.configure do |config|
+  config.command_middleware.add(LoggingCommandMiddleware.new)
+end
+```
