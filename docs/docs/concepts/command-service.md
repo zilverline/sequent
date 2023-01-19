@@ -115,3 +115,27 @@ Sequent.configure do |config|
   config.command_middleware.add(LoggingCommandMiddleware.new)
 end
 ```
+
+When executing several commands:
+
+```ruby
+Sequent.configuration.command_service.execute_commands(
+  CreateUser.new(
+    aggregate_id: Sequent.new_uuid,
+    name: 'John Doe'
+  ),
+  CreateUser.new(
+    aggregate_id: Sequent.new_uuid,
+    name: 'Jane Doe'
+  )
+)
+```
+
+Results into the following output:
+
+```ruby
+Before executing command #<CreateUser:0x00007fe933958d90 @aggregate_id="dc28438a-6f79-4353-b213-dbdd4e5e9876", @created_at=2023-01-19 14:42:19.541727 +0100, @name="John Doe">
+After executing command #<CreateUser:0x00007fe933958d90 @aggregate_id="dc28438a-6f79-4353-b213-dbdd4e5e9876", @created_at=2023-01-19 14:42:19.541727 +0100, @name="John Doe">
+Before executing command #<CreateUser:0x00007fe936a74be0 @aggregate_id="405327c9-a99e-49a6-ba21-7165db8af973", @created_at=2023-01-19 14:43:19.541947 +0100, @name="Jane Doe">
+After executing command #<CreateUser:0x00007fe936a74be0 @aggregate_id="405327c9-a99e-49a6-ba21-7165db8af973", @created_at=2023-01-19 14:43:19.541947 +0100, @name="Jane Doe">
+```
