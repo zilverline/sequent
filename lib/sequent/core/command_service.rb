@@ -50,7 +50,12 @@ module Sequent
       def process_commands
         Sequent::Util.skip_if_already_processing(:command_service_process_commands) do
           transaction_provider.transactional do
-            process_command(command_queue.pop) until command_queue.empty?
+            until command_queue.empty?
+              command = command_queue.pop
+              command_middleware.invoke(command) do
+                process_command(command)
+              end
+            end
             Sequent::Util.done_processing(:command_service_process_commands)
           end
         ensure
@@ -97,6 +102,10 @@ module Sequent
 
       def command_handlers
         Sequent.configuration.command_handlers
+      end
+
+      def command_middleware
+        Sequent.configuration.command_middleware
       end
     end
 
