@@ -114,7 +114,7 @@ DECLARE
   _sequence_number event_records.sequence_number%TYPE;
 BEGIN
   FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
-    _aggregate_id = _aggregate->>'aggregate_id';
+    _aggregate_id = (_aggregate->>'aggregate_id')::uuid;
     _aggregate_without_nulls = jsonb_strip_nulls(_aggregate);
     _snapshot_threshold = _aggregate_without_nulls->'snapshot_threshold';
 
@@ -137,7 +137,7 @@ BEGIN
       _sequence_number = _event->'sequence_number';
       INSERT INTO event_records (aggregate_id, sequence_number, created_at, event_type, event_json, command_record_id, stream_record_id)
            VALUES (
-             _event->>'aggregate_id',
+             (_event->>'aggregate_id')::uuid,
              _sequence_number,
              _created_at,
              _event->>'event_type',
