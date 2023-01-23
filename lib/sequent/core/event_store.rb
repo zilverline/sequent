@@ -73,15 +73,16 @@ module Sequent
         # PostgreSQLCursor::Cursor does not support bind parameters, so bind parameters manually instead.
         sql = ActiveRecord::Base.sanitize_sql_array(
           [
-            "SELECT * FROM load_events(:aggregate_ids, :snapshot_event_type, FALSE, :load_until)", {
+            'SELECT * FROM load_events(:aggregate_ids, :snapshot_event_type, FALSE, :load_until)',
+            {
               aggregate_ids: [aggregate_id].to_json,
               snapshot_event_type: Sequent.configuration.snapshot_event_class.name,
-              load_until: load_until
-            }
-          ]
+              load_until: load_until,
+            },
+          ],
         )
 
-        PostgreSQLCursor::Cursor.new(sql, { connection: connection }).each_row do |event_hash|
+        PostgreSQLCursor::Cursor.new(sql, {connection: connection}).each_row do |event_hash|
           has_events = true
           event = deserialize_event(event_hash)
           block.call([stream, event])
@@ -174,10 +175,11 @@ module Sequent
       # Returns the ids of aggregates that need a new snapshot.
       #
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
-        stream_table = quote_table_name Sequent.configuration.stream_record_class.table_name
-        event_table = quote_table_name Sequent.configuration.event_record_class.table_name
-        query = "SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2, $3)"
-        connection.exec_query(query, "aggregates_that_need_snapshots", [last_aggregate_id, limit, Sequent.configuration.snapshot_event_class.name]).map { |x| x['aggregate_id'] }
+        connection.exec_query(
+          'SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2, $3)',
+          'aggregates_that_need_snapshots',
+          [last_aggregate_id, limit, Sequent.configuration.snapshot_event_class.name],
+        ).map { |x| x['aggregate_id'] }
       end
 
       def find_event_stream(aggregate_id)
@@ -200,8 +202,11 @@ module Sequent
       end
 
       def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
-        query = "SELECT event_type, event_json FROM load_events($1::JSONB, $2, $3, $4)"
-        connection.exec_query(query, "load_events", [aggregate_ids.to_json, Sequent.configuration.snapshot_event_class.name, use_snapshots, load_until])
+        connection.exec_query(
+          'SELECT event_type, event_json FROM load_events($1::JSONB, $2, $3, $4)',
+          'load_events',
+          [aggregate_ids.to_json, Sequent.configuration.snapshot_event_class.name, use_snapshots, load_until],
+        )
       end
 
       def column_names
@@ -236,15 +241,20 @@ module Sequent
         command_record = CommandRecord.create!(command: command)
         json = streams_with_events.map do |event_stream, uncommitted_events|
           stream = Oj.strict_load(Oj.dump(event_stream))
-          [stream, uncommitted_events.map { |event|
-             r = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
-             # Since ActiveRecord uses `TIMESTAMP WITHOUT TIME ZONE` we need to manually convert database timestamps to UTC on serialization
-             r['created_at'] = event.created_at.to_time.utc
-             r['event_type'] = event.class.name
-             r
-           }]
+          [
+            stream,
+            uncommitted_events.map do |event|
+              r = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
+              # Since ActiveRecord uses `TIMESTAMP WITHOUT TIME ZONE`
+              # we need to manually convert database timestamps to UTC
+              # on serialization
+              r['created_at'] = event.created_at.to_time.utc
+              r['event_type'] = event.class.name
+              r
+            end,
+          ]
         end.to_json
-        connection.exec_update("CALL store_events($1, $2)", "store_events", [command_record.id, json])
+        connection.exec_update('CALL store_events($1, $2)', 'store_events', [command_record.id, json])
       rescue ActiveRecord::RecordNotUnique
         raise OptimisticLockingError
       end
