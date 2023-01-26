@@ -246,9 +246,9 @@ module Sequent
             uncommitted_events.map do |event|
               r = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
               # Since ActiveRecord uses `TIMESTAMP WITHOUT TIME ZONE`
-              # we need to manually convert database timestamps to UTC
-              # on serialization
-              r['created_at'] = event.created_at.to_time.utc
+              # we need to manually convert database timestamps to the
+              # ActiveRecord default time zone on serialization.
+              r['created_at'] = ActiveRecord.default_timezone == :utc ? event.created_at.to_time.getutc : event.created_at.to_time.getlocal
               r['event_type'] = event.class.name
               r
             end,
