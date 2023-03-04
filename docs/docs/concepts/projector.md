@@ -155,7 +155,7 @@ For instance you could update the search column for a record for easy searching.
 ```ruby
 class UserProjector < Sequent::Projector
   on UserNameSet do |event|
-    user_record = get_record!(UserRecord, event.attributes.slice(:aggregate_id)
+    user_record = get_record!(UserRecord, event.attributes.slice(:aggregate_id))
     search_field = "#{user_record.search_field} #{event.firstname} #{event.lastname}"
 
     update_all_records(
