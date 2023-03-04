@@ -75,7 +75,7 @@ module Sequent
                 Don't call rails db:migrate directly but wrap in your own task instead:
 
                   task :migrate_db do
-                    ENV['SEQUENT_SCHEMAS'] = 'public'
+                    ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
                     Rake::Task['db:migrate'].invoke
                   end
 
