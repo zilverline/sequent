@@ -142,7 +142,7 @@ require 'sequent'
 class Database
   class << self
     def database_config(env = ENV['SEQUENT_ENV'])
-      @config ||= YAML.load(ERB.new(File.read('db/database.yml')).result)[env]
+      @config ||= YAML.load(ERB.new(File.read('db/database.yml')).result, aliases: true)[env]
     end
 
     def establish_connection(env = ENV['SEQUENT_ENV'])
@@ -157,9 +157,13 @@ end
 
 As you can see this is just a small wrapper for `ActiveRecord`. To establish the database connections on boot time we add a file `boot.rb`
 
-This will contain all the code needed to require and boot our app.
+This will contain all the code needed to require and boot our app. In the case that the SEQUENT_ENV is unset, we set it equal to 'development', which ensures the correct database config is loaded before connecting.
+
+`boot.rb`
 
 ```ruby
+ENV['SEQUENT_ENV'] ||= 'development'
+
 require './app/database'
 Database.establish_connection
 
