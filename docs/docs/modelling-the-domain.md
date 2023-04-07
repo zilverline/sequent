@@ -571,7 +571,10 @@ end
 
 When running the tests, they should now all pass.
 
-To sum up this guide we have done:
+
+## Summary
+
+In this guide we learned:
 
 1. Explored the generated `Post` AggregateRoot.
 2. Added new functionality to publish a `Post`
