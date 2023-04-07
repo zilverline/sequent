@@ -27,7 +27,7 @@ To read up on some of these concepts we recommend Martin Fowler's wiki:
 
 The best way to read this guide is to follow it step by step. All steps are essential to run this example application and no additional code or steps are needed.
 
-By following along with this guide, you'll create a Sequent project called blog, a (very) simple weblog. Before you can start building the application, you need to make sure that you have Sequent itself installed.
+By following along with this guide, you'll create a Sequent project called `blog`, a (very) simple weblog. Before you can start building the application, you need to make sure that you have Sequent itself installed.
 
 ### Installing Sequent
 
@@ -128,7 +128,7 @@ Your Sequent app is ready to rock!
 
 ## Hello, Sequent!
 
-Sequent does not come with a web framework included. We'll look into bringing it all together in a later guide. As such a real "hello world" is outside the scope of this
+Sequent does not come with a web framework included. We'll look into bringing it all together in a later guide. As such, a real "hello world" is outside the scope of this
 guide. What we can do is demonstrate our business logic is working. We'll examine our example domain in a minute.
 Let's first take a look at our (generated) specs:
 
