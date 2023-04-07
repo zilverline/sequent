@@ -63,7 +63,7 @@ Install Sequent using RubyGems:
 $ gem install sequent
 ```
 
-Verify that sequent was installed correctly by running the command:
+Verify that Sequent was installed correctly by running the command:
 
 ```bash
 $ sequent
@@ -88,7 +88,7 @@ This will create your new Sequent application in the `blog` directory and guide 
 $ cd blog
 ```
 
-We can see the `blog` directory was generated with a number of files and folders that form the basic structure of a sequent application:
+We can see the `blog` directory was generated with a number of files and folders that form the basic structure of a Sequent application:
 
 ```bash
 $ ls -1
