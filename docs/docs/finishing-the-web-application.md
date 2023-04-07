@@ -44,7 +44,7 @@ For this guide we somewhat refactored the web application and added bootstrap
 for some nifty look and feel and extracted some command erb code into
 a default layout, this is automatically picked up by Sinatra.
 
-In `app/view/layout.erb`
+In `app/views/layout.erb`
 ```ruby
 <html>
   <head>

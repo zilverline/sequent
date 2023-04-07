@@ -552,6 +552,12 @@ class Post < Sequent::AggregateRoot
     apply PostTitleChanged, title: command.title
     apply PostContentChanged, content: command.content
   end
+
+  # omitted ...
+  
+  on PostAuthorChanged do |event|
+    @author_aggregate_id = event.author_aggregate_id
+  end
 end
 ```
 
