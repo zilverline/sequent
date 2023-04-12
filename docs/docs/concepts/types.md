@@ -2,13 +2,13 @@
 title: Types
 ---
 
-In Sequent events are stored as JSON in the event store. To be able to serialize and deserialize to the correct
-types you are required to specify the type of an attribute.
+In Sequent, events are stored as JSON in the event store. To be able to serialize and deserialize to the correct
+types, you are required to specify the type of an attribute.
 
-This also gives Sequent the possibility to check if the attributes
-in for instance the [Commands](command.html) and [ValueObject](value-object.html) are of the correct type.
+This also gives Sequent the ability to check that the attributes
+in, for instance, [Command](command.html)s and [ValueObject](value-object.html)s are of the correct type.
 
-Before a Command is executed the [CommandService](command-service.html) ensures
+Before a Command is executed, the [CommandService](command-service.html) ensures
 that the attributes are validated and parsed to the correct types if necessary.
 
 Out of the box Sequent supports the following types:
@@ -20,8 +20,8 @@ Out of the box Sequent supports the following types:
 1. [Time](#time)
 1. [Boolean](#boolean)
 1. [Symbol](#symbol)
-1. [ValueObjects](#valueobjects)
-1. [Lists](#lists)
+1. [ValueObject](#valueobject)
+1. [List](#list)
 1. [Sequent::Secret](#sequentsecret)
 1. [BigDecimal](#bigdecimal)
 
@@ -31,10 +31,10 @@ Out of the box Sequent supports the following types:
 Usage: `attrs name: String`
 
 Valid strings are `nil` and anything that can be `to_s`-ed.
-There are some invalid characters like `"\0000"` postgres can't handle.
+There are some invalid characters like `"\0000"` that Postgres can't handle.
 
-When a String is considered invalid the error code `invalid_string` is
-added to the attribute in the ActiveModels `Errors` object during [validation](validations.html).
+When a String is considered invalid, the error code `invalid_string` is
+added to the attribute in the ActiveModel `Errors` object during [validation](validations.html).
 
 ### Integer
 
@@ -46,15 +46,15 @@ Registers the following Validation:
 validates_numericality_of :counter, only_integer: true, allow_nil: true, allow_blank: true
 ```
 
-To accommodate user input Integers passed as Strings
+To accommodate user input, Integers passed as Strings
 are parsed automatically when a Command is passed to the CommandService.
 
 ### Date:
 
 Usage `attrs created_at: Date`
 
-Accepts all `Date` objects. To accommodate user input valid
-iso8601 date Strings are parsed automatically when
+Accepts all `Date` objects. To accommodate user input, valid
+[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) date Strings are parsed automatically when
 a Command is passed to the [CommandService](command-service.html).
 
 ## DateTime
@@ -63,16 +63,16 @@ a Command is passed to the [CommandService](command-service.html).
 
 Usage `attrs created_at: DateTime`
 
-Accepts all `DateTime` objects. To accommodate user input valid
-iso8601 datetime Strings are parsed automatically when
+Accepts all `DateTime` objects. To accommodate user input, valid
+[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) datetime Strings are parsed automatically when
 a Command is passed to the CommandService.
 
 ## Time
 
 Usage `attrs created_at: Time`
 
-Accepts all `Time` objects. To accommodate user input valid
-iso8601 datetime Strings are parsed automatically when
+Accepts all `Time` objects. To accommodate user input, valid
+[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) datetime Strings are parsed automatically when
 a Command is passed to the CommandService.
 
 ## Boolean:
@@ -87,18 +87,28 @@ automatically when a Command is passed to the CommandService.
 
 Usage `attrs user_type: Symbol`
 
-## ValueObjects
+## ValueObject
 
-Usage: `attrs address: Address`
+Usage:
+
+```ruby
+class Money < Sequent::ValueObject
+  attrs cents: Integer, currency: String
+end
+
+class MyEvent < Sequent::Event
+  attrs amount: Money
+end
+```
 
 Custom [ValueObjects](value-object.html) can contain other ValueObjects
-of `attrs` of the Types described here.
+with `attrs` of the Types described here.
 
-## Lists
+## List
 
 Usage: `attrs names: array(String)`
 
-Lists can be List or any Type described here.
+Lists can be a List of any Type described here.
 
 ## Sequent::Secret
 
@@ -108,7 +118,7 @@ This is a special type designed to work with user input (HTML forms).
 
 It will irreversibly hash the attribute that is of type `Sequent::Secret` using bcrypt.
 
-You can use this type as follows:
+Usage:
 
 ```ruby
 class CreateUser < Sequent::Command
@@ -137,7 +147,7 @@ end
 ```
 
 **There is no need to use this in Events since those should always contain the hashed secret.**
-Events can store these values in plain Strings
+Events can store these values in plain Strings.
 
 ## BigDecimal
 

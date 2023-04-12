@@ -2,7 +2,7 @@
 title: Workflow
 ---
 
-Workflows can be used to do other stuff (than updating a Projection) based on [Events](event.html). Common
+Workflows are used to add additional functionality (other than updating a Projection) triggered by [Events](event.html). Common
 tasks run by Workflows are:
 
 1. Execute other [Commands](command.html)
@@ -10,7 +10,7 @@ tasks run by Workflows are:
 
 In Sequent, Workflows are committed in the same transaction as committing the Events.
 
-Since Workflows have nothing to do with Projections they do **not** run when doing a [Migration](migrations.html).
+Since Workflows have nothing to do with Projections they **do not** run when doing a [Migration](migrations.html).
 
 To use Workflows in your project you need to add them to your Sequent configuration:
 
@@ -22,7 +22,7 @@ Sequent.configure do |config|
 end
 ```
 
-A Workflow responds to Events basically the same way as Projectors do. For instance a Workflow
+A Workflow responds to Events basically the same way as Projectors do. For instance, a Workflow
 that will schedule a background Job using [DelayedJob](https://github.com/collectiveidea/delayed_job)
 can look like this:
 
@@ -44,7 +44,7 @@ class UserJob
 end
 ```
 
-If your Workflow has some side effects that can't be rolled back easily or if your background jobs processor
+If your Workflow has some side effects that can't be rolled back easily, or if your background jobs processor
 is not using the same database connection used for the transaction, you can wrap it in an `after_commit` block:
 
 ```ruby
@@ -65,9 +65,9 @@ class SendEmailJob
 end
 ```
 
-It will run only and only if the transaction commits. Note that if you execute another command, it will be ran
+It will run only if the transaction commits. Note that if you execute another command, it will be run
 synchronously but in a separate transaction. It will not be able to rollback the first one, resulting in some
-Events to be commited and some other not. Only use `after_commit` if it is the intended behaviour.
+Events to be committed and some not. Only use `after_commit` if it is the intended behaviour.
 
 **Handling Exceptions**: If an exception within an `after_commit` is not handled by the worker, it will stop
 calling the other registered hooks. Make sure that you **rescue exceptions** and handle them properly. If you can

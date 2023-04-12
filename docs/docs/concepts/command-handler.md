@@ -3,7 +3,7 @@ title: CommandHandler
 ---
 
 CommandHandlers respond to certain [Commands](command.html). CommandHandlers inherit from `Sequent::CommandHandler`.
-To respond to a certain [Command](command.html) a CommandHandler needs to register a block containing the action to be taken.
+To respond to a certain [Command](command.html), a CommandHandler needs to register a block containing the corresponding action to be taken.
 
 ```ruby
 class UserCommandHandler < Sequent::CommandHandler
@@ -42,7 +42,7 @@ class UserCommandHandler < Sequent::CommandHandler
 end
 ```
 
-A CommandHandler can of course communicate with mulitple [AggregateRoots](aggregate-root.html).
+A CommandHandler can of course communicate with multiple [AggregateRoots](aggregate-root.html).
 
 ```ruby
 class UserCommandHandler < Sequent::CommandHandler

@@ -6,7 +6,7 @@ ValueObjects are convenience objects that can be used to group certain attribute
 are always used together. ValueObjects can be nested.
 A ValueObject must inherit from `Sequent::ValueObject`.
 
-An example of a ValueObject is for instance an address.
+An example of a ValueObject is an address:
 
 ```ruby
 class Address < Sequent::ValueObject

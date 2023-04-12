@@ -119,11 +119,14 @@ post '/authors' do
 end
 ```
 
-Calling a command in Sequent generally follows the code signature as seen above:
-1. Parse parameters to the relevant `Command`
-2. Execute Command
-3. Redirect (or do whatever you like)
-{: .notice--info}
+<div class="notice--info">
+    <p>Calling a command in Sequent generally follows the code signature as seen above:</p>
+    <ol>
+        <li>Parse parameters to the relevant <code>Command</code></li>
+        <li>Execute Command</li>
+        <li>Redirect (or do whatever you like)</li>
+    </ol>
+</div>
 
 Let's fill in a name and an e-mail and see what happens when we click on `Create author`.
 

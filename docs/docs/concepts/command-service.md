@@ -2,7 +2,7 @@
 title: CommandService
 ---
 
-The CommandService is the interface to schedule commands in Sequent. To execute a [Command](command.html)
+The CommandService is the interface to schedule commands in Sequent. To execute a [Command](command.html),
 pass it to the CommandService. For instance from a Sinatra controller:
 
 ```ruby
@@ -18,12 +18,12 @@ end
 
 
 By default all Commands passed into the CommandService are executed in a single transaction.
-When something fails and an Exception is raised and the transaction is rolled back.
+When something fails, an Exception is raised and the transaction is rolled back.
 
 ## Order of Command execution
 
 Commands are executed in the order in which they are scheduled. For instance
-if you schedule new Commands in a [Workflow](workflow.html) running in the foreground
+if you schedule new Commands in a [Workflow](workflow.html) running in the foreground,
 it will be added to the queue of Commands. For instance:
 
 ```ruby
@@ -49,12 +49,13 @@ The order in which Commands are "executed" is:
 
 So Command `c1` results in [Event](event.html) `e1` that will result in
 the execution of Command `c3`. However since Command `c2` is scheduled
-first it will also be executed first.
+first, it will also be executed first.
 
 ## Order of Event publishing
 
-Per Command the resulting Events are published and stored in the [EventStore](event_store.html). Events are published in order
-in which the AggregateRoot is loaded from the [AggregateRepository](aggregate-repository.html).
+The Events resulting from an executed Command are published and stored in the [EventStore](event_store.html). 
+When publishing events, Sequent takes into account the order in which AggregateRoots were loaded from the [AggregateRepository](aggregate-repository.html). 
+For example when loading two AggregateRoots, all the events for the first loaded AggregateRoot will be published before the events for the second loaded AggregateRoot, regardless of their call order in the command handler block.
 
 Example:
 
