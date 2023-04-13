@@ -4,7 +4,7 @@ title: Configuration
 When generating a new Sequent project the configuration can be found in `config/initializers/sequent.rb`.
 You are free to determine your own location as long as you require the file at startup of your application.
 
-There are many configuration options, but mostly you can stick to the defaults. With that thought in mind this
+There are many configuration options, but generally sticking to the defaults should be sufficient. With that thought in mind this
 chapter is divided into 3 sections:
 
 1. The [minimum configuration](#minimum-configuration) you need
@@ -60,7 +60,7 @@ end
 
 CommandFilters can be used to enforce certain criteria are met before executing commands. Typical
 concerns are authorization in a user based application. A filter must implement the method `execute(command)`.
-If any of the CommandFilters raises an Exception then execution is aborted for all passed [Commands](command.html).
+If any of the CommandFilters raises an Exception, execution is aborted for all passed [Commands](command.html).
 
 Example
 
@@ -87,7 +87,7 @@ end
 ### number_of_replay_processes
 
 The number of processes used to replay the events when doing a [Migration](migration.html). By default this is 4.
-This should be adjusted to the capactiy of your server running the Migration.
+This should be adjusted to the capacity of your server running the Migration.
 
 ### logger
 
@@ -95,37 +95,38 @@ The ruby Logger used by Sequent.
 
 ## Complete configuration
 
-For the most recent possibilities please check the `Sequent::Configuration` implementation.
+For the latest configuration possibilities please check the `Sequent::Configuration` implementation.
 
-|Option|Meaning|Default Value|
-|------|-------|-------------|
-|aggregate_repository|The [AggregateRepository](aggregate-repository.html)|`Sequent::Core::AggregateRepository.new`|
-|event_store|The [EventStore](event_store.html)|`Sequent::Core::EventStore.new`|
-|command_service|The [CommandService](command-service.html)|`Sequent::Core::CommandService.new`|
-|event_record_class|The [class](event_store.html) mapped to the `event_records`|`Sequent::Core::EventRecord`|
-|stream_record_class|The [class](event_store.html) mapped to the `stream_records` table|`Sequent::Core::StreamRecord`|
-|snapshot_event_class|The event class marking something as a [Snapshot event](snapshotting.html)|`Sequent::Core::SnapshotEvent`|
-|event_record_hooks_class|The class with EventRecord life cycle hooks|`Sequent::Core::EventRecordHooks`|
-|transaction_provider|The transaction provider used by the [CommandService](command-service.html)|`Sequent::Core::Transactions::ActiveRecordTransactionProvider.new`|
-|event_publisher|The EventPublisher used by the [EventStore](event_store.html).|`Sequent::Core::EventPublisher.new`|
-|command_handlers|The list of [CommandHandlers](command-handler.html)|Empty|
-|command_filters|The list of [CommandFilters](#commandfilters)|Empty|
-|event_handlers|The list of [Projectors](projector.html) and [Workflows](workflow.html)|Empty|
-|uuid_generator|The [AggregateRepository](aggregate-repository.html). Mainly useful for testing|`false`|
-|disable_event_handlers|If `true` no event_handlers will be called|`Sequent::Core::EventStore.new`|
-|migration_sql_files_directory|The location of the sql files for [Migrations](migrations.html)|`db/tables`|
-|view_schema_name|The name of the view_schema in which the projections are created.|`view_schema`|
-|offline_replay_persistor_class|The class used to persist the the `Projector`s during the offline migration part..|`Sequent::Core::Persistors::ActiveRecordPersistor`|
-|online_replay_persistor_class|The class used to persist the the `Projector`s.|`Sequent::Core::Persistors::ActiveRecordPersistor`|
-|number_of_replay_processes|The [number of process](#number_of_replay_processes) used while offline migration|`4`|
-|database_config_directory|The directory in which db config can be found|`db`|
-|database_schema_directory|The directory in which db schema and migrations can be found|`db`|
-|event_store_schema_name|The name of the db schema in which the [EventStore](event_store.html) is installed|`sequent_schema`|
-|strict_check_attributes_on_apply_events|Whether or not sequent should fail on calling `apply` with invalid attributes.|`false`. Will be enabled by default in the next major release.|
-|migrations_class_name|The name of the [class](#minimum-configuration) containing the migrations|Empty|
-|versions_table_name|The name of the table in which Sequent checks which [migration version](migrations.html) is currently active|`sequent_versions`|
-|replayed_ids_table_name|The name of the table in which Sequent keeps track of which events are already replayed during a [migration](migrations.html)|`sequent_replayed_ids`|
-|error_locale_resolver|A lambda that returns the desired locale for command validation errors|<code>-> { I18n.locale &#124;&#124; :en }</code>|
-|enable_multiple_database_support|A boolean to indicate if multiple databases are being used by ActiveRecord (such as a read replica)|`false`|                                                             |
-|primary_database_key|A symbol indicating the primary database if multiple databases are specified within the provided db_config|`:primary`|  
-|primary_database_role|A symbol indicating the primary database role if using multiple databases with active record|`:writing`| 
+| Option                                  | Meaning                                                                                                                       | Default Value                                                      |
+|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
+| migrations_class_name                   | **Required**. The name of the [class](#minimum-configuration) containing the migrations.                                      | `'Migrations'`                                                     |
+| command_handlers                        | The list of [CommandHandlers](command-handler.html)                                                                           | `[]`                                                               |
+| event_handlers                          | The list of [Projectors](projector.html) and [Workflows](workflow.html)                                                       | `[]`                                                               |
+| aggregate_repository                    | The [AggregateRepository](aggregate-repository.html)                                                                          | `Sequent::Core::AggregateRepository.new`                           |
+| command_filters                         | The list of [CommandFilters](#commandfilters)                                                                                 | `[]`                                                               |
+| command_service                         | The [CommandService](command-service.html)                                                                                    | `Sequent::Core::CommandService.new`                                |
+| database_config_directory               | The directory in which db config can be found                                                                                 | `'db'`                                                             |
+| database_schema_directory               | The directory in which db schema and migrations can be found                                                                  | `'db'`                                                             |
+| disable_event_handlers                  | If `true` no event_handlers will be called                                                                                    | `false`                                                            |
+| enable_multiple_database_support        | A boolean to indicate if multiple databases are being used by ActiveRecord (such as a read replica)                           | `false`                                                            |                                                             |
+| error_locale_resolver                   | A lambda that returns the desired locale for command validation errors                                                        | `-> { I18n.locale &#124;&#124; :en }`                              |
+| event_publisher                         | The EventPublisher used by the [EventStore](event_store.html).                                                                | `Sequent::Core::EventPublisher.new`                                |
+| event_record_class                      | The [class](event_store.html) mapped to the `event_records`                                                                   | `Sequent::Core::EventRecord`                                       |
+| event_record_hooks_class                | The class with EventRecord life cycle hooks                                                                                   | `Sequent::Core::EventRecordHooks`                                  |
+| event_store                             | The [EventStore](event_store.html)                                                                                            | `Sequent::Core::EventStore.new`                                    |
+| event_store_schema_name                 | The name of the db schema in which the [EventStore](event_store.html) is installed                                            | `'sequent_schema'`                                                 |
+| migration_sql_files_directory           | The location of the sql files for [Migrations](migrations.html)                                                               | `'db/tables'`                                                      |
+| number_of_replay_processes              | The [number of process](#number_of_replay_processes) used while offline migration                                             | `4`                                                                |
+| offline_replay_persistor_class          | The class used to persist the `Projector`s during the offline migration part.                                                 | `Sequent::Core::Persistors::ActiveRecordPersistor`                 |
+| online_replay_persistor_class           | The class used to persist the `Projector`s.                                                                                   | `Sequent::Core::Persistors::ActiveRecordPersistor`                 |
+| primary_database_key                    | A symbol indicating the primary database if multiple databases are specified within the provided db_config                    | `:primary`                                                         |  
+| primary_database_role                   | A symbol indicating the primary database role if using multiple databases with active record                                  | `:writing`                                                         |
+| replayed_ids_table_name                 | The name of the table in which Sequent keeps track of which events are already replayed during a [migration](migrations.html) | `'sequent_replayed_ids'`                                           |
+| snapshot_event_class                    | The event class marking something as a [Snapshot event](snapshotting.html)                                                    | `Sequent::Core::SnapshotEvent`                                     |
+| stream_record_class                     | The [class](event_store.html) mapped to the `stream_records` table                                                            | `Sequent::Core::StreamRecord`                                      |
+| strict_check_attributes_on_apply_events | Whether or not sequent should fail on calling `apply` with invalid attributes.                                                | `false`. Will be enabled by default in the next major release.     |
+| time_precision                          | Sets the precision of encoded time values. Defaults to 3 (equivalent to millisecond precision)                                | `ActiveSupport::JSON::Encoding.time_precision`                     |
+| transaction_provider                    | The transaction provider used by the [CommandService](command-service.html)                                                   | `Sequent::Core::Transactions::ActiveRecordTransactionProvider.new` |
+| uuid_generator                          | The UUID Generator used. Mainly useful for testing                                                                            | `Sequent::Core::RandomUuidGenerator`                               |
+| versions_table_name                     | The name of the table in which Sequent checks which [migration version](migrations.html) is currently active                  | `'sequent_versions'`                                               |
+| view_schema_name                        | The name of the view_schema in which the projections are created.                                                             | `'view_schema'`                                                    |

@@ -5,11 +5,11 @@ title: Building a web application with Sequent
 ## Tying it all together
 
 The app we generated in [Getting Started](/docs/getting-started.html) and expanded in [Modelling the Domain](/docs/modelling-the-domain.html) is now ready to be used by real Authors via the Web.
-Sequent is no webframework and can be used with any webframework you want. For this guide we choose [Sinatra](https://github.com/sinatra/sinatra).
+Sequent is not a web framework and can be used with any web framework of your choice. For this guide we use [Sinatra](https://github.com/sinatra/sinatra).
 
 ### Installing Sinatra
 
-Add to your `Gemfile`:
+In your `Gemfile` add:
 
 ```ruby
 gem 'sinatra'
@@ -18,11 +18,11 @@ gem 'sinatra-contrib'
 gem 'webrick'
 ```
 
-And then run `bundle install`. We will setup Sinatra to run as a [modular application](https://github.com/sinatra/sinatra#serving-a-modular-application).
+And then run `bundle install`. We will set up Sinatra to run as a [modular application](https://github.com/sinatra/sinatra#serving-a-modular-application).
 
-After doing tne necessary plumbing we end up with the following files:
+To make use of Sinatra, we need to create / modify the following files:
 
-In `./app/web.rb`
+Create `./app/web.rb`:
 
 ```ruby
 require 'sinatra/base'
@@ -46,7 +46,7 @@ class Web < Sinatra::Base
 end
 ```
 
-In `./config.ru`
+Update `./config.ru`:
 
 ```ruby
 require './app/web'
@@ -56,19 +56,33 @@ run Web
 
 For now this is enough. On the command line execute `bundle exec rackup -p 4567` and open [localhost:4567](http://localhost:4567). If you see `"Welcome to Sequent!"` then we are good to go!
 
-For this guide we want to be able to signup as Author. In a later guide we will go full CRUD on the application
+For this guide we want to be able to sign up as an Author. In a later guide we will go full CRUD on the application
 and actually create Posts with Authors.
 
-_This guide will not go into styling the web application we are creating in order to keep focus on how to use Sequent in a webapplication._
+_This guide will not go into styling the web application we are creating, to keep focus on the usage of Sequent in a web application._
 {: .notice}
 
-### Signup as Author
+### Sign Up as Author
 
-The `get '/'` will serve a signup/signin form. This form ties the `AddAuthor` command.
+The `get '/'` method will serve a sign up/sign in form. This form ties to the `AddAuthor` command.
 
-First we change the `get '/'` to serve us an `erb` with a html form that allows us to post a form with the `name` and `email` that the `AddAuthor` command requires.
+First we change the `get '/'` method to serve us an `erb` containing an html form, allowing us to post a form with the `name` and `email` values that the `AddAuthor` command requires.
 
-The erb `in app/views/index.erb`:
+In `app/web.rb` add:
+```ruby
+class Web < Sinatra::Base
+  ...
+
+  get '/' do
+    erb :index
+  end
+
+  ...
+end
+
+```
+
+Create `app/views/index.erb`:
 
 ```erb
 <html>
@@ -89,20 +103,11 @@ The erb `in app/views/index.erb`:
 </html>
 ```
 
-And change the `get '/'` as follows:
+When visiting [localhost:4567](http://localhost:4567), we see a simple form that allows us to submit values for creating a new Author.
 
-In `app/web.rb`:
-```ruby
-get '/' do
-  erb :index
-end
-```
+In order to achieve the functionality of actually creating an author, we need to respond to the `post '/authors'` method. We need to parse the post `params` and construct a `Sequent::Command` that we will pass into the [CommandService](concepts/command-service.html).
 
-When we now open [localhost:4567](http://localhost:4567) we see a simple form that allows us to submit a new Author.
-
-In order to achieve that we need to respond to the `post '/authors'`. We need to parse the post `params` and construct a `Sequent::Command` that we will pass into the [CommandService](concepts/command-service.html).
-
-In `app/web.rb`:
+In `app/web.rb` add:
 ```ruby
 post '/authors' do
   author_id = Sequent.new_uuid
@@ -114,13 +119,16 @@ post '/authors' do
 end
 ```
 
-Every `post` of a Command that in Sequent basically has the above code signature:
+<div class="notice--info">
+    <p>Calling a command in Sequent generally follows the code signature as seen above:</p>
+    <ol>
+        <li>Parse parameters to the relevant <code>Command</code></li>
+        <li>Execute Command</li>
+        <li>Redirect (or do whatever you like)</li>
+    </ol>
+</div>
 
-1. Parse parameters to `Command`
-2. Execute Command
-3. Redirect (or do whatever you like)
-
-Let's fill in a name and an e-mail and see what happens if we hit `Create author`.
+Let's fill in a name and an e-mail and see what happens when we click on `Create author`.
 
 It blows up with the following error:
 ```ruby
@@ -128,11 +136,13 @@ ActiveRecord::ConnectionNotEstablished at /
 No connection pool with 'primary' found.`
 ```
 
-Since we are using ActiveRecord outside Rails we need to setup connection handling ourselves.
+Since we are using ActiveRecord outside Rails we need to set up connection handling ourselves.
 
-In order to do so we can create simple `Database` class that handles creating connections to the database.
+In order to do so, we can create a simple `Database` class that handles creating connections to the database.
 
-In `app/database.rb`:
+### Connecting to a Database
+
+Create `app/database.rb`:
 ```ruby
 require 'yaml'
 require 'erb'
@@ -159,7 +169,7 @@ As you can see this is just a small wrapper for `ActiveRecord`. To establish the
 
 This will contain all the code needed to require and boot our app. In the case that the SEQUENT_ENV is unset, we set it equal to 'development', which ensures the correct database config is loaded before connecting.
 
-`boot.rb`
+Create `boot.rb`:
 
 ```ruby
 ENV['SEQUENT_ENV'] ||= 'development'
@@ -170,7 +180,7 @@ Database.establish_connection
 require './app/web'
 ```
 
-The `config.ru` now looks like this:
+Update `config.ru`:
 
 ```ruby
 require './boot'
@@ -178,8 +188,10 @@ require './boot'
 run Web
 ```
 
-And since we are using Sinatra we also need to give the transaction back to the pool after each request.
-So we need to add an `after` block in our `app/web.rb`:
+Since we are using Sinatra, we also need to give the transaction back to the pool after each request.
+So we need to add an `after` block in our `app/web.rb`.
+
+Update `app/web.rb`:
 ```ruby
 class Web < Sinatra::Base
   ...
@@ -192,7 +204,7 @@ class Web < Sinatra::Base
 end
 ```
 
-If you are using the multiple db feature and have more than one role for your database you need to clear the connection
+If you are using the multiple db feature and have more than one role for your database, you need to clear the connection
 for each role:
 ```ruby
 class Web < Sinatra::Base
@@ -208,18 +220,17 @@ class Web < Sinatra::Base
 end
 ```
 
-After we restart the app and fill in a name and email let's see what happens.
+Let's restart the app, fill in a name and email, and submit the form.
 
 `Success!`
 
-Yeah! We succesfully transformed a html form to a `Command` and executed it.
+Yeah! We successfully transformed an html form to a `Command` and executed it.
 
-
-When you forget to fill in name and or e-mail you will see a `CommandNotValid` error. This is the error Sequent
+When the name and/or e-mail field is empty when submitting the form, you will see a `CommandNotValid` error. This is the error Sequent
 raises when `Command` validations fail. You can handle these exceptions any way you like.
 {: .notice}
 
-Let's inspect the `sequence_schema` and see if the events are actually stored in the database.
+Let's inspect the `sequent_schema` and see if the events are actually stored in the database.
 
 ```bash
 $ psql blog_development
@@ -238,13 +249,15 @@ blog_development=# select aggregate_id, sequence_number, event_type from sequent
 We can see all our events are stored in the event store. The column `event_json` is left out of the query for
 readability.
 
-Next step is to display the existing authors. In Sequent this is done in 4 steps:
+## Creating a Projector and using Migrations
+
+Next we will display the existing authors. In Sequent this is done in 5 steps:
 
 **1. Create the `AuthorRecord`**
 
-Since we are using `ActiveRecord` we need to create the `AuthorRecord`
+Since we are using `ActiveRecord`, we need to create a record class corresponding to `Author` that we will call the `AuthorRecord`.
 
-`app/records/author_record.rb`
+Create `app/records/author_record.rb`:
 ```ruby
 class AuthorRecord < Sequent::ApplicationRecord
 end
@@ -252,7 +265,7 @@ end
 
 **2. Create the corresponding SQL file**
 
-`db/tables/author_records.sql`
+Create `db/tables/author_records.sql`:
 ```sql
 CREATE TABLE author_records%SUFFIX% (
     id serial NOT NULL,
@@ -269,7 +282,7 @@ CREATE UNIQUE INDEX author_records_keys%SUFFIX% ON author_records%SUFFIX% USING 
 
 In order to create an `AuthorRecord` based on the events we need to create the `AuthorProjector`
 
-`app/projectors/author_projector.rb`
+Create `app/projectors/author_projector.rb`:
 ```ruby
 require_relative '../records/author_record'
 require_relative '../../lib/author/events'
@@ -302,17 +315,17 @@ class AuthorProjector < Sequent::Projector
 end
 ```
 
-And don't forget to ensure it's being required.
+Remember to ensure it's being required in `blog.rb`:
 
-`blog.rb`
 ``` ruby
 require_relative 'app/projectors/author_projector'
 ```
 
 **4. Update Sequent configuration**
 
-Then we can add this projector to our Sequent config `config/initializers/sequent.rb`
+Add the new projector to our Sequent config.
 
+Update `config/initializers/sequent.rb`:
 ```ruby
 require './db/migrations'
 
@@ -333,8 +346,7 @@ end
 
 **5. Update and run the migration**
 
-In `db/migrations.rb`:
-
+Update `db/migrations.rb`:
 ```ruby
 VIEW_SCHEMA_VERSION = 2 # <= update this to version 2
 
@@ -359,7 +371,7 @@ end
 Make sure you have updated your `VIEW_SCHEMA_VERSION` constant.
 {: .notice}
 
-Stop your app and now run this migration and see what happens:
+Stop your app, run this migration and see what happens:
 
 ```bash
 $ bundle exec rake sequent:migrate:online && bundle exec rake sequent:migrate:offline
@@ -382,18 +394,29 @@ blog_development=# select * from view_schema.author_records;
   1 | a8b1a534-f50b-4173-a73b-5b4a8bbcdd12 | ben  | ben@sequent.io
 ```
 
-We have authors in the database! This means we can also display them in our app:
+We have authors in the database! This means we can also display them in our app.
 
-Change the `app/web.rb`:
+## Displaying the Authors
+
+Let's create a new view to display the details of an individual author.
+
+In `app/web.rb` add:
 
 ```ruby
+class Web < Sinatra::Base``
+  ...
+
   get '/authors/:aggregate_id' do
     @author = AuthorRecord.find_by(aggregate_id: params[:aggregate_id])
     erb :'authors/show'
   end
+
+  ...
+end
+  
 ```
 
-Add the `app/views/authors/show.erb`:
+Create `app/views/authors/show.erb`:
 
 ```erb
 <html>
@@ -407,9 +430,11 @@ Add the `app/views/authors/show.erb`:
 </html>
 ```
 
-To create a navigatable web app we also add the following code:
+### Navigation within the App
 
-In `app/web.rb`:
+To allow navigation inside the web app we add the following methods and views:
+
+In `app/web.rb` add:
 
 ```ruby
 class Web < Sinatra::Base
@@ -424,9 +449,9 @@ class Web < Sinatra::Base
 end
 ```
 
-In `app/views/index.erb`:
+In `app/views/index.erb` add:
 
-```html
+```erb
   <body>
     <nav style="border-bottom: 1px solid #333; padding-bottom: 1rem;">
       <a href="/authors">All authors</a>
@@ -435,7 +460,8 @@ In `app/views/index.erb`:
     ...
 ```
 
-In `app/views/authors/index.erb`:
+
+Create `app/views/authors/index.erb`:
 
 ```erb
 <html>
@@ -467,7 +493,9 @@ In `app/views/authors/index.erb`:
 </html>
 ```
 
-So that's it for this guide. In this guide we learned:
+## Summary
+
+In this guide we learned:
 
 1. How to use Sequent in a Sinatra web application
 2. Add a Projector and Migration

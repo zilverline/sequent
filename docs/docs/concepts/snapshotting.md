@@ -5,7 +5,7 @@ title: Snapshotting
 Snapshotting is an optimization where the [AggregateRoot's](aggregate-root.html) state is saved in the event stream. With snapshotting the state of an aggregate can be restored from a snapshot rather than by replaying all of its events.
 In general there is no need for snapshotting when you have less than 100 Events in an AggregateRoot. By default snapshotting is turned off in Sequent.
 
-Sequent supports snapshots on aggregates that call `enable_snapshots` with a default threshold
+Sequent supports snapshots on Aggregates that call `enable_snapshots` with a default threshold.
 
 ```ruby
 class UserNames < Sequent::AggregateRoot
@@ -14,10 +14,10 @@ end
 ```
 
 
-You then also need to update the existing [StreamRecord's](event_store.html#stream_records) in the database to ensure they are also eligible for snapshotting.
+You then also need to update the existing [StreamRecords](event_store.html#stream_records) in the database to ensure they are also eligible for snapshotting.
 This can be done via `bundle exec rake sequent:snapshotting:set_snapshot_threshold[Usernames,100]`.
 
-After this snapshots can be taken with the `SnapshotCommand`. For example by a Rake task.
+After this, snapshots can be taken with a `Sequent::Core::SnapshotCommand` for example by a Rake task.
 
 ```ruby
 namespace :snapshot do
@@ -31,8 +31,8 @@ namespace :snapshot do
 end
 ```
 
-**Important:** When you enable snapshotting you **must** delete all snapshots after each deploy. The AggregateRoot root state is dumped in the database. If in the new version the class definition of the AggregateRoots is changed the snapshotted state can not be loaded.
+**Important:** When you enable snapshotting you **must** delete all snapshots after each deploy. The AggregateRoot root state is dumped in the database. If there is a new version of an AggregateRoot class definition, the snapshotted state can not be loaded.
 {: .notice--danger}
 
-To delete all snapshots do you can execute `bundle exec rake sequent:snapshotting::delete_all`.
+To delete all snapshots, you can execute `bundle exec rake sequent:snapshotting:delete_all`.
 

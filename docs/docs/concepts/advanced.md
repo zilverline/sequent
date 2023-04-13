@@ -2,16 +2,16 @@
 title: Advanced topics
 ---
 
-CQRS and Event Sourcing are every powerful tools
-and enable easy implementation for several complex requirements like: traceability, auditability and what-if scenario's. Sequent already provides out-of-the-box support for these concepts.
+CQRS and Event Sourcing are very powerful tools
+which enable easy implementation for several complex requirements like: traceability, auditability and what-if scenario's. Sequent already provides out-of-the-box support for these concepts.
 
-## Traceablity and auditability
+## Traceability and auditability
 
 When Commands are executed, Sequent already stores a reference
 between the Commands and the resulting Events. Sequent also ensures
 that Commands that are executed from Workflows will have a reference
 to the causing Event.
-By doing so Sequent provides a full audit trail for your event stream
+By doing so, Sequent provides a full audit trail for your event stream
 by default.
 
 You can query the audit trail as follows:
@@ -52,13 +52,12 @@ event_record.children
 
 ## Upcasting
 
-When designing your domain (`AggregateRoot`s, `Event`s, `Command`s) over time it can happen
-that you want to change a particular Event. Perhaps you want to rename an attribute or something.
+When designing your domain (`AggregateRoot`s, `Event`s, `Command`s), over time you might want to change a particular `Event`. Perhaps you want to rename an attribute.
 One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still
-in the startup phase and really exploring the domain, this could certainly be an option. However it does go
+in the startup phase and really exploring the domain, this could certainly occur. It does however go
 against the immutable nature of an EventStore.
-In order to accommodate for refactorings like renaming, typically called upcasting in event sourcing, Sequent
-allows you to register upcasters in `Event`s and `ValueObject`s like so:
+In order to accommodate for refactorings like renaming - typically called *upcasting* in event sourcing - Sequent
+allows you to register upcasters in `Event`s and `ValueObject`s as follows:
 
 ```ruby
 # Initial version of the InvoiceSent event
@@ -68,7 +67,7 @@ end
 
 # a few months into production, the term invoice_date better
 # fits the domain you decide to refactor and rename the attribute
-#
+
 # The new InvoiceSent event
 class InvoiceSent < Sequent::Event
   attrs invoice_date: Date
@@ -79,10 +78,11 @@ class InvoiceSent < Sequent::Event
 end
 ```
 
-Old events (persisted as version 1) will still contain `send_date` as attribute in the `event_json`.
+Old events (persisted as version 1) will still contain `send_date` as an attribute in the `event_json`.
 Later versions will persist the attribute as `invoice_date`. The old events will not be changed in the
 event store.
-You can define multiple upcasters, they run in the order in which they are defined:
+
+You can define multiple upcasters. They run in the order in which they are defined:
 
 ```ruby
 class InvoiceSet < Sequent::Event
@@ -98,20 +98,20 @@ class InvoiceSet < Sequent::Event
 end
 ```
 
-## What if scenarios
+## What-if scenarios
 
-Sometimes it can be useful to first check what will happen if a Command
-is executed. Sequent provides a Dry Run option which you can use
-in for instance rake tasks to check what will happen. Workflows and
-Projectors are not actually executed nor are the Commands with
+Sometimes it can be useful to check what would happen if a Command
+were to be executed, without actually executing it. Sequent provides a Dry Run option which you can use
+in, for instance, rake tasks to check what will happen. Workflows and
+Projectors are not actually executed, nor are the Commands with
 Events stored in the EventStore. This also implies that
 the dry run will only be recorded "one level" deep: Only the fact
-that a Workflow is executed will be recorded it does not execute
+that a Workflow is executed will be recorded; it does not execute
 the actual registered `on` block.
 
 **Important:** Dry run is **not Thread safe** since the Configuration
-is changed and shared among Threads. So if you use this in a live
-environment you will typically need invoke this from a stand-alone process
+is changed and shared among Threads. If you use this in a live
+environment you will typically need to invoke this from a stand-alone process
 like a Rake task.
 {: .notice--danger}
 
@@ -124,7 +124,7 @@ result = Sequent.dry_run(send_invoice)
 result.print(STDOUT)
 ```
 
-This will for instance produce the following output:
+This will, for instance, produce the following output:
 
 ```bash
 +++++++++++++++++++++++++++++++++++

@@ -6,19 +6,23 @@ This guide gives a step by step overview on how to add Sequent to an existing Ra
 
 ## Prerequisites
 
-- Postgresql database. Sequent only supports Postgres databases. There is no particular reason for this other then we haven't had the need or time
+- PostgreSQL database. Sequent only supports Postgres databases. There is no particular reason for this other than that we haven't had the need or time
 to support any other databases.
 
 ## Guide assumptions
 
 You are already familiar with Ruby on Rails and the core [Concepts](concepts.html) of Sequent.
 
-For a seamless integration with the latest Rails best is to adhere to the Rails naming conventions. In Rails everything under the `app` directory is autoloaded.
-To make use of this feature best is to put your domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`.
+For a seamless integration with the latest Rails, best is to adhere to the Rails naming conventions. In Rails everything under the `app` directory is autoloaded.
+To make use of this feature, best is to put your domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`.
 In this case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`.
-See for more details the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html).
+See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html) for more details.
 
-1. Add `gem 'sequent', git: 'https://github.com/zilverline/sequent'`  to your `Gemfile`
+1. Add to your `Gemfile`
+
+   ```
+   gem 'sequent', git: 'https://github.com/zilverline/sequent'
+   ```
 
 2. Run `bundle install`
 
@@ -45,7 +49,7 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
     
     ```
 
-    For a complete overview on how Migrations work in Sequent checkout the [Migrations Guide](/docs/concepts/migrations.html)
+    For a complete overview on how Migrations work in Sequent, check out the [Migrations Guide](/docs/concepts/migrations.html)
    
   
 5. Add the following snippet to your `Rakefile`
@@ -61,8 +65,8 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
     
     # The dependency of sequent:init on :environment ensures the Rails app is loaded
     # when running the sequent migrations. This is needed otherwise
-    # the sequent initializer doesn't run which is needed to run
-    # these rake tasks.
+    # the sequent initializer - which is required to run these rake tasks -
+    # doesn't run
     task 'sequent:init' => [:environment]
     task 'sequent:migrate:init' => [:sequent_db_connect]
     
@@ -103,8 +107,8 @@ See for more details the [Rails autoloading and reloading guide](https://guides.
 
 Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
 `AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
-For this to work properly all classes must be eager loaded otherwise code depending on this fact might
-produce unpredictable results. So set the `config.eager_load` to `true` for all environments 
+For this to work properly, all classes must be eager loaded otherwise code depending on this fact might
+produce unpredictable results. Set the `config.eager_load` to `true` for all environments 
 (in production the Rails default is already `true`).
 
 8. Add `./config/initializers/sequent.rb` containing at least:
@@ -133,7 +137,7 @@ produce unpredictable results. So set the `config.eager_load` to `true` for all 
     ```
 
     **You must** wrap the sequent initializer code in `Rails.application.reloader.to_prepare` because during
-    initialization the autoloading didn't run yet.
+    initialization, the autoloading hasn't run yet.
 
 9. Run the following commands to create the `sequent_schema` and `view_schema`  
 
@@ -146,17 +150,17 @@ produce unpredictable results. So set the `config.eager_load` to `true` for all 
     bundle exec rake sequent:migrate:offline    
     ```
 
-10. `rails s`
+10. Run `rails s`
 
 
 ### Where to put your domain classes
 
-As said earlier Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk) for autoloading and reloading. To ensure your domain classes will also benefit from
-this feature put them under a subdirectory of the `app` folder and adhere to the naming Rails conventions.
+Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk) for autoloading and reloading. To ensure your domain classes will also benefit from
+this feature, put them under a subdirectory of the `app` folder and adhere to the Rails naming conventions.
 
-One caveat is that you will quickly notice that this leads to an explosion of small files containing the `Event`s and `Command`s.
+One caveat is that this leads to an explosion of small files containing singular `Event`s and `Command`s.
 The preference of the Sequent team is to group all `Event`s and `Command`s in a single file (e.g. `events|commands.rb`).
-Luckily in Zeitwerk this is still possible. As an example folder structure:
+Luckily in Zeitwerk this is still possible. An example folder structure:
 
 ```
 app/
@@ -189,15 +193,14 @@ module Banking
 end
 ```
 
-The "downside" here is that you need to introduce an extra layer of naming to be able to group your events
-in a single file. 
+The "downside" here is that you need to introduce an extra layer of naming to be able to group your events into a single file. 
 
 ### Rails Engines
 
 Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html) work basically the same as a normal Rails application.
 Some things to remember when working with Rails Engines:
 
-1. The Sequent config must be in the main application `config/initializers`
+1. The Sequent config must be set in the main application `config/initializers`
 2. The main application is the maintainer of the `sequent_schema` and `view_schema`. 
    So copy over the migration sql files to the main application directory like you would when an Engine provides active record migrations.
 

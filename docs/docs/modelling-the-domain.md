@@ -4,11 +4,11 @@ title: Modelling your Domain in Sequent
 
 ## A tour of the `Post` Aggregate
 
-The app we generated in [Getting Started](/docs/getting-started.html) comes with an example `Post` aggregate. In this guide we will take a quick look at Sequent's directory structure, go over some of the concepts used in Sequent by expanding on `Post` and create our very own `Author` aggregate.
+The app we generated in [Getting Started](/docs/getting-started.html) comes with an example `Post` aggregate. In this guide we will take a quick look at Sequent's directory structure, go over some of the concepts used in Sequent by expanding on `Post`, and create our very own `Author` aggregate.
 
 ### Directory structure
 
-Let's have a look at the general directory structure of a generated sequent project. If something doesn't make sense right away, bear with us because we will walk through folders these one by one in the rest of this article.
+Let's have a look at the general directory structure of a generated Sequent project. If something doesn't make sense right away, bear with us because we will walk through these folders one by one in the rest of this article.
 
 ```bash
 app/           # Non-domain application logic
@@ -59,7 +59,7 @@ _Learn all about commands in the [Command](/docs/concepts/command.html) Referenc
 
 ### Handling our new command
 
-The `PostCommandHandler` subscribes to `Post` commands and calls the domain (i.e. the `Post` aggregate root). We can see this happening for `AddPost`:
+The `PostCommandHandler` in `lib/post/post_command_handler.rb` subscribes to `Post` commands and calls the domain (i.e. the `Post` aggregate root). We can see this happening for `AddPost`:
 
 ```ruby
 class PostCommandHandler < Sequent::CommandHandler
@@ -69,11 +69,11 @@ class PostCommandHandler < Sequent::CommandHandler
 end
 ```
 
-Because we are adding a new aggregate `add_aggregate` is called with `Post.new(command)` as its argument. The actual business logic of what `Post` looks like is contained in the aggregate root.
+Because we are adding a new aggregate, `add_aggregate` is called with `Post.new(command)` as its argument. The actual business logic of what `Post` looks like is contained in the aggregate root.
 
 You are free to define your own signature of the constructor. In the example we chose to pass the command as argument, but nothing prevents you to define it using the separate attributes.
 
-We can add our own `on` block below the `AddPost` one:
+We can add our own `on` block below the `AddPost` block in `lib/post/post_command_handler.rb`:
 
 ```ruby
 on PublishPost do |command|
@@ -115,7 +115,7 @@ def publish(publication_date)
 end
 ```
 
-In sequent you execute / enforce your business rules in these methods **before** applying events.
+In Sequent you execute / enforce your business rules in these methods **before** applying events.
 
 _Learn all about aggregate roots in the [AggregateRoot](/docs/concepts/aggregate-root.html) Reference Guide._
 {: .notice}
@@ -137,11 +137,11 @@ _Learn all about events in the [Event](/docs/concepts/event.html) Reference Guid
 {: .notice}
 
 
-### Adding Author
+## Adding an Author
 
-So we have gone through the generated example. In order to add Author as an Aggregate we will need to make some changes to the Commands and Events. Since we want to 'upgrade' Author to an Aggregate we need to use the `aggregate_id` instead of a author String.
+We have now gone through the generated example files. 
 
-But before we can add a Post we need to have an `Author`.
+Before we can add a `Post` we need to add an `Author`. In this guide, we will 'upgrade' `Author` to its own Aggregate Root. This means we need to add new files defining the `Author` Aggregate Root, and make some changes to the `Post` Commands and Events. i.e. using the author `aggregate_id` instead of an author String.
 
 In `lib/author/author.rb` add:
 
@@ -150,7 +150,7 @@ class Author < Sequent::AggregateRoot
 end
 ```
 
-So first let's create the command to add an `Author`.
+Let's create the command to add an `Author`.
 
 In `lib/author/commands.rb` add:
 
@@ -161,8 +161,8 @@ class AddAuthor < Sequent::Command
 end
 ```
 
-One of the things we need to do is to check the uniqueness of the Author's email. Since we only store the events in the event store, we can not simply add a unique constraint to ensure uniqueness. A common solution to this problem is to create yet another Aggregate responsible for maintaining all usernames.
-We will name this Aggregate `Usernames`. Since it needs to ensure uniqueness there can be only one instance of this, in order to achieve that we create this class as a Singleton.
+One of the things we need to do, is to check the uniqueness of the Author's email. Since we only store the events in the event store, we can not simply add a unique constraint to ensure uniqueness. A common solution to this problem is to create yet another Aggregate responsible for maintaining all usernames.
+We will name this Aggregate `Usernames`. Since it needs to ensure uniqueness, there can be only one instance of this. In order to achieve that we create the Usernames class as a [Singleton](https://refactoring.guru/design-patterns/singleton).
 
 In `lib/usernames/usernames.rb` add:
 
@@ -183,7 +183,7 @@ class Usernames < Sequent::AggregateRoot
 end
 ```
 
-We can now obtain the `Usernames` Aggregate by invoking `Usernames.instance`. Next thing we want to do is create a `AuthorCommandHandler` and add an Author. To ensure everything will work we start by defining our tests.
+We can now obtain the `Usernames` Aggregate by invoking `Usernames.instance`. Next thing we want to do is create the `AuthorCommandHandler` and add an Author. To ensure everything will work, we start by defining our tests.
 
 In `spec/lib/author/author_command_handler_spec.rb`
 
@@ -209,7 +209,7 @@ There might be more edge cases, but for now this is sufficient.
 
 Let's create the necessary classes in order to get the test to 'green'.
 
-We will stick to sequent's suggested directory structure so we will end up with something like this:
+We will stick to Sequent's suggested directory structure, so we will end up with something like this:
 
 ```bash
 blog.rb
@@ -226,14 +226,16 @@ lib/           # Contains your domain logic
     events.rb
 ```
 
-Don't forget to add to `blog.rb`:
+The following files need to be created / edited:
+
+1. Require the new `Author` and `Usernames` aggregates in `blog.rb`:
 
 ```ruby
 require_relative 'lib/author'
 require_relative 'lib/usernames'
 ```
 
-The `author/author_command_handler.rb`:
+2. Add the new `AuthorCommandHandler` class in `lib/author/author_command_handler.rb`:
 
 ```ruby
 class AuthorCommandHandler < Sequent::CommandHandler
@@ -241,7 +243,7 @@ class AuthorCommandHandler < Sequent::CommandHandler
 end
 ```
 
-The `author/commands.rb`
+3. Add the new `AddAuthor` command in `lib/author/commands.rb`
 
 ```ruby
 class AddAuthor < Sequent::Command
@@ -250,9 +252,24 @@ class AddAuthor < Sequent::Command
 end
 ```
 
-And the `AuthorCommandHandler` to `config/initializers/sequent.rb`.
+4. Include the `AuthorCommandHandler` in `config/initializers/sequent.rb`
 
-Now when we run the tests all are marked as `Pending: Not yet implemented`. Before we can go any further we need to think about what kind of Events we are interested in. What do we want to know in this case? When registering our very first `Author` it will not only create the Author, but also create our `Usernames` Aggregate to ensure uniqueness of the usernames. So the test is something like:
+```ruby
+Sequent.configure do |config|
+  # ...
+
+  config.command_handlers = [
+    PostCommandHandler,
+    AuthorCommandHandler
+  ].map(&:new)
+
+  # ...
+end
+```
+
+When we run the tests in `spec/lib/author/author_command_handler_spec.rb`, all are marked as `Pending: Not yet implemented`. Before we can go any further, we need to think about what kind of Events we are interested in. What do we want to know in this case? When registering our very first `Author`, it will not only create the Author, but also create our `Usernames` Aggregate to ensure uniqueness of the usernames. 
+
+The test will read something like:
 
 ```
 When i add an Author for the first time
@@ -261,26 +278,32 @@ And the username is checked for uniqueness and added to the Usernames
 And the Author is created with the given name and email
 ```
 
-By leveraging Sequent's test DSL we can create a test for this as follows:
+By leveraging Sequent's test DSL we can modify the test we have created for this in `spec/lib/author/author_command_handler_spec.rb` as follows:
 
 ```ruby
-let(:user_aggregate_id) { Sequent.new_uuid }
-let(:email) { 'ben@sequent.io' }
+context AddAuthor do
+  let(:user_aggregate_id) { Sequent.new_uuid }
+  let(:email) { 'ben@sequent.io' }
 
-it 'creates a user when valid input' do
-  when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: 'Ben', email: email)
-  then_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
-    UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2),
-    AuthorCreated.new(aggregate_id: user_aggregate_id, sequence_number: 1),
-  AuthorNameSet,
-  AuthorEmailSet.new(aggregate_id: user_aggregate_id, email: email, sequence_number: 3)
+  it "creates a user when valid input" do
+    when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: "Ben", email: email)
+    then_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
+                UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2),
+                AuthorCreated.new(aggregate_id: user_aggregate_id, sequence_number: 1),
+                AuthorNameSet,
+                AuthorEmailSet.new(aggregate_id: user_aggregate_id, email: email, sequence_number: 3)
+  end
+  it "fails if the username already exists"
+  it "ignores case in usernames"
 end
 ```
 
-In Sequent (or other event sourcing libraries) you test your code by checking the applied events.
-In this case we modelled the `AuthorNameSet` and `AuthorEmailSet` as separate events since we they probably don't change together. Also we can imagine to do different things when the email changes like sending a confirmation and such. You should take these considerations into account when moddeling your domain and defining your Events.
+In Sequent (or other event sourcing libraries) you test your code by checking the applied events, and which order they were run in.
+In this case we modelled the `AuthorNameSet` and `AuthorEmailSet` as separate events, since they probably don't change together. 
 
-Now let's create the necessary code to make the test pass.
+In more comprehensive cases we can imagine triggering other events, e.g. when the email changes, a confirmation is sent. You should take these considerations into account when modelling your domain and defining your Events.
+
+Let's create the necessary code to make the test pass.
 
 In `lib/usernames/events.rb`
 
@@ -294,7 +317,7 @@ class UsernameAdded < Sequent::Event
 end
 ```
 
-As you can see the events have no attributes yet. This is not necessary to make this test pass. Sequent only looks at the defined attributes and set those as values in the event.  So you need to explicitly declare all attributes.
+As you can see the events have no attributes yet. This is not necessary to make this test pass. Sequent only looks at the defined attributes and sets those as values on the event, in the event store. Therefore all attributes you want to include on an event, need to be explicitly declared.
 
 In `lib/usernames/usernames.rb`
 
@@ -402,7 +425,7 @@ Sequent requires us to define an event handler in the Aggregate for at least the
 
 So let's change our aggregates to satisfy this demand.
 
-Add to `Usernames`
+Add to `Usernames` in `lib/usernames/usernames.rb`
 
 ```ruby
 class Usernames < Sequent::AggregateRoot
@@ -414,7 +437,7 @@ class Usernames < Sequent::AggregateRoot
 end
 ```
 
-Add to `Author`
+Add to `Author` in `lib/author/author.rb`
 
 ```ruby
 class Author < Sequent::AggregateRoot
@@ -428,7 +451,7 @@ end
 
 Running the spec again results in the following error: `expected Usernames::UsernameAlreadyRegistered but nothing was raised`
 
-This is as expected since we didn't implement anything. Let's start by enforcing uniqueness.
+This is as expected, since we didn't implement anything. Let's start by enforcing uniqueness.
 
 Change the `Usernames` aggregate as follows:
 
@@ -450,7 +473,7 @@ class Usernames < Sequent::AggregateRoot
 end
 ```
 
-And the `lib/usernames/events.rb` needs to contain the username attribute to make the test pass.
+The `UsernameAdded` event in `lib/usernames/events.rb` needs to contain the username attribute to make the test pass.
 
 ```ruby
 class UsernameAdded < Sequent::Event
@@ -458,9 +481,9 @@ class UsernameAdded < Sequent::Event
 end
 ```
 
-The event handlers `UsernamesCreated` and `UsernameAdded` will keep track of the current usernames in a `Set`. Whenever a new name is being added we first check if the name does not yet exist. If not then a new event is applied.
+The event handlers `UsernamesCreated` and `UsernameAdded` will keep track of the current usernames in a `Set`. Whenever a new name is being added, we first check if the name does not yet exist. If it does not exist, a new event is applied.
 
-So let's finish up by implementing our last test to ignore case when registering an Author.
+Let's finish up by implementing our last test to check that string case is ignored when registering an Author.
 
 The test:
 
@@ -478,7 +501,7 @@ it 'ignores case in usernames' do
 end
 ```
 
-We change our `Usernames` to satisfy this requirement as follows:
+We change our `Usernames` class to satisfy this requirement as follows:
 
 ```ruby
 class Usernames < Sequent::AggregateRoot
@@ -494,9 +517,11 @@ class Usernames < Sequent::AggregateRoot
 end
 ```
 
-The last thing we need to do is refactor out `Author` name, and instead use the `Author` `aggregate_id`.
+## Adding a Post using the new Author Aggregate Root
 
-In `spec/lib/post/post_command_handler_spec.rb`:
+The last thing we need to do to successfully add a post, is refactor out `Author` name, and instead use the `Author` `aggregate_id`. This requires a few changes:
+
+1. Change the passed command values and event attributes in `spec/lib/post/post_command_handler_spec.rb`:
 
 ```ruby
 let(:aggregate_id) { Sequent.new_uuid }
@@ -515,14 +540,7 @@ it 'creates a post' do
 end
 ```
 
-Running the test, it now fails:
-
-```ruby
-Sequent::Core::CommandNotValid:
-  Invalid command AddPost 3123758b-b847-4451-b524-885c4d04d7b7, errors: {:author=>["can't be blank"]}
-```
-
-We need to update the presence validation in `AddPost`. Edit `lib/post/commands.rb`:
+2. Update the attribute presence validation of `AddPost` in `lib/post/commands.rb`:
 
 ```ruby
 class AddPost < Sequent::Command
@@ -531,17 +549,7 @@ class AddPost < Sequent::Command
 end
 ```
 
-Running the test again reveals a problem in the `Post` aggregate root:
-
-```ruby
-Failure/Error: apply PostAuthorChanged, author: command.author
-
-NoMethodError:
-  undefined method `author' for #<AddPost:0x00007f8509073ee8>
-# ./lib/post/post.rb:5:in `initialize'
-```
-
-In `lib/post/post.rb` change
+3. Update the `initialize` method and `on PostAuthorChanged` handler in `lib/post/post.rb`
 
 ```ruby
 class Post < Sequent::AggregateRoot
@@ -561,11 +569,16 @@ class Post < Sequent::AggregateRoot
 end
 ```
 
-And we're back to passing tests. To sum up this guide we have done:
+When running the tests, they should now all pass.
+
+
+## Summary
+
+In this guide we learned:
 
 1. Explored the generated `Post` AggregateRoot.
 2. Added new functionality to publish a `Post`
-3. Added a new Aggregate `Author` and `Usernames` and showed how Aggregate can depend on each other
+3. Added a new Aggregate `Author` and `Usernames` and showed how Aggregates can depend on each other
 4. Explored how to add tests in Sequent in order to test the domain
 
-In this guide we mainly focussed on the domain. In the [next guide](/docs/building-a-web-application.html) we will take it a step further and see how can actually build a web application that our Authors can use. We will learn about how to initialize and setup Sequent with Sinatra, learn about [Projectors](/docs/concepts/projector.html) and see how Sequent deals with migrations.
+In this guide we mainly focussed on the domain. In the [next guide](/docs/building-a-web-application.html) we will take it a step further and see how can actually build a web application that our Authors can use. We will learn how to initialize and set up Sequent with Sinatra, learn about [Projectors](/docs/concepts/projector.html) and see how Sequent deals with migrations.

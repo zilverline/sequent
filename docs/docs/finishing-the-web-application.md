@@ -2,6 +2,8 @@
 title: Finishing the web application with Sequent
 ---
 
+## Final Steps
+
 In the previous guide [Building a web application](/docs/building-a-web-application.html)
 we created a web application using Sequent with Sinatra. In this guide we will continue
 with that web application and will show you how to add Form validation, and let the Author add Posts.
@@ -9,15 +11,15 @@ with that web application and will show you how to add Form validation, and let 
 ### Adding form validation
 
 Every web application needs some sort of form validation. When creating a Sequent application
-you typically bind a [Command](/docs/concepts/command.html) to a web form. A Command respresents
+you typically bind a [Command](/docs/concepts/command.html) to a web form. A Command represents
 user intent, like `AddPost` or `AddAuthor`. Sequent does not provide any view helpers to render
-errors in the UI like for instance Rails does. Sequent does provide a way to do Command validation
+errors in the UI like for instance Rails does. Sequent does however provide a way to do Command validation
 using the Validation module from Rails. Please check [validations](/docs/concepts/validations.html)
 in our Reference Guide for all the details. For now we stick to the 'create author' form in our
 web application.
 
-If we fire up the blog application and open the [home page](http://localhost:4567) and
-directly hit the 'Create author' button the form blows up with a
+When running the blog application, visiting the [home page](http://localhost:4567) and
+directly clicking the 'Create author' button (with empty form values), the form blows up with an error:
 
 ```ruby
 Sequent::Core::CommandNotValid at /authors
@@ -33,19 +35,19 @@ class AddAuthor < Sequent::Command
 end
 ```
 
-The only checks we do it that the `name` and `email` should be present, but
-since Sequent uses the Rails validation module you can add any `validates` method
-available.
+Currently we only check whether the `name` and `email` attributes are present, but
+we could add any `validates` method from the Rails validation module, since it is incorporated into Sequent.{:.notice--info}
 
-So in order to provide proper feedback to the user we need to handle this
+In order to provide proper feedback to the user, we need to handle this
 error in Sinatra and display the error messages at the correct fields.
 
-For this guide we somewhat refactored the web application and added bootstrap
-for some nifty look and feel and extracted some command erb code into
-a default layout, this is automatically picked up by Sinatra.
+For this guide we somewhat refactored the web application:
+- Added Bootstrap for a nifty look and feel, 
+- Added an erb layout file to manage all displayed erb code (automatically picked up by Sinatra)
 
-In `app/views/layout.erb`
-```ruby
+
+Create `app/views/layout.erb`:
+```erb
 <html>
   <head>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -60,10 +62,15 @@ In `app/views/layout.erb`
 ```
 
 In order to display the error messages in the form we first need to
-rescue from the `Sequent::Core::CommandNotValid` in the `post '/authors'`
+rescue from the `Sequent::Core::CommandNotValid` in the `post '/authors'` method.
 
-In `app/web.rb`
+We will make 2 changes in `app/web.rb`:
 
+1. Add a rescue block and store the errors in `@errors`. We will
+   use this in the erb to display the error messages.
+2. Change the `command` attribute into an instance variable `@command`, to allow access from an erb file. This is necessary, since we want to be able to get and display any erroneous values (as housed in the command) the user has entered.
+
+`app/web.rb`:
 ```ruby
   post '/authors' do
     author_id = Sequent.new_uuid
@@ -78,21 +85,11 @@ In `app/web.rb`
   end
 ```
 
-We have changed 2 things here:
+Next we need to change the html form and add some helper methods.
 
-1. Added the rescue block and stored the errors in `@errors`. We will
-use this in the erb to display the error messages.
-2. We have changed the `command` attribute into an instance variable `@command`
-so it is available in the erb for displaying the value in the form fields.
-This is necessary when submitting the form with an error. If this happens
-you want to show the values the user typed in.
+1. Render form fields in red when they contain an invalid value by changing `app/views/index.erb` to:
 
-Now we need to change the html form. First we add some code to ensure the
-form fields are rendered in red when it contains an invalid value:
-
-In `app/views/index.erb`
-
-```ruby
+```erb
 <form method="post" action="/authors">
   <div class="form-group">
     <label for="name">Name</label>
@@ -117,14 +114,11 @@ In `app/views/index.erb`
 </form>
 ```
 
-And we have added the following helpers to get the errors for certain
-attributes
-
-In `app/web.rb`
+2. Add helpers to get the errors pertaining to certain attributes in `app/web.rb`:
 
 ```ruby
 class Web < Sinatra::Base
-  # omitted ...
+  ...
 
   helpers do
     def has_errors_for(attribute)
@@ -139,18 +133,18 @@ class Web < Sinatra::Base
       has_errors_for(attribute) ? 'is-invalid' : ''
     end
   end
+  
+  ...
 end
 ```
 
-When we now submit an empty form we can see the input fields are
-displayed in red. The last thing we need to do is display the error
-messages underneath the input fields.
+When we now submit an empty form, we can see the input fields are displayed in red. 
 
-We end up with this:
+The last thing we need to do, is display the error messages underneath the relevant input fields.
 
-In `app/views/index.erb`
+To enable this functionality, we modify `app/views/index.erb`:
 
-```ruby
+```erb
 <form method="post" action="/authors">
   <div class="form-group">
     <label for="name">Name</label>
@@ -189,30 +183,28 @@ In `app/views/index.erb`
 </form>
 ```
 
-When we now submit an empty form the error messages are displayed
-underneath the input fields.
+When we now submit an empty form, the error messages are displayed
+underneath the relevant input fields.
 
 So to summarize, when creating a web application:
 
 1. In Sequent you typically bind forms to `Command` objects
 2. You can rescue from the `Sequent::Core::CommandNotValid` in order
-to display validation errors in the Commands
-3. Using Sinatra it is trivial to display those errors the 'Railsy' way.
+   to display validation errors from the Commands
+3. Using Sinatra, it is trivial to display those errors the 'Railsy' way.
+
+### Handling Errors outside Command Validation
 
 What about errors that occur outside Command validation? Remember that
 we enforce uniqueness of email addresses in the `Usernames` AggregateRoot.
 This will raise a `Usernames::UsernameAlreadyRegistered` error and is
 not rescued in our web application.
 
-Again this is not something that Sequent handles for you since it is not
+Again this is not something that Sequent handles for you, since it is not
 a web framework. It is however not that hard to rescue from. Since we only
-have one custom error class in this example we will rescue this error explictly.
+have one custom error class in this example we will rescue this error explicitly.
 
-**Tip:** If your application grows you can of course create a base error class
-for your app and rescue from that in you Sinatra controllers.
-{: .notice--success}
-
-In `app/web.rb`
+In `app/web.rb`:
 
 ```ruby
 class Web < Sinatra::Base
@@ -233,21 +225,22 @@ class Web < Sinatra::Base
 end
 ```
 
+**Tip:** If your application grows, it is possible to create a custom base error class
+for your app and rescue from that in your Sinatra controllers.
+{: .notice--success}
+
 ### Adding and editing Posts
 
-In order to have a fully working blog application an author needs
+In order to have a fully working blog application, an author needs
 to be able to submit and edit posts. In this example we won't go into detail
-on how to do login, since that is not in Sequent scope.
+on how to handle logging in, since that is outside of Sequent scope.
 
-For now we will just add the ability to add and edit a `Post` on the `Author`s show page.
+For now we will just add the ability to add and edit a `Post` on the `Author`'s show page. Since this
+is somewhat of a repeat of what we did earlier for creating an Author, we just show the code that needs to be added.
 
-To be able to add and edit posts we need to add the following code. Since this
-is somewhat of a repeat of what we did earlier in creating an Author we just
-show the code that needs to be added.
+Adding the domain logic for editing posts:
 
-First add the domain logic for editting posts.
-
-In `lib/post/commands.rb`
+In `lib/post/commands.rb` add:
 
 ```ruby
 class EditPost < Sequent::Command
@@ -256,7 +249,7 @@ class EditPost < Sequent::Command
 end
 ```
 
-In `lib/post/post_command_handler.rb`
+In `lib/post/post_command_handler.rb` add:
 
 ```ruby
 class PostCommandHandler < Sequent::CommandHandler
@@ -268,7 +261,7 @@ class PostCommandHandler < Sequent::CommandHandler
 end
 ```
 
-In `lib/post/post.rb`
+In `lib/post/post.rb` add:
 
 ```ruby
 class Post < Sequent::AggregateRoot
@@ -279,9 +272,7 @@ class Post < Sequent::AggregateRoot
 end
 ```
 
-And the final version of the `PostProjector` is
-
-In `app/projectors/post_projector.rb`
+The final version of the `PostProjector` in `app/projectors/post_projector.rb` is:
 
 ```ruby
 require_relative '../records/post_record'
@@ -313,7 +304,7 @@ end
 
 ```
 
-In `app/web.rb`
+In `app/web.rb` add:
 
 ```ruby
 class Web < Sinatra::Base
@@ -372,11 +363,11 @@ class Web < Sinatra::Base
 end
 ```
 
-We also need to add the form for submitting posts in the Author show
+Adding a view for displaying the details of an Author, their posts, and editing/adding a new post:
 
 The complete `app/views/authors/show.erb`
 
-```ruby
+```erb
 <div class="container">
   <p>
     <a href="/authors">Back to all authors</a>
@@ -440,10 +431,9 @@ The complete `app/views/authors/show.erb`
 </div>
 ```
 
-Since we follow a naming convention in the `AddPost` command and `EditPost` command
-we can use the same form.
+Since we follow a naming convention in the `AddPost` command and `EditPost` command, we can use the same form.
 
-As we want to access the post records from our author record we need to add an has_many relation in `app/records/author_record.rb`
+In order to access the post records from our author record, we need to add a `has_many` relation in `app/records/author_record.rb`:
 
 ```ruby
   class AuthorRecord < Sequent::ApplicationRecord
@@ -451,14 +441,15 @@ As we want to access the post records from our author record we need to add an h
   end
 ```
 
-We need to add this new foreign_key as a new column in the post table. We need to update `db/tables/post_records.sql`
+We need to add this new `foreign_key` as a new column in the post table. 
+
+Update `db/tables/post_records.sql`:
                                                                                                                                                 
 ```sql
  CREATE TABLE post_records%SUFFIX% (
      id serial NOT NULL,
      aggregate_id uuid NOT NULL,
      author_aggregate_id uuid,
-     author character varying,
      title character varying,
      content character varying,
      CONSTRAINT post_records_pkey%SUFFIX% PRIMARY KEY (id)
@@ -466,16 +457,13 @@ We need to add this new foreign_key as a new column in the post table. We need t
  
  CREATE UNIQUE INDEX post_records_keys%SUFFIX% ON post_records%SUFFIX% USING btree (aggregate_id);
 ```
-Then run & update the migration as you did in 3.Building a web application > 5. Update and run the migration
 
+Lastly update and run the migration as you did in Guide [3. Building a web application > 5. Update and run the migration](https://www.sequent.io/docs/building-a-web-application.html)
 
-### Wrap up
+### Extending Domain Logic
 
-In this guide we have added form validation and added the possibility
-for `Author`s to add and edit `Post`s.
-If in your domain it is also necessary for an `Author`
-keeps track of it's posts to enforce some sort of business rule
-then you will also need to add this to your domain logic.
+In this guide we have added form validation and added the ability for `Author`s to add and edit `Post`s.
+If your domain requires `Author`s to keep track of their `Post`s to enforce a certain business rule, you will explicitly need to add this to your domain logic.
 This can be done for instance in the `PostCommandHandler`:
 
 ```ruby
@@ -487,4 +475,14 @@ This can be done for instance in the `PostCommandHandler`:
   end
 ```
 
-Of course this entirely depends on your domain whether it is important to you.
+Of course, the importance of this functionality entirely depends on your domain.
+
+
+## Summary
+
+In this guide we learned about:
+
+1. Adding the ability for `Author`s to add and edit `Post`s
+2. How to add form validation to views through using Sequent Command Validation
+3. Mapping errors to views using `rescue Sequent::Core::CommandNotValid`
+
