@@ -81,10 +81,10 @@ class InvoiceAlreadyQueued < My::DomainError; end
 class Invoice < Sequent::AggregateRoot
   def queue_for_sending
     fail InvoiceAlreadyQueued if @queued
-    apply QueueInvoiceForSending 
+    apply InvoiceQueuedForSending 
   end
   
-  on QueueInvoiceForSending do
+  on InvoiceQueuedForSending do
     @queued = true
   end
 end
