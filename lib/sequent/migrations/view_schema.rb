@@ -137,6 +137,16 @@ module Sequent
               statements = sql_file_to_statements(indexes_file_name) { |raw_sql| raw_sql.remove('%SUFFIX%') }
               statements.each(&method(:exec_sql))
             end
+
+            Dir.glob("#{Sequent.configuration.migration_sql_files_directory}/#{table.table_name}*.sql").each do |file_name|
+              next if file_name.include?("#{table.table_name}.indexes.sql")
+              next if file_name.include?("#{table.table_name}.sql")
+
+              statements = sql_file_to_statements(file_name) do |raw_sql|
+                raw_sql.remove('%SUFFIX%')
+              end
+              statements.each { |statement| exec_sql(statement) }
+            end
           end
           Versions.create!(version: Sequent.new_version)
         end
