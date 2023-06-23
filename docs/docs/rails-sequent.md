@@ -79,6 +79,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     task :migrate_public_schema do
       ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
       Rake::Task['db:migrate'].invoke
+      ENV['SEQUENT_MIGRATION_SCHEMAS'] = nil
     end
 
     # Prevent rails db:migrate from being executed directly.
