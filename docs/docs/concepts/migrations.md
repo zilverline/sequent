@@ -130,6 +130,12 @@ As you can see there is no need to use the **%SUFFIX%** placeholder in these mig
 since it is an in-place update.
 {: .notice--info}
 
+**Important**: You must also incorporate your changes to the table-name.sql (`user_records.sql` in case of the example) file.
+So the column `first_name` should be added as well in the table definition. Reason for this is that currently Sequent only
+executes the "main" `sql` files when re-generating the schema from scratch (e.g. in tests). 
+{: .notice--warning}
+
+
 ## Running migrations
 
 Sequent provides some rake tasks to fully support a 3-phase-deploy to minimize downtime.
