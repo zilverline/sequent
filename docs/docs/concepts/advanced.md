@@ -53,9 +53,7 @@ event_record.children
 ## Upcasting
 
 When designing your domain (`AggregateRoot`s, `Event`s, `Command`s), over time you might want to change a particular `Event`. Perhaps you want to rename an attribute.
-One strategy could be to just run an update query on your `EventRecord` and be done with it. If you are still
-in the startup phase and really exploring the domain, this could certainly occur. It does however go
-against the immutable nature of an EventStore.
+
 In order to accommodate for refactorings like renaming - typically called *upcasting* in event sourcing - Sequent
 allows you to register upcasters in `Event`s and `ValueObject`s as follows:
 
@@ -73,7 +71,7 @@ class InvoiceSent < Sequent::Event
   attrs invoice_date: Date
 
   upcast do |hash|
-    hash['invoice_date'] = hash['send_date']
+    hash['invoice_date'] = hash['send_date'] if hash['send_date'].present?
   end
 end
 ```
@@ -89,14 +87,18 @@ class InvoiceSet < Sequent::Event
   attrs invoice_date: Date, full_name: String
 
   upcast do |hash|
-    hash['full_name'] = hash['fullname']
+    hash['full_name'] = hash['fullname'] if hash['fullname'].present?
   end
 
   upcast do |hash|
-    hash['invoice_date'] = hash['send_date']
+    hash['invoice_date'] = hash['send_date'] if hash['send_date'].present?
   end
 end
 ```
+
+After upcasting update all other references to the renamed attribute in `AggregateRoot`s or any other Ruby object.
+Upcasting does not apply to `Command`s as they are never deserialized, at least not by Sequent. So in a `Command` it
+is safe to rename the attribute (and update references to that attribute). 
 
 ## What-if scenarios
 
