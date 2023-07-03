@@ -189,6 +189,8 @@ module Sequent
       #   These tables will be called `table_name_VERSION`.
       # 3. Replay all events to populate the tables
       #   It keeps track of all events that are already replayed.
+      # 4. Resets the table names of the activerecord models (projections)
+      #   back to their original values (so without the VERSION suffix)
       #
       # If anything fails an exception is raised and everything is rolled back
       #
@@ -209,6 +211,7 @@ module Sequent
         in_view_schema do
           executor.create_indexes_after_execute_online(plan)
         end
+        executor.reset_table_names(plan)
         # rubocop:disable Lint/RescueException
       rescue Exception => e
         # rubocop:enable Lint/RescueException

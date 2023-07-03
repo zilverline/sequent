@@ -15,6 +15,7 @@
   it being a `DateTime` rather than a `Time`.
 - Renamed file of `Sequent::Test::WorkflowHelpers` to `workflow_helpers`. If you require this file manually you will need to update it's references
 - You now must "tag" specs using `Sequent::Test::WorkflowHelpers` with the following metadata `workflows: true` to avoid collision with other specs
+- Bugfix: `rake sequent:migrate:online` will now call `reset_column_information` when done. Otherwise a subsequent `sequent:migrate:offline` called in the same memory space fails.
 
 # Changelog 5.0.0 (changes since 4.3.0)
 

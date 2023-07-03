@@ -171,14 +171,13 @@ describe Sequent::Migrations::ViewSchema do
             MessageSet.new(aggregate_id: message_aggregate_id, sequence_number: 2, message: 'Foobar'),
           ],
         )
-
         migrator.migrate_online
 
-        expect(AccountRecord.table_name).to eq 'account_records_1'
-        expect(AccountRecord.count).to eq 2
+        expect(AccountRecord.table_name).to eq 'account_records'
+        expect(AccountRecord.connection.select_value('select count(*) from account_records_1')).to eq 2
 
-        expect(MessageRecord.table_name).to eq 'message_records_1'
-        expect(MessageRecord.count).to eq 1
+        expect(MessageRecord.table_name).to eq 'message_records'
+        expect(AccountRecord.connection.select_value('select count(*) from message_records_1')).to eq 1
 
         expect(
           Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id),
@@ -214,8 +213,8 @@ describe Sequent::Migrations::ViewSchema do
 
           migrator.migrate_online
 
-          expect(AccountRecord.table_name).to eq 'account_records_1'
-          expect(AccountRecord.count).to eq 2
+          expect(AccountRecord.table_name).to eq 'account_records'
+          expect(AccountRecord.connection.select_value('select count(*) from account_records_1')).to eq 2
 
           expect(MessageRecord.table_name).to eq 'message_records'
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_1')
@@ -340,8 +339,8 @@ describe Sequent::Migrations::ViewSchema do
 
         migrator.migrate_online
 
-        expect(AccountRecord.count).to eq(1)
-        expect(MessageRecord.count).to eq(1)
+        expect(AccountRecord.connection.select_value('select count(*) from account_records_1')).to eq(1)
+        expect(MessageRecord.connection.select_value('select count(*) from message_records_1')).to eq(1)
       end
 
       it 'replays events not yet replayed' do
