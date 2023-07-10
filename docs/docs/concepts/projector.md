@@ -2,6 +2,9 @@
 title: Projector
 ---
 
+**Important**: Please take note for the current [known limitations](#known-limitations) when working with Projectors and Record classes.
+{: .notice--warning}
+
 Projectors are responsible for creating projections based on events. Projections are records in tables.
 Sequent uses `ActiveRecord` for CRUD-ing records in the database. Sequent uses the term `Records` to
 describe the Projections. In Sequent, Projectors inherit from `Sequent::Projector`. To store something
@@ -174,3 +177,14 @@ class UserProjector < Sequent::Projector
   end
 end
 ```
+
+## Known limitations
+
+1. You can not use `belongs_to` in your Record classes as these will fail if a parent relation does not exist. In a
+normal application flow this is not a problem, only when replaying Projections this can become a problem due to the
+order in which events are replayed. The only guarantee Sequent gives is that Events are replayed in order for a single
+Aggregate, but there is no guaranteed order between different Aggregates.
+2. For the same reason you can not use `belongs_to` you also can't use foreign key constraints in your view schema.
+Relations between Aggregates are typically enforced in the Domain, so foreign key constraints are obsolete in the view schema.
+For performance reasons you can of course still add indices on your foreign key columns.
+
