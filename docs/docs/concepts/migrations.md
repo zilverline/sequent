@@ -123,16 +123,18 @@ a file called `user_records_2.sql` in the same location: `Sequent.configuration.
 The contents of this file can be something like:
 
 ```sql
-alter table user_records add column first_name character varying;
+alter table user_records add column if not exists first_name character varying;
 ```
 
 As you can see there is no need to use the **%SUFFIX%** placeholder in these migrations
 since it is an in-place update.
 {: .notice--info}
 
-**Important**: You must also incorporate your changes to the table-name.sql (`user_records.sql` in case of the example) file.
+**Important**: 
+1. You must also incorporate your changes to the table-name.sql (`user_records.sql` in case of the example) file.
 So the column `first_name` should be added as well in the table definition. Reason for this is that currently Sequent only
-executes the "main" `sql` files when re-generating the schema from scratch (e.g. in tests). 
+executes the "main" `sql` files when re-generating the schema from scratch (e.g. in tests).
+2. You must make the statement idempotent with for instance "if not exists". See https://github.com/zilverline/sequent/issues/382.
 {: .notice--warning}
 
 
@@ -152,7 +154,7 @@ When running this rake task, Sequent is able to build up the new Projections
 from [Events](event.html) while the application is running. Sequent keeps track
 of which Events are being replayed. The new Projections
 are created in the view schema under unique names, not visible
-to the running app.
+to the running app. Only one `sequent:migrate:online` can run at the same time.
 When the online migration part is done you need to run the [offline migration](#2-stop-application-and-finish-migrations) part.
 
 ### 2. Stop application and finish migrations
