@@ -71,7 +71,9 @@ module Sequent
 
         filters.each { |filter| filter.execute(command) }
 
-        fail CommandNotValid, command unless command.valid?
+        I18n.with_locale(Sequent.configuration.error_locale_resolver.call) do
+          fail CommandNotValid, command unless command.valid?
+        end
 
         parsed_command = command.parse_attrs_to_correct_types
         command_handlers.select do |h|
