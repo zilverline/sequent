@@ -11,6 +11,15 @@ class TestCommandHandler < Sequent::CommandHandler
     validates_presence_of :mandatory_string
   end
 
+  class CustomValidationCommand < Sequent::Core::BaseCommand
+    attrs mandatory_string: String
+    validate :mandatory_string_presence
+
+    def mandatory_string_presence
+      errors.add(:mandatory_string, I18n.t('errors.messages.blank')) if mandatory_string.blank?
+    end
+  end
+
   class NotHandledCommand < Sequent::Core::Command
   end
 
@@ -90,22 +99,45 @@ describe Sequent::Core::CommandService do
       I18n.backend.store_translations(:nl, {errors: {messages: {blank: 'Verplicht veld'}}})
     end
 
-    it 'raises a CommandNotValid for invalid commands in english' do
-      expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
-        an_instance_of(Sequent::Core::CommandNotValid)
-          .and(having_attributes(errors: {mandatory_string: ["can't be blank"]})),
-      )
-    end
-
-    context 'and dutch as error locale' do
-      before { Sequent.configuration.error_locale_resolver = -> { :nl } }
-      after { Sequent.configuration.error_locale_resolver = -> { :en } }
-
-      it 'raises a CommandNotValid for invalid commands in dutch' do
+    context 'ActiveModel validations' do
+      it 'raises a CommandNotValid for invalid commands in english' do
         expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
           an_instance_of(Sequent::Core::CommandNotValid)
-            .and(having_attributes(errors: {mandatory_string: ['Verplicht veld']})),
+            .and(having_attributes(errors: {mandatory_string: ["can't be blank"]})),
         )
+      end
+
+      context 'and dutch as error locale' do
+        before { Sequent.configuration.error_locale_resolver = -> { :nl } }
+        after { Sequent.configuration.error_locale_resolver = -> { :en } }
+
+        it 'raises a CommandNotValid for invalid commands in dutch' do
+          expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
+            an_instance_of(Sequent::Core::CommandNotValid)
+              .and(having_attributes(errors: {mandatory_string: ['Verplicht veld']})),
+          )
+        end
+      end
+    end
+
+    context 'custom validations' do
+      it 'raises a CommandNotValid for invalid commands in english' do
+        expect { command_service.execute_commands(TestCommandHandler::CustomValidationCommand.new) }.to raise_error(
+          an_instance_of(Sequent::Core::CommandNotValid)
+            .and(having_attributes(errors: {mandatory_string: ["can't be blank"]})),
+        )
+      end
+
+      context 'and dutch as error locale' do
+        before { Sequent.configuration.error_locale_resolver = -> { :nl } }
+        after { Sequent.configuration.error_locale_resolver = -> { :en } }
+
+        it 'raises a CommandNotValid for invalid commands in dutch' do
+          expect { command_service.execute_commands(TestCommandHandler::CustomValidationCommand.new) }.to raise_error(
+            an_instance_of(Sequent::Core::CommandNotValid)
+              .and(having_attributes(errors: {mandatory_string: ['Verplicht veld']})),
+          )
+        end
       end
     end
   end
