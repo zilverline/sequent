@@ -96,14 +96,14 @@ describe Sequent::Core::CommandService do
   context 'given multiple available locales' do
     before do
       I18n.config.available_locales = %i[en nl]
-      I18n.backend.store_translations(:nl, { errors: { messages: { blank: 'Verplicht veld' } } })
+      I18n.backend.store_translations(:nl, {errors: {messages: {blank: 'Verplicht veld'}}})
     end
 
     context 'ActiveModel validations' do
       it 'raises a CommandNotValid for invalid commands in english' do
         expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
-         an_instance_of(Sequent::Core::CommandNotValid)
-           .and(having_attributes(errors: { mandatory_string: ["can't be blank"] })),
+          an_instance_of(Sequent::Core::CommandNotValid)
+            .and(having_attributes(errors: {mandatory_string: ["can't be blank"]})),
         )
       end
 
@@ -114,7 +114,7 @@ describe Sequent::Core::CommandService do
         it 'raises a CommandNotValid for invalid commands in dutch' do
           expect { command_service.execute_commands(TestCommandHandler::DummyBaseCommand.new) }.to raise_error(
             an_instance_of(Sequent::Core::CommandNotValid)
-              .and(having_attributes(errors: { mandatory_string: ['Verplicht veld'] })),
+              .and(having_attributes(errors: {mandatory_string: ['Verplicht veld']})),
           )
         end
       end
@@ -124,7 +124,7 @@ describe Sequent::Core::CommandService do
       it 'raises a CommandNotValid for invalid commands in english' do
         expect { command_service.execute_commands(TestCommandHandler::CustomValidationCommand.new) }.to raise_error(
           an_instance_of(Sequent::Core::CommandNotValid)
-            .and(having_attributes(errors: { mandatory_string: ["can't be blank"] })),
+            .and(having_attributes(errors: {mandatory_string: ["can't be blank"]})),
         )
       end
 
@@ -135,7 +135,7 @@ describe Sequent::Core::CommandService do
         it 'raises a CommandNotValid for invalid commands in dutch' do
           expect { command_service.execute_commands(TestCommandHandler::CustomValidationCommand.new) }.to raise_error(
             an_instance_of(Sequent::Core::CommandNotValid)
-              .and(having_attributes(errors: { mandatory_string: ['Verplicht veld'] })),
+              .and(having_attributes(errors: {mandatory_string: ['Verplicht veld']})),
           )
         end
       end
