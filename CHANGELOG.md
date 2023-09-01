@@ -7,6 +7,7 @@
 - Introduce `SEQUENT_ENV` instead of `RACK_ENV`. `SEQUENT_ENV` defaults to the value of `RAILS_ENV` or `RACK_ENV`.
 - Introduce `Sequent.configuration.time_precision` which defaults to `ActiveSupport::JSON::Encoding.time_precision`
   which is the precision "after seconds" to store time in json format when an event is serialized.
+- Custom command validations will now be translated according to the locale set by `Sequent.configuration.error_locale_resolver`
 
 **BREAKING CHANGES**:
 
