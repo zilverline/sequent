@@ -230,6 +230,7 @@ describe Sequent::Core::CommandService do
         attr_reader :published_events
 
         def initialize
+          super
           @published_events = []
         end
 

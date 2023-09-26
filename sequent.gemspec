@@ -43,7 +43,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rspec', rspec_version
   s.add_development_dependency 'rspec-collection_matchers', '~> 1.2'
   s.add_development_dependency 'rspec-mocks', rspec_version
-  s.add_development_dependency 'rubocop', '< 1.21'
+  s.add_development_dependency 'rubocop', '~> 1.56', '>= 1.56.3'
   s.add_development_dependency 'simplecov', '~> 0.21'
   s.add_development_dependency 'timecop', '~> 0.9'
 end
