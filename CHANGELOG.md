@@ -1,3 +1,8 @@
+# Changelog 6.x.x (changes since 6.0.0)
+- Drop support for ruby < 3
+- Upgraded ActiveStar
+- Add support for ruby 3.2
+
 # Changelog 6.0.0 (changes since 5.0.0)
 
 - Changed the default type of `aggregate_id` in `sequent_schema` to `uuid` since Postgres support this for quite long.

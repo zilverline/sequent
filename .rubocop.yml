@@ -64,6 +64,9 @@ Layout/LineLength:
   Max: 120
   AutoCorrect: true
 
+Gemspec/RequiredRubyVersion:
+  Enabled: false
+
 ##
 # Metrics (all disabled; we have our own opinion on this)
 ##
@@ -335,8 +338,6 @@ Lint/FloatComparison:
   Enabled: false
 Style/ClassVars:
   Enabled: false
-Gemspec/DateAssignment: # new in 1.10
-  Enabled: false
 Layout/LineEndStringConcatenationIndentation: # new in 1.18
   Enabled: false
 Lint/AmbiguousRange: # new in 1.19
@@ -356,4 +357,133 @@ Style/QuotedSymbols: # new in 1.16
 Style/RedundantSelfAssignmentBranch: # new in 1.19
   Enabled: false
 Style/StringChars: # new in 1.12
+  Enabled: false
+# new since rubny 3.2
+Gemspec/DeprecatedAttributeAssignment: # new in 1.30
+  Enabled: false
+Gemspec/DevelopmentDependencies: # new in 1.44
+  Enabled: false
+Gemspec/RequireMFA: # new in 1.23
+  Enabled: false
+Layout/LineContinuationLeadingSpace: # new in 1.31
+  Enabled: false
+Layout/LineContinuationSpacing: # new in 1.31
+  Enabled: false
+Lint/AmbiguousOperatorPrecedence: # new in 1.21
+  Enabled: false
+Lint/ConstantOverwrittenInRescue: # new in 1.31
+  Enabled: false
+Lint/DuplicateMagicComment: # new in 1.37
+  Enabled: false
+Lint/DuplicateMatchPattern: # new in 1.50
+  Enabled: false
+Lint/IncompatibleIoSelectWithFiberScheduler: # new in 1.21
+  Enabled: false
+Lint/MixedCaseRange: # new in 1.53
+  Enabled: false
+Lint/NonAtomicFileOperation: # new in 1.31
+  Enabled: false
+Lint/RedundantRegexpQuantifiers: # new in 1.53
+  Enabled: false
+Lint/RefinementImportMethods: # new in 1.27
+  Enabled: false
+Lint/RequireRangeParentheses: # new in 1.32
+  Enabled: false
+Lint/RequireRelativeSelfPath: # new in 1.22
+  Enabled: false
+Lint/UselessRescue: # new in 1.43
+  Enabled: false
+Lint/UselessRuby2Keywords: # new in 1.23
+  Enabled: false
+Metrics/CollectionLiteralLength: # new in 1.47
+  Enabled: false
+Naming/BlockForwarding: # new in 1.24
+  Enabled: false
+Security/CompoundHash: # new in 1.28
+  Enabled: false
+Security/IoMethods: # new in 1.22
+  Enabled: false
+Style/ArrayIntersect: # new in 1.40
+  Enabled: false
+Style/ComparableClamp: # new in 1.44
+  Enabled: false
+Style/ConcatArrayLiterals: # new in 1.41
+  Enabled: false
+Style/DataInheritance: # new in 1.49
+  Enabled: false
+Style/DirEmpty: # new in 1.48
+  Enabled: false
+Style/EmptyHeredoc: # new in 1.32
+  Enabled: false
+Style/EnvHome: # new in 1.29
+  Enabled: false
+Style/ExactRegexpMatch: # new in 1.51
+  Enabled: false
+Style/FetchEnvVar: # new in 1.28
+  Enabled: false
+Style/FileEmpty: # new in 1.48
+  Enabled: false
+Style/FileRead: # new in 1.24
+  Enabled: false
+Style/FileWrite: # new in 1.24
+  Enabled: false
+Style/MagicCommentFormat: # new in 1.35
+  Enabled: false
+Style/MapCompactWithConditionalBlock: # new in 1.30
+  Enabled: false
+Style/MapToHash: # new in 1.24
+  Enabled: false
+Style/MapToSet: # new in 1.42
+  Enabled: false
+Style/MinMaxComparison: # new in 1.42
+  Enabled: false
+Style/NestedFileDirname: # new in 1.26
+  Enabled: false
+Style/NumberedParameters: # new in 1.22
+  Enabled: false
+Style/NumberedParametersLimit: # new in 1.22
+  Enabled: false
+Style/ObjectThen: # new in 1.28
+  Enabled: false
+Style/OpenStructUse: # new in 1.23
+  Enabled: false
+Style/OperatorMethodCall: # new in 1.37
+  Enabled: false
+Style/RedundantArrayConstructor: # new in 1.52
+  Enabled: false
+Style/RedundantConstantBase: # new in 1.40
+  Enabled: false
+Style/RedundantCurrentDirectoryInPath: # new in 1.53
+  Enabled: false
+Style/RedundantDoubleSplatHashBraces: # new in 1.41
+  Enabled: false
+Style/RedundantEach: # new in 1.38
+  Enabled: false
+Style/RedundantFilterChain: # new in 1.52
+  Enabled: false
+Style/RedundantHeredocDelimiterQuotes: # new in 1.45
+  Enabled: false
+Style/RedundantInitialize: # new in 1.27
+  Enabled: false
+Style/RedundantLineContinuation: # new in 1.49
+  Enabled: false
+Style/RedundantRegexpArgument: # new in 1.53
+  Enabled: false
+Style/RedundantRegexpConstructor: # new in 1.52
+  Enabled: false
+Style/RedundantStringEscape: # new in 1.37
+  Enabled: false
+Style/ReturnNilInPredicateMethodDefinition: # new in 1.53
+  Enabled: false
+Style/SelectByRegexp: # new in 1.22
+  Enabled: false
+Style/YAMLFileRead: # new in 1.53
+  Enabled: false
+Style/HashSyntax:
+  Enabled: false
+Lint/RedundantRequireStatement:
+  Enabled: false
+Lint/AmbiguousRegexpLiteral:
+  Enabled: false
+Style/SafeNavigation:
   Enabled: false
