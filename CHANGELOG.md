@@ -1,4 +1,7 @@
-# Changelog 6.x.x (changes since 6.0.0)
+# Changelog 6.x.x (changes since 6.0.1)
+
+
+# Changelog 6.0.1 (changes since 6.0.0)
 - Drop support for ruby < 3
 - Upgraded ActiveStar
 - Add support for ruby 3.2
