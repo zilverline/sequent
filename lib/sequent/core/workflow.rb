@@ -9,6 +9,10 @@ module Sequent
       include Helpers::MessageHandler
       extend ActiveSupport::DescendantsTracker
 
+      class << self
+        attr_accessor :abstract_class, :skip_autoregister
+      end
+
       def self.on(*args, **opts, &block)
         decorated_block = ->(event) do
           begin

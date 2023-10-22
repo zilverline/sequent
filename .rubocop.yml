@@ -234,6 +234,10 @@ Layout/MultilineMethodCallIndentation:
   Enabled: true
   EnforcedStyle: indented
 
+Layout/BlockAlignment:
+  Enabled: true
+  EnforcedStyleAlignWith: start_of_block
+
 # TODO Ruby 3.0
 
 Style/HashTransformKeys:

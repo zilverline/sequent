@@ -114,13 +114,13 @@ module Sequent
         events
           .group_by(&:aggregate_id)
           .map do |aggregate_id, es|
-          [
-            streams.find do |stream_record|
-              stream_record.aggregate_id == aggregate_id
-            end.event_stream,
-            es,
-          ]
-        end
+            [
+              streams.find do |stream_record|
+                stream_record.aggregate_id == aggregate_id
+              end.event_stream,
+              es,
+            ]
+          end
       end
 
       def aggregate_query(aggregate_id)

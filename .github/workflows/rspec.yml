@@ -60,6 +60,11 @@ jobs:
           bundle exec rake sequent:db:drop sequent:db:create
       - name: Run tests
         run: bundle exec rspec
+      - name: Run integration tests simple-app
+        run: |
+          cd integration-specs/simple
+          bundle install
+          bundle exec rspec
       - name: rubocop
         uses: reviewdog/action-rubocop@v2
         with:

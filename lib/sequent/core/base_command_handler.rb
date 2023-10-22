@@ -21,6 +21,11 @@ module Sequent
     class BaseCommandHandler
       include Sequent::Core::Helpers::UuidHelper
       include Sequent::Core::Helpers::MessageHandler
+      extend ActiveSupport::DescendantsTracker
+
+      class << self
+        attr_accessor :abstract_class, :skip_autoregister
+      end
 
       protected
 

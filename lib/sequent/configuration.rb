@@ -63,7 +63,8 @@ module Sequent
                   :enable_multiple_database_support,
                   :primary_database_role,
                   :primary_database_key,
-                  :time_precision
+                  :time_precision,
+                  :enable_autoregistration
 
     attr_reader :migrations_class_name,
                 :versions_table_name,
@@ -121,6 +122,8 @@ module Sequent
       self.primary_database_key = :primary
 
       self.time_precision = DEFAULT_TIME_PRECISION
+
+      self.enable_autoregistration = false
     end
 
     def can_use_multiple_databases?
@@ -148,6 +151,48 @@ module Sequent
       end
 
       @migrations_class_name = class_name
+    end
+
+    def autoregister!
+      return unless enable_autoregistration
+
+      self.class.instance.command_handlers ||= []
+      Sequent::CommandHandler
+        .descendants
+        .reject(&:abstract_class)
+        .reject(&:skip_autoregister)
+        .each do |command_handler_class|
+          self.class.instance.command_handlers << command_handler_class.new
+        end
+
+      self.class.instance.event_handlers ||= []
+      Sequent::Projector
+        .descendants
+        .reject(&:abstract_class)
+        .reject(&:skip_autoregister)
+        .each do |projector_class|
+          self.class.instance.event_handlers << projector_class.new
+        end
+
+      Sequent::Workflow
+        .descendants
+        .reject(&:abstract_class)
+        .reject(&:skip_autoregister)
+        .each do |workflow_class|
+          self.class.instance.event_handlers << workflow_class.new
+        end
+
+      self.class.instance.command_handlers.map(&:class).tally.each do |(clazz, count)|
+        if count > 1
+          fail "CommandHandler #{clazz} is registered #{count} times. A CommandHandler can only be registered once"
+        end
+      end
+
+      self.class.instance.event_handlers.map(&:class).tally.each do |(clazz, count)|
+        if count > 1
+          fail "EventHandler #{clazz} is registered #{count} times. An EventHandler can only be registered once"
+        end
+      end
     end
   end
 end

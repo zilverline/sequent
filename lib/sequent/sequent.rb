@@ -37,6 +37,7 @@ module Sequent
   #
   def self.configure
     yield Configuration.instance
+    Configuration.instance.autoregister!
   end
 
   def self.configuration
