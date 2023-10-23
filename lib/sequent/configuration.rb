@@ -157,33 +157,21 @@ module Sequent
       return unless enable_autoregistration
 
       self.class.instance.command_handlers ||= []
-      Sequent::CommandHandler
-        .descendants
-        .reject(&:abstract_class)
-        .reject(&:skip_autoregister)
-        .each do |command_handler_class|
-          Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
-          self.class.instance.command_handlers << command_handler_class.new
-        end
+      for_each_autoregisterable_descenant_of(Sequent::CommandHandler) do |command_handler_class|
+        Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
+        self.class.instance.command_handlers << command_handler_class.new
+      end
 
       self.class.instance.event_handlers ||= []
-      Sequent::Projector
-        .descendants
-        .reject(&:abstract_class)
-        .reject(&:skip_autoregister)
-        .each do |projector_class|
-          Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}")
-          self.class.instance.event_handlers << projector_class.new
-        end
+      for_each_autoregisterable_descenant_of(Sequent::Projector) do |projector_class|
+        Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}")
+        self.class.instance.event_handlers << projector_class.new
+      end
 
-      Sequent::Workflow
-        .descendants
-        .reject(&:abstract_class)
-        .reject(&:skip_autoregister)
-        .each do |workflow_class|
-          Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}")
-          self.class.instance.event_handlers << workflow_class.new
-        end
+      for_each_autoregisterable_descenant_of(Sequent::Workflow) do |workflow_class|
+        Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}")
+        self.class.instance.event_handlers << workflow_class.new
+      end
 
       self.class.instance.command_handlers.map(&:class).tally.each do |(clazz, count)|
         if count > 1
@@ -196,6 +184,16 @@ module Sequent
           fail "EventHandler #{clazz} is registered #{count} times. An EventHandler can only be registered once"
         end
       end
+    end
+
+    private
+
+    def for_each_autoregisterable_descenant_of(clazz, &block)
+      clazz
+        .descendants
+        .reject(&:abstract_class)
+        .reject(&:skip_autoregister)
+        .each(&block)
     end
   end
 end
