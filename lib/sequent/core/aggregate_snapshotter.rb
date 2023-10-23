@@ -15,8 +15,6 @@ module Sequent
     end
 
     class AggregateSnapshotter < BaseCommandHandler
-      self.skip_autoregister = true
-
       on SnapshotCommand do |command|
         aggregate_ids = Sequent.configuration.event_store.aggregates_that_need_snapshots(
           @last_aggregate_id,

@@ -7,7 +7,11 @@ describe 'app' do
     let(:command_handler_classes) { Sequent.configuration.command_handlers.map(&:class).sort_by(&:name) }
 
     it 'autoregisters command handlers' do
-      expect(command_handler_classes).to eq [FirstCommandHandler, SecondCommandHandler]
+      expect(command_handler_classes).to eq [
+        FirstCommandHandler,
+        SecondCommandHandler,
+        Sequent::Core::AggregateSnapshotter,
+      ]
     end
   end
 
