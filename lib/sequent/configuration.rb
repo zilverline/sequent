@@ -162,6 +162,7 @@ module Sequent
         .reject(&:abstract_class)
         .reject(&:skip_autoregister)
         .each do |command_handler_class|
+          Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
           self.class.instance.command_handlers << command_handler_class.new
         end
 
@@ -171,6 +172,7 @@ module Sequent
         .reject(&:abstract_class)
         .reject(&:skip_autoregister)
         .each do |projector_class|
+          Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}")
           self.class.instance.event_handlers << projector_class.new
         end
 
@@ -179,6 +181,7 @@ module Sequent
         .reject(&:abstract_class)
         .reject(&:skip_autoregister)
         .each do |workflow_class|
+          Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}")
           self.class.instance.event_handlers << workflow_class.new
         end
 
