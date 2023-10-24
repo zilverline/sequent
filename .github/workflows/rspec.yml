@@ -10,6 +10,7 @@ on:
 
 env:
   SEQUENT_ENV: test
+  RAILS_ENV: test
   POSTGRES_USERNAME: sequent
   POSTGRES_PASSWORD: sequent
   POSTGRES_DB: sequent_spec_db
@@ -32,7 +33,6 @@ jobs:
             active-star-version: '= 6.1.7'
           - ruby-version: 3.0.5
             active-star-version: '= 6.0.6'
-
     services:
       postgres:
         image: postgres:12
@@ -60,11 +60,6 @@ jobs:
           bundle exec rake sequent:db:drop sequent:db:create
       - name: Run tests
         run: bundle exec rspec
-      - name: Run integration tests simple-app
-        run: |
-          cd integration-specs/simple
-          bundle install
-          bundle exec rspec
       - name: rubocop
         uses: reviewdog/action-rubocop@v2
         with:
@@ -72,3 +67,54 @@ jobs:
           rubocop_extensions: ''
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-check
+
+  integration_simple:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: 'integration-specs/simple'
+      - name: Run integration tests simple
+        run: |
+          cd integration-specs/simple
+          bundle exec rspec    
+
+  integration_rails:
+    env:
+      POSTGRES_DB: sequent_integration_test_db
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: sequent
+          POSTGRES_PASSWORD: sequent
+          POSTGRES_DB: sequent_integration_test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: 'integration-specs/rails-app'
+      - name: Run integration tests rails-app
+        run: |
+          cd integration-specs/rails-app
+          bundle exec rake sequent:db:create_event_store
+          bundle exec rake sequent:db:create_view_schema
+          bundle exec rspec spec
+      

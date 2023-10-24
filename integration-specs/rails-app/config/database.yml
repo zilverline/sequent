@@ -1,0 +1,23 @@
+default: &default
+  adapter: postgresql
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+  schema_search_path: <%= ENV['SEQUENT_MIGRATION_SCHEMAS'] || 'public, sequent_schema, view_schema' %>
+  username: sequent
+  password: sequent
+  host: localhost
+
+development:
+  <<: *default
+  database: sequent_integration_dev_db
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  <<: *default
+  database: sequent_integration_test_db
+
+production:
+  <<: *default
+  database: sequent_integration_prod_db
