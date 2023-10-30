@@ -47,7 +47,7 @@ A Projector is used in two different stages in your application.
   be finished rebuilding. In Sequent we replay on a **per aggregate**
   basis.
 
-To use Projectors in your project, you need to add them to `config.event_handlers` in your Sequent configuration:
+If you didn't set `enable_autoregistration` to `true` you will need to add your Projectors manually to your Sequent configuration in order to use them.
 
 ```ruby
   Sequent.configure do |config|

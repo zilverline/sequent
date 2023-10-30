@@ -72,9 +72,7 @@ describe Sequent::Core::CommandService do
   let(:command_handler) { TestCommandHandler.new }
 
   let(:command_service) do
-    Sequent.configure do |config|
-      config.command_handlers = [command_handler]
-    end
+    Sequent.configuration.command_handlers = [command_handler]
     Sequent.configuration.command_service
   end
 
@@ -308,9 +306,7 @@ describe Sequent::Core::CommandService do
         end
 
         it 'touching multiple aggregates in same command publishes events per aggregate on aggregate load order' do
-          Sequent.configure do |config|
-            config.event_handlers = [] # remove workflow, not needed to this test
-          end
+          Sequent.configuration.event_handlers = [] # remove workflow, not needed to this test
           Sequent.command_service.execute_commands(
             Sequent::Fixtures::Command1.new(id: aggregate1),
             Sequent::Fixtures::Command1.new(id: aggregate2),

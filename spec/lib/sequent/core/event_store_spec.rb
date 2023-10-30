@@ -13,9 +13,7 @@ describe Sequent::Core::EventStore do
 
   context '.configure' do
     it 'can be configured using a ActiveRecord class' do
-      Sequent.configure do |config|
-        config.stream_record_class = :foo
-      end
+      Sequent.configuration.stream_record_class = :foo
       expect(Sequent.configuration.stream_record_class).to eq :foo
     end
 
@@ -27,7 +25,7 @@ describe Sequent::Core::EventStore do
       expect(Sequent.configuration.event_handlers).to eq [event_handler_class]
     end
 
-    it 'can be configured multiple times' do
+    it 'configuring a second time will reset the configuration' do
       foo = Class.new
       bar = Class.new
       Sequent.configure do |config|
@@ -37,7 +35,7 @@ describe Sequent::Core::EventStore do
       Sequent.configure do |config|
         config.event_handlers << bar
       end
-      expect(Sequent.configuration.event_handlers).to eq [foo, bar]
+      expect(Sequent.configuration.event_handlers).to eq [bar]
     end
   end
 
@@ -179,7 +177,16 @@ describe Sequent::Core::EventStore do
     end
 
     context 'and event type caching disabled' do
-      let(:event_store) { Sequent::Core::EventStore.new(cache_event_types: false) }
+      around do |example|
+        current = Sequent.configuration.event_store_cache_event_types
+
+        Sequent.configuration.event_store_cache_event_types = false
+
+        example.run
+      ensure
+        Sequent.configuration.event_store_cache_event_types = current
+      end
+      let(:event_store) { Sequent::Core::EventStore.new }
 
       it 'returns the stream and events for existing aggregates' do
         TestEventForCaching = Class.new(Sequent::Core::Event)

@@ -36,6 +36,7 @@ module Sequent
 
     attr_accessor :aggregate_repository,
                   :event_store,
+                  :event_store_cache_event_types,
                   :command_service,
                   :event_record_class,
                   :stream_record_class,
@@ -74,10 +75,13 @@ module Sequent
       @instance ||= new
     end
 
+    # Create a new instance of Configuration
     def self.reset
       @instance = new
     end
 
+    # Restore the given Configuration
+    # @param configuration [Sequent::Configuration]
     def self.restore(configuration)
       @instance = configuration
     end
@@ -89,6 +93,7 @@ module Sequent
       self.command_middleware = Sequent::Core::Middleware::Chain.new
 
       self.aggregate_repository = Sequent::Core::AggregateRepository.new
+      self.event_store_cache_event_types = true
       self.event_store = Sequent::Core::EventStore.new
       self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
@@ -155,6 +160,11 @@ module Sequent
 
     def autoregister!
       return unless enable_autoregistration
+
+      # Only autoregister the AggregateSnapshotter if the autoregistration is enabled
+      Sequent::Core::AggregateSnapshotter.skip_autoregister = false
+
+      Rails.autoloaders.main.eager_load(force: true) if defined?(Rails)
 
       self.class.instance.command_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::CommandHandler) do |command_handler_class|

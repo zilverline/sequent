@@ -5,9 +5,9 @@ require 'sequent'
 require_relative '../../db/sequent_migrations'
 
 Rails.application.reloader.to_prepare do
-  Rails.autoloaders.main.eager_load(force: true)
   Sequent.configure do |config|
     config.enable_autoregistration = true
+    config.event_store_cache_event_types = !Rails.env.development?
 
     config.migrations_class_name = 'SequentMigrations'
 

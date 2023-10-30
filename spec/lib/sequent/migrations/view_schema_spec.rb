@@ -237,9 +237,7 @@ describe Sequent::Migrations::ViewSchema do
 
       context 'only alter_tables' do
         before do
-          Sequent.configure do |config|
-            config.migration_sql_files_directory = 'spec/fixtures/db/1'
-          end
+          Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/1'
           migrator.migrate_online # to version 1
           migrator.migrate_offline # to version 1
         end
@@ -247,9 +245,7 @@ describe Sequent::Migrations::ViewSchema do
         let(:new_migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
 
         it 'does not replay with only alter tables' do
-          Sequent.configure do |config|
-            config.migration_sql_files_directory = 'spec/fixtures/db/2'
-          end
+          Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'
           SpecMigrations.copy_and_add('2', [Sequent::Migrations.alter_table(AccountRecord)])
           SpecMigrations.version = 2
 
@@ -494,9 +490,7 @@ describe Sequent::Migrations::ViewSchema do
           it 'only adds the colum to the table' do
             expect(AccountRecord).to_not have_column('foobar')
 
-            Sequent.configure do |config|
-              config.migration_sql_files_directory = 'spec/fixtures/db/2'
-            end
+            Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'
             SpecMigrations.copy_and_add('2', [Sequent::Migrations.alter_table(AccountRecord)])
             SpecMigrations.version = 2
 
