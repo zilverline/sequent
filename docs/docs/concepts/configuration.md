@@ -49,8 +49,8 @@ Autoregistered classes will be appended to any already manually registered `comm
 Sequent detects duplicates it will currently fail.
 When setting `enable_autoregistration` to `true` in your `initializer`
 any [CommandHandlers](command-handler.html), [Projectors](projector.html) and [Workflows](workflow.html) are
-automatically registered
-in your Sequent configuration. When you have base classes that you don't want to register your self you can
+automatically registered in your Sequent configuration. 
+When you have base classes that you don't want to have automatically registered you can
 set `self.abstract_class = true` for these classes. Another option to skip autoregistration is to set
 `self.skip_autoregister` to `true`.
 
