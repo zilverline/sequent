@@ -1,4 +1,4 @@
-# Changelog 7.x.x (changes since 6.0.1)
+# Changelog 7.0.0 (changes since 6.0.1)
 - Added possibility `enable_autoregistration` for automatically registering all Command and EventHandlers
 - In a Rails app all code will be eager loaded when `enable_autoregistration` is set to true upon sequent initialization via `Rails.autoloaders.main.eager_load(force: true)`. If other parts of your app (esp initializers) are dependent on code not being loaded yet you can ensure Sequent loads as last by renaming the initializer to e.g. `zz_sequent.rb` as Rails loads initializers in alphabetical order.
 
