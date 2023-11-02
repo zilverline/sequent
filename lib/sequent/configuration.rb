@@ -158,13 +158,14 @@ module Sequent
       @migrations_class_name = class_name
     end
 
+    # @!visibility private
     def autoregister!
       return unless enable_autoregistration
 
       # Only autoregister the AggregateSnapshotter if the autoregistration is enabled
       Sequent::Core::AggregateSnapshotter.skip_autoregister = false
 
-      Rails.autoloaders.main.eager_load(force: true) if defined?(Rails)
+      autoload_if_in_rails
 
       self.class.instance.command_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::CommandHandler) do |command_handler_class|
@@ -197,6 +198,10 @@ module Sequent
     end
 
     private
+
+    def autoload_if_in_rails
+      Rails.autoloaders.main.eager_load(force: true) if defined?(Rails) && Rails.respond_to?(:autoloaders)
+    end
 
     def for_each_autoregisterable_descenant_of(clazz, &block)
       clazz
