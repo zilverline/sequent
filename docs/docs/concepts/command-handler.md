@@ -55,7 +55,7 @@ class UserCommandHandler < Sequent::CommandHandler
 end
 ```
 
-To use CommandHandlers in your project you need to add them to your Sequent configuration.
+If you didn't set `enable_autoregistration` to `true` you will need to add your CommandHandler manually to your Sequent configuration in order to use them.
 
 ```ruby
   Sequent.configure do |config|

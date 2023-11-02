@@ -1,5 +1,10 @@
-# Changelog 6.x.x (changes since 6.0.1)
+# Changelog 7.x.x (changes since 6.0.1)
+- Added possibility `enable_autoregistration` for automatically registering all Command and EventHandlers
+- In a Rails app all code will be eager loaded when `enable_autoregistration` is set to true upon sequent initialization via `Rails.autoloaders.main.eager_load(force: true)`. If other parts of your app (esp initializers) are dependent on code not being loaded yet you can ensure Sequent loads as last by renaming the initializer to e.g. `zz_sequent.rb` as Rails loads initializers in alphabetical order.
 
+**BREAKING CHANGES**:
+- Introduced `event_store_cache_event_types` as alternative for manually instantiating the EventStore yourself if you want to disable caching of event types.
+- Calling `Sequent.configure` twice will now create a new instance of the configuration instead of changing the current instance. This is done to better support Rails apps and the reload functionality during development.
 
 # Changelog 6.0.1 (changes since 6.0.0)
 - Drop support for ruby < 3

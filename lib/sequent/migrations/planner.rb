@@ -69,10 +69,10 @@ module Sequent
           .each_with_index
           .select { |migration, _index| migration.instance_of?(AlterTable) }
           .select do |migration, index|
-                       migrations
-                         .slice((index + 1)..-1)
-                         .find { |m| m.instance_of?(ReplayTable) && m.record_class == migration.record_class }
-                     end.map(&:first)
+            migrations
+              .slice((index + 1)..-1)
+              .find { |m| m.instance_of?(ReplayTable) && m.record_class == migration.record_class }
+          end.map(&:first)
       end
 
       def remove_redundancy(grouped_migrations)

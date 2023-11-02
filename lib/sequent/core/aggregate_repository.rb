@@ -79,8 +79,8 @@ module Sequent
           .configuration
           .event_store
           .stream_events_for_aggregate(aggregate_id, load_until: load_until) do |event_stream|
-          aggregate.stream_from_history(event_stream)
-        end
+            aggregate.stream_from_history(event_stream)
+          end
 
         if clazz
           fail TypeError, "#{aggregate.class} is not a #{clazz}" unless aggregate.class <= clazz

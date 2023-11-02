@@ -23,6 +23,9 @@ AllCops:
     - '**/sequent/generator/template_project/**/*'
     - 'db/sequent_schema.rb'
     - 'docs/**/*'
+    - 'integration-specs/rails-app/bin/*'
+    - 'integration-specs/rails-app/config/puma.rb'
+    - 'integration-specs/rails-app/db/*'
 ##
 # General styles
 ##
@@ -233,6 +236,10 @@ Layout/MultilineMethodArgumentLineBreaks:
 Layout/MultilineMethodCallIndentation:
   Enabled: true
   EnforcedStyle: indented
+
+Layout/BlockAlignment:
+  Enabled: true
+  EnforcedStyleAlignWith: start_of_block
 
 # TODO Ruby 3.0
 

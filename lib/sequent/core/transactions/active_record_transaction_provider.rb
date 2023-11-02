@@ -30,8 +30,9 @@ module Sequent
       #
       class ActiveRecordTransactionProvider
         def transactional(&block)
-          Sequent::ApplicationRecord.transaction(requires_new: true, &block)
+          result = Sequent::ApplicationRecord.transaction(requires_new: true, &block)
           after_commit_queue.pop.call until after_commit_queue.empty?
+          result
         ensure
           clear_after_commit_queue
         end

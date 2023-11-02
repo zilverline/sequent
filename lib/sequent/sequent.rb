@@ -22,21 +22,14 @@ module Sequent
   # A minimal setup could look like this:
   #
   #   Sequent.configure do |config|
-  #     config.event_handlers = [
-  #       MyProjector.new,
-  #       AnotherProjector.new,
-  #       MyWorkflow.new,
-  #     ]
-  #
-  #     config.command_handlers = [
-  #       MyCommandHandler.new,
-  #     ]
-  #
+  #     config.enable_autoregistration = true
   #   end
   #
-  #
+  # Calling configure a second time will create a new configuration
   def self.configure
+    Configuration.reset
     yield Configuration.instance
+    Configuration.instance.autoregister!
   end
 
   def self.configuration

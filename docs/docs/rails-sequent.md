@@ -106,11 +106,11 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
 
 7. Enable eager loading on all environments
 
-Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
-`AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
-For this to work properly, all classes must be eager loaded otherwise code depending on this fact might
-produce unpredictable results. Set the `config.eager_load` to `true` for all environments 
-(in production the Rails default is already `true`).
+   Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
+   `AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
+   For this to work properly, all classes must be eager loaded otherwise code depending on this fact might
+   produce unpredictable results. Set the `config.eager_load` to `true` for all environments 
+   (in production the Rails default is already `true`).
 
 8. Add `./config/initializers/sequent.rb` containing at least:
 
@@ -120,14 +120,8 @@ produce unpredictable results. Set the `config.eager_load` to `true` for all env
     Rails.application.reloader.to_prepare do
       Sequent.configure do |config|
         config.migrations_class_name = 'SequentMigrations'
-    
-        config.command_handlers = [
-          # add you Sequent::CommandHandler's here
-        ]
-    
-        config.event_handlers = [
-          # add you Sequent::Projector's or Sequent::Workflow's here
-        ]
+        config.enable_autoregistration = true
+        config.event_store_cache_event_types = !Rails.env.development?
 
         config.database_config_directory = 'config'
       

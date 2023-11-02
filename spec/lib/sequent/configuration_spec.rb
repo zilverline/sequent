@@ -32,4 +32,58 @@ describe Sequent::Configuration do
       expect(spec_handler.repository).to eq Sequent.configuration.aggregate_repository
     end
   end
+
+  context 'autoregistering' do
+    let!(:command_handler_class) { Class.new(Sequent::CommandHandler) }
+
+    it 'registers all command handlers' do
+      Sequent.configure do |config|
+        config.command_handlers = []
+        config.enable_autoregistration = true
+      end
+      expect(Sequent.configuration.command_handlers.map(&:class)).to include(command_handler_class)
+    end
+
+    context 'it ignores abstract classes' do
+      let!(:base_command_handler_class) do
+        Class.new(Sequent::CommandHandler) do
+          self.abstract_class = true
+        end
+      end
+
+      it 'does not include the base_command_handler_class' do
+        Sequent.configure do |config|
+          config.command_handlers = []
+          config.enable_autoregistration = true
+        end
+        expect(Sequent.configuration.command_handlers.map(&:class)).to_not include(base_command_handler_class)
+      end
+    end
+
+    context 'it fails when trying to register a command_handler twice' do
+      let!(:command_handler_class) { Class.new(Sequent::CommandHandler) }
+      it 'fails' do
+        expect do
+          Sequent.configure do |config|
+            config.enable_autoregistration = true
+            config.command_handlers = [command_handler_class.new]
+          end
+        end.to raise_error /is registered 2 times. A CommandHandler can only be registered once/
+      end
+    end
+
+    context 'it fails when trying to register an event_handler twice' do
+      let!(:event_handler_class) do
+        Class.new(Sequent::Projector) { manages_no_tables }
+      end
+      it 'fails' do
+        expect do
+          Sequent.configure do |config|
+            config.enable_autoregistration = true
+            config.event_handlers = [event_handler_class.new]
+          end
+        end.to raise_error /is registered 2 times. An EventHandler can only be registered once/
+      end
+    end
+  end
 end

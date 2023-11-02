@@ -79,8 +79,8 @@ module Sequent
                 super if defined?(super)
                 ensure_known_attributes(attrs)
                 #{@types.map do |attribute, _|
-                    "@#{attribute} = attrs[:#{attribute}]"
-                  end.join("\n            ")}
+                  "@#{attribute} = attrs[:#{attribute}]"
+                end.join("\n            ")}
                 self
               end
 EOS
@@ -89,8 +89,8 @@ EOS
                def update_all_attributes_from_json(attrs)
                  super if defined?(super)
                  #{@types.map do |attribute, type|
-                     "@#{attribute} = #{type}.deserialize_from_json(attrs['#{attribute}'])"
-                   end.join("\n           ")}
+                   "@#{attribute} = #{type}.deserialize_from_json(attrs['#{attribute}'])"
+                 end.join("\n           ")}
                end
 EOS
           end
@@ -206,10 +206,10 @@ EOS
               value
                 .select { |val| val.respond_to?(:validation_errors) }
                 .each_with_index do |val, index|
-                val.validation_errors.each do |k, v|
-                  result["#{field[0]}_#{index}_#{k}".to_sym] = v
+                  val.validation_errors.each do |k, v|
+                    result["#{field[0]}_#{index}_#{k}".to_sym] = v
+                  end
                 end
-              end
             end
           end
           prefix ? HashWithIndifferentAccess[result.map { |k, v| ["#{prefix}_#{k}", v] }] : result

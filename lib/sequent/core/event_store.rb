@@ -35,14 +35,6 @@ module Sequent
         end
       end
 
-      def initialize(cache_event_types: true)
-        @event_types = if cache_event_types
-                         ThreadSafe::Cache.new
-                       else
-                         NoEventTypesCache.new
-                       end
-      end
-
       ##
       # Stores the events in the EventStore and publishes the events
       # to the registered event_handlers.
@@ -114,13 +106,13 @@ module Sequent
         events
           .group_by(&:aggregate_id)
           .map do |aggregate_id, es|
-          [
-            streams.find do |stream_record|
-              stream_record.aggregate_id == aggregate_id
-            end.event_stream,
-            es,
-          ]
-        end
+            [
+              streams.find do |stream_record|
+                stream_record.aggregate_id == aggregate_id
+              end.event_stream,
+              es,
+            ]
+          end
       end
 
       def aggregate_query(aggregate_id)
@@ -217,6 +209,14 @@ module Sequent
 
       private
 
+      def event_types
+        @event_types = if Sequent.configuration.event_store_cache_event_types
+                         ThreadSafe::Cache.new
+                       else
+                         NoEventTypesCache.new
+                       end
+      end
+
       def column_names
         @column_names ||= Sequent
           .configuration
@@ -238,7 +238,7 @@ module Sequent
       end
 
       def resolve_event_type(event_type)
-        @event_types.fetch_or_store(event_type) { |k| Class.const_get(k) }
+        event_types.fetch_or_store(event_type) { |k| Class.const_get(k) }
       end
 
       def publish_events(events)

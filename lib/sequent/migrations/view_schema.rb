@@ -387,8 +387,8 @@ module Sequent
           unless ids.empty?
             exec_sql(
               "insert into #{ReplayedIds.table_name} (event_id) values #{ids.map do |id|
-                                                                           "(#{id})"
-                                                                         end.join(',')}",
+                "(#{id})"
+              end.join(',')}",
             )
           end
           Sequent::Core::EventStore::PRINT_PROGRESS[progress, done, ids] if progress > 0

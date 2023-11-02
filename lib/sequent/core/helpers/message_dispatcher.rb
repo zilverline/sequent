@@ -12,7 +12,10 @@ module Sequent
         def dispatch_message(message)
           @message_router
             .match_message(message)
-            .each { |handler| @context.instance_exec(message, &handler) }
+            .each do |handler|
+              Sequent.logger.debug("[MessageDispatcher] Handler #{@context.class} handling #{message.class}")
+              @context.instance_exec(message, &handler)
+            end
         end
       end
     end

@@ -12,7 +12,7 @@ In Sequent, Workflows are committed in the same transaction as committing the Ev
 
 Since Workflows have nothing to do with Projections they **do not** run when doing a [Migration](migrations.html).
 
-To use Workflows in your project you need to add them to your Sequent configuration:
+If you didn't set `enable_autoregistration` to `true` you will need to add your Workflows manually to your Sequent configuration in order to use them:
 
 ```ruby
 Sequent.configure do |config|

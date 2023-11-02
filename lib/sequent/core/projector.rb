@@ -88,6 +88,10 @@ module Sequent
       include Migratable
       extend ActiveSupport::DescendantsTracker
 
+      class << self
+        attr_accessor :abstract_class, :skip_autoregister
+      end
+
       def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
         ensure_valid!
         @persistor = persistor
