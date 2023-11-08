@@ -59,7 +59,7 @@ jobs:
         run: |
           bundle exec rake sequent:db:drop sequent:db:create
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec --order random
       - name: rubocop
         uses: reviewdog/action-rubocop@v2
         with:
