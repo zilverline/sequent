@@ -139,14 +139,14 @@ module Sequent
       fail ArgumentError, 'table_name can not be nil' unless table_name
 
       @replayed_ids_table_name = table_name
-      Sequent::Migrations::ViewSchema::ReplayedIds.table_name = table_name
+      Sequent::Migrations::ReplayedIds.table_name = table_name
     end
 
     def versions_table_name=(table_name)
       fail ArgumentError, 'table_name can not be nil' unless table_name
 
       @versions_table_name = table_name
-      Sequent::Migrations::ViewSchema::Versions.table_name = table_name
+      Sequent::Migrations::Versions.table_name = table_name
     end
 
     def migrations_class_name=(class_name)

@@ -11,6 +11,8 @@ require_relative './projectors'
 require_relative 'planner'
 require_relative 'executor'
 require_relative 'sql'
+require_relative 'versions'
+require_relative 'replayed_ids'
 
 module Sequent
   module Migrations
@@ -76,54 +78,6 @@ module Sequent
       include Sequent::Util::Timer
       include Sequent::Util::Printer
       include Sql
-
-      class ReplayedIds < Sequent::ApplicationRecord; end
-
-      class Versions < Sequent::ApplicationRecord
-        MIGRATE_ONLINE_RUNNING = 1
-        MIGRATE_ONLINE_FINISHED = 2
-        MIGRATE_OFFLINE_RUNNING = 3
-        DONE = nil
-
-        scope :done, -> { where(status: DONE) }
-        scope :running,
-              -> {
-                where(status: [MIGRATE_ONLINE_RUNNING, MIGRATE_ONLINE_FINISHED, MIGRATE_OFFLINE_RUNNING])
-              }
-
-        def self.start_online!(new_version)
-          create!(version: new_version, status: MIGRATE_ONLINE_RUNNING)
-        rescue ActiveRecord::RecordNotUnique
-          raise ConcurrentMigration, "Migration for version #{new_version} is already running"
-        end
-
-        def self.end_online!(new_version)
-          find_by!(version: new_version, status: MIGRATE_ONLINE_RUNNING).update(status: MIGRATE_ONLINE_FINISHED)
-        end
-
-        def self.rollback!(new_version)
-          running.where(version: new_version).delete_all
-        end
-
-        def self.start_offline!(new_version)
-          current_migration = find_by(version: new_version)
-          fail MigrationNotStarted if current_migration.blank?
-
-          current_migration.with_lock('FOR UPDATE NOWAIT') do
-            current_migration.reload
-            fail MigrationDone if current_migration.status.nil?
-            fail ConcurrentMigration if current_migration.status != MIGRATE_ONLINE_FINISHED
-
-            current_migration.update(status: MIGRATE_OFFLINE_RUNNING)
-          end
-        rescue ActiveRecord::LockWaitTimeout
-          raise ConcurrentMigration
-        end
-
-        def self.end_offline!(new_version)
-          find_by!(version: new_version, status: MIGRATE_OFFLINE_RUNNING).update(status: DONE)
-        end
-      end
 
       attr_reader :view_schema, :db_config, :logger
 
@@ -210,12 +164,7 @@ module Sequent
         exec_sql(%(CREATE SCHEMA IF NOT EXISTS #{view_schema}))
         Sequent::ApplicationRecord.transaction do
           in_view_schema do
-            exec_sql(<<~SQL.chomp)
-              CREATE TABLE IF NOT EXISTS #{Versions.table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version));
-              CREATE TABLE IF NOT EXISTS #{ReplayedIds.table_name} (event_id bigint NOT NULL, CONSTRAINT event_id_pk PRIMARY KEY(event_id));
-              ALTER TABLE #{Versions.table_name} ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT NULL CONSTRAINT only_1_or_null CHECK (status in (1,2,3));
-              CREATE UNIQUE INDEX IF NOT EXISTS single_migration_running ON #{Versions.table_name} (status);
-            SQL
+            exec_sql([ReplayedIds.sql, Versions.sql].join("\n"))
           end
         end
       end

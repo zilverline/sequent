@@ -104,7 +104,7 @@ describe Sequent::Migrations::ViewSchema do
     context 'same version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: new_version)
+        Sequent::Migrations::Versions.create!(version: new_version)
       end
 
       it 'does nothing if already on the correct version' do
@@ -117,7 +117,7 @@ describe Sequent::Migrations::ViewSchema do
     context 'lower version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: 2)
+        Sequent::Migrations::Versions.create!(version: 2)
         SpecMigrations.version = 1
       end
 
@@ -129,7 +129,7 @@ describe Sequent::Migrations::ViewSchema do
     context 'higher version' do
       before :each do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+        Sequent::Migrations::Versions.create!(version: 0)
       end
 
       it 'creates the new view tables with the version as suffix' do
@@ -180,7 +180,7 @@ describe Sequent::Migrations::ViewSchema do
         expect(AccountRecord.connection.select_value('select count(*) from message_records_1')).to eq 1
 
         expect(
-          Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id),
+          Sequent::Migrations::ReplayedIds.pluck(:event_id),
         ).to match_array Sequent.configuration.event_record_class.pluck(:id)
       end
 
@@ -220,7 +220,7 @@ describe Sequent::Migrations::ViewSchema do
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_1')
 
           expect(
-            Sequent::Migrations::ViewSchema::ReplayedIds.pluck(:event_id),
+            Sequent::Migrations::ReplayedIds.pluck(:event_id),
           ).to match_array(
             Sequent
               .configuration
@@ -259,7 +259,7 @@ describe Sequent::Migrations::ViewSchema do
     context 'error handling' do
       before :each do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+        Sequent::Migrations::Versions.create!(version: 0)
       end
 
       it 'stops and cleans up' do
@@ -276,9 +276,9 @@ describe Sequent::Migrations::ViewSchema do
         expect { migrator.migrate_online }.to raise_error(Parallel::UndumpableException)
 
         expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_1')
-        expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
-        expect(Sequent::Migrations::ViewSchema::Versions.count).to eq 1
-        expect(Sequent::Migrations::ViewSchema::Versions.first.version).to eq 0
+        expect(Sequent::Migrations::ReplayedIds.count).to eq 0
+        expect(Sequent::Migrations::Versions.count).to eq 1
+        expect(Sequent::Migrations::Versions.first.version).to eq 0
       end
 
       context 'trying to start a migration when one is already started' do
@@ -309,8 +309,8 @@ describe Sequent::Migrations::ViewSchema do
           expect(result).to include(true)
           expect(result).to have(2).items
           expect(migrator.current_version).to eq(0)
-          expect(Sequent::Migrations::ViewSchema::Versions.running.first).to be
-          expect(Sequent::Migrations::ViewSchema::Versions.running.first.version).to eq new_version
+          expect(Sequent::Migrations::Versions.running.first).to be
+          expect(Sequent::Migrations::Versions.running.first.version).to eq new_version
 
           # does not rollback the running migration
           expect(AccountRecord.table_name).to eq 'account_records'
@@ -340,7 +340,7 @@ describe Sequent::Migrations::ViewSchema do
     context 'same version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: new_version)
+        Sequent::Migrations::Versions.create!(version: new_version)
       end
 
       it 'does nothing if already on the correct version' do
@@ -353,7 +353,7 @@ describe Sequent::Migrations::ViewSchema do
     context 'lower version' do
       before do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: 2)
+        Sequent::Migrations::Versions.create!(version: 2)
         SpecMigrations.version = 1
       end
 
@@ -368,7 +368,7 @@ describe Sequent::Migrations::ViewSchema do
 
       before :each do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+        Sequent::Migrations::Versions.create!(version: 0)
 
         insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
         insert_events('Message', [MessageCreated.new(aggregate_id: message_id, sequence_number: 1)])
@@ -405,7 +405,7 @@ describe Sequent::Migrations::ViewSchema do
       it 'sets the new version' do
         migrator.migrate_offline
 
-        expect(Sequent::Migrations::ViewSchema::Versions.done.maximum(:version)).to eq new_version
+        expect(Sequent::Migrations::Versions.done.maximum(:version)).to eq new_version
       end
 
       it 'ensures the "normal" table_names are set' do
@@ -446,12 +446,12 @@ describe Sequent::Migrations::ViewSchema do
 
       before :each do
         migrator.create_view_schema_if_not_exists
-        Sequent::Migrations::ViewSchema::Versions.create!(version: 0)
+        Sequent::Migrations::Versions.create!(version: 0)
       end
 
       it 'fails when migrate_online was not called prior to migrate_offline' do
         expect { migrator.migrate_offline }.to raise_error Sequent::Migrations::MigrationError
-        expect(Sequent::Migrations::ViewSchema::Versions.running.count).to eq 0
+        expect(Sequent::Migrations::Versions.running.count).to eq 0
       end
 
       it 'stops and does a rollback' do
@@ -472,9 +472,9 @@ describe Sequent::Migrations::ViewSchema do
 
         expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records')
         expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records')
-        expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
-        expect(Sequent::Migrations::ViewSchema::Versions.count).to eq 1
-        expect(Sequent::Migrations::ViewSchema::Versions.running.count).to eq 0
+        expect(Sequent::Migrations::ReplayedIds.count).to eq 0
+        expect(Sequent::Migrations::Versions.count).to eq 1
+        expect(Sequent::Migrations::Versions.running.count).to eq 0
       end
 
       context 'with an existing view schema' do
@@ -520,8 +520,8 @@ describe Sequent::Migrations::ViewSchema do
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_2')
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_2')
 
-          expect(Sequent::Migrations::ViewSchema::ReplayedIds.count).to eq 0
-          expect(Sequent::Migrations::ViewSchema::Versions.maximum(:version)).to eq 1
+          expect(Sequent::Migrations::ReplayedIds.count).to eq 0
+          expect(Sequent::Migrations::Versions.maximum(:version)).to eq 1
 
           expect(AccountRecord.count).to eq(1)
           expect(MessageRecord.count).to eq(1)
@@ -557,8 +557,8 @@ describe Sequent::Migrations::ViewSchema do
             expect(result).to include(true)
             expect(result).to have(2).items
             expect(migrator.current_version).to eq(2)
-            expect(Sequent::Migrations::ViewSchema::Versions.done.first).to be
-            expect(Sequent::Migrations::ViewSchema::Versions.done.order('version desc').first.version).to eq new_version
+            expect(Sequent::Migrations::Versions.done.first).to be
+            expect(Sequent::Migrations::Versions.done.order('version desc').first.version).to eq new_version
           end
 
           it 'ignores when migration is done' do
