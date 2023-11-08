@@ -5,6 +5,7 @@ require 'spec_helper'
 describe Sequent::Core::Projector do
   it 'fails when missing managed_tables' do
     class TestProjector1 < Sequent::Core::Projector
+      self.skip_autoregister = true
     end
     expect do
       Sequent.configuration.event_handlers << TestProjector1.new
