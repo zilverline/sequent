@@ -1,0 +1,8 @@
+source "https://rubygems.org"
+
+active_star_version = '= 6.1.7'
+
+gem 'activemodel', active_star_version
+gem 'activerecord', active_star_version
+
+gemspec path: "../"
