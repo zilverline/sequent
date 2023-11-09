@@ -132,18 +132,6 @@ module Sequent
         self.class.execute_sql(sql)
       end
 
-      def migrate(migrations_path, schema_migration: ActiveRecord::SchemaMigration, verbose: true)
-        ActiveRecord::Migration.verbose = verbose
-        if ActiveRecord::VERSION::MAJOR >= 7 && ActiveRecord::VERSION::MINOR >= 1
-          ActiveRecord::MigrationContext.new([migrations_path]).up
-        elsif ActiveRecord::VERSION::MAJOR >= 6
-          ActiveRecord::MigrationContext.new([migrations_path], schema_migration).up
-        elsif ActiveRecord::VERSION::MAJOR >= 5 && ActiveRecord::VERSION::MINOR >= 2
-          ActiveRecord::MigrationContext.new([migrations_path]).up
-        else
-          ActiveRecord::Migrator.migrate(migrations_path)
-        end
-      end
     end
   end
 end

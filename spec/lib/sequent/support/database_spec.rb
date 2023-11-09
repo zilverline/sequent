@@ -102,6 +102,9 @@ describe Sequent::Support::Database do
 
   shared_examples 'instance methods' do
     describe '#create_schema!' do
+      before do
+        Sequent::ApplicationRecord.connection.execute('drop schema if exists eventstore')
+      end
       it 'creates the schema' do
         expect { database.create_schema!('eventstore') }.to change {
           database.schema_exists?('eventstore')
@@ -124,29 +127,6 @@ describe Sequent::Support::Database do
 
       it 'ignores non-existing schema' do
         expect { database.drop_schema!('my_app') }.to_not raise_error
-      end
-    end
-
-    describe '#migrate' do
-      let(:migrations_path) { File.expand_path(database_name, Dir.tmpdir).tap { |dir| Dir.mkdir(dir) } }
-      after { FileUtils.rm_rf(migrations_path) }
-
-      it 'runs pending migrations' do
-        File.open(File.expand_path('1_test_migration.rb', migrations_path), 'w') do |f|
-          f.write <<~EOF
-            class TestMigration < MigrationClass
-              def change
-                create_table "my_table", id: false do |t|
-                  t.string "id", null: false
-                end
-              end
-            end
-          EOF
-          f.flush
-          expect { database.migrate(migrations_path, verbose: false) }.to change {
-            table_exists?('my_table')
-          }.from(false).to(true)
-        end
       end
     end
   end
