@@ -134,7 +134,9 @@ module Sequent
 
       def migrate(migrations_path, schema_migration: ActiveRecord::SchemaMigration, verbose: true)
         ActiveRecord::Migration.verbose = verbose
-        if ActiveRecord::VERSION::MAJOR >= 6
+        if ActiveRecord::VERSION::MAJOR >= 7 && ActiveRecord::VERSION::MINOR >= 1
+          ActiveRecord::MigrationContext.new([migrations_path]).up
+        elsif ActiveRecord::VERSION::MAJOR >= 6
           ActiveRecord::MigrationContext.new([migrations_path], schema_migration).up
         elsif ActiveRecord::VERSION::MAJOR >= 5 && ActiveRecord::VERSION::MINOR >= 2
           ActiveRecord::MigrationContext.new([migrations_path]).up
