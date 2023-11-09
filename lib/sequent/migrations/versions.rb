@@ -11,7 +11,7 @@ module Sequent
       def self.sql
         <<~SQL.chomp
           CREATE TABLE IF NOT EXISTS #{table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version));
-          ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT NULL CONSTRAINT only_1_or_null CHECK (status in (1,2,3));
+          ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT NULL CONSTRAINT only_one_running CHECK (status in (1,2,3));
           CREATE UNIQUE INDEX IF NOT EXISTS single_migration_running ON #{table_name} (status);
         SQL
       end
