@@ -90,11 +90,12 @@ describe Sequent::Support::Database do
   end
 
   describe 'class methods' do
-    context 'with multiple database support' do
-      before { Sequent.configuration.enable_multiple_database_support = true }
-      include_examples 'class methods'
-      after { Sequent.configuration.enable_multiple_database_support = false }
-    end
+    context 'with multiple database support',
+            skip: Gem.loaded_specs['activerecord'].version < Gem::Version.create('6.1.0') do
+              before { Sequent.configuration.enable_multiple_database_support = true }
+              include_examples 'class methods'
+              after { Sequent.configuration.enable_multiple_database_support = false }
+            end
     context 'no multiple database support' do
       include_examples 'class methods'
     end
@@ -133,18 +134,19 @@ describe Sequent::Support::Database do
 
   describe 'instance methods' do
     subject(:database) { Sequent::Support::Database.new }
-    context 'with multiple database support' do
-      before do
-        Sequent.configuration.enable_multiple_database_support = true
-        Sequent::Support::Database.create!(db_config)
-        Sequent::Support::Database.establish_connection(db_config)
-      end
-      after { Sequent::Support::Database.drop!(db_config) }
-      after :all do
-        Sequent.configuration.enable_multiple_database_support = false
-      end
-      include_examples 'instance methods'
-    end
+    context 'with multiple database support',
+            skip: Gem.loaded_specs['activerecord'].version < Gem::Version.create('6.1.0') do
+              before do
+                Sequent.configuration.enable_multiple_database_support = true
+                Sequent::Support::Database.create!(db_config)
+                Sequent::Support::Database.establish_connection(db_config)
+              end
+              after { Sequent::Support::Database.drop!(db_config) }
+              after :all do
+                Sequent.configuration.enable_multiple_database_support = false
+              end
+              include_examples 'instance methods'
+            end
     context 'no multiple database support' do
       before do
         Sequent::Support::Database.create!(db_config)
