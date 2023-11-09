@@ -37,7 +37,7 @@ jobs:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: sequent
           POSTGRES_PASSWORD: sequent
