@@ -244,7 +244,6 @@ module Sequent
       # When this method succeeds you can safely start the application from Sequent's point of view.
       #
       def migrate_offline
-        Sequent.logger.info("migrate_offline #{Sequent.new_version == current_version}")
         return if Sequent.new_version == current_version
 
         ensure_version_correct!
