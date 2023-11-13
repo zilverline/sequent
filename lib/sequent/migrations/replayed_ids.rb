@@ -3,7 +3,7 @@
 module Sequent
   module Migrations
     class ReplayedIds < Sequent::ApplicationRecord
-      def self.sql
+      def self.migration_sql
         <<~SQL.chomp
           CREATE TABLE IF NOT EXISTS #{table_name} (event_id bigint NOT NULL, CONSTRAINT event_id_pk PRIMARY KEY(event_id));
         SQL

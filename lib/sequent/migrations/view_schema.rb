@@ -162,11 +162,7 @@ module Sequent
       # This method is mainly useful during an initial setup of the view schema
       def create_view_schema_if_not_exists
         exec_sql(%(CREATE SCHEMA IF NOT EXISTS #{view_schema}))
-        Sequent::ApplicationRecord.transaction do
-          in_view_schema do
-            exec_sql([ReplayedIds.sql, Versions.sql].join("\n"))
-          end
-        end
+        migrate_metadata_tables
       end
 
       def plan
@@ -195,6 +191,8 @@ module Sequent
       #
       # @raise ConcurrentMigrationError if migration is already running
       def migrate_online
+        migrate_metadata_tables
+
         return if Sequent.new_version == current_version
 
         ensure_version_correct!
@@ -286,6 +284,14 @@ module Sequent
       end
 
       private
+
+      def migrate_metadata_tables
+        Sequent::ApplicationRecord.transaction do
+          in_view_schema do
+            exec_sql([ReplayedIds.migration_sql, Versions.migration_sql].join("\n"))
+          end
+        end
+      end
 
       def ensure_version_correct!
         create_view_schema_if_not_exists

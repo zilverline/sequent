@@ -8,7 +8,7 @@ module Sequent
       MIGRATE_OFFLINE_RUNNING = 3
       DONE = nil
 
-      def self.sql
+      def self.migration_sql
         <<~SQL.chomp
           CREATE TABLE IF NOT EXISTS #{table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version));
           ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT NULL CONSTRAINT only_one_running CHECK (status in (1,2,3));
