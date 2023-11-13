@@ -18,17 +18,17 @@ To make use of this feature, best is to put your domain classes under an `app` s
 In this case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`.
 See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html) for more details.
 
-1. Add to your `Gemfile`
+1) Add to your `Gemfile`
 
    ```
    gem 'sequent', git: 'https://github.com/zilverline/sequent'
    ```
 
-2. Run `bundle install`
+2) Run `bundle install`
 
-3. Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb) and put it in your `./db` directory.
+3) Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb) and put it in your `./db` directory.
 
-4. Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
+4) Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
     
     ```ruby
     VIEW_SCHEMA_VERSION = 1
@@ -52,7 +52,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     For a complete overview on how Migrations work in Sequent, check out the [Migrations Guide](/docs/concepts/migrations.html)
    
   
-5. Add the following snippet to your `Rakefile`
+5) Add the following snippet to your `Rakefile`
 
     ```ruby
     # Sequent requires a `SEQUENT_ENV` environment to be set
@@ -97,14 +97,14 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     so running it without `SEQUENT_MIGRATION_SCHEMAS` set will fail.
     {: .notice--warning}
 
-6. Ensure your `database.yml` contains the schema_search_path: 
+6) Ensure your `database.yml` contains the schema_search_path: 
 
     ```yaml
     default:
       schema_search_path: <%= ENV['SEQUENT_MIGRATION_SCHEMAS'] || 'public, sequent_schema, view_schema' %>
     ```
 
-7. Enable eager loading on all environments
+7) Enable eager loading on all environments
 
    Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
    `AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
@@ -112,7 +112,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
    produce unpredictable results. Set the `config.eager_load` to `true` for all environments 
    (in production the Rails default is already `true`).
 
-8. Add `./config/initializers/sequent.rb` containing at least:
+8) Add `./config/initializers/sequent.rb` containing at least:
 
     ```ruby
     require_relative '../../db/sequent_migrations'
@@ -134,7 +134,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     **You must** wrap the sequent initializer code in `Rails.application.reloader.to_prepare` because during
     initialization, the autoloading hasn't run yet.
 
-9. Run the following commands to create the `sequent_schema` and `view_schema`  
+9) Run the following commands to create the `sequent_schema` and `view_schema`  
 
     ```bash
     bundle exec rake sequent:db:create_event_store
@@ -145,7 +145,22 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     bundle exec rake sequent:migrate:offline    
     ```
 
-10. Run `rails s`
+10) Add the following to application.rb
+
+   This step is actually only necessary if you load Aggregates outside the scope
+   of the Unit Of Work which is automatically started and committed via the `execute_commands` call. 
+   If you for instance load Aggregates inside Controllers or or ActiveJob you have to clear Sequent's Unit Of Work (stored in the Thread.current) yourself.
+   For the web you can add the following Rack middleware:
+
+   ```ruby
+   config.middleware.use Sequent::Util::Web::ClearCache
+   ```
+
+   Otherwise you will need to add a call to `Sequent.aggregate_repository.clear!` somewhere yourself.
+
+   See using the [AggregateRepository outside the Unit Of Work](concepts/aggregate-repository.html#advanced-usage-outside-the-commandservice-transaction) for more details.
+
+11) Run `rails s`
 
 
 ### Where to put your domain classes
