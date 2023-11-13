@@ -96,7 +96,7 @@ module Sequent
 
               Sequent::Support::Database.connect!(@env)
 
-              puts "Current version in the database is: #{Sequent::Migrations::ViewSchema::Versions.maximum(:version)}"
+              puts "Current version in the database is: #{Sequent::Migrations::Versions.maximum(:version)}"
             end
 
             desc <<~EOS

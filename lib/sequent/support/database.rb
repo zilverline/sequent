@@ -53,7 +53,7 @@ module Sequent
           db_config = db_config.deep_merge(
             Sequent.configuration.primary_database_key => db_config_overrides,
           ).stringify_keys
-          if Gem.loaded_specs['activerecord'].version < Gem::Version.create('7.1.0')
+          if ActiveRecord::VERSION::MAJOR >= 7 && ActiveRecord::VERSION::MINOR < 1
             ActiveRecord.legacy_connection_handling = false
           end
           ActiveRecord::Base.configurations = db_config.stringify_keys
@@ -132,16 +132,6 @@ module Sequent
         self.class.execute_sql(sql)
       end
 
-      def migrate(migrations_path, schema_migration: ActiveRecord::SchemaMigration, verbose: true)
-        ActiveRecord::Migration.verbose = verbose
-        if ActiveRecord::VERSION::MAJOR >= 6
-          ActiveRecord::MigrationContext.new([migrations_path], schema_migration).up
-        elsif ActiveRecord::VERSION::MAJOR >= 5 && ActiveRecord::VERSION::MINOR >= 2
-          ActiveRecord::MigrationContext.new([migrations_path]).up
-        else
-          ActiveRecord::Migrator.migrate(migrations_path)
-        end
-      end
     end
   end
 end

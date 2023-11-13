@@ -103,8 +103,8 @@ describe Sequent::Core::EventStore do
           ],
         )
       end.to raise_error(Sequent::Core::EventStore::OptimisticLockingError) { |error|
-               expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)
-             }
+        expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)
+      }
     end
   end
 
@@ -448,8 +448,18 @@ describe Sequent::Core::EventStore do
         aggregate_id: stream_record.aggregate_id,
       )
     end
-    let(:get_events_cursor) do
-      -> { Sequent::Support::Events::ORDERED_BY_STREAM[event_store] }
+
+    let(:get_events) do
+      -> do
+        event_records = Sequent.configuration.event_record_class.table_name
+        stream_records = Sequent.configuration.stream_record_class.table_name
+        snapshot_event_type = Sequent.configuration.snapshot_event_class
+        Sequent.configuration.event_record_class
+          .select('event_type, event_json')
+          .joins("INNER JOIN #{stream_records} ON #{event_records}.stream_record_id = #{stream_records}.id")
+          .where('event_type <> ?', snapshot_event_type)
+          .order!("#{stream_records}.id, #{event_records}.sequence_number")
+      end
     end
 
     before do
@@ -471,8 +481,8 @@ describe Sequent::Core::EventStore do
       replay_counter = ReplayCounter.new
       Sequent.configuration.event_handlers << replay_counter
       event_store.replay_events_from_cursor(
+        get_events: get_events,
         block_size: 2,
-        get_events: get_events_cursor,
         on_progress: proc {},
       )
       expect(replay_counter.replay_count).to eq(Sequent::Core::EventRecord.count)
@@ -486,8 +496,8 @@ describe Sequent::Core::EventStore do
         progress_reported_count += 1
       end
       event_store.replay_events_from_cursor(
+        get_events: get_events,
         block_size: 2,
-        get_events: get_events_cursor,
         on_progress: on_progress,
       )
       total_events = Sequent::Core::EventRecord.count

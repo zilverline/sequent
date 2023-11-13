@@ -29,22 +29,19 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
   after { FileUtils.rm_rf(migrations_path) }
 
   before :each do
-    File.open(File.expand_path('1_test_migration.rb', migrations_path), 'w') do |f|
-      f.write <<~EOF
-        class TestMigration < MigrationClass
-          def change
-            create_table "active_record_persistor_tests", id: false do |t|
-              t.string "name", null: false
-              t.string "initials", default: [], array:true
-              t.timestamp "created_at", null: false
-              t.timestamp "updated_at", null: false
-            end
-          end
-        end
-      EOF
-      f.flush
-      database.migrate(migrations_path, verbose: false)
-    end
+    Sequent::ApplicationRecord.connection.execute(<<~SQL)
+      CREATE TABLE if not exists active_record_persistor_tests
+          (
+              name character varying,
+              initials character varying[] default '{}',
+              created_at timestamp without time zone,
+              updated_at timestamp without time zone
+          )
+    SQL
+  end
+
+  after :each do
+    Sequent::ApplicationRecord.connection.execute('drop table if exists active_record_persistor_tests')
   end
 
   let(:persistor) { Sequent::Core::Persistors::ActiveRecordPersistor.new }

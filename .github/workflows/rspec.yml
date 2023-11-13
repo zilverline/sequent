@@ -22,20 +22,22 @@ jobs:
       matrix:
         include:
           - ruby-version: 3.2
-            active-star-version: '= 7.1.0'
+            gemfile: 'ar_7_1'
           - ruby-version: 3.2
-            active-star-version: '= 7.0.8'
+            gemfile: 'ar_7_0'
           - ruby-version: 3.1.3
-            active-star-version: '= 7.0.8'
+            gemfile: 'ar_7_0'
           - ruby-version: 3.0.5
-            active-star-version: '= 7.0.8'
+            gemfile: 'ar_7_0'
           - ruby-version: 3.0.5
-            active-star-version: '= 6.1.7'
+            gemfile: 'ar_6_1'
           - ruby-version: 3.0.5
-            active-star-version: '= 6.0.6'
+            gemfile: 'ar_6_0'
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:
       postgres:
-        image: postgres:12
+        image: postgres:14
         env:
           POSTGRES_USER: sequent
           POSTGRES_PASSWORD: sequent
@@ -59,7 +61,7 @@ jobs:
         run: |
           bundle exec rake sequent:db:drop sequent:db:create
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec --order random
       - name: rubocop
         uses: reviewdog/action-rubocop@v2
         with:

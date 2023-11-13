@@ -11,10 +11,15 @@ require_relative './projectors'
 require_relative 'planner'
 require_relative 'executor'
 require_relative 'sql'
+require_relative 'versions'
+require_relative 'replayed_ids'
 
 module Sequent
   module Migrations
     class MigrationError < RuntimeError; end
+    class MigrationNotStarted < MigrationError; end
+    class MigrationDone < MigrationError; end
+    class ConcurrentMigration < MigrationError; end
 
     ##
     # ViewSchema is used for migration of you view_schema. For instance
@@ -74,9 +79,6 @@ module Sequent
       include Sequent::Util::Printer
       include Sql
 
-      class Versions < Sequent::ApplicationRecord; end
-      class ReplayedIds < Sequent::ApplicationRecord; end
-
       attr_reader :view_schema, :db_config, :logger
 
       class << self
@@ -111,7 +113,7 @@ module Sequent
       ##
       # Returns the current version from the database
       def current_version
-        Versions.order('version desc').limit(1).first&.version || 0
+        Versions.done.order('version desc').limit(1).first&.version || 0
       end
 
       ##
@@ -160,14 +162,7 @@ module Sequent
       # This method is mainly useful during an initial setup of the view schema
       def create_view_schema_if_not_exists
         exec_sql(%(CREATE SCHEMA IF NOT EXISTS #{view_schema}))
-        in_view_schema do
-          exec_sql(<<~SQL.chomp)
-            CREATE TABLE IF NOT EXISTS #{Versions.table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version))
-          SQL
-          exec_sql(<<~SQL.chomp)
-            CREATE TABLE IF NOT EXISTS #{ReplayedIds.table_name} (event_id bigint NOT NULL, CONSTRAINT event_id_pk PRIMARY KEY(event_id))
-          SQL
-        end
+        migrate_metadata_tables
       end
 
       def plan
@@ -194,12 +189,19 @@ module Sequent
       #
       # If anything fails an exception is raised and everything is rolled back
       #
+      # @raise ConcurrentMigrationError if migration is already running
       def migrate_online
+        migrate_metadata_tables
+
         return if Sequent.new_version == current_version
 
         ensure_version_correct!
 
+        Sequent.logger.info("Start migrate_online for version #{Sequent.new_version}")
+
         in_view_schema do
+          Versions.start_online!(Sequent.new_version)
+
           truncate_replay_ids_table!
 
           drop_old_tables(Sequent.new_version)
@@ -210,11 +212,14 @@ module Sequent
 
         in_view_schema do
           executor.create_indexes_after_execute_online(plan)
+          executor.reset_table_names(plan)
+          Versions.end_online!(Sequent.new_version)
         end
-        executor.reset_table_names(plan)
-        # rubocop:disable Lint/RescueException
-      rescue Exception => e
-        # rubocop:enable Lint/RescueException
+        Sequent.logger.info("Done migrate_online for version #{Sequent.new_version}")
+      rescue ConcurrentMigration
+        # Do not rollback the migration when this is a concurrent migration as the other one is running
+        raise
+      rescue Exception => e # rubocop:disable Lint/RescueException
         rollback_migration
         raise e
       end
@@ -242,6 +247,8 @@ module Sequent
         return if Sequent.new_version == current_version
 
         ensure_version_correct!
+        in_view_schema { Versions.start_offline!(Sequent.new_version) }
+        Sequent.logger.info("Start migrate_offline for version #{Sequent.new_version}")
 
         executor.set_table_names_to_new_version(plan)
 
@@ -259,21 +266,31 @@ module Sequent
             # 2.1, 2.2
             executor.execute_offline(plan, current_version)
             # 2.3 Create migration record
-            Versions.create!(version: Sequent.new_version)
+            Versions.end_offline!(Sequent.new_version)
           end
 
           # 3. Truncate replayed ids
           truncate_replay_ids_table!
         end
         logger.info "Migrated to version #{Sequent.new_version}"
-        # rubocop:disable Lint/RescueException
-      rescue Exception => e
-        # rubocop:enable Lint/RescueException
+      rescue ConcurrentMigration
+        raise
+      rescue MigrationDone
+        # no-op same as Sequent.new_version == current_version
+      rescue Exception => e # rubocop:disable Lint/RescueException
         rollback_migration
         raise e
       end
 
       private
+
+      def migrate_metadata_tables
+        Sequent::ApplicationRecord.transaction do
+          in_view_schema do
+            exec_sql([ReplayedIds.migration_sql, Versions.migration_sql].join("\n"))
+          end
+        end
+      end
 
       def ensure_version_correct!
         create_view_schema_if_not_exists
@@ -344,6 +361,7 @@ module Sequent
 
         truncate_replay_ids_table!
         executor.reset_table_names(plan)
+        Versions.rollback!(Sequent.new_version)
       end
 
       def truncate_replay_ids_table!

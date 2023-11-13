@@ -34,6 +34,9 @@ describe Sequent::Core::AggregateRepository do
       Sequent.configuration.event_store = event_store
       repository.clear
     end
+    after do
+      repository.clear
+    end
 
     let(:event_store) { double }
     let(:repository) { Sequent.configuration.aggregate_repository }
