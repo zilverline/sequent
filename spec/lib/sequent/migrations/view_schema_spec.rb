@@ -59,6 +59,17 @@ describe Sequent::Migrations::ViewSchema do
 
       expect(Sequent::ApplicationRecord.connection).to have_schema(view_schema)
     end
+
+    it 'can not insert two versions with a status' do
+      migrator.create_view_schema_if_not_exists
+      migrator.create_view_schema_if_not_exists
+
+      Sequent::Migrations::Versions.create!(version: 1, status: nil)
+      Sequent::Migrations::Versions.create!(version: 2, status: 1)
+      expect do
+        Sequent::Migrations::Versions.create!(version: 3, status: 2)
+      end.to raise_error(ActiveRecord::RecordNotUnique)
+    end
   end
 
   context '#create_view_tables' do
