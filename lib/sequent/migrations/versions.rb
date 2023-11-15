@@ -24,6 +24,18 @@ module Sequent
               where(status: [MIGRATE_ONLINE_RUNNING, MIGRATE_ONLINE_FINISHED, MIGRATE_OFFLINE_RUNNING])
             }
 
+      def self.current_version
+        done.latest_version || 0
+      end
+
+      def self.running_version
+        running.latest_version
+      end
+
+      def self.latest_version
+        order('version desc').limit(1).first&.version
+      end
+
       def self.start_online!(new_version)
         create!(version: new_version, status: MIGRATE_ONLINE_RUNNING)
       rescue ActiveRecord::RecordNotUnique
