@@ -103,7 +103,8 @@ module Sequent
             desc 'Returns whether a migration is currently running'
             task has_running_migrations: [:connect_to_db] do
               if Sequent::Migrations::Versions.running.any?
-                puts "Migration is running, current version: #{Sequent::Migrations::Versions.current_version}, target version #{Sequent::Migrations::Versions.version_currently_migrating}"
+                puts "Migration is running, current version: #{Sequent::Migrations::Versions.current_version}, " /
+                     "target version #{Sequent::Migrations::Versions.version_currently_migrating}"
               else
                 puts 'No running migrations'
               end
@@ -112,7 +113,8 @@ module Sequent
             desc 'Returns whether a migration is pending'
             task has_pending_migrations: [:connect_to_db] do
               if Sequent.new_version != Sequent::Migrations::Versions.current_version
-                puts "Migration is pending, current version: #{Sequent::Migrations::Versions.current_version}, pending version: #{Sequent.new_version}"
+                puts "Migration is pending, current version: #{Sequent::Migrations::Versions.current_version}, " /
+                     "pending version: #{Sequent.new_version}"
               else
                 puts 'No pending migrations'
               end
