@@ -28,7 +28,7 @@ module Sequent
         done.latest_version || 0
       end
 
-      def self.running_version
+      def self.version_currently_migrating
         running.latest_version
       end
 
