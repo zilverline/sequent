@@ -113,7 +113,7 @@ module Sequent
       ##
       # Returns the current version from the database
       def current_version
-        Versions.done.order('version desc').limit(1).first&.version || 0
+        Versions.current_version
       end
 
       ##
