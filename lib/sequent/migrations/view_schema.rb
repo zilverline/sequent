@@ -188,6 +188,7 @@ module Sequent
       #
       # @raise ConcurrentMigrationError if migration is already running
       def migrate_online
+        ensure_valid_plan!
         migrate_metadata_tables
 
         return if Sequent.new_version == current_version
@@ -215,6 +216,9 @@ module Sequent
         Sequent.logger.info("Done migrate_online for version #{Sequent.new_version}")
       rescue ConcurrentMigration
         # Do not rollback the migration when this is a concurrent migration as the other one is running
+        raise
+      rescue InvalidMigrationDefinition
+        # Do not rollback the migration when since there is nothing to rollback
         raise
       rescue Exception => e # rubocop:disable Lint/RescueException
         rollback_migration
@@ -280,6 +284,10 @@ module Sequent
       end
 
       private
+
+      def ensure_valid_plan!
+        plan
+      end
 
       def migrate_metadata_tables
         Sequent::ApplicationRecord.transaction do

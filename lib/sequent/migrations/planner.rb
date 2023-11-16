@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'errors'
 
 module Sequent
   module Migrations
@@ -101,7 +102,8 @@ module Sequent
       def map_to_migrations(migrations)
         migrations.reduce({}) do |memo, (version, ms)|
           unless ms.is_a?(Array)
-            fail "Declared migrations for version #{version} must be an Array. For example: {'3' => [FooProjector]}"
+            fail InvalidMigrationDefinition,
+                 "Declared migrations for version #{version} must be an Array. For example: {'3' => [FooProjector]}"
           end
 
           memo[version] = ms.flat_map do |migration|
@@ -110,14 +112,15 @@ module Sequent
                 #{Sequent.configuration.migration_sql_files_directory}/#{migration.table_name}_#{version}.sql
               EOS
               unless File.exist?(alter_table_sql_file_name)
-                fail "Missing file #{alter_table_sql_file_name} to apply for version #{version}"
+                fail InvalidMigrationDefinition,
+                     "Missing file #{alter_table_sql_file_name} to apply for version #{version}"
               end
 
               migration.copy(version)
             elsif migration < Sequent::Projector
               migration.managed_tables.map { |table| ReplayTable.create(table, version) }
             else
-              fail "Unknown Migration #{migration}"
+              fail InvalidMigrationDefinition, "Unknown Migration #{migration}"
             end
           end
 

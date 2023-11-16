@@ -593,6 +593,18 @@ describe Sequent::Migrations::ViewSchema do
             expect(AccountRecord).to have_column('foobar')
           end
         end
+
+        it 'missing the correct alter table file' do
+          expect(MessageRecord).to_not have_column('foobar')
+          Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'
+          SpecMigrations.copy_and_add('3', [Sequent::Migrations.alter_table(MessageRecord)])
+          SpecMigrations.version = 3
+          expect(next_migration).to_not receive(:replay!)
+
+          expect { next_migration.migrate_online }.to raise_error(Sequent::Migrations::InvalidMigrationDefinition)
+
+          expect(Sequent::Migrations::Versions.where(version: 3).first).to be_nil
+        end
       end
     end
   end

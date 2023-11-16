@@ -7,5 +7,6 @@ module Sequent
     class MigrationDone < MigrationError; end
     class ConcurrentMigration < MigrationError; end
 
+    class InvalidMigrationDefinition < MigrationError; end
   end
 end
