@@ -33,7 +33,7 @@ module Sequent
 
           task connect_to_db: ['sequent:init', :init] do
             ensure_sequent_env_set!
-            Sequent::Support::Database.connect!(@env)
+            Sequent::Migrations::ViewSchema.create_view_schema_if_not_exists(env: @env)
           end
 
           namespace :db do
