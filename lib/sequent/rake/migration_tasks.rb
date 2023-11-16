@@ -31,9 +31,10 @@ module Sequent
           EOS
           task init: :set_env_var
 
-          task connect_to_db: ['sequent:init', :init] do
+          desc 'Creates sequent view schema if not exists and runs internal migrations'
+          task create_and_migrate_sequent_view_schema: ['sequent:init', :init] do
             ensure_sequent_env_set!
-            Sequent::Support::Database.connect!(@env)
+            Sequent::Migrations::ViewSchema.create_view_schema_if_not_exists(env: @env)
           end
 
           namespace :db do
@@ -96,12 +97,12 @@ module Sequent
             task :init
 
             desc 'Prints the current version in the database'
-            task current_version: [:connect_to_db] do
+            task current_version: [:create_and_migrate_sequent_view_schema] do
               puts "Current version in the database is: #{Sequent::Migrations::Versions.current_version}"
             end
 
             desc 'Returns whether a migration is currently running'
-            task check_running_migrations: [:connect_to_db] do
+            task check_running_migrations: [:create_and_migrate_sequent_view_schema] do
               if Sequent::Migrations::Versions.running.any?
                 puts "Migration is running, current version: #{Sequent::Migrations::Versions.current_version}, " /
                      "target version #{Sequent::Migrations::Versions.version_currently_migrating}"
@@ -111,7 +112,7 @@ module Sequent
             end
 
             desc 'Returns whether a migration is pending'
-            task check_pending_migrations: [:connect_to_db] do
+            task check_pending_migrations: [:create_and_migrate_sequent_view_schema] do
               if Sequent.new_version != Sequent::Migrations::Versions.current_version
                 puts "Migration is pending, current version: #{Sequent::Migrations::Versions.current_version}, " /
                      "pending version: #{Sequent.new_version}"
