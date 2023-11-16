@@ -3,6 +3,7 @@
 require 'parallel'
 require 'postgresql_cursor'
 
+require_relative 'errors'
 require_relative '../support/database'
 require_relative '../sequent'
 require_relative '../util/timer'
@@ -16,10 +17,6 @@ require_relative 'replayed_ids'
 
 module Sequent
   module Migrations
-    class MigrationError < RuntimeError; end
-    class MigrationNotStarted < MigrationError; end
-    class MigrationDone < MigrationError; end
-    class ConcurrentMigration < MigrationError; end
 
     ##
     # ViewSchema is used for migration of you view_schema. For instance

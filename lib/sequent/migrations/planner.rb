@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+
 module Sequent
   module Migrations
     class Planner
