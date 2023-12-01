@@ -53,13 +53,12 @@ module Sequent
 
       # Loads aggregate by given id and class
       # Returns the one in the current Unit Of Work otherwise loads it from history.
-      def load_aggregate(aggregate_id, clazz = nil)
-        load_aggregates([aggregate_id], clazz)[0]
+      def load_aggregate(aggregate_id, clazz = nil, until_sequence_number: nil)
+        load_aggregates([aggregate_id], clazz, until_sequence_number:)[0]
       end
 
       # Optimised for loading lots of events and ignore snapshot events. To get the correct historical state of an
       # AggregateRoot it is necessary to be able to ignore snapshots. For a nested AggregateRoot, there will not be a
-      # sequence number known, so a load_until timestamp can be used instead.
       #
       # +aggregate_id+ The id of the aggregate to be loaded
       #
@@ -101,7 +100,8 @@ module Sequent
       #
       # +aggregate_ids+ The ids of the aggregates to be loaded
       # +clazz+ Optional argument that checks if all aggregates are of type +clazz+
-      def load_aggregates(aggregate_ids, clazz = nil)
+      # +until_sequence_number+ Optional argument that defines up until what sequence number the AggregateRoot will loaded.
+      def load_aggregates(aggregate_ids, clazz = nil, until_sequence_number: nil)
         fail ArgumentError, 'aggregate_ids is required' unless aggregate_ids
         return [] if aggregate_ids.empty?
 
@@ -109,7 +109,10 @@ module Sequent
         result = aggregates.values_at(*unique_ids).compact
         query_ids = unique_ids - result.map(&:id)
 
-        result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids).map do |stream, events|
+        result += Sequent.configuration.event_store.load_events_for_aggregates(
+          query_ids,
+          until_sequence_number:,
+        ).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end

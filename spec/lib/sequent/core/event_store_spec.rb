@@ -225,11 +225,17 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
-            [MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1)],
+            [
+              MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1),
+              MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 2),
+            ],
           ],
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_2),
-            [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)],
+            [
+              MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1),
+              MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 2),
+            ],
           ],
         ],
       )
@@ -239,7 +245,24 @@ describe Sequent::Core::EventStore do
 
       expect(streams_with_events).to have(2).items
       expect(streams_with_events[0]).to have(2).items
+      expect(streams_with_events[0][1]).to have(2).items
       expect(streams_with_events[1]).to have(2).items
+      expect(streams_with_events[1][1]).to have(2).items
+    end
+
+    context 'load until sequence number' do
+      it 'returns the stream and events until that sequence number' do
+        streams_with_events = event_store.load_events_for_aggregates(
+          [aggregate_id_1, aggregate_id_2],
+          until_sequence_number: 1,
+        )
+
+        expect(streams_with_events).to have(2).items
+        expect(streams_with_events[0]).to have(2).items
+        expect(streams_with_events[0][1]).to have(1).item
+        expect(streams_with_events[1]).to have(2).items
+        expect(streams_with_events[1][1]).to have(1).item
+      end
     end
   end
 

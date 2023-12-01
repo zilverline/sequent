@@ -93,12 +93,14 @@ module Sequent
         load_events_for_aggregates([aggregate_id])[0]
       end
 
-      def load_events_for_aggregates(aggregate_ids)
+      def load_events_for_aggregates(aggregate_ids, until_sequence_number: nil)
         return [] if aggregate_ids.none?
 
         streams = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids)
 
-        query = aggregate_ids.uniq.map { |aggregate_id| aggregate_query(aggregate_id) }.join(' UNION ALL ')
+        query = aggregate_ids.uniq.map do |aggregate_id|
+          aggregate_query(aggregate_id, until_sequence_number:)
+        end.join(' UNION ALL ')
         events = Sequent.configuration.event_record_class.connection.select_all(query).map do |event_hash|
           deserialize_event(event_hash)
         end
@@ -115,12 +117,13 @@ module Sequent
           end
       end
 
-      def aggregate_query(aggregate_id)
+      def aggregate_query(aggregate_id, until_sequence_number:)
         <<~SQL.chomp
           (
           SELECT event_type, event_json
             FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
           WHERE aggregate_id = #{quote(aggregate_id)}
+          #{until_sequence_number.present? ? "AND sequence_number <= #{until_sequence_number}" : ''}
           AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
                                            FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS i
                                            WHERE event_type = #{quote Sequent.configuration.snapshot_event_class.name}
