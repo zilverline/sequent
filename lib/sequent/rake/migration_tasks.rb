@@ -53,9 +53,9 @@ module Sequent
               ensure_sequent_env_set!
 
               if @env == 'production' && args[:production] != 'yes_drop_production'
-                fail <<~OES
+                fail <<~EOS
                   Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[yes_drop_production]
-                OES
+                EOS
               end
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -104,8 +104,10 @@ module Sequent
             desc 'Returns whether a migration is currently running'
             task check_running_migrations: [:create_and_migrate_sequent_view_schema] do
               if Sequent::Migrations::Versions.running.any?
-                puts "Migration is running, current version: #{Sequent::Migrations::Versions.current_version}, " /
-                     "target version #{Sequent::Migrations::Versions.version_currently_migrating}"
+                puts <<~EOS
+                  Migration is running, current version: #{Sequent::Migrations::Versions.current_version},
+                  target version #{Sequent::Migrations::Versions.version_currently_migrating}
+                EOS
               else
                 puts 'No running migrations'
               end
@@ -114,8 +116,10 @@ module Sequent
             desc 'Returns whether a migration is pending'
             task check_pending_migrations: [:create_and_migrate_sequent_view_schema] do
               if Sequent.new_version != Sequent::Migrations::Versions.current_version
-                puts "Migration is pending, current version: #{Sequent::Migrations::Versions.current_version}, " /
-                     "pending version: #{Sequent.new_version}"
+                puts <<~EOS
+                  Migration is pending, current version: #{Sequent::Migrations::Versions.current_version},
+                  pending version: #{Sequent.new_version}
+                EOS
               else
                 puts 'No pending migrations'
               end
