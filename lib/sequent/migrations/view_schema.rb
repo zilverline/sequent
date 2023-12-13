@@ -441,7 +441,7 @@ module Sequent
 
         event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
         event_stream = event_stream.where(<<~SQL, aggregate_prefixes)
-          substring(aggregate_id::varchar from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)
+          substring(aggregate_id::text from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)
         SQL
         if exclude_already_replayed
           event_stream = event_stream
