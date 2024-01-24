@@ -72,18 +72,13 @@ module Sequent
         class Index
           def initialize(indexed_columns)
             @indexed_columns = Hash.new do |hash, record_class|
-              hash[record_class] = if record_class.column_names.include? 'aggregate_id'
-                                     ['aggregate_id']
-                                   else
-                                     []
-                                   end
+              hash[record_class] = default_indexes(record_class)
             end
 
-            @indexed_columns = @indexed_columns.merge(
-              indexed_columns.reduce({}) do |memo, (key, ics)|
-                memo.merge({key => ics.map { |c| c.map(&:to_s) }})
-              end,
-            )
+            indexed_columns.each do |record_class, indexes|
+              normalized = indexes.map { |index| index.map(&:to_s).sort }
+              @indexed_columns[record_class] = (normalized + default_indexes(record_class)).uniq
+            end
 
             @index = {}
             @reverse_index = {}
@@ -134,13 +129,16 @@ module Sequent
           end
 
           def use_index?(record_class, where_clause)
-            @indexed_columns.key?(record_class) && get_index(record_class, where_clause).present?
+            indexed?(record_class) && get_index(record_class, where_clause).present?
           end
 
           private
 
           def indexed?(record_class)
-            @indexed_columns.key?(record_class)
+            # Do not use `key?` here or similar, since the
+            # `@indexed_columns#default_proc` automatically adds new
+            # indexes as required.
+            @indexed_columns[record_class].present?
           end
 
           def get_keys(record_class, record)
@@ -157,6 +155,14 @@ module Sequent
           def get_index(record_class, where_clause)
             @indexed_columns[record_class].find do |indexed_where|
               where_clause.keys.size == indexed_where.size && (where_clause.keys.map(&:to_s) - indexed_where).empty?
+            end
+          end
+
+          def default_indexes(record_class)
+            if record_class.column_names.include? 'aggregate_id'
+              [['aggregate_id']]
+            else
+              []
             end
           end
         end

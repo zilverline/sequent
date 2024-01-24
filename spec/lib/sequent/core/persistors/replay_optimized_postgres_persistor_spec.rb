@@ -427,6 +427,27 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect(index.use_index?(Sequent::Core::EventRecord, {sequence_number: 1})).to be_falsey
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1, sequence_number: 1})).to be_falsey
         end
+
+        context 'duplicate indexes' do
+          let(:indices) { [[:aggregate_id], [:command_record_id, :id], [:id, :command_record_id]] }
+          it 'are removed' do
+            expect(index.instance_variable_get(:@indexed_columns)[Sequent::Core::EventRecord])
+              .to match_array [['aggregate_id'], ['command_record_id', 'id']]
+          end
+        end
+      end
+
+      context 'default index when record class is specified' do
+        it 'adds a default index for aggregate_id' do
+          expect(index.use_index?(Sequent::Core::EventRecord, {aggregate_id: 1})).to be_truthy
+        end
+      end
+
+      context 'default index when record class is not specified' do
+        let(:index) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new({}) }
+        it 'adds a default index for aggregate_id' do
+          expect(index.use_index?(Sequent::Core::EventRecord, {aggregate_id: 1})).to be_truthy
+        end
       end
 
       context 'where clause order' do
