@@ -115,8 +115,11 @@ module Sequent
           end
 
           def find(record_class, where_clause)
+            index = get_index(record_class, where_clause)
+            return nil unless index
+
             key = [record_class.name]
-            get_index(record_class, where_clause).each do |field|
+            index.each do |field|
               key << field
               key << where_clause.stringify_keys[field]
             end
@@ -153,9 +156,8 @@ module Sequent
           end
 
           def get_index(record_class, where_clause)
-            @indexed_columns[record_class].find do |indexed_where|
-              where_clause.keys.size == indexed_where.size && (where_clause.keys.map(&:to_s) - indexed_where).empty?
-            end
+            where_clause_keys = where_clause.keys.map(&:to_s).sort
+            @indexed_columns[record_class].find { |index| index == where_clause_keys }
           end
 
           def default_indexes(record_class)
@@ -293,8 +295,9 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          if @record_index.use_index?(record_class, where_clause)
-            @record_index.find(record_class, where_clause)
+          found_in_index = @record_index.find(record_class, where_clause)
+          if found_in_index
+            found_in_index
           else
             @record_store[record_class].select do |record|
               where_clause.all? do |k, v|
