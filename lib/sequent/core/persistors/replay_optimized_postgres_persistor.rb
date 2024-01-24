@@ -118,11 +118,8 @@ module Sequent
             index = get_index(record_class, where_clause)
             return nil unless index
 
-            key = [record_class.name]
-            index.each do |field|
-              key << field
-              key << where_clause.stringify_keys[field]
-            end
+            normalized_where_clause = where_clause.stringify_keys
+            key = [record_class.name, index] + index.map { |field| normalized_where_clause[field] }
             @index[key] || []
           end
 
@@ -146,12 +143,7 @@ module Sequent
 
           def get_keys(record_class, record)
             @indexed_columns[record_class].map do |index|
-              arr = [record_class.name]
-              index.each do |key|
-                arr << key
-                arr << record[key]
-              end
-              arr
+              [record_class.name, index] + index.map { |field| record[field] }
             end
           end
 
