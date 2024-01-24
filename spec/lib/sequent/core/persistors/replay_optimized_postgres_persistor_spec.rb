@@ -431,16 +431,16 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   end
 
   describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index do
-    describe '#use_index?' do
-      let(:indices) { [] }
-      let(:index) do
-        Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(
-          {
-            Sequent::Core::EventRecord => indices,
-          },
-        )
-      end
+    let(:indices) { [] }
+    let(:index) do
+      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(
+        {
+          Sequent::Core::EventRecord => indices,
+        },
+      )
+    end
 
+    describe '#use_index?' do
       context 'symbolized single indices' do
         let(:indices) { [[:id]] }
         it 'uses the index for strings and symbols where clause' do
@@ -508,6 +508,25 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 10, id: 1})).to be_truthy
         end
+      end
+    end
+
+    context 'duplicate hash values' do
+      class BadHash < Struct.new(:value)
+        def hash
+          0
+        end
+      end
+
+      it 'should not match records even when hash collision occurs' do
+        one = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(1), sequence_number: 1)
+        two = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(2), sequence_number: 1)
+
+        index.add(Sequent::Core::EventRecord, one)
+        index.add(Sequent::Core::EventRecord, two)
+
+        expect(index.find(Sequent::Core::EventRecord, {aggregate_id: one.aggregate_id})).to match_array [one]
+        expect(index.find(Sequent::Core::EventRecord, {aggregate_id: two.aggregate_id})).to match_array [two]
       end
     end
   end

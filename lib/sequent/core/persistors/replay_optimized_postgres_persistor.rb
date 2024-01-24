@@ -88,18 +88,18 @@ module Sequent
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              @index[key.hash] = [] unless @index.key? key.hash
-              @index[key.hash] << record
+              @index[key] = [] unless @index.key? key
+              @index[key] << record
 
-              @reverse_index[record.object_id.hash] = [] unless @reverse_index.key? record.object_id.hash
-              @reverse_index[record.object_id.hash] << key.hash
+              @reverse_index[record.object_id] = [] unless @reverse_index.key? record.object_id
+              @reverse_index[record.object_id] << key
             end
           end
 
           def remove(record_class, record)
             return unless indexed?(record_class)
 
-            keys = @reverse_index.delete(record.object_id.hash) { [] }
+            keys = @reverse_index.delete(record.object_id) { [] }
 
             return unless keys.any?
 
@@ -120,7 +120,7 @@ module Sequent
               key << field
               key << where_clause.stringify_keys[field]
             end
-            @index[key.hash] || []
+            @index[key] || []
           end
 
           def clear
