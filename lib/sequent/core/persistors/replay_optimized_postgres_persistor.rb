@@ -81,7 +81,7 @@ module Sequent
             end
 
             @index = {}
-            @reverse_index = {}
+            @reverse_index = {}.compare_by_identity
           end
 
           def add(record_class, record)
@@ -91,15 +91,15 @@ module Sequent
               @index[key] = [] unless @index.key? key
               @index[key] << record
 
-              @reverse_index[record.object_id] = [] unless @reverse_index.key? record.object_id
-              @reverse_index[record.object_id] << key
+              @reverse_index[record] = [] unless @reverse_index.key? record
+              @reverse_index[record] << key
             end
           end
 
           def remove(record_class, record)
             return unless indexed?(record_class)
 
-            keys = @reverse_index.delete(record.object_id) { [] }
+            keys = @reverse_index.delete(record) { [] }
 
             return unless keys.any?
 
