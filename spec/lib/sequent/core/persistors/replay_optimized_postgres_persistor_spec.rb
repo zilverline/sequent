@@ -12,6 +12,13 @@ class MockEvent < Sequent::Core::Event
   end
 end
 
+def measure_elapsed_time &block
+  starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  yield block
+  ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  ending - starting
+end
+
 describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
   let(:record_class) { Sequent::Core::EventRecord }
@@ -376,6 +383,51 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         expect(object.sequence_number).to eq 99
       end
     end
+  end
+
+  context 'with thousands of records' do
+    COUNT = 1000
+    ITERATIONS = 10
+    MAX_TIME_S = 1
+
+    let(:persistor) do
+      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
+        50,
+        {
+          Sequent::Core::EventRecord => [%i[id command_record_id], %i[id sequence_number]],
+        },
+      )
+    end
+    let(:aggregate_ids) { (0...COUNT).map { Sequent.new_uuid } }
+
+    before do
+      aggregate_ids.each_with_index do |aggregate_id, i|
+        persistor.create_record(Sequent::Core::EventRecord, {id: i, aggregate_id: aggregate_id, command_record_id: i * 7})
+      end
+    end
+
+    it 'performs well using an aggregate_id lookup' do
+      elapsed = measure_elapsed_time do
+        ITERATIONS.times do
+          aggregate_ids.each do |aggregate_id|
+            expect(persistor.get_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id})).to be_present
+          end
+        end
+      end
+      expect(elapsed).to be <= MAX_TIME_S
+    end
+
+    it 'performs well using a multi-index lookup' do
+      elapsed = measure_elapsed_time do
+        ITERATIONS.times do
+          (0...COUNT).each do |i|
+            expect(persistor.get_record(Sequent::Core::EventRecord, {id: i, command_record_id: i * 7})).to be_present
+          end
+        end
+      end
+      expect(elapsed).to be <= MAX_TIME_S
+    end
+
   end
 
   describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index do
