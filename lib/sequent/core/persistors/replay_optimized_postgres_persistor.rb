@@ -287,23 +287,18 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          found_in_index = @record_index.find(record_class, where_clause)
-          if found_in_index
-            found_in_index
-          else
-            @record_store[record_class].select do |record|
-              where_clause.all? do |k, v|
-                expected_value = v.is_a?(Symbol) ? v.to_s : v
-                actual_value = record[k.to_sym]
-                actual_value = actual_value.to_s if actual_value.is_a? Symbol
-                if expected_value.is_a?(Array)
-                  expected_value.include?(actual_value)
-                else
-                  actual_value == expected_value
-                end
+          (@record_index.find(record_class, where_clause) || @record_store[record_class].select do |record|
+            where_clause.all? do |k, v|
+              expected_value = v.is_a?(Symbol) ? v.to_s : v
+              actual_value = record[k.to_sym]
+              actual_value = actual_value.to_s if actual_value.is_a? Symbol
+              if expected_value.is_a?(Array)
+                expected_value.include?(actual_value)
+              else
+                actual_value == expected_value
               end
             end
-          end.dup
+          end).dup
         end
 
         def last_record(record_class, where_clause)

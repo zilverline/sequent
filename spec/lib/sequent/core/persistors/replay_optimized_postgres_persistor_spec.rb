@@ -12,7 +12,7 @@ class MockEvent < Sequent::Core::Event
   end
 end
 
-def measure_elapsed_time &block
+def measure_elapsed_time(&block)
   starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   yield block
   ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -402,7 +402,10 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
     before do
       aggregate_ids.each_with_index do |aggregate_id, i|
-        persistor.create_record(Sequent::Core::EventRecord, {id: i, aggregate_id: aggregate_id, command_record_id: i * 7})
+        persistor.create_record(
+          Sequent::Core::EventRecord,
+          {id: i, aggregate_id: aggregate_id, command_record_id: i * 7},
+        )
       end
     end
 
@@ -427,7 +430,6 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
       expect(elapsed).to be <= MAX_TIME_S
     end
-
   end
 
   describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index do
@@ -481,10 +483,10 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         end
 
         context 'duplicate indexes' do
-          let(:indices) { [[:aggregate_id], [:command_record_id, :id], [:id, :command_record_id]] }
+          let(:indices) { [%i[aggregate_id], %i[command_record_id id], %i[id command_record_id]] }
           it 'are removed' do
             expect(index.instance_variable_get(:@indexed_columns)[Sequent::Core::EventRecord])
-              .to match_array [['aggregate_id'], ['command_record_id', 'id']]
+              .to match_array [['aggregate_id'], %w[command_record_id id]]
           end
         end
       end
