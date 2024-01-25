@@ -266,7 +266,7 @@ module Sequent
         def update_all_records(record_class, where_clause, updates)
           find_records(record_class, where_clause).each do |record|
             updates.each_pair do |k, v|
-              record[k.to_sym] = v
+              record[k] = v
             end
             @record_index.update(record_class, record)
           end
@@ -289,9 +289,8 @@ module Sequent
         def find_records(record_class, where_clause)
           (@record_index.find(record_class, where_clause) || @record_store[record_class].select do |record|
             where_clause.all? do |k, v|
-              expected_value = v.is_a?(Symbol) ? v.to_s : v
-              actual_value = record[k.to_sym]
-              actual_value = actual_value.to_s if actual_value.is_a? Symbol
+              expected_value = normalize_value(v)
+              actual_value = normalize_value(record[k])
               if expected_value.is_a?(Array)
                 expected_value.include?(actual_value)
               else
@@ -359,10 +358,14 @@ module Sequent
 
         private
 
+        def normalize_value(value)
+          value.is_a?(Symbol) ? value.to_s : value
+        end
+
         def cast_value_to_column_type(clazz, column_name, record)
           uncasted_value = ActiveModel::Attribute.from_database(
             column_name,
-            record[column_name.to_sym],
+            record[column_name],
             Sequent::ApplicationRecord.connection.lookup_cast_type_from_column(@column_cache[clazz.name][column_name]),
           ).value_for_database
           Sequent::ApplicationRecord.connection.type_cast(uncasted_value)
