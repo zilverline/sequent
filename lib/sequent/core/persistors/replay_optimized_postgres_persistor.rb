@@ -97,7 +97,7 @@ module Sequent
             end
 
             indexed_columns.each do |record_class, indexes|
-              normalized = indexes.map { |index| index.map(&:to_s).sort }
+              normalized = indexes.map { |index| index.map { |field| Persistors.normalize_symbols(field) }.sort }
               @indexed_columns[record_class] = (normalized + default_indexes(record_class)).uniq
             end
 
@@ -140,7 +140,9 @@ module Sequent
             return nil unless index
 
             normalized_where_clause = where_clause.stringify_keys
-            key = [record_class.name, index] + index.map { |field| normalized_where_clause[field] }
+            key = [record_class.name, index] + index.map do |field|
+              Persistors.normalize_symbols(normalized_where_clause[field])
+            end
             @index[key]&.to_a || []
           end
 
@@ -164,7 +166,9 @@ module Sequent
 
           def get_keys(record_class, record)
             @indexed_columns[record_class].map do |index|
-              [record_class.name, index] + index.map { |field| record[field] }
+              [record_class.name, index] + index.map do |field|
+                Persistors.normalize_symbols(record[field])
+              end
             end
           end
 
@@ -284,8 +288,8 @@ module Sequent
         def find_records(record_class, where_clause)
           @record_index.find(record_class, where_clause) || @record_store[record_class].select do |record|
             where_clause.all? do |k, v|
-              expected_value = normalize_value(v)
-              actual_value = normalize_value(record[k])
+              expected_value = Persistors.normalize_symbols(v)
+              actual_value = Persistors.normalize_symbols(record[k])
               if expected_value.is_a?(Array)
                 expected_value.include?(actual_value)
               else
@@ -353,10 +357,6 @@ module Sequent
 
         private
 
-        def normalize_value(value)
-          value.is_a?(Symbol) ? value.to_s : value
-        end
-
         def cast_value_to_column_type(clazz, column_name, record)
           uncasted_value = ActiveModel::Attribute.from_database(
             column_name,
@@ -365,6 +365,13 @@ module Sequent
           ).value_for_database
           Sequent::ApplicationRecord.connection.type_cast(uncasted_value)
         end
+      end
+
+      # Normalizes symbol values to strings (by using its name) while
+      # preserving all other values. This allows symbol/string
+      # indifferent comparisons.
+      def self.normalize_symbols(value)
+        value.is_a?(Symbol) ? value.name : value
       end
     end
   end

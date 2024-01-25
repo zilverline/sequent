@@ -20,7 +20,8 @@ def measure_elapsed_time(&block)
 end
 
 describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
-  let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
+  let(:indices) { {} }
+  let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(50, indices) }
   let(:record_class) { Sequent::Core::EventRecord }
   let(:mock_event) { MockEvent.new }
 
@@ -133,6 +134,39 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     end
   end
 
+  context 'value normalization' do
+    before :each do
+      persistor.create_record(record_class, {id: 1, event_type: :SymbolEvent})
+      persistor.create_record(record_class, {id: 2, event_type: 'StringEvent'})
+    end
+
+    context 'when using an index' do
+      let(:indices) { {record_class => [[:event_type]]} }
+
+      it 'should find records with symbol values using strings' do
+        objects = persistor.find_records(record_class, {event_type: 'SymbolEvent'})
+        expect(objects).to have(1).item
+      end
+
+      it 'should find records with string values using symbol' do
+        objects = persistor.find_records(record_class, {event_type: :StringEvent})
+        expect(objects).to have(1).item
+      end
+    end
+
+    context 'when not using an index' do
+      it 'should find records with symbol values using strings' do
+        objects = persistor.find_records(record_class, {event_type: 'SymbolEvent'})
+        expect(objects).to have(1).item
+      end
+
+      it 'should find records with string values using symbol' do
+        objects = persistor.find_records(record_class, {event_type: :StringEvent})
+        expect(objects).to have(1).item
+      end
+    end
+  end
+
   context 'committing' do
     class ReplayOptimizedPostgresTest < Sequent::ApplicationRecord; end
 
@@ -216,7 +250,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         end
       end
 
-      context 'values as normal hashess' do
+      context 'values as normal hashes' do
         it 'commits a persistor' do
           persistor.create_record(ReplayOptimizedPostgresTest, values)
 
