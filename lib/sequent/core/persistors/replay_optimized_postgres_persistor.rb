@@ -78,7 +78,7 @@ module Sequent
           end
         end
 
-        def self.struct_cache
+        def struct_cache
           @struct_cache ||= Hash.new do |hash, record_class|
             struct_class = Struct.new(*record_class.column_names.map(&:to_sym))
             struct_class.include InMemoryStruct
@@ -207,7 +207,7 @@ module Sequent
           column_names = record_class.column_names
           values = record_class.column_defaults.with_indifferent_access.merge(values)
           values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
-          record = self.class.struct_cache[record_class].new.set_values(values)
+          record = struct_cache[record_class].new.set_values(values)
 
           yield record if block_given?
 
