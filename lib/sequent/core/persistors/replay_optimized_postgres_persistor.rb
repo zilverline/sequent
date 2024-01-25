@@ -56,16 +56,33 @@ module Sequent
         attr_reader :record_store
         attr_accessor :insert_with_csv_size
 
-        def self.struct_cache
-          @struct_cache ||= {}
-        end
-
-        module InitStruct
+        # We create a struct on the fly to represent an in-memory record.
+        # Since the replay happens in memory we implement the ==, eql? and hash methods
+        # to point to the same object. A record is the same if and only if they point to
+        # the same object. These methods are necessary since we use Set instead of [].
+        module InMemoryStruct
+          def ==(other)
+            equal?(other)
+          end
+          def eql?(other)
+            equal?(other)
+          end
+          def hash
+            object_id.hash
+          end
           def set_values(values)
             values.each do |k, v|
               self[k] = v
             end
             self
+          end
+        end
+
+        def self.struct_cache
+          @struct_cache ||= Hash.new do |hash, record_class|
+            struct_class = Struct.new(*record_class.column_names.map(&:to_sym))
+            struct_class.include InMemoryStruct
+            hash[record_class] = struct_class
           end
         end
 
@@ -190,37 +207,11 @@ module Sequent
           column_names = record_class.column_names
           values = record_class.column_defaults.with_indifferent_access.merge(values)
           values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
-          struct_class_name = "#{record_class}Struct"
-          if self.class.struct_cache.key?(struct_class_name)
-            struct_class = self.class.struct_cache[struct_class_name]
-          else
-            # We create a struct on the fly.
-            # Since the replay happens in memory we implement the ==, eql? and hash methods
-            # to point to the same object. A record is the same if and only if they point to
-            # the same object. These methods are necessary since we use Set instead of [].
-            class_def = <<-EOD
-      #{struct_class_name} = Struct.new(*#{column_names.map(&:to_sym)})
-              class #{struct_class_name}
-                include InitStruct
-                def ==(other)
-                  self.equal?(other)
-                end
-                def hash
-                  self.object_id.hash
-                end
-              end
-            EOD
-            # rubocop:disable Security/Eval
-            eval(class_def.to_s)
-            # rubocop:enable Security/Eval
-            struct_class = ReplayOptimizedPostgresPersistor.const_get(struct_class_name)
-            self.class.struct_cache[struct_class_name] = struct_class
-          end
-          record = struct_class.new.set_values(values)
+          record = self.class.struct_cache[record_class].new.set_values(values)
 
           yield record if block_given?
-          @record_store[record_class] << record
 
+          @record_store[record_class] << record
           @record_index.add(record_class, record)
 
           record
