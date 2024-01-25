@@ -86,49 +86,49 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         object = persistor.get_record!(record_class, {id: 1})
         expect(object.id).to eq 1
       end
+    end
 
-      context '#get_record' do
-        it 'returns the object' do
-          object = persistor.get_record(record_class, {id: 1})
-          expect(object.id).to eq 1
-        end
+    context '#get_record' do
+      it 'returns the object' do
+        object = persistor.get_record(record_class, {id: 1})
+        expect(object.id).to eq 1
       end
+    end
 
-      context '#find_records' do
-        it 'returns the object' do
-          objects = persistor.find_records(record_class, {id: 1})
-          expect(objects).to have(1).item
-          expect(objects.first.id).to eq 1
-        end
+    context '#find_records' do
+      it 'returns the object' do
+        objects = persistor.find_records(record_class, {id: 1})
+        expect(objects).to have(1).item
+        expect(objects.first.id).to eq 1
       end
+    end
 
-      context '#delete_all_records' do
-        it 'deletes the object' do
-          persistor.delete_all_records(record_class, {id: 1})
+    context '#delete_all_records' do
+      it 'deletes the object' do
+        persistor.delete_all_records(record_class, {id: 1})
 
-          objects = persistor.find_records(record_class, {id: 1})
-          expect(objects).to be_empty
-        end
+        objects = persistor.find_records(record_class, {id: 1})
+        expect(objects).to be_empty
       end
+    end
 
-      context '#delete_record' do
-        it 'deletes the object' do
-          objects = persistor.find_records(record_class, {id: 1})
-          persistor.delete_record(record_class, objects.first)
+    context '#delete_record' do
+      it 'deletes the object' do
+        objects = persistor.find_records(record_class, {id: 1})
+        persistor.delete_record(record_class, objects.first)
 
-          expect(persistor.find_records(record_class, {id: 1})).to be_empty
-        end
+        expect(persistor.find_records(record_class, {id: 1})).to be_empty
       end
+    end
 
-      context '#update_all_records' do
-        it 'updates the records' do
-          persistor.update_all_records(record_class, {id: 1}, {sequence_number: 3})
+    context '#update_all_records' do
+      it 'updates the records' do
+        persistor.update_all_records(record_class, {id: 1}, {sequence_number: 3})
 
-          objects = persistor.find_records(record_class, {id: 1})
-          expect(objects).to have(1).item
-          expect(objects.first.id).to eq 1
-          expect(objects.first.sequence_number).to eq 3
-        end
+        objects = persistor.find_records(record_class, {id: 1})
+        expect(objects).to have(1).item
+        expect(objects.first.id).to eq 1
+        expect(objects.first.sequence_number).to eq 3
       end
     end
   end
