@@ -109,7 +109,7 @@ module Sequent
             return unless indexed?(record_class)
 
             get_keys(record_class, record).each do |key|
-              @index[key] = [] unless @index.key? key
+              @index[key] = Set.new.compare_by_identity unless @index.key? key
               @index[key] << record
 
               @reverse_index[record] = [] unless @reverse_index.key? record
@@ -141,7 +141,7 @@ module Sequent
 
             normalized_where_clause = where_clause.stringify_keys
             key = [record_class.name, index] + index.map { |field| normalized_where_clause[field] }
-            @index[key] || []
+            @index[key]&.to_a || []
           end
 
           def clear
@@ -190,7 +190,7 @@ module Sequent
         #   E.g. [[:first_index_column], [:another_index, :with_to_columns]]
         def initialize(insert_with_csv_size = 50, indices = {})
           @insert_with_csv_size = insert_with_csv_size
-          @record_store = Hash.new { |h, k| h[k] = Set.new }
+          @record_store = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
           @record_index = Index.new(indices)
         end
 
@@ -282,7 +282,7 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          (@record_index.find(record_class, where_clause) || @record_store[record_class].select do |record|
+          @record_index.find(record_class, where_clause) || @record_store[record_class].select do |record|
             where_clause.all? do |k, v|
               expected_value = normalize_value(v)
               actual_value = normalize_value(record[k])
@@ -292,7 +292,7 @@ module Sequent
                 actual_value == expected_value
               end
             end
-          end).dup
+          end
         end
 
         def last_record(record_class, where_clause)
