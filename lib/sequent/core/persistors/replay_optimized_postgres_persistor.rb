@@ -57,9 +57,13 @@ module Sequent
         attr_accessor :insert_with_csv_size
 
         # We create a struct on the fly to represent an in-memory record.
+        #
         # Since the replay happens in memory we implement the ==, eql? and hash methods
         # to point to the same object. A record is the same if and only if they point to
         # the same object. These methods are necessary since we use Set instead of [].
+        #
+        # Also basing equality on object identity is more consistent with ActiveRecord,
+        # which is the implementation used during normal (non-optimized) replay.
         module InMemoryStruct
           def ==(other)
             equal?(other)
