@@ -124,8 +124,8 @@ module Sequent
           end
 
           def clear
-            @index = {}
-            @reverse_index = {}
+            @index.clear
+            @reverse_index.clear
           end
 
           def use_index?(record_class, where_clause)
