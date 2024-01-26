@@ -17,7 +17,6 @@ require_relative 'replayed_ids'
 
 module Sequent
   module Migrations
-
     ##
     # ViewSchema is used for migration of you view_schema. For instance
     # when you create new Projectors or change existing Projectors.
@@ -281,6 +280,27 @@ module Sequent
       rescue Exception => e # rubocop:disable Lint/RescueException
         rollback_migration
         raise e
+      end
+
+      def migrate_dryrun(regex, group_exponent)
+        # Complete hack to override insert_ids
+        define_singleton_method(:insert_ids) do
+          ->(progress, done, ids) {}
+        end
+
+        persistor = Sequent.configuration.online_replay_persistor_class.new
+        persistor.define_singleton_method(:commit) do
+          # Running in dryrun mode, not committing anything.
+          puts "Dryrun: would have committed #{@record_store.values.map(&:size).sum} records"
+          clear
+        end
+
+        projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
+        puts "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
+
+        replay!(persistor, projectors: projectors, group_exponent: group_exponent) if projectors.any?
+
+        Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version}")
       end
 
       private
