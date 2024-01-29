@@ -101,7 +101,7 @@ module Sequent
             end
 
             indexed_columns.each do |record_class, indexes|
-              fields = indexes.flatten(1).map { |field| Persistors.normalize_symbols(field) }.to_set
+              fields = indexes.flatten(1).map(&:to_sym).to_set
               @indexed_columns[record_class] = (fields + default_indexes(record_class))
             end
 
@@ -143,7 +143,7 @@ module Sequent
             indexes = get_indexes(record_class, where_clause)
             return nil unless indexes.present?
 
-            normalized_where_clause = where_clause.transform_keys { |k| Persistors.normalize_symbols(k) }
+            normalized_where_clause = where_clause.symbolize_keys
             record_sets = indexes.flat_map do |field|
               if !normalized_where_clause.include? field
                 []
@@ -182,12 +182,12 @@ module Sequent
           end
 
           def get_indexes(record_class, where_clause)
-            fields = where_clause.keys.map { |k| Persistors.normalize_symbols(k) }.to_set
+            fields = where_clause.keys.map(&:to_sym).to_set
             fields & @indexed_columns[record_class]
           end
 
           def default_indexes(record_class)
-            Set['aggregate_id'] & record_class.column_names.to_set
+            Set[:aggregate_id] & record_class.column_names.map(&:to_sym).to_set
           end
         end
 

@@ -531,7 +531,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           let(:indices) { [%i[command_record_id id]] }
           it 'should split to single-attribute indexes for backwards compatibility' do
             expect(index.instance_variable_get(:@indexed_columns)[Sequent::Core::EventRecord])
-              .to match_array %w[aggregate_id command_record_id id]
+              .to match_array %i[aggregate_id command_record_id id]
           end
         end
 
@@ -539,7 +539,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           let(:indices) { %i[aggregate_id command_record_id id id command_record_id] }
           it 'are removed' do
             expect(index.instance_variable_get(:@indexed_columns)[Sequent::Core::EventRecord])
-              .to match_array %w[aggregate_id command_record_id id]
+              .to match_array %i[aggregate_id command_record_id id]
           end
         end
       end
