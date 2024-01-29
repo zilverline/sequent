@@ -41,13 +41,17 @@ module Sequent
       #   end
       #
       # In this case it is wise to create an index on InvoiceRecord on the aggregate_id and recipient_id
-      # like you would in the database.
+      # attributes like you would in the database. Note that previous versions of this class supported
+      # multi-column indexes. These are now split into multiple single-column indexes and the results of
+      # each index is combined using set-intersection. This reduces the amount of memory used and makes
+      # it possible to use an index in more cases (whenever an indexed attribute is present in the where
+      # clause the index will be used, so not all attributes need to be present).
       #
       # Example:
       #
       #   ReplayOptimizedPostgresPersistor.new(
       #     50,
-      #     {InvoiceRecord => [[:aggregate_id, :recipient_id]]}
+      #     {InvoiceRecord => [:aggregate_id, :recipient_id]}
       #   )
       class ReplayOptimizedPostgresPersistor
         include Persistor
@@ -97,8 +101,8 @@ module Sequent
             end
 
             indexed_columns.each do |record_class, indexes|
-              normalized = indexes.map { |index| index.map { |field| Persistors.normalize_symbols(field) }.sort }
-              @indexed_columns[record_class] = (normalized + default_indexes(record_class)).uniq
+              fields = indexes.flatten(1).map { |field| Persistors.normalize_symbols(field) }.to_set
+              @indexed_columns[record_class] = (fields + default_indexes(record_class))
             end
 
             @index = {}
@@ -108,13 +112,13 @@ module Sequent
           def add(record_class, record)
             return unless indexed?(record_class)
 
-            get_keys(record_class, record).each do |key|
+            keys = get_keys(record_class, record)
+            keys.each do |key|
               @index[key] = Set.new.compare_by_identity unless @index.key? key
               @index[key] << record
-
-              @reverse_index[record] = [] unless @reverse_index.key? record
-              @reverse_index[record] << key
             end
+
+            @reverse_index[record] = keys
           end
 
           def remove(record_class, record)
@@ -122,11 +126,11 @@ module Sequent
 
             keys = @reverse_index.delete(record) { [] }
 
-            return unless keys.any?
+            return if keys.empty?
 
             keys.each do |key|
               @index[key].delete(record)
-              @index.delete(key) if @index[key].count == 0
+              @index.delete(key) if @index[key].empty?
             end
           end
 
@@ -136,14 +140,21 @@ module Sequent
           end
 
           def find(record_class, where_clause)
-            index = get_index(record_class, where_clause)
-            return nil unless index
+            indexes = get_indexes(record_class, where_clause)
+            return nil unless indexes.present?
 
-            normalized_where_clause = where_clause.stringify_keys
-            key = [record_class.name, index] + index.map do |field|
-              Persistors.normalize_symbols(normalized_where_clause[field])
+            normalized_where_clause = where_clause.transform_keys { |k| Persistors.normalize_symbols(k) }
+            record_sets = indexes.flat_map do |field|
+              if !normalized_where_clause.include? field
+                []
+              else
+                values = [normalized_where_clause[field]].flatten(1)
+                values
+                  .map { |value| @index[[record_class.name, field, Persistors.normalize_symbols(value)]] || Set.new }
+                  .reduce(Set.new, &:union)
+              end
             end
-            @index[key]&.to_a || []
+            record_sets.sort_by(&:size).reduce(&:intersection)
           end
 
           def clear
@@ -152,7 +163,7 @@ module Sequent
           end
 
           def use_index?(record_class, where_clause)
-            indexed?(record_class) && get_index(record_class, where_clause).present?
+            indexed?(record_class) && get_indexes(record_class, where_clause).present?
           end
 
           private
@@ -165,24 +176,18 @@ module Sequent
           end
 
           def get_keys(record_class, record)
-            @indexed_columns[record_class].map do |index|
-              [record_class.name, index] + index.map do |field|
-                Persistors.normalize_symbols(record[field])
-              end
+            @indexed_columns[record_class].map do |field|
+              [record_class.name, field, Persistors.normalize_symbols(record[field])]
             end
           end
 
-          def get_index(record_class, where_clause)
-            where_clause_keys = where_clause.keys.map(&:to_s).sort
-            @indexed_columns[record_class].find { |index| index == where_clause_keys }
+          def get_indexes(record_class, where_clause)
+            fields = where_clause.keys.map { |k| Persistors.normalize_symbols(k) }.to_set
+            fields & @indexed_columns[record_class]
           end
 
           def default_indexes(record_class)
-            if record_class.column_names.include? 'aggregate_id'
-              [['aggregate_id']]
-            else
-              []
-            end
+            Set['aggregate_id'] & record_class.column_names.to_set
           end
         end
 
@@ -286,7 +291,8 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          @record_index.find(record_class, where_clause) || @record_store[record_class].select do |record|
+          candidate_records = @record_index.find(record_class, where_clause) || @record_store[record_class]
+          candidate_records.select do |record|
             where_clause.all? do |k, v|
               expected_value = Persistors.normalize_symbols(v)
               actual_value = Persistors.normalize_symbols(record[k])

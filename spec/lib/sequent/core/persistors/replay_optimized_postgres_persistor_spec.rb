@@ -75,6 +75,9 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     expect(object.id).to eq 1
     object = persistor.get_record!(record_class, {id: 2})
     expect(object.id).to eq 2
+
+    objects = persistor.find_records(record_class, {id: [1, 2]})
+    expect(objects).to have(2).items
   end
 
   context 'with an object' do
@@ -141,7 +144,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     end
 
     context 'when using an index' do
-      let(:indices) { {record_class => [[:event_type]]} }
+      let(:indices) { {record_class => [:event_type]} }
 
       it 'should find records with symbol values using strings' do
         objects = persistor.find_records(record_class, {event_type: 'SymbolEvent'})
@@ -265,14 +268,14 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     before :each do
       persistor.create_record(Sequent::Core::EventRecord, {id: 1, command_record_id: 2})
       persistor.create_record(Sequent::Core::EventRecord, {id: 1, sequence_number: 2})
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, id: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, id: 2, command_record_id: 2})
     end
 
     let(:persistor) do
       Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
         50,
         {
-          Sequent::Core::EventRecord => [%i[id command_record_id], %i[id sequence_number]],
+          Sequent::Core::EventRecord => %i[id command_record_id sequence_number],
         },
       )
     end
@@ -285,6 +288,14 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
         it 'returns the correct number records' do
           expect(records).to have(2).items
+        end
+      end
+
+      context 'finding array valued where-clause' do
+        let(:where_clause) { {id: [1, 2]} }
+
+        it 'returns the correct number records' do
+          expect(records).to have(3).items
         end
       end
 
@@ -478,7 +489,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
     describe '#use_index?' do
       context 'symbolized single indices' do
-        let(:indices) { [[:id]] }
+        let(:indices) { [:id] }
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
           expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
@@ -491,7 +502,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       context 'string single indices' do
-        let(:indices) { [['id']] }
+        let(:indices) { ['id'] }
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
           expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
@@ -504,23 +515,31 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       context 'multiple indices' do
-        let(:indices) { [['id'], [:id, 'command_record_id']] }
+        let(:indices) { %w[id command_record_id] }
 
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
           expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1, command_record_id: 10})).to be_truthy
         end
 
-        it 'does not use index for non or partial indexed columns' do
+        it 'use index for for partial indexed where clauses' do
           expect(index.use_index?(Sequent::Core::EventRecord, {sequence_number: 1})).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1, sequence_number: 1})).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1, sequence_number: 1})).to be_truthy
+        end
+
+        context 'multi-colum indexes' do
+          let(:indices) { [%i[command_record_id id]] }
+          it 'should split to single-attribute indexes for backwards compatibility' do
+            expect(index.instance_variable_get(:@indexed_columns)[Sequent::Core::EventRecord])
+              .to match_array %w[aggregate_id command_record_id id]
+          end
         end
 
         context 'duplicate indexes' do
-          let(:indices) { [%i[aggregate_id], %i[command_record_id id], %i[id command_record_id]] }
+          let(:indices) { %i[aggregate_id command_record_id id id command_record_id] }
           it 'are removed' do
             expect(index.instance_variable_get(:@indexed_columns)[Sequent::Core::EventRecord])
-              .to match_array [['aggregate_id'], %w[command_record_id id]]
+              .to match_array %w[aggregate_id command_record_id id]
           end
         end
       end
@@ -539,7 +558,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       context 'where clause order' do
-        let(:indices) { [%i[id command_record_id]] }
+        let(:indices) { %i[id command_record_id] }
 
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 10, id: 1})).to be_truthy
