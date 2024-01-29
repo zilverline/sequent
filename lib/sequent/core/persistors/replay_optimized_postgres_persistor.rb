@@ -95,24 +95,16 @@ module Sequent
         end
 
         class Index
-          def initialize(indexed_columns)
-            @indexed_columns = Hash.new do |hash, record_class|
-              hash[record_class] = default_indexes(record_class)
-            end
+          attr_reader :indexed_columns
 
-            indexed_columns.each do |record_class, indexes|
-              fields = indexes.flatten(1).map(&:to_sym).to_set
-              @indexed_columns[record_class] = (fields + default_indexes(record_class))
-            end
-
+          def initialize(record_class, indexed_columns)
+            @indexed_columns = indexed_columns.flatten(1).map(&:to_sym).to_set + default_indexes(record_class)
             @index = {}
             @reverse_index = {}.compare_by_identity
           end
 
-          def add(record_class, record)
-            return unless indexed?(record_class)
-
-            keys = get_keys(record_class, record)
+          def add(record)
+            keys = get_keys(record)
             keys.each do |key|
               @index[key] = Set.new.compare_by_identity unless @index.key? key
               @index[key] << record
@@ -121,9 +113,7 @@ module Sequent
             @reverse_index[record] = keys
           end
 
-          def remove(record_class, record)
-            return unless indexed?(record_class)
-
+          def remove(record)
             keys = @reverse_index.delete(record) { [] }
 
             return if keys.empty?
@@ -134,24 +124,24 @@ module Sequent
             end
           end
 
-          def update(record_class, record)
-            remove(record_class, record)
-            add(record_class, record)
+          def update(record)
+            remove(record)
+            add(record)
           end
 
-          def find(record_class, normalized_where_clause)
+          def find(normalized_where_clause)
             record_sets = normalized_where_clause.map do |field, expected_value|
               if expected_value.is_a?(Array)
                 records = Set.new.compare_by_identity
                 expected_value.each do |value|
-                  key = [record_class.name, field, Persistors.normalize_symbols(value)]
+                  key = [field, Persistors.normalize_symbols(value)]
                   @index[key]&.each do |record|
                     records << record
                   end
                 end
                 records
               else
-                key = [record_class.name, field, Persistors.normalize_symbols(expected_value)]
+                key = [field, Persistors.normalize_symbols(expected_value)]
                 @index[key] || Set.new
               end
             end
@@ -169,31 +159,20 @@ module Sequent
             @reverse_index.clear
           end
 
-          def use_index?(record_class, normalized_where_clause)
-            indexed?(record_class) && get_indexes(record_class, normalized_where_clause).present?
-          end
-
-          def indexed_columns(record_class)
-            @indexed_columns[record_class]
+          def use_index?(normalized_where_clause)
+            get_indexes(normalized_where_clause).present?
           end
 
           private
 
-          def indexed?(record_class)
-            # Do not use `key?` here or similar, since the
-            # `@indexed_columns#default_proc` automatically adds new
-            # indexes as required.
-            @indexed_columns[record_class].present?
-          end
-
-          def get_keys(record_class, record)
-            @indexed_columns[record_class].map do |field|
-              [record_class.name, field, Persistors.normalize_symbols(record[field])]
+          def get_keys(record)
+            @indexed_columns.map do |field|
+              [field, Persistors.normalize_symbols(record[field])]
             end
           end
 
-          def get_indexes(record_class, normalized_where_clause)
-            @indexed_columns[record_class] & normalized_where_clause.keys
+          def get_indexes(normalized_where_clause)
+            @indexed_columns & normalized_where_clause.keys
           end
 
           def default_indexes(record_class)
@@ -210,14 +189,18 @@ module Sequent
         def initialize(insert_with_csv_size = 50, indices = {})
           @insert_with_csv_size = insert_with_csv_size
           @record_store = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
-          @record_index = Index.new(indices)
+          @record_index = Hash.new { |h, k| h[k] = Index.new(k, []) }
+
+          indices.each do |record_class, index_columns|
+            @record_index[record_class] = Index.new(record_class, index_columns)
+          end
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at)
           yield record if block_given?
-          @record_index.update(record_class, record)
+          @record_index[record_class].update(record)
           update_sequence_number = if options.key?(:update_sequence_number)
                                      options[:update_sequence_number]
                                    else
@@ -235,7 +218,7 @@ module Sequent
           yield record if block_given?
 
           @record_store[record_class] << record
-          @record_index.add(record_class, record)
+          @record_index[record_class].add(record)
 
           record
         end
@@ -248,7 +231,7 @@ module Sequent
           record = get_record(record_class, values)
           record ||= create_record(record_class, values.merge(created_at: created_at))
           yield record if block_given?
-          @record_index.update(record_class, record)
+          @record_index[record_class].update(record)
           record
         end
 
@@ -274,7 +257,7 @@ module Sequent
 
         def delete_record(record_class, record)
           @record_store[record_class].delete(record)
-          @record_index.remove(record_class, record)
+          @record_index[record_class].remove(record)
         end
 
         def update_all_records(record_class, where_clause, updates)
@@ -282,7 +265,7 @@ module Sequent
             updates.each_pair do |k, v|
               record[k] = v
             end
-            @record_index.update(record_class, record)
+            @record_index[record_class].update(record)
           end
         end
 
@@ -290,24 +273,24 @@ module Sequent
           records = find_records(record_class, where_clause)
           records.each do |record|
             yield record
-            @record_index.update(record_class, record)
+            @record_index[record_class].update(record)
           end
         end
 
         def do_with_record(record_class, where_clause)
           record = get_record!(record_class, where_clause)
           yield record
-          @record_index.update(record_class, record)
+          @record_index[record_class].update(record)
         end
 
         def find_records(record_class, where_clause)
           where_clause = where_clause.symbolize_keys
 
-          indexed_columns = @record_index.indexed_columns(record_class)
+          indexed_columns = @record_index[record_class].indexed_columns
           indexed_fields, non_indexed_fields = where_clause.partition { |field, _| indexed_columns.include? field }
 
           candidate_records = if indexed_fields.present?
-                                @record_index.find(record_class, indexed_fields.to_h)
+                                @record_index[record_class].find(indexed_fields.to_h)
                               else
                                 @record_store[record_class]
                               end
@@ -380,7 +363,7 @@ module Sequent
 
         def clear
           @record_store.clear
-          @record_index.clear
+          @record_index.values.each(&:clear)
         end
 
         private
