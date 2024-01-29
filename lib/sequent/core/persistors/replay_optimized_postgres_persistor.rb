@@ -140,20 +140,28 @@ module Sequent
           end
 
           def find(record_class, normalized_where_clause)
-            indexes = get_indexes(record_class, normalized_where_clause)
-            return nil unless indexes.present?
-
-            record_sets = indexes.flat_map do |field|
-              if !normalized_where_clause.include? field
-                []
+            record_sets = normalized_where_clause.map do |field, expected_value|
+              if expected_value.is_a?(Array)
+                records = Set.new.compare_by_identity
+                expected_value.each do |value|
+                  key = [record_class.name, field, Persistors.normalize_symbols(value)]
+                  @index[key]&.each do |record|
+                    records << record
+                  end
+                end
+                records
               else
-                values = [normalized_where_clause[field]].flatten(1)
-                values
-                  .map { |value| @index[[record_class.name, field, Persistors.normalize_symbols(value)]] || Set.new }
-                  .reduce(Set.new, :union)
+                key = [record_class.name, field, Persistors.normalize_symbols(expected_value)]
+                @index[key] || Set.new
               end
             end
-            record_sets.sort_by(&:size).reduce(:intersection)
+
+            smallest, *rest = record_sets.sort_by(&:size)
+            return smallest.to_a if smallest.empty? || rest.empty?
+
+            smallest.select do |record|
+              rest.all? { |x| x.include? record }
+            end
           end
 
           def clear
@@ -293,9 +301,7 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          unless where_clause.keys.all? { |k| k.is_a?(Symbol) }
-            where_clause = where_clause.symbolize_keys
-          end
+          where_clause = where_clause.symbolize_keys
 
           indexed_columns = @record_index.indexed_columns(record_class)
           indexed_fields, non_indexed_fields = where_clause.partition { |field, _| indexed_columns.include? field }
@@ -306,7 +312,7 @@ module Sequent
                                 @record_store[record_class]
                               end
 
-          return candidate_records if non_indexed_fields.empty?
+          return candidate_records.to_a if non_indexed_fields.empty?
 
           candidate_records.select do |record|
             non_indexed_fields.all? do |k, v|
