@@ -150,10 +150,10 @@ module Sequent
                 values = [normalized_where_clause[field]].flatten(1)
                 values
                   .map { |value| @index[[record_class.name, field, Persistors.normalize_symbols(value)]] || Set.new }
-                  .reduce(Set.new, &:union)
+                  .reduce(Set.new, :union)
               end
             end
-            record_sets.sort_by(&:size).reduce(&:intersection)
+            record_sets.sort_by(&:size).reduce(:intersection)
           end
 
           def clear
@@ -163,6 +163,10 @@ module Sequent
 
           def use_index?(record_class, normalized_where_clause)
             indexed?(record_class) && get_indexes(record_class, normalized_where_clause).present?
+          end
+
+          def indexed_columns(record_class)
+            @indexed_columns[record_class]
           end
 
           private
@@ -289,10 +293,23 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          normalized_where_clause = where_clause.symbolize_keys
-          candidate_records = @record_index.find(record_class, normalized_where_clause) || @record_store[record_class]
+          unless where_clause.keys.all? { |k| k.is_a?(Symbol) }
+            where_clause = where_clause.symbolize_keys
+          end
+
+          indexed_columns = @record_index.indexed_columns(record_class)
+          indexed_fields, non_indexed_fields = where_clause.partition { |field, _| indexed_columns.include? field }
+
+          candidate_records = if indexed_fields.present?
+                                @record_index.find(record_class, indexed_fields.to_h)
+                              else
+                                @record_store[record_class]
+                              end
+
+          return candidate_records if non_indexed_fields.empty?
+
           candidate_records.select do |record|
-            normalized_where_clause.all? do |k, v|
+            non_indexed_fields.all? do |k, v|
               expected_value = Persistors.normalize_symbols(v)
               actual_value = Persistors.normalize_symbols(record[k])
               if expected_value.is_a?(Array)
