@@ -167,8 +167,8 @@ module Sequent
 
           def get_keys(record)
             @indexed_columns.map do |field|
-              [field, Persistors.normalize_symbols(record[field])]
-            end
+              [field, Persistors.normalize_symbols(record[field]).freeze]
+            end.to_set
           end
 
           def get_indexes(normalized_where_clause)
