@@ -139,11 +139,10 @@ module Sequent
             add(record_class, record)
           end
 
-          def find(record_class, where_clause)
-            indexes = get_indexes(record_class, where_clause)
+          def find(record_class, normalized_where_clause)
+            indexes = get_indexes(record_class, normalized_where_clause)
             return nil unless indexes.present?
 
-            normalized_where_clause = where_clause.symbolize_keys
             record_sets = indexes.flat_map do |field|
               if !normalized_where_clause.include? field
                 []
@@ -162,8 +161,8 @@ module Sequent
             @reverse_index.clear
           end
 
-          def use_index?(record_class, where_clause)
-            indexed?(record_class) && get_indexes(record_class, where_clause).present?
+          def use_index?(record_class, normalized_where_clause)
+            indexed?(record_class) && get_indexes(record_class, normalized_where_clause).present?
           end
 
           private
@@ -181,9 +180,8 @@ module Sequent
             end
           end
 
-          def get_indexes(record_class, where_clause)
-            fields = where_clause.keys.map(&:to_sym).to_set
-            fields & @indexed_columns[record_class]
+          def get_indexes(record_class, normalized_where_clause)
+            @indexed_columns[record_class] & normalized_where_clause.keys
           end
 
           def default_indexes(record_class)
@@ -291,9 +289,10 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          candidate_records = @record_index.find(record_class, where_clause) || @record_store[record_class]
+          normalized_where_clause = where_clause.symbolize_keys
+          candidate_records = @record_index.find(record_class, normalized_where_clause) || @record_store[record_class]
           candidate_records.select do |record|
-            where_clause.all? do |k, v|
+            normalized_where_clause.all? do |k, v|
               expected_value = Persistors.normalize_symbols(v)
               actual_value = Persistors.normalize_symbols(record[k])
               if expected_value.is_a?(Array)

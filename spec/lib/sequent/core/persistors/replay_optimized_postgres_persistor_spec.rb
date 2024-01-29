@@ -490,26 +490,11 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     describe '#use_index?' do
       context 'symbolized single indices' do
         let(:indices) { [:id] }
-        it 'uses the index for strings and symbols where clause' do
+        it 'uses the index for simple indexed column' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
         end
 
         it 'does not use index for non indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, {'command_record_id' => 1})).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 1})).to be_falsey
-        end
-      end
-
-      context 'string single indices' do
-        let(:indices) { ['id'] }
-        it 'uses the index for strings and symbols where clause' do
-          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
-        end
-
-        it 'does not use index for non indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, {'command_record_id' => 1})).to be_falsey
           expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 1})).to be_falsey
         end
       end
@@ -517,9 +502,9 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       context 'multiple indices' do
         let(:indices) { %w[id command_record_id] }
 
-        it 'uses the index for strings and symbols where clause' do
+        it 'uses the index for where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1, command_record_id: 10})).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 10})).to be_truthy
         end
 
         it 'use index for for partial indexed where clauses' do
