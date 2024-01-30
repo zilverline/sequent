@@ -97,8 +97,8 @@ module Sequent
         class Index
           attr_reader :indexed_columns
 
-          def initialize(record_class, indexed_columns)
-            @indexed_columns = indexed_columns.flatten(1).map(&:to_sym).to_set + default_indexes(record_class)
+          def initialize(indexed_columns)
+            @indexed_columns = indexed_columns.to_set
             @index = {}
             @reverse_index = {}.compare_by_identity
           end
@@ -174,10 +174,6 @@ module Sequent
           def get_indexes(normalized_where_clause)
             @indexed_columns & normalized_where_clause.keys
           end
-
-          def default_indexes(record_class)
-            Set[:aggregate_id] & record_class.column_names.map(&:to_sym).to_set
-          end
         end
 
         # +insert_with_csv_size+ number of records to insert in a single batch
@@ -186,13 +182,16 @@ module Sequent
         #   Key corresponds to the name of the 'Record'
         #   Values contains list of lists on which columns to index.
         #   E.g. [[:first_index_column], [:another_index, :with_to_columns]]
-        def initialize(insert_with_csv_size = 50, indices = {})
+        def initialize(insert_with_csv_size = 50, indices = {}, default_indexed_columns = [:aggregate_id])
           @insert_with_csv_size = insert_with_csv_size
           @record_store = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
-          @record_index = Hash.new { |h, k| h[k] = Index.new(k, []) }
+          @record_index = Hash.new do |h, k|
+            h[k] = Index.new(default_indexed_columns.to_set & k.column_names.map(&:to_sym))
+          end
 
-          indices.each do |record_class, index_columns|
-            @record_index[record_class] = Index.new(record_class, index_columns)
+          indices.each do |record_class, indexed_columns|
+            columns = indexed_columns.flatten(1).map(&:to_sym).to_set + default_indexed_columns
+            @record_index[record_class] = Index.new(columns & record_class.column_names.map(&:to_sym))
           end
         end
 

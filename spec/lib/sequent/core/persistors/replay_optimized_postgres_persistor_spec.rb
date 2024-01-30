@@ -428,6 +428,25 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         expect(object.sequence_number).to eq 99
       end
     end
+
+    context 'duplicate hash values' do
+      let(:indices) { %i[aggregate_id] }
+      class BadHash < Struct.new(:value)
+        def hash
+          0
+        end
+      end
+
+      it 'should not match records even when hash collision occurs' do
+        one = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(1), sequence_number: 1)
+        two = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(2), sequence_number: 1)
+
+        expect(persistor.find_records(Sequent::Core::EventRecord, {aggregate_id: one.aggregate_id}))
+          .to match_array [one]
+        expect(persistor.find_records(Sequent::Core::EventRecord, {aggregate_id: two.aggregate_id}))
+          .to match_array [two]
+      end
+    end
   end
 
   context 'with thousands of records' do
@@ -480,7 +499,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index do
     let(:indices) { [] }
     let(:index) do
-      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(Sequent::Core::EventRecord, indices)
+      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(indices)
     end
 
     describe '#use_index?' do
@@ -496,7 +515,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       context 'multiple indices' do
-        let(:indices) { %w[id command_record_id] }
+        let(:indices) { %i[id command_record_id] }
 
         it 'uses the index for where clause' do
           expect(index.use_index?({id: 1})).to be_truthy
@@ -508,24 +527,11 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect(index.use_index?({id: 1, sequence_number: 1})).to be_truthy
         end
 
-        context 'multi-colum indexes' do
-          let(:indices) { [%i[command_record_id id]] }
-          it 'should split to single-attribute indexes for backwards compatibility' do
-            expect(index.indexed_columns).to match_array %i[aggregate_id command_record_id id]
-          end
-        end
-
         context 'duplicate indexes' do
           let(:indices) { %i[aggregate_id command_record_id id id command_record_id] }
           it 'are removed' do
             expect(index.indexed_columns).to match_array %i[aggregate_id command_record_id id]
           end
-        end
-      end
-
-      context 'default index when record class is specified' do
-        it 'adds a default index for aggregate_id' do
-          expect(index.use_index?({aggregate_id: 1})).to be_truthy
         end
       end
 
@@ -535,25 +541,6 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?({command_record_id: 10, id: 1})).to be_truthy
         end
-      end
-    end
-
-    context 'duplicate hash values' do
-      class BadHash < Struct.new(:value)
-        def hash
-          0
-        end
-      end
-
-      it 'should not match records even when hash collision occurs' do
-        one = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(1), sequence_number: 1)
-        two = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(2), sequence_number: 1)
-
-        index.add(one)
-        index.add(two)
-
-        expect(index.find({aggregate_id: one.aggregate_id})).to match_array [one]
-        expect(index.find({aggregate_id: two.aggregate_id})).to match_array [two]
       end
     end
   end
