@@ -78,18 +78,13 @@ module Sequent
           def hash
             object_id.hash
           end
-          def set_values(values)
-            values.each do |k, v|
-              self[k] = v
-            end
-            self
-          end
         end
 
         def struct_cache
           @struct_cache ||= Hash.new do |hash, record_class|
-            struct_class = Struct.new(*record_class.column_names.map(&:to_sym))
-            struct_class.include InMemoryStruct
+            struct_class = Struct.new(*record_class.column_names.map(&:to_sym)) do
+              include InMemoryStruct
+            end
             hash[record_class] = struct_class
           end
         end
@@ -212,7 +207,7 @@ module Sequent
           column_names = record_class.column_names
           values = record_class.column_defaults.with_indifferent_access.merge(values)
           values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
-          record = struct_cache[record_class].new.set_values(values)
+          record = struct_cache[record_class].new(**values)
 
           yield record if block_given?
 
