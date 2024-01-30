@@ -61,9 +61,7 @@ module Sequent
 
           def message_mapping
             message_router
-              .routes
-              .select { |matcher, _handlers| matcher.is_a?(MessageMatchers::InstanceOf) }
-              .map { |k, v| [k.expected_class, v] }
+              .instanceof_routes
               .to_h
           end
 
