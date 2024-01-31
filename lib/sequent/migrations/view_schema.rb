@@ -291,12 +291,12 @@ module Sequent
         persistor = Sequent.configuration.online_replay_persistor_class.new
         persistor.define_singleton_method(:commit) do
           # Running in dryrun mode, not committing anything.
-          puts "Dryrun: would have committed #{@record_store.values.map(&:size).sum} records"
+          Sequent.logger.info "Dryrun: would have committed #{@record_store.values.map(&:size).sum} records"
           clear
         end
 
         projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
-        puts "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
+        Sequent.logger.info "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
 
         replay!(persistor, projectors: projectors, group_exponent: group_exponent, limit: limit, offset: offset) if projectors.any?
 
