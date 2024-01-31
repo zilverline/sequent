@@ -354,7 +354,7 @@ module Sequent
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
             result = Parallel.map_with_index(
               groups,
-              in_processes: Sequent.configuration.number_of_replay_processes,
+              in_processes: ENV["WORKERS"]&.to_i || Sequent.configuration.number_of_replay_processes,
             ) do |aggregate_prefixes, index|
               @connected ||= establish_connection
               msg = <<~EOS.chomp
