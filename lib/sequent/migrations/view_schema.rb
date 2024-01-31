@@ -282,7 +282,7 @@ module Sequent
         raise e
       end
 
-      def migrate_dryrun(regex, group_exponent)
+      def migrate_dryrun(regex, group_exponent, limit, offset)
         # Complete hack to override insert_ids
         define_singleton_method(:insert_ids) do
           ->(progress, done, ids) {}
@@ -298,7 +298,7 @@ module Sequent
         projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
         puts "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
 
-        replay!(persistor, projectors: projectors, group_exponent: group_exponent) if projectors.any?
+        replay!(persistor, projectors: projectors, group_exponent: group_exponent, limit: limit, offset: offset) if projectors.any?
 
         Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version}")
       end
@@ -327,7 +327,7 @@ module Sequent
         end
       end
 
-      def replay!(replay_persistor, projectors: plan.projectors, exclude_ids: false, group_exponent: 3)
+      def replay!(replay_persistor, projectors: plan.projectors, exclude_ids: false, group_exponent: 3, limit: nil, offset: nil)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
         with_sequent_config(replay_persistor, projectors) do
@@ -339,6 +339,8 @@ module Sequent
 
             number_of_groups = 16**group_exponent
             groups = groups_of_aggregate_id_prefixes(number_of_groups)
+            groups = groups.drop(offset) unless offset.nil?
+            groups = groups.take(limit) unless limit.nil?
 
             @connected = false
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175

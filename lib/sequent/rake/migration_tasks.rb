@@ -150,13 +150,13 @@ module Sequent
 
               Pass a regular expression as parameter to select the projectors to run, otherwise all projectors are selected.
             EOS
-            task :dryrun, %i[regex group_exponent] => ['sequent:init', :init] do |_task, args|
+            task :dryrun, %i[regex group_exponent limit offset] => ['sequent:init', :init] do |_task, args|
               ensure_sequent_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
               view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
 
-              view_schema.migrate_dryrun(args[:regex], (args[:group_exponent] || 3).to_i)
+              view_schema.migrate_dryrun(args[:regex], (args[:group_exponent] || 3).to_i, args[:limit]&.to_i, args[:offset]&.to_i)
             end
           end
 
