@@ -289,18 +289,26 @@ module Sequent
         end
 
         persistor = Sequent.configuration.online_replay_persistor_class.new
+        persistor.define_singleton_method(:prepare) do
+          @starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        end
         persistor.define_singleton_method(:commit) do
           # Running in dryrun mode, not committing anything.
-          Sequent.logger.info "Dryrun: would have committed #{@record_store.values.map(&:size).sum} records"
+          ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          elapsed = ending - @starting
+          count = @record_store.values.map(&:size).sum
+          Sequent.logger.info "Dryrun: would have committed #{count} records (elapsed #{elapsed} s, #{count / elapsed} records/s)"
           clear
         end
 
         projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
         Sequent.logger.info "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
 
+        starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         replay!(persistor, projectors: projectors, group_exponent: group_exponent, limit: limit, offset: offset) if projectors.any?
+        ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-        Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version}")
+        Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version} in #{ending - starting} s")
       end
 
       private
@@ -369,6 +377,8 @@ module Sequent
       end
 
       def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, replay_persistor, &on_progress)
+        replay_persistor.prepare
+
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
           get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
