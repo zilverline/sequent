@@ -94,27 +94,28 @@ module Sequent
 
           def initialize(indexed_columns)
             @indexed_columns = indexed_columns.to_set
-            @index = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
-            @reverse_index = {}.compare_by_identity
+            @indexes = @indexed_columns.to_h do |field|
+              [field, {}]
+            end
+            @reverse_indexes = @indexed_columns.to_h do |field|
+              [field, {}.compare_by_identity]
+            end
           end
 
           def add(record)
-            keys = get_keys(record)
-            keys.each do |key|
-              @index[key] << record
+            @indexes.map do |field, index|
+              key = Persistors.normalize_symbols(record[field]).freeze
+              records = index[key] || (index[key] = Set.new.compare_by_identity)
+              records << record
+              @reverse_indexes[field][record] = key
             end
-
-            @reverse_index[record] = keys
           end
 
           def remove(record)
-            keys = @reverse_index.delete(record) { [] }
-
-            return if keys.empty?
-
-            keys.each do |key|
-              @index[key].delete(record)
-              @index.delete(key) if @index[key].empty?
+            @indexes.map do |field, index|
+              key = @reverse_indexes[field][record]
+              remaining = index[key].delete(record)
+              index.delete(key) if remaining.empty?
             end
           end
 
@@ -128,15 +129,15 @@ module Sequent
               if expected_value.is_a?(Array)
                 records = Set.new.compare_by_identity
                 expected_value.each do |value|
-                  key = [field, Persistors.normalize_symbols(value)]
-                  @index[key]&.each do |record|
+                  key = Persistors.normalize_symbols(value)
+                  @indexes[field][key]&.each do |record|
                     records << record
                   end
                 end
                 records
               else
-                key = [field, Persistors.normalize_symbols(expected_value)]
-                @index[key] || Set.new
+                key = Persistors.normalize_symbols(expected_value)
+                @indexes[field][key] || Set.new.compare_by_identity
               end
             end
 
@@ -149,8 +150,10 @@ module Sequent
           end
 
           def clear
-            @index.clear
-            @reverse_index.clear
+            @indexed_columns.each do |field|
+              @indexes[field].clear
+              @reverse_indexes[field].clear
+            end
           end
 
           def use_index?(normalized_where_clause)
@@ -158,12 +161,6 @@ module Sequent
           end
 
           private
-
-          def get_keys(record)
-            @indexed_columns.map do |field|
-              [field, Persistors.normalize_symbols(record[field]).freeze]
-            end.to_set
-          end
 
           def get_indexes(normalized_where_clause)
             @indexed_columns & normalized_where_clause.keys
