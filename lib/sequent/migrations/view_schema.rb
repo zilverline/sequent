@@ -205,7 +205,7 @@ module Sequent
           executor.execute_online(plan)
         end
 
-        replay!(Sequent.configuration.online_replay_persistor_class.new, groups) if plan.projectors.any?
+        replay!(Sequent.configuration.online_replay_persistor_class.new, groups: groups) if plan.projectors.any?
 
         in_view_schema do
           executor.create_indexes_after_execute_online(plan)
@@ -257,7 +257,7 @@ module Sequent
           replay!(
             Sequent.configuration.offline_replay_persistor_class.new,
             exclude_ids: true,
-            group_exponent: 1,
+            groups: groups(group_exponent: 1),
           )
         end
 
@@ -341,12 +341,12 @@ module Sequent
       end
 
       def replay!(replay_persistor, groups:, projectors: plan.projectors, exclude_ids: false)
-        logger.info "group_exponent: #{group_exponent.inspect}"
+        logger.info "groups: #{groups.size}"
 
         with_sequent_config(replay_persistor, projectors) do
           logger.info 'Start replaying events'
 
-          time("#{16**group_exponent} groups replayed") do
+          time("#{groups.size} groups replayed") do
             event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
 
@@ -358,7 +358,7 @@ module Sequent
             ) do |aggregate_prefixes, index|
               @connected ||= establish_connection
               msg = <<~EOS.chomp
-                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed
+                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{groups.size} replayed
               EOS
               time(msg) do
                 replay_events(aggregate_prefixes, event_types, exclude_ids, replay_persistor, &insert_ids)
