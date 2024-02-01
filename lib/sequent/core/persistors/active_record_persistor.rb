@@ -117,6 +117,10 @@ module Sequent
           Sequent::ApplicationRecord.connection.execute(statement)
         end
 
+        def prepare
+          # noop
+        end
+
         def commit
           # noop
         end
