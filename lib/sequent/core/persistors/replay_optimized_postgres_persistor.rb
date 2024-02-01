@@ -94,14 +94,13 @@ module Sequent
 
           def initialize(indexed_columns)
             @indexed_columns = indexed_columns.to_set
-            @index = {}
+            @index = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
             @reverse_index = {}.compare_by_identity
           end
 
           def add(record)
             keys = get_keys(record)
             keys.each do |key|
-              @index[key] = Set.new.compare_by_identity unless @index.key? key
               @index[key] << record
             end
 
