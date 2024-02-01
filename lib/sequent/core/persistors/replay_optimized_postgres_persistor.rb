@@ -125,16 +125,12 @@ module Sequent
           end
 
           def find(normalized_where_clause)
-            record_sets = normalized_where_clause.map do |field, expected_value|
+            record_sets = normalized_where_clause.map do |(field, expected_value)|
               if expected_value.is_a?(Array)
-                records = Set.new.compare_by_identity
-                expected_value.each do |value|
+                expected_value.reduce(Set.new.compare_by_identity) do |memo, value|
                   key = Persistors.normalize_symbols(value)
-                  @indexes[field][key]&.each do |record|
-                    records << record
-                  end
+                  memo.merge(@indexes[field][key] || [])
                 end
-                records
               else
                 key = Persistors.normalize_symbols(expected_value)
                 @indexes[field][key] || Set.new.compare_by_identity
@@ -285,7 +281,7 @@ module Sequent
           indexed_fields, non_indexed_fields = where_clause.partition { |field, _| indexed_columns.include? field }
 
           candidate_records = if indexed_fields.present?
-                                @record_index[record_class].find(indexed_fields.to_h)
+                                @record_index[record_class].find(indexed_fields)
                               else
                                 @record_store[record_class]
                               end
