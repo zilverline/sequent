@@ -113,9 +113,9 @@ module Sequent
 
           def remove(record)
             @indexes.map do |field, index|
-              key = @reverse_indexes[field][record]
-              remaining = index[key].delete(record)
-              index.delete(key) if remaining.empty?
+              key = @reverse_indexes[field].delete(record)
+              remaining = index[key]&.delete(record)
+              index.delete(key) if remaining&.empty?
             end
           end
 

@@ -123,6 +123,10 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
         expect(persistor.find_records(record_class, {id: 1})).to be_empty
       end
+
+      it 'ignores records that are not present' do
+        persistor.delete_record(record_class, Object.new)
+      end
     end
 
     context '#update_all_records' do
