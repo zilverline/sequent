@@ -311,6 +311,7 @@ module Sequent
         end
 
         def prepare
+          # noop
         end
 
         def commit

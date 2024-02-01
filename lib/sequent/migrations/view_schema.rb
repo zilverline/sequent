@@ -148,7 +148,7 @@ module Sequent
         replay!(
           Sequent.configuration.online_replay_persistor_class.new,
           projectors: Core::Migratable.projectors,
-          group_exponent: group_exponent,
+          groups: groups(group_exponent: group_exponent),
         )
       end
 
@@ -205,7 +205,7 @@ module Sequent
           executor.execute_online(plan)
         end
 
-        replay!(Sequent.configuration.online_replay_persistor_class.new) if plan.projectors.any?
+        replay!(Sequent.configuration.online_replay_persistor_class.new, groups) if plan.projectors.any?
 
         in_view_schema do
           executor.create_indexes_after_execute_online(plan)
@@ -282,7 +282,7 @@ module Sequent
         raise e
       end
 
-      def migrate_dryrun(regex, group_exponent, limit, offset)
+      def migrate_dryrun(regex:, group_exponent: 3, limit: nil, offset: nil)
         # Complete hack to override insert_ids
         define_singleton_method(:insert_ids) do
           ->(progress, done, ids) {}
@@ -297,18 +297,23 @@ module Sequent
           ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           elapsed = ending - @starting
           count = @record_store.values.map(&:size).sum
-          Sequent.logger.info "Dryrun: would have committed #{count} records (elapsed #{elapsed} s, #{count / elapsed} records/s)"
+          Sequent.logger.info(
+            "dryrun: processed #{count} records in #{elapsed.round(2)} s (#{(count / elapsed).round(2)} records/s)",
+          )
           clear
         end
 
         projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
-        Sequent.logger.info "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
+        if projectors.present?
+          Sequent.logger.info "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
 
-        starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        replay!(persistor, projectors: projectors, group_exponent: group_exponent, limit: limit, offset: offset) if projectors.any?
-        ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          groups = groups(group_exponent: group_exponent, limit: limit, offset: offset)
+          replay!(persistor, projectors: projectors, groups: groups)
+          ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-        Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version} in #{ending - starting} s")
+          Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version} in #{ending - starting} s")
+        end
       end
 
       private
@@ -335,7 +340,7 @@ module Sequent
         end
       end
 
-      def replay!(replay_persistor, projectors: plan.projectors, exclude_ids: false, group_exponent: 3, limit: nil, offset: nil)
+      def replay!(replay_persistor, groups:, projectors: plan.projectors, exclude_ids: false)
         logger.info "group_exponent: #{group_exponent.inspect}"
 
         with_sequent_config(replay_persistor, projectors) do
@@ -345,16 +350,11 @@ module Sequent
             event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
 
-            number_of_groups = 16**group_exponent
-            groups = groups_of_aggregate_id_prefixes(number_of_groups)
-            groups = groups.drop(offset) unless offset.nil?
-            groups = groups.take(limit) unless limit.nil?
-
             @connected = false
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
             result = Parallel.map_with_index(
               groups,
-              in_processes: ENV["WORKERS"]&.to_i || Sequent.configuration.number_of_replay_processes,
+              in_processes: Sequent.configuration.number_of_replay_processes,
             ) do |aggregate_prefixes, index|
               @connected ||= establish_connection
               msg = <<~EOS.chomp
@@ -403,6 +403,14 @@ module Sequent
 
       def truncate_replay_ids_table!
         exec_sql("truncate table #{ReplayedIds.table_name}")
+      end
+
+      def groups(group_exponent: 3, limit: nil, offset: nil)
+        number_of_groups = 16**group_exponent
+        groups = groups_of_aggregate_id_prefixes(number_of_groups)
+        groups = groups.drop(offset) unless offset.nil?
+        groups = groups.take(limit) unless limit.nil?
+        groups
       end
 
       def groups_of_aggregate_id_prefixes(number_of_groups)

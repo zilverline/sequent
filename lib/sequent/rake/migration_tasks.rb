@@ -156,7 +156,12 @@ module Sequent
               db_config = Sequent::Support::Database.read_config(@env)
               view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
 
-              view_schema.migrate_dryrun(args[:regex], (args[:group_exponent] || 3).to_i, args[:limit]&.to_i, args[:offset]&.to_i)
+              view_schema.migrate_dryrun(
+                regex: args[:regex],
+                group_exponent: (args[:group_exponent] || 3).to_i,
+                limit: args[:limit]&.to_i,
+                offset: args[:offset]&.to_i,
+              )
             end
           end
 
