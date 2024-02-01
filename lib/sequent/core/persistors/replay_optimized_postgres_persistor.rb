@@ -189,13 +189,13 @@ module Sequent
           end
 
           @record_defaults = Hash.new do |h, record_class|
-            h[record_class] = record_class.column_defaults.with_indifferent_access
+            h[record_class] = record_class.column_defaults.symbolize_keys
           end
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
           record = get_record!(record_class, where_clause)
-          record.updated_at = event.created_at if record.respond_to?(:updated_at)
+          record.updated_at = event.created_at if record.respond_to?(:updated_at=)
           yield record if block_given?
           @record_index[record_class].update(record)
           update_sequence_number = if options.key?(:update_sequence_number)
@@ -207,10 +207,11 @@ module Sequent
         end
 
         def create_record(record_class, values)
-          column_names = record_class.column_names
-          values = @record_defaults[record_class].merge(values)
-          values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
           record = struct_cache[record_class].new(**values)
+          record.updated_at = values[:created_at] if record.respond_to?(:updated_at=)
+          @record_defaults[record_class].each do |column, default|
+            record[column] = default unless values.include? column
+          end
 
           yield record if block_given?
 
