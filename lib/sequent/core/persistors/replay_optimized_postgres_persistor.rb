@@ -187,6 +187,10 @@ module Sequent
             columns = indexed_columns.flatten(1).map(&:to_sym).to_set + default_indexed_columns
             @record_index[record_class] = Index.new(columns & record_class.column_names.map(&:to_sym))
           end
+
+          @record_defaults = Hash.new do |h, record_class|
+            h[record_class] = record_class.column_defaults.with_indifferent_access
+          end
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
@@ -204,7 +208,7 @@ module Sequent
 
         def create_record(record_class, values)
           column_names = record_class.column_names
-          values = record_class.column_defaults.with_indifferent_access.merge(values)
+          values = @record_defaults[record_class].merge(values)
           values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
           record = struct_cache[record_class].new(**values)
 
