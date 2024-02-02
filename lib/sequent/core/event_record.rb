@@ -76,6 +76,7 @@ module Sequent
       include SerializesEvent
 
       self.table_name = 'event_records'
+      self.ignored_columns = %w[xact_id]
 
       belongs_to :stream_record
       belongs_to :command_record

@@ -49,7 +49,7 @@ Autoregistered classes will be appended to any already manually registered `comm
 Sequent detects duplicates it will currently fail.
 When setting `enable_autoregistration` to `true` in your `initializer`
 any [CommandHandlers](command-handler.html), [Projectors](projector.html) and [Workflows](workflow.html) are
-automatically registered in your Sequent configuration. 
+automatically registered in your Sequent configuration.
 When you have base classes that you don't want to have automatically registered you can
 set `self.abstract_class = true` for these classes. Another option to skip autoregistration is to set
 `self.skip_autoregister` to `true`.
@@ -135,9 +135,8 @@ For the latest configuration possibilities please check the `Sequent::Configurat
 | number_of_replay_processes              | The [number of process](#number_of_replay_processes) used while offline migration                                             | `4`                                                                |
 | offline_replay_persistor_class          | The class used to persist the `Projector`s during the offline migration part.                                                 | `Sequent::Core::Persistors::ActiveRecordPersistor`                 |
 | online_replay_persistor_class           | The class used to persist the `Projector`s.                                                                                   | `Sequent::Core::Persistors::ActiveRecordPersistor`                 |
-| primary_database_key                    | A symbol indicating the primary database if multiple databases are specified within the provided db_config                    | `:primary`                                                         |  
+| primary_database_key                    | A symbol indicating the primary database if multiple databases are specified within the provided db_config                    | `:primary`                                                         |
 | primary_database_role                   | A symbol indicating the primary database role if using multiple databases with active record                                  | `:writing`                                                         |
-| replayed_ids_table_name                 | The name of the table in which Sequent keeps track of which events are already replayed during a [migration](migrations.html) | `'sequent_replayed_ids'`                                           |
 | snapshot_event_class                    | The event class marking something as a [Snapshot event](snapshotting.html)                                                    | `Sequent::Core::SnapshotEvent`                                     |
 | stream_record_class                     | The [class](event_store.html) mapped to the `stream_records` table                                                            | `Sequent::Core::StreamRecord`                                      |
 | strict_check_attributes_on_apply_events | Whether or not sequent should fail on calling `apply` with invalid attributes.                                                | `false`. Will be enabled by default in the next major release.     |
@@ -146,4 +145,4 @@ For the latest configuration possibilities please check the `Sequent::Configurat
 | uuid_generator                          | The UUID Generator used. Mainly useful for testing                                                                            | `Sequent::Core::RandomUuidGenerator`                               |
 | versions_table_name                     | The name of the table in which Sequent checks which [migration version](migrations.html) is currently active                  | `'sequent_versions'`                                               |
 | view_schema_name                        | The name of the view_schema in which the projections are created.                                                             | `'view_schema'`                                                    |
-| enable_autoregistration                 | Enable autoregistration. This will autoregister `Sequent::CommandHandler`s, `Sequent::Projector`s and `Sequent::Workflow`s    | `false`                                                            |                        
+| enable_autoregistration                 | Enable autoregistration. This will autoregister `Sequent::CommandHandler`s, `Sequent::Projector`s and `Sequent::Workflow`s    | `false`                                                            |

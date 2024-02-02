@@ -10,7 +10,6 @@ require 'logger'
 module Sequent
   class Configuration
     DEFAULT_VERSIONS_TABLE_NAME = 'sequent_versions'
-    DEFAULT_REPLAYED_IDS_TABLE_NAME = 'sequent_replayed_ids'
 
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
     DEFAULT_DATABASE_CONFIG_DIRECTORY = 'db'
@@ -68,8 +67,7 @@ module Sequent
                   :enable_autoregistration
 
     attr_reader :migrations_class_name,
-                :versions_table_name,
-                :replayed_ids_table_name
+                :versions_table_name
 
     def self.instance
       @instance ||= new
@@ -104,7 +102,6 @@ module Sequent
       self.event_publisher = Sequent::Core::EventPublisher.new
       self.disable_event_handlers = false
       self.versions_table_name = DEFAULT_VERSIONS_TABLE_NAME
-      self.replayed_ids_table_name = DEFAULT_REPLAYED_IDS_TABLE_NAME
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
       self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
       self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
@@ -133,13 +130,6 @@ module Sequent
 
     def can_use_multiple_databases?
       enable_multiple_database_support && ActiveRecord.version > Gem::Version.new('6.1.0')
-    end
-
-    def replayed_ids_table_name=(table_name)
-      fail ArgumentError, 'table_name can not be nil' unless table_name
-
-      @replayed_ids_table_name = table_name
-      Sequent::Migrations::ReplayedIds.table_name = table_name
     end
 
     def versions_table_name=(table_name)
