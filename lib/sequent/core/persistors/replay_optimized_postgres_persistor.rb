@@ -82,7 +82,7 @@ module Sequent
 
         def struct_cache
           @struct_cache ||= Hash.new do |hash, record_class|
-            struct_class = Struct.new(*record_class.column_names.map(&:to_sym)) do
+            struct_class = Struct.new(*record_class.column_names.map(&:to_sym), keyword_init: true) do
               include InMemoryStruct
             end
             hash[record_class] = struct_class
