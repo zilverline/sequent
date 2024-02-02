@@ -201,10 +201,10 @@ module Sequent
 
         def create_record(record_class, values)
           record = struct_cache[record_class].new(**values)
-          record.updated_at = values[:created_at] if record.respond_to?(:updated_at=)
           @record_defaults[record_class].each do |column, default|
             record[column] = default unless values.include? column
           end
+          record.updated_at = values[:created_at] if record.respond_to?(:updated_at)
 
           yield record if block_given?
 
