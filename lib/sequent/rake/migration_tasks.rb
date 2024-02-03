@@ -154,7 +154,7 @@ module Sequent
               ensure_sequent_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
-              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
+              view_schema = Sequent::DryRun::ViewSchema.new(db_config: db_config)
 
               view_schema.migrate_dryrun(
                 regex: args[:regex],

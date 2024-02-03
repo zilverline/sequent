@@ -282,40 +282,6 @@ module Sequent
         raise e
       end
 
-      def migrate_dryrun(regex:, group_exponent: 3, limit: nil, offset: nil)
-        # Complete hack to override insert_ids
-        define_singleton_method(:insert_ids) do
-          ->(progress, done, ids) {}
-        end
-
-        persistor = Sequent.configuration.online_replay_persistor_class.new
-        persistor.define_singleton_method(:prepare) do
-          @starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        end
-        persistor.define_singleton_method(:commit) do
-          # Running in dryrun mode, not committing anything.
-          ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          elapsed = ending - @starting
-          count = @record_store.values.map(&:size).sum
-          Sequent.logger.info(
-            "dryrun: processed #{count} records in #{elapsed.round(2)} s (#{(count / elapsed).round(2)} records/s)",
-          )
-          clear
-        end
-
-        projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
-        if projectors.present?
-          Sequent.logger.info "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
-
-          starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          groups = groups(group_exponent: group_exponent, limit: limit, offset: offset)
-          replay!(persistor, projectors: projectors, groups: groups)
-          ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
-          Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version} in #{ending - starting} s")
-        end
-      end
-
       private
 
       def ensure_valid_plan!
