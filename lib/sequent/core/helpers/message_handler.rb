@@ -2,7 +2,6 @@
 
 require_relative 'message_handler_option_registry'
 require_relative 'message_router'
-require_relative 'message_dispatcher'
 
 module Sequent
   module Core
@@ -60,11 +59,7 @@ module Sequent
           end
 
           def message_mapping
-            message_router
-              .routes
-              .select { |matcher, _handlers| matcher.is_a?(MessageMatchers::InstanceOf) }
-              .map { |k, v| [k.expected_class, v] }
-              .to_h
+            message_router.instanceof_routes
           end
 
           def handles_message?(message)
@@ -106,13 +101,15 @@ module Sequent
         end
 
         def handle_message(message)
-          message_dispatcher.dispatch_message(message)
+          handlers = self.class.message_router.match_message(message)
+          dispatch_message(message, handlers) unless handlers.empty?
         end
 
-        private
-
-        def message_dispatcher
-          MessageDispatcher.new(self.class.message_router, self)
+        def dispatch_message(message, handlers)
+          handlers.each do |handler|
+            Sequent.logger.debug("[MessageHandler] Handler #{@context.class} handling #{message.class}")
+            instance_exec(message, &handler)
+          end
         end
       end
     end

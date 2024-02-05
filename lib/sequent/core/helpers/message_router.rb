@@ -7,7 +7,7 @@ module Sequent
   module Core
     module Helpers
       class MessageRouter
-        attr_reader :routes
+        attr_reader :routes, :instanceof_routes
 
         def initialize
           clear_routes
@@ -21,7 +21,11 @@ module Sequent
         #
         def register_matchers(*matchers, handler)
           matchers.each do |matcher|
-            @routes[matcher] << handler
+            if matcher.is_a?(MessageMatchers::InstanceOf)
+              @instanceof_routes[matcher.expected_class] << handler
+            else
+              @routes[matcher] << handler
+            end
           end
         end
 
@@ -29,11 +33,12 @@ module Sequent
         # Returns a set of handlers that match the given message, or an empty set when none match.
         #
         def match_message(message)
-          @routes
-            .reduce(Set.new) do |memo, (matcher, handlers)|
-              memo = memo.merge(handlers) if matcher.matches_message?(message)
-              memo
-            end
+          result = Set.new
+          result.merge(@instanceof_routes[message.class])
+          @routes.each do |matcher, handlers|
+            result.merge(handlers) if matcher.matches_message?(message)
+          end
+          result
         end
 
         ##
@@ -47,6 +52,7 @@ module Sequent
         # Removes all routes from the router.
         #
         def clear_routes
+          @instanceof_routes = Hash.new { |h, k| h[k] = Set.new }
           @routes = Hash.new { |h, k| h[k] = Set.new }
         end
       end
