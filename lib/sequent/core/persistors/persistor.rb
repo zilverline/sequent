@@ -77,6 +77,11 @@ module Sequent
         end
 
         # Hook to implement for instance the persistor batches statements
+        def prepare
+          fail 'Method not supported in this persistor'
+        end
+
+        # Hook to implement for instance the persistor batches statements
         def commit
           fail 'Method not supported in this persistor'
         end

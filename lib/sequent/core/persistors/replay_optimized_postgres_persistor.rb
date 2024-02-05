@@ -306,6 +306,10 @@ module Sequent
           results.empty? ? nil : results.last
         end
 
+        def prepare
+          # noop
+        end
+
         def commit
           @record_store.each do |clazz, records|
             @column_cache ||= {}
