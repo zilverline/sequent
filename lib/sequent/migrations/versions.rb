@@ -34,7 +34,11 @@ module Sequent
       end
 
       def self.latest_version
-        order('version desc').limit(1).first&.version
+        latest&.version
+      end
+
+      def self.latest
+        order('version desc').limit(1).first
       end
 
       def self.start_online!(new_version)
