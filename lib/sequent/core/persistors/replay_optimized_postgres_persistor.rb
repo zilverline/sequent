@@ -41,13 +41,17 @@ module Sequent
       #   end
       #
       # In this case it is wise to create an index on InvoiceRecord on the aggregate_id and recipient_id
-      # like you would in the database.
+      # attributes like you would in the database. Note that previous versions of this class supported
+      # multi-column indexes. These are now split into multiple single-column indexes and the results of
+      # each index is combined using set-intersection. This reduces the amount of memory used and makes
+      # it possible to use an index in more cases (whenever an indexed attribute is present in the where
+      # clause the index will be used, so not all attributes need to be present).
       #
       # Example:
       #
       #   ReplayOptimizedPostgresPersistor.new(
       #     50,
-      #     {InvoiceRecord => [[:aggregate_id, :recipient_id]]}
+      #     {InvoiceRecord => [:aggregate_id, :recipient_id]}
       #   )
       class ReplayOptimizedPostgresPersistor
         include Persistor
@@ -56,11 +60,24 @@ module Sequent
         attr_reader :record_store
         attr_accessor :insert_with_csv_size
 
-        def self.struct_cache
-          @struct_cache ||= {}
-        end
-
-        module InitStruct
+        # We create a struct on the fly to represent an in-memory record.
+        #
+        # Since the replay happens in memory we implement the ==, eql? and hash methods
+        # to point to the same object. A record is the same if and only if they point to
+        # the same object. These methods are necessary since we use Set instead of [].
+        #
+        # Also basing equality on object identity is more consistent with ActiveRecord,
+        # which is the implementation used during normal (non-optimized) replay.
+        module InMemoryStruct
+          def ==(other)
+            equal?(other)
+          end
+          def eql?(other)
+            equal?(other)
+          end
+          def hash
+            object_id.hash
+          end
           def set_values(values)
             values.each do |k, v|
               self[k] = v
@@ -69,48 +86,51 @@ module Sequent
           end
         end
 
+        def struct_cache
+          @struct_cache ||= Hash.new do |hash, record_class|
+            struct_class = Struct.new(*record_class.column_names.map(&:to_sym))
+            struct_class.include InMemoryStruct
+            hash[record_class] = struct_class
+          end
+        end
+
         class Index
           def initialize(indexed_columns)
             @indexed_columns = Hash.new do |hash, record_class|
-              hash[record_class] = if record_class.column_names.include? 'aggregate_id'
-                                     ['aggregate_id']
-                                   else
-                                     []
-                                   end
+              hash[record_class] = default_indexes(record_class)
             end
 
-            @indexed_columns = @indexed_columns.merge(
-              indexed_columns.reduce({}) do |memo, (key, ics)|
-                memo.merge({key => ics.map { |c| c.map(&:to_s) }})
-              end,
-            )
+            indexed_columns.each do |record_class, indexes|
+              fields = indexes.flatten(1).map(&:to_sym).to_set
+              @indexed_columns[record_class] = (fields + default_indexes(record_class))
+            end
 
             @index = {}
-            @reverse_index = {}
+            @reverse_index = {}.compare_by_identity
           end
 
           def add(record_class, record)
             return unless indexed?(record_class)
 
-            get_keys(record_class, record).each do |key|
-              @index[key.hash] = [] unless @index.key? key.hash
-              @index[key.hash] << record
-
-              @reverse_index[record.object_id.hash] = [] unless @reverse_index.key? record.object_id.hash
-              @reverse_index[record.object_id.hash] << key.hash
+            keys = get_keys(record_class, record)
+            keys.each do |key|
+              @index[key] = Set.new.compare_by_identity unless @index.key? key
+              @index[key] << record
             end
+
+            @reverse_index[record] = keys
           end
 
           def remove(record_class, record)
             return unless indexed?(record_class)
 
-            keys = @reverse_index.delete(record.object_id.hash) { [] }
+            keys = @reverse_index.delete(record) { [] }
 
-            return unless keys.any?
+            return if keys.empty?
 
             keys.each do |key|
               @index[key].delete(record)
-              @index.delete(key) if @index[key].count == 0
+              @index.delete(key) if @index[key].empty?
             end
           end
 
@@ -119,45 +139,65 @@ module Sequent
             add(record_class, record)
           end
 
-          def find(record_class, where_clause)
-            key = [record_class.name]
-            get_index(record_class, where_clause).each do |field|
-              key << field
-              key << where_clause.stringify_keys[field]
+          def find(record_class, normalized_where_clause)
+            record_sets = normalized_where_clause.map do |field, expected_value|
+              if expected_value.is_a?(Array)
+                records = Set.new.compare_by_identity
+                expected_value.each do |value|
+                  key = [record_class.name, field, Persistors.normalize_symbols(value)]
+                  @index[key]&.each do |record|
+                    records << record
+                  end
+                end
+                records
+              else
+                key = [record_class.name, field, Persistors.normalize_symbols(expected_value)]
+                @index[key] || Set.new
+              end
             end
-            @index[key.hash] || []
+
+            smallest, *rest = record_sets.sort_by(&:size)
+            return smallest.to_a if smallest.empty? || rest.empty?
+
+            smallest.select do |record|
+              rest.all? { |x| x.include? record }
+            end
           end
 
           def clear
-            @index = {}
-            @reverse_index = {}
+            @index.clear
+            @reverse_index.clear
           end
 
-          def use_index?(record_class, where_clause)
-            @indexed_columns.key?(record_class) && get_index(record_class, where_clause).present?
+          def use_index?(record_class, normalized_where_clause)
+            indexed?(record_class) && get_indexes(record_class, normalized_where_clause).present?
+          end
+
+          def indexed_columns(record_class)
+            @indexed_columns[record_class]
           end
 
           private
 
           def indexed?(record_class)
-            @indexed_columns.key?(record_class)
+            # Do not use `key?` here or similar, since the
+            # `@indexed_columns#default_proc` automatically adds new
+            # indexes as required.
+            @indexed_columns[record_class].present?
           end
 
           def get_keys(record_class, record)
-            @indexed_columns[record_class].map do |index|
-              arr = [record_class.name]
-              index.each do |key|
-                arr << key
-                arr << record[key]
-              end
-              arr
+            @indexed_columns[record_class].map do |field|
+              [record_class.name, field, Persistors.normalize_symbols(record[field])]
             end
           end
 
-          def get_index(record_class, where_clause)
-            @indexed_columns[record_class].find do |indexed_where|
-              where_clause.keys.size == indexed_where.size && (where_clause.keys.map(&:to_s) - indexed_where).empty?
-            end
+          def get_indexes(record_class, normalized_where_clause)
+            @indexed_columns[record_class] & normalized_where_clause.keys
+          end
+
+          def default_indexes(record_class)
+            Set[:aggregate_id] & record_class.column_names.map(&:to_sym).to_set
           end
         end
 
@@ -169,7 +209,7 @@ module Sequent
         #   E.g. [[:first_index_column], [:another_index, :with_to_columns]]
         def initialize(insert_with_csv_size = 50, indices = {})
           @insert_with_csv_size = insert_with_csv_size
-          @record_store = Hash.new { |h, k| h[k] = Set.new }
+          @record_store = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
           @record_index = Index.new(indices)
         end
 
@@ -190,37 +230,11 @@ module Sequent
           column_names = record_class.column_names
           values = record_class.column_defaults.with_indifferent_access.merge(values)
           values.merge!(updated_at: values[:created_at]) if column_names.include?('updated_at')
-          struct_class_name = "#{record_class}Struct"
-          if self.class.struct_cache.key?(struct_class_name)
-            struct_class = self.class.struct_cache[struct_class_name]
-          else
-            # We create a struct on the fly.
-            # Since the replay happens in memory we implement the ==, eql? and hash methods
-            # to point to the same object. A record is the same if and only if they point to
-            # the same object. These methods are necessary since we use Set instead of [].
-            class_def = <<-EOD
-      #{struct_class_name} = Struct.new(*#{column_names.map(&:to_sym)})
-              class #{struct_class_name}
-                include InitStruct
-                def ==(other)
-                  self.equal?(other)
-                end
-                def hash
-                  self.object_id.hash
-                end
-              end
-            EOD
-            # rubocop:disable Security/Eval
-            eval(class_def.to_s)
-            # rubocop:enable Security/Eval
-            struct_class = ReplayOptimizedPostgresPersistor.const_get(struct_class_name)
-            self.class.struct_cache[struct_class_name] = struct_class
-          end
-          record = struct_class.new.set_values(values)
+          record = struct_cache[record_class].new.set_values(values)
 
           yield record if block_given?
-          @record_store[record_class] << record
 
+          @record_store[record_class] << record
           @record_index.add(record_class, record)
 
           record
@@ -266,7 +280,7 @@ module Sequent
         def update_all_records(record_class, where_clause, updates)
           find_records(record_class, where_clause).each do |record|
             updates.each_pair do |k, v|
-              record[k.to_sym] = v
+              record[k] = v
             end
             @record_index.update(record_class, record)
           end
@@ -287,22 +301,30 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          if @record_index.use_index?(record_class, where_clause)
-            @record_index.find(record_class, where_clause)
-          else
-            @record_store[record_class].select do |record|
-              where_clause.all? do |k, v|
-                expected_value = v.is_a?(Symbol) ? v.to_s : v
-                actual_value = record[k.to_sym]
-                actual_value = actual_value.to_s if actual_value.is_a? Symbol
-                if expected_value.is_a?(Array)
-                  expected_value.include?(actual_value)
-                else
-                  actual_value == expected_value
-                end
+          where_clause = where_clause.symbolize_keys
+
+          indexed_columns = @record_index.indexed_columns(record_class)
+          indexed_fields, non_indexed_fields = where_clause.partition { |field, _| indexed_columns.include? field }
+
+          candidate_records = if indexed_fields.present?
+                                @record_index.find(record_class, indexed_fields.to_h)
+                              else
+                                @record_store[record_class]
+                              end
+
+          return candidate_records.to_a if non_indexed_fields.empty?
+
+          candidate_records.select do |record|
+            non_indexed_fields.all? do |k, v|
+              expected_value = Persistors.normalize_symbols(v)
+              actual_value = Persistors.normalize_symbols(record[k])
+              if expected_value.is_a?(Array)
+                expected_value.include?(actual_value)
+              else
+                actual_value == expected_value
               end
             end
-          end.dup
+          end
         end
 
         def last_record(record_class, where_clause)
@@ -366,11 +388,18 @@ module Sequent
         def cast_value_to_column_type(clazz, column_name, record)
           uncasted_value = ActiveModel::Attribute.from_database(
             column_name,
-            record[column_name.to_sym],
+            record[column_name],
             Sequent::ApplicationRecord.connection.lookup_cast_type_from_column(@column_cache[clazz.name][column_name]),
           ).value_for_database
           Sequent::ApplicationRecord.connection.type_cast(uncasted_value)
         end
+      end
+
+      # Normalizes symbol values to strings (by using its name) while
+      # preserving all other values. This allows symbol/string
+      # indifferent comparisons.
+      def self.normalize_symbols(value)
+        value.is_a?(Symbol) ? value.name : value
       end
     end
   end

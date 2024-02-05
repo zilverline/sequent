@@ -12,8 +12,16 @@ class MockEvent < Sequent::Core::Event
   end
 end
 
+def measure_elapsed_time(&block)
+  starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  yield block
+  ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  ending - starting
+end
+
 describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
-  let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
+  let(:indices) { {} }
+  let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(50, indices) }
   let(:record_class) { Sequent::Core::EventRecord }
   let(:mock_event) { MockEvent.new }
 
@@ -67,6 +75,9 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     expect(object.id).to eq 1
     object = persistor.get_record!(record_class, {id: 2})
     expect(object.id).to eq 2
+
+    objects = persistor.find_records(record_class, {id: [1, 2]})
+    expect(objects).to have(2).items
   end
 
   context 'with an object' do
@@ -79,49 +90,82 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         object = persistor.get_record!(record_class, {id: 1})
         expect(object.id).to eq 1
       end
+    end
 
-      context '#get_record' do
-        it 'returns the object' do
-          object = persistor.get_record(record_class, {id: 1})
-          expect(object.id).to eq 1
-        end
+    context '#get_record' do
+      it 'returns the object' do
+        object = persistor.get_record(record_class, {id: 1})
+        expect(object.id).to eq 1
+      end
+    end
+
+    context '#find_records' do
+      it 'returns the object' do
+        objects = persistor.find_records(record_class, {id: 1})
+        expect(objects).to have(1).item
+        expect(objects.first.id).to eq 1
+      end
+    end
+
+    context '#delete_all_records' do
+      it 'deletes the object' do
+        persistor.delete_all_records(record_class, {id: 1})
+
+        objects = persistor.find_records(record_class, {id: 1})
+        expect(objects).to be_empty
+      end
+    end
+
+    context '#delete_record' do
+      it 'deletes the object' do
+        objects = persistor.find_records(record_class, {id: 1})
+        persistor.delete_record(record_class, objects.first)
+
+        expect(persistor.find_records(record_class, {id: 1})).to be_empty
+      end
+    end
+
+    context '#update_all_records' do
+      it 'updates the records' do
+        persistor.update_all_records(record_class, {id: 1}, {sequence_number: 3})
+
+        objects = persistor.find_records(record_class, {id: 1})
+        expect(objects).to have(1).item
+        expect(objects.first.id).to eq 1
+        expect(objects.first.sequence_number).to eq 3
+      end
+    end
+  end
+
+  context 'value normalization' do
+    before :each do
+      persistor.create_record(record_class, {id: 1, event_type: :SymbolEvent})
+      persistor.create_record(record_class, {id: 2, event_type: 'StringEvent'})
+    end
+
+    context 'when using an index' do
+      let(:indices) { {record_class => [:event_type]} }
+
+      it 'should find records with symbol values using strings' do
+        objects = persistor.find_records(record_class, {event_type: 'SymbolEvent'})
+        expect(objects).to have(1).item
       end
 
-      context '#find_records' do
-        it 'returns the object' do
-          objects = persistor.find_records(record_class, {id: 1})
-          expect(objects).to have(1).item
-          expect(objects.first.id).to eq 1
-        end
+      it 'should find records with string values using symbol' do
+        objects = persistor.find_records(record_class, {event_type: :StringEvent})
+        expect(objects).to have(1).item
+      end
+    end
+
+    context 'when not using an index' do
+      it 'should find records with symbol values using strings' do
+        objects = persistor.find_records(record_class, {event_type: 'SymbolEvent'})
+        expect(objects).to have(1).item
       end
 
-      context '#delete_all_records' do
-        it 'deletes the object' do
-          persistor.delete_all_records(record_class, {id: 1})
-
-          objects = persistor.find_records(record_class, {id: 1})
-          expect(objects).to be_empty
-        end
-      end
-
-      context '#delete_record' do
-        it 'deletes the object' do
-          objects = persistor.find_records(record_class, {id: 1})
-          persistor.delete_record(record_class, objects.first)
-
-          expect(persistor.find_records(record_class, {id: 1})).to be_empty
-        end
-      end
-
-      context '#update_all_records' do
-        it 'updates the records' do
-          persistor.update_all_records(record_class, {id: 1}, {sequence_number: 3})
-
-          objects = persistor.find_records(record_class, {id: 1})
-          expect(objects).to have(1).item
-          expect(objects.first.id).to eq 1
-          expect(objects.first.sequence_number).to eq 3
-        end
+      it 'should find records with string values using symbol' do
+        objects = persistor.find_records(record_class, {event_type: :StringEvent})
+        expect(objects).to have(1).item
       end
     end
   end
@@ -209,7 +253,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         end
       end
 
-      context 'values as normal hashess' do
+      context 'values as normal hashes' do
         it 'commits a persistor' do
           persistor.create_record(ReplayOptimizedPostgresTest, values)
 
@@ -224,14 +268,14 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     before :each do
       persistor.create_record(Sequent::Core::EventRecord, {id: 1, command_record_id: 2})
       persistor.create_record(Sequent::Core::EventRecord, {id: 1, sequence_number: 2})
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, id: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, id: 2, command_record_id: 2})
     end
 
     let(:persistor) do
       Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
         50,
         {
-          Sequent::Core::EventRecord => [%i[id command_record_id], %i[id sequence_number]],
+          Sequent::Core::EventRecord => %i[id command_record_id sequence_number],
         },
       )
     end
@@ -244,6 +288,14 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
         it 'returns the correct number records' do
           expect(records).to have(2).items
+        end
+      end
+
+      context 'finding array valued where-clause' do
+        let(:where_clause) { {id: [1, 2]} }
+
+        it 'returns the correct number records' do
+          expect(records).to have(3).items
         end
       end
 
@@ -378,63 +430,143 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     end
   end
 
-  describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index do
-    describe '#use_index?' do
-      let(:indices) { [] }
-      let(:index) do
-        Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(
-          {
-            Sequent::Core::EventRecord => indices,
-          },
+  context 'with thousands of records' do
+    COUNT = 1000
+    ITERATIONS = 10
+    MAX_TIME_S = 1
+
+    let(:persistor) do
+      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
+        50,
+        {
+          Sequent::Core::EventRecord => [%i[id command_record_id], %i[id sequence_number]],
+        },
+      )
+    end
+    let(:aggregate_ids) { (0...COUNT).map { Sequent.new_uuid } }
+
+    before do
+      aggregate_ids.each_with_index do |aggregate_id, i|
+        persistor.create_record(
+          Sequent::Core::EventRecord,
+          {id: i, aggregate_id: aggregate_id, command_record_id: i * 7},
         )
       end
+    end
 
-      context 'symbolized single indices' do
-        let(:indices) { [[:id]] }
-        it 'uses the index for strings and symbols where clause' do
-          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
-        end
-
-        it 'does not use index for non indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, {'command_record_id' => 1})).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 1})).to be_falsey
+    it 'performs well using an aggregate_id lookup' do
+      elapsed = measure_elapsed_time do
+        ITERATIONS.times do
+          aggregate_ids.each do |aggregate_id|
+            expect(persistor.get_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id})).to be_present
+          end
         end
       end
+      expect(elapsed).to be <= MAX_TIME_S
+    end
 
-      context 'string single indices' do
-        let(:indices) { [['id']] }
-        it 'uses the index for strings and symbols where clause' do
+    it 'performs well using a multi-index lookup' do
+      elapsed = measure_elapsed_time do
+        ITERATIONS.times do
+          (0...COUNT).each do |i|
+            expect(persistor.get_record(Sequent::Core::EventRecord, {id: i, command_record_id: i * 7})).to be_present
+          end
+        end
+      end
+      expect(elapsed).to be <= MAX_TIME_S
+    end
+  end
+
+  describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index do
+    let(:indices) { [] }
+    let(:index) do
+      Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new(
+        {
+          Sequent::Core::EventRecord => indices,
+        },
+      )
+    end
+
+    describe '#use_index?' do
+      context 'symbolized single indices' do
+        let(:indices) { [:id] }
+        it 'uses the index for simple indexed column' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1})).to be_truthy
         end
 
         it 'does not use index for non indexed columns' do
-          expect(index.use_index?(Sequent::Core::EventRecord, {'command_record_id' => 1})).to be_falsey
           expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 1})).to be_falsey
         end
       end
 
       context 'multiple indices' do
-        let(:indices) { [['id'], [:id, 'command_record_id']] }
+        let(:indices) { %w[id command_record_id] }
 
-        it 'uses the index for strings and symbols where clause' do
+        it 'uses the index for where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {id: 1})).to be_truthy
-          expect(index.use_index?(Sequent::Core::EventRecord, {'id' => 1, command_record_id: 10})).to be_truthy
+          expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 10})).to be_truthy
         end
 
-        it 'does not use index for non or partial indexed columns' do
+        it 'use index for for partial indexed where clauses' do
           expect(index.use_index?(Sequent::Core::EventRecord, {sequence_number: 1})).to be_falsey
-          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1, sequence_number: 1})).to be_falsey
+          expect(index.use_index?(Sequent::Core::EventRecord, {id: 1, sequence_number: 1})).to be_truthy
+        end
+
+        context 'multi-colum indexes' do
+          let(:indices) { [%i[command_record_id id]] }
+          it 'should split to single-attribute indexes for backwards compatibility' do
+            expect(index.indexed_columns(Sequent::Core::EventRecord))
+              .to match_array %i[aggregate_id command_record_id id]
+          end
+        end
+
+        context 'duplicate indexes' do
+          let(:indices) { %i[aggregate_id command_record_id id id command_record_id] }
+          it 'are removed' do
+            expect(index.indexed_columns(Sequent::Core::EventRecord))
+              .to match_array %i[aggregate_id command_record_id id]
+          end
+        end
+      end
+
+      context 'default index when record class is specified' do
+        it 'adds a default index for aggregate_id' do
+          expect(index.use_index?(Sequent::Core::EventRecord, {aggregate_id: 1})).to be_truthy
+        end
+      end
+
+      context 'default index when record class is not specified' do
+        let(:index) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor::Index.new({}) }
+        it 'adds a default index for aggregate_id' do
+          expect(index.use_index?(Sequent::Core::EventRecord, {aggregate_id: 1})).to be_truthy
         end
       end
 
       context 'where clause order' do
-        let(:indices) { [%i[id command_record_id]] }
+        let(:indices) { %i[id command_record_id] }
 
         it 'uses the index for strings and symbols where clause' do
           expect(index.use_index?(Sequent::Core::EventRecord, {command_record_id: 10, id: 1})).to be_truthy
         end
+      end
+    end
+
+    context 'duplicate hash values' do
+      class BadHash < Struct.new(:value)
+        def hash
+          0
+        end
+      end
+
+      it 'should not match records even when hash collision occurs' do
+        one = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(1), sequence_number: 1)
+        two = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(2), sequence_number: 1)
+
+        index.add(Sequent::Core::EventRecord, one)
+        index.add(Sequent::Core::EventRecord, two)
+
+        expect(index.find(Sequent::Core::EventRecord, {aggregate_id: one.aggregate_id})).to match_array [one]
+        expect(index.find(Sequent::Core::EventRecord, {aggregate_id: two.aggregate_id})).to match_array [two]
       end
     end
   end
