@@ -16,7 +16,6 @@ require_relative 'versions'
 
 module Sequent
   module Migrations
-
     ##
     # ViewSchema is used for migration of you view_schema. For instance
     # when you create new Projectors or change existing Projectors.
@@ -148,7 +147,7 @@ module Sequent
         replay!(
           Sequent.configuration.online_replay_persistor_class.new,
           projectors: Core::Migratable.projectors,
-          group_exponent: group_exponent,
+          groups: groups(group_exponent: group_exponent),
         )
       end
 
@@ -206,6 +205,7 @@ module Sequent
         if plan.projectors.any?
           replay!(
             Sequent.configuration.online_replay_persistor_class.new,
+            groups: groups,
             maximum_xact_id_exclusive: Versions.running.first.xmin_xact_id,
           )
         end
@@ -259,8 +259,8 @@ module Sequent
         if plan.projectors.any?
           replay!(
             Sequent.configuration.offline_replay_persistor_class.new,
+            groups: groups(group_exponent: 1),
             minimum_xact_id_inclusive: Versions.running.first.xmin_xact_id,
-            group_exponent: 1,
           )
         end
 
@@ -308,22 +308,19 @@ module Sequent
 
       def replay!(
         replay_persistor,
+        groups:,
         projectors: plan.projectors,
         minimum_xact_id_inclusive: nil,
-        maximum_xact_id_exclusive: nil,
-        group_exponent: 3
+        maximum_xact_id_exclusive: nil
       )
-        logger.info "group_exponent: #{group_exponent.inspect}"
+        logger.info "groups: #{groups.size}"
 
         with_sequent_config(replay_persistor, projectors) do
           logger.info 'Start replaying events'
 
-          time("#{16**group_exponent} groups replayed") do
+          time("#{groups.size} groups replayed") do
             event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
             disconnect!
-
-            number_of_groups = 16**group_exponent
-            groups = groups_of_aggregate_id_prefixes(number_of_groups)
 
             @connected = false
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
@@ -333,7 +330,7 @@ module Sequent
             ) do |aggregate_prefixes, index|
               @connected ||= establish_connection
               msg = <<~EOS.chomp
-                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{number_of_groups} replayed
+                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{groups.size} replayed
               EOS
               time(msg) do
                 replay_events(
@@ -387,6 +384,14 @@ module Sequent
 
         executor.reset_table_names(plan)
         Versions.rollback!(Sequent.new_version)
+      end
+
+      def groups(group_exponent: 3, limit: nil, offset: nil)
+        number_of_groups = 16**group_exponent
+        groups = groups_of_aggregate_id_prefixes(number_of_groups)
+        groups = groups.drop(offset) unless offset.nil?
+        groups = groups.take(limit) unless limit.nil?
+        groups
       end
 
       def groups_of_aggregate_id_prefixes(number_of_groups)

@@ -1,6 +1,14 @@
 # Changelog 7.0.x (changes since 7.0.0)
 
 - Replaying all events for the view schema (using `sequent:migrate:online` and `sequent:migrate:offline`) now make use of the PostgreSQL committed transaction id to track events that have already been replayed.  The replayed ids table (specified by the removed `Sequent::configuration.replayed_ids_table_name` option) is no longer used and can be dropped from your database.
+- The `MessageDispatcher` class has been removed.
+- Instance-of routes in projectors and other message handlers now use an optimized lookup mechanism. These are the most common handlers (`on MyEvent do ... end`).
+- Many optimizations were applied to the `ReplayOptimizedPostgresPersistor`:
+  - Multi-value indexes are no longer supported, each column is now individually indexed. When a where clauses references multiple indexed columns all applicable indexes are used. For backwards compatibility multi-column index definitions are automatically changed to single-column indexes (one for each colum in the multi-column definition).
+  - Default indexed columns can be specified when instantiating the `ReplayOptimizedPostgresPersistor`.
+  - Indexed values are now automatically frozen.
+  - Array matching and string/symbol matching in where-clauses now work for indexed columns as well.
+  - The internal struct classes are now generated differently and these classes are no longer associated with a Ruby constant so cannot be referenced from your code.
 
 # Changelog 7.0.0 (changes since 6.0.1)
 - Added possibility `enable_autoregistration` for automatically registering all Command and EventHandlers
