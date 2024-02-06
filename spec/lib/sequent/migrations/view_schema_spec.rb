@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'timecop'
 require 'active_support/hash_with_indifferent_access'
 require_relative '../fixtures/spec_migrations'
 
@@ -165,7 +164,7 @@ describe Sequent::Migrations::ViewSchema do
         expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('account_records_1')
       end
 
-      it 'replays the data and keeps track of the migrated ids' do
+      it 'replays the data and keeps track of the lowest transaction id of the currently in-progress transactions' do
         insert_events(
           'Account',
           [
@@ -182,7 +181,12 @@ describe Sequent::Migrations::ViewSchema do
             MessageSet.new(aggregate_id: message_aggregate_id, sequence_number: 2, message: 'Foobar'),
           ],
         )
+
+        before_migration_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
+
         migrator.migrate_online
+
+        after_migration_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
 
         expect(AccountRecord.table_name).to eq 'account_records'
         expect(AccountRecord.connection.select_value('select count(*) from account_records_1')).to eq 2
@@ -190,9 +194,8 @@ describe Sequent::Migrations::ViewSchema do
         expect(MessageRecord.table_name).to eq 'message_records'
         expect(AccountRecord.connection.select_value('select count(*) from message_records_1')).to eq 1
 
-        expect(
-          Sequent::Migrations::ReplayedIds.pluck(:event_id),
-        ).to match_array Sequent.configuration.event_record_class.pluck(:id)
+        expect(Sequent::Migrations::Versions.running.first.xmin_xact_id)
+          .to (be > before_migration_xact_id).and(be < after_migration_xact_id)
       end
 
       context 'specific projectors' do
@@ -229,20 +232,6 @@ describe Sequent::Migrations::ViewSchema do
 
           expect(MessageRecord.table_name).to eq 'message_records'
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_1')
-
-          expect(
-            Sequent::Migrations::ReplayedIds.pluck(:event_id),
-          ).to match_array(
-            Sequent
-              .configuration
-              .event_record_class
-              .where(
-                aggregate_id: [
-                  account_1, account_2
-                ],
-              )
-              .pluck(:id),
-          )
         end
       end
 
@@ -287,7 +276,6 @@ describe Sequent::Migrations::ViewSchema do
         expect { migrator.migrate_online }.to raise_error(Parallel::UndumpableException)
 
         expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_1')
-        expect(Sequent::Migrations::ReplayedIds.count).to eq 0
         expect(Sequent::Migrations::Versions.count).to eq 1
         expect(Sequent::Migrations::Versions.first.version).to eq 0
       end
@@ -425,31 +413,6 @@ describe Sequent::Migrations::ViewSchema do
         expect(AccountRecord.table_name).to eq 'account_records'
         expect(MessageRecord.table_name).to eq 'message_records'
       end
-
-      context 'offline replaying with older events' do
-        after :each do
-          Timecop.return
-        end
-
-        it 'does not replay events older than 1 day' do
-          Timecop.freeze(1.week.ago)
-
-          old_account_id = Sequent.new_uuid
-          old_account_created = AccountCreated.new(aggregate_id: old_account_id, sequence_number: 1)
-          insert_events('Account', [old_account_created])
-
-          Timecop.return
-
-          new_account_id = Sequent.new_uuid
-          new_account_created = AccountCreated.new(aggregate_id: new_account_id, sequence_number: 1)
-          insert_events('Account', [new_account_created])
-
-          migrator.migrate_offline
-
-          expect(AccountRecord.pluck(:aggregate_id)).to_not include(old_account_id)
-          expect(AccountRecord.pluck(:aggregate_id)).to include(new_account_id)
-        end
-      end
     end
 
     context 'error handling' do
@@ -483,7 +446,6 @@ describe Sequent::Migrations::ViewSchema do
 
         expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records')
         expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records')
-        expect(Sequent::Migrations::ReplayedIds.count).to eq 0
         expect(Sequent::Migrations::Versions.count).to eq 1
         expect(Sequent::Migrations::Versions.running.count).to eq 0
       end
@@ -531,7 +493,6 @@ describe Sequent::Migrations::ViewSchema do
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('message_records_2')
           expect(Sequent::ApplicationRecord.connection).to_not have_view_schema_table('account_records_2')
 
-          expect(Sequent::Migrations::ReplayedIds.count).to eq 0
           expect(Sequent::Migrations::Versions.maximum(:version)).to eq 1
 
           expect(AccountRecord.count).to eq(1)

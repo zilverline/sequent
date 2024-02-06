@@ -13,7 +13,6 @@ require_relative 'planner'
 require_relative 'executor'
 require_relative 'sql'
 require_relative 'versions'
-require_relative 'replayed_ids'
 
 module Sequent
   module Migrations
@@ -199,13 +198,17 @@ module Sequent
         in_view_schema do
           Versions.start_online!(Sequent.new_version)
 
-          truncate_replay_ids_table!
-
           drop_old_tables(Sequent.new_version)
           executor.execute_online(plan)
         end
 
-        replay!(Sequent.configuration.online_replay_persistor_class.new, groups: groups) if plan.projectors.any?
+        if plan.projectors.any?
+          replay!(
+            Sequent.configuration.online_replay_persistor_class.new,
+            groups: groups,
+            maximum_xact_id_exclusive: Versions.running.first.xmin_xact_id,
+          )
+        end
 
         in_view_schema do
           executor.create_indexes_after_execute_online(plan)
@@ -237,7 +240,7 @@ module Sequent
       # 2.1 Rename current tables with the +current version+ as SUFFIX
       # 2.2 Rename the new tables and remove the +new version+ suffix
       # 2.3 Add the new version in the +Versions+ table
-      # 3. Performs cleanup of replayed event ids
+      # 3. Update the versions table to complete the migration
       #
       # If anything fails an exception is raised and everything is rolled back
       #
@@ -256,8 +259,8 @@ module Sequent
         if plan.projectors.any?
           replay!(
             Sequent.configuration.offline_replay_persistor_class.new,
-            exclude_ids: true,
             groups: groups(group_exponent: 1),
+            minimum_xact_id_inclusive: Versions.running.first.xmin_xact_id,
           )
         end
 
@@ -268,9 +271,6 @@ module Sequent
             # 2.3 Create migration record
             Versions.end_offline!(Sequent.new_version)
           end
-
-          # 3. Truncate replayed ids
-          truncate_replay_ids_table!
         end
         logger.info "Migrated to version #{Sequent.new_version}"
       rescue ConcurrentMigration
@@ -291,7 +291,7 @@ module Sequent
       def migrate_metadata_tables
         Sequent::ApplicationRecord.transaction do
           in_view_schema do
-            exec_sql([ReplayedIds.migration_sql, Versions.migration_sql].join("\n"))
+            exec_sql([Versions.migration_sql].join("\n"))
           end
         end
       end
@@ -306,7 +306,13 @@ module Sequent
         end
       end
 
-      def replay!(replay_persistor, groups:, projectors: plan.projectors, exclude_ids: false)
+      def replay!(
+        replay_persistor,
+        groups:,
+        projectors: plan.projectors,
+        minimum_xact_id_inclusive: nil,
+        maximum_xact_id_exclusive: nil
+      )
         logger.info "groups: #{groups.size}"
 
         with_sequent_config(replay_persistor, projectors) do
@@ -327,7 +333,14 @@ module Sequent
                 Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{groups.size} replayed
               EOS
               time(msg) do
-                replay_events(aggregate_prefixes, event_types, exclude_ids, replay_persistor, &insert_ids)
+                replay_events(
+                  aggregate_prefixes,
+                  event_types,
+                  minimum_xact_id_inclusive,
+                  maximum_xact_id_exclusive,
+                  replay_persistor,
+                  &on_progress
+                )
               end
               nil
             rescue StandardError => e
@@ -342,12 +355,19 @@ module Sequent
         end
       end
 
-      def replay_events(aggregate_prefixes, event_types, exclude_already_replayed, replay_persistor, &on_progress)
-        replay_persistor.prepare
-
+      def replay_events(
+        aggregate_prefixes,
+        event_types,
+        minimum_xact_id_inclusive,
+        maximum_xact_id_exclusive,
+        replay_persistor,
+        &on_progress
+      )
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
-          get_events: -> { event_stream(aggregate_prefixes, event_types, exclude_already_replayed) },
+          get_events: -> {
+            event_stream(aggregate_prefixes, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+          },
           on_progress: on_progress,
         )
 
@@ -362,13 +382,8 @@ module Sequent
         establish_connection
         drop_old_tables(Sequent.new_version)
 
-        truncate_replay_ids_table!
         executor.reset_table_names(plan)
         Versions.rollback!(Sequent.new_version)
-      end
-
-      def truncate_replay_ids_table!
-        exec_sql("truncate table #{ReplayedIds.table_name}")
       end
 
       def groups(group_exponent: 3, limit: nil, offset: nil)
@@ -411,15 +426,8 @@ module Sequent
         end
       end
 
-      def insert_ids
+      def on_progress
         ->(progress, done, ids) do
-          unless ids.empty?
-            exec_sql(
-              "insert into #{ReplayedIds.table_name} (event_id) values #{ids.map do |id|
-                "(#{id})"
-              end.join(',')}",
-            )
-          end
           Sequent::Core::EventStore::PRINT_PROGRESS[progress, done, ids] if progress > 0
         end
       end
@@ -442,18 +450,24 @@ module Sequent
         Sequent::Configuration.restore(old_config)
       end
 
-      def event_stream(aggregate_prefixes, event_types, exclude_already_replayed)
+      def event_stream(aggregate_prefixes, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
         fail ArgumentError, 'aggregate_prefixes is mandatory' unless aggregate_prefixes.present?
 
         event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
         event_stream = event_stream.where(<<~SQL, aggregate_prefixes)
           substring(aggregate_id::text from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)
         SQL
-        if exclude_already_replayed
-          event_stream = event_stream
-            .where("NOT EXISTS (SELECT 1 FROM #{ReplayedIds.table_name} WHERE event_id = event_records.id)")
+        if minimum_xact_id_inclusive && maximum_xact_id_exclusive
+          event_stream = event_stream.where(
+            'xact_id >= ? AND xact_id < ?',
+            minimum_xact_id_inclusive,
+            maximum_xact_id_exclusive,
+          )
+        elsif minimum_xact_id_inclusive
+          event_stream = event_stream.where('xact_id >= ?', minimum_xact_id_inclusive)
+        elsif maximum_xact_id_exclusive
+          event_stream = event_stream.where('xact_id IS NULL OR xact_id < ?', maximum_xact_id_exclusive)
         end
-        event_stream = event_stream.where('event_records.created_at > ?', 1.day.ago) if exclude_already_replayed
         event_stream
           .order('aggregate_id ASC, sequence_number ASC')
           .select('id, event_type, event_json, sequence_number')

@@ -13,6 +13,7 @@ module Sequent
           CREATE TABLE IF NOT EXISTS #{table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version));
           ALTER TABLE #{table_name} drop constraint if exists only_one_running;
           ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT NULL CONSTRAINT only_one_running CHECK (status in (1,2,3));
+          ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS xmin_xact_id BIGINT;
           DROP INDEX IF EXISTS single_migration_running;
           CREATE UNIQUE INDEX single_migration_running ON #{table_name} ((status * 0)) where status is not null;
         SQL
@@ -33,11 +34,15 @@ module Sequent
       end
 
       def self.latest_version
-        order('version desc').limit(1).first&.version
+        latest&.version
+      end
+
+      def self.latest
+        order('version desc').limit(1).first
       end
 
       def self.start_online!(new_version)
-        create!(version: new_version, status: MIGRATE_ONLINE_RUNNING)
+        create!(version: new_version, status: MIGRATE_ONLINE_RUNNING, xmin_xact_id: current_snapshot_xmin_xact_id)
       rescue ActiveRecord::RecordNotUnique
         raise ConcurrentMigration, "Migration for version #{new_version} is already running"
       end
@@ -67,6 +72,10 @@ module Sequent
 
       def self.end_offline!(new_version)
         find_by!(version: new_version, status: MIGRATE_OFFLINE_RUNNING).update(status: DONE)
+      end
+
+      def self.current_snapshot_xmin_xact_id
+        connection.execute('SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint AS xmin').first['xmin']
       end
     end
   end

@@ -125,6 +125,44 @@ module Sequent
               end
             end
 
+            desc <<-EOS
+              Shows the current status of the migrations
+            EOS
+            task status: ['sequent:init', :init] do
+              ensure_sequent_env_set!
+              db_config = Sequent::Support::Database.read_config(@env)
+              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
+
+              latest_done_version = Sequent::Migrations::Versions.done.latest
+              latest_version = Sequent::Migrations::Versions.latest
+              pending_version = Sequent.new_version
+              case latest_version.status
+              when Sequent::Migrations::Versions::DONE
+                if pending_version == latest_version.version
+                  puts "Current version #{latest_version.version}, no pending changes"
+                else
+                  puts "Current version #{latest_version.version}, pending version #{pending_version}"
+                end
+              when Sequent::Migrations::Versions::MIGRATE_ONLINE_RUNNING
+                puts "Online migration from #{latest_done_version.version} to #{latest_version.version} is running"
+              when Sequent::Migrations::Versions::MIGRATE_ONLINE_FINISHED
+                projectors = view_schema.plan.projectors
+                event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
+
+                current_snapshot_xmin_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
+                pending_events = Sequent.configuration.event_record_class
+                  .where(event_type: event_types)
+                  .where('xact_id >= ?', current_snapshot_xmin_xact_id)
+                  .count
+                print <<~EOS
+                  Online migration from #{latest_done_version.version} to #{latest_version.version} is finished.
+                  #{current_snapshot_xmin_xact_id - latest_version.xmin_xact_id} transactions behind current state (#{pending_events} pending events).
+                EOS
+              when Sequent::Migrations::Versions::MIGRATE_OFFLINE_RUNNING
+                puts "Offline migration from #{latest_done_version.version} to #{latest_version.version} is running"
+              end
+            end
+
             desc <<~EOS
               Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.
             EOS

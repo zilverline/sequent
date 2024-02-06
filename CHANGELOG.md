@@ -1,5 +1,6 @@
 # Changelog 7.0.x (changes since 7.0.0)
 
+- Replaying all events for the view schema (using `sequent:migrate:online` and `sequent:migrate:offline`) now make use of the PostgreSQL committed transaction id to track events that have already been replayed.  The replayed ids table (specified by the removed `Sequent::configuration.replayed_ids_table_name` option) is no longer used and can be dropped from your database.
 - The `MessageDispatcher` class has been removed.
 - Instance-of routes in projectors and other message handlers now use an optimized lookup mechanism. These are the most common handlers (`on MyEvent do ... end`).
 - Many optimizations were applied to the `ReplayOptimizedPostgresPersistor`:
