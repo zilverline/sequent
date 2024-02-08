@@ -239,16 +239,16 @@ module Sequent
 
       def store_events(command, streams_with_events = [])
         command_record = CommandRecord.create!(command: command)
-        json = streams_with_events.map do |event_stream, uncommitted_events|
-          stream = Oj.strict_load(Oj.dump(event_stream))
+        json = streams_with_events.map do |stream, uncommitted_events|
           [
-            stream,
+            Oj.strict_load(Oj.dump(stream)),
             uncommitted_events.map do |event|
               r = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
               # Since ActiveRecord uses `TIMESTAMP WITHOUT TIME ZONE`
               # we need to manually convert database timestamps to the
               # ActiveRecord default time zone on serialization.
-              r['created_at'] = ActiveRecord.default_timezone == :utc ? event.created_at.to_time.getutc : event.created_at.to_time.getlocal
+              created_at = event.created_at.to_time
+              r['created_at'] = ActiveRecord.default_timezone == :utc ? created_at.getutc : created_at.getlocal
               r['event_type'] = event.class.name
               r
             end,
