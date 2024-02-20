@@ -46,7 +46,7 @@ describe Sequent::Core::EventStore do
     let(:snapshot_threshold) { 1 }
     before do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(
@@ -99,7 +99,7 @@ describe Sequent::Core::EventStore do
     it 'fails with OptimisticLockingError when RecordNotUnique' do
       expect do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(
@@ -123,7 +123,7 @@ describe Sequent::Core::EventStore do
   describe '#events_exists?' do
     it 'gets true for an existing aggregate' do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(
@@ -146,7 +146,7 @@ describe Sequent::Core::EventStore do
   describe '#stream_exists?' do
     it 'gets true for an existing aggregate' do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(
@@ -175,7 +175,7 @@ describe Sequent::Core::EventStore do
 
     it 'returns the stream and events for existing aggregates' do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
@@ -204,7 +204,7 @@ describe Sequent::Core::EventStore do
         TestEventForCaching = Class.new(Sequent::Core::Event)
 
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
@@ -233,7 +233,7 @@ describe Sequent::Core::EventStore do
 
     before :each do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
@@ -277,7 +277,7 @@ describe Sequent::Core::EventStore do
     context 'with a snapshot event' do
       before :each do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(
@@ -370,7 +370,7 @@ describe Sequent::Core::EventStore do
       it 'calls an event handler that handles the event' do
         my_event = MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(
@@ -390,7 +390,7 @@ describe Sequent::Core::EventStore do
           Sequent.configuration.disable_event_handlers = true
           my_event = MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)
           event_store.commit_events(
-            Sequent::Core::CommandRecord.new,
+            Sequent::Core::Command.new(aggregate_id: aggregate_id),
             [
               [
                 Sequent::Core::EventStream.new(
@@ -412,7 +412,7 @@ describe Sequent::Core::EventStore do
       let(:my_event) { MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1) }
       subject(:publish_error) do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(

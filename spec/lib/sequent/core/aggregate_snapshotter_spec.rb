@@ -26,7 +26,7 @@ describe Sequent::Core::AggregateSnapshotter do
   before :each do
     Sequent.configuration.command_handlers << described_class.new
     event_store.commit_events(
-      Sequent::Core::CommandRecord.new,
+      Sequent::Core::Command.new(aggregate_id: aggregate_id),
       [
         [
           Sequent::Core::EventStream.new(
@@ -60,7 +60,7 @@ describe Sequent::Core::AggregateSnapshotter do
 
     before :each do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(

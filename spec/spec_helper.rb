@@ -40,7 +40,7 @@ RSpec.configure do |c|
       ]
     end
     Sequent.configuration.event_store.commit_events(
-      Sequent::Core::CommandRecord.new,
+      Sequent::Core::Command.new(events.first.attributes),
       streams_with_events,
     )
   end
