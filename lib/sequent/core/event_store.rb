@@ -230,9 +230,13 @@ module Sequent
       end
 
       def deserialize_event(event_hash)
-        event_type = event_hash.fetch('event_type')
-        event_json = Sequent::Core::Oj.strict_load(event_hash.fetch('event_json'))
-        resolve_event_type(event_type).deserialize_from_json(event_json)
+        record = EventRecord.new
+        record.event_type = event_hash.fetch('event_type')
+        record.event_json = event_hash.fetch('event_json')
+        # When the column type is JSON or JSONB the event record class expects the JSON to be
+        # deserialized into a hash already.
+        record.event_json = Sequent::Core::Oj.strict_load(record.event_json) unless record.serialize_json?
+        record.event
       rescue StandardError
         raise DeserializeEventError, event_hash
       end
@@ -255,22 +259,14 @@ module Sequent
             event_stream.stream_record_id = stream_record.id
           end
           uncommitted_events.map do |event|
-            Sequent.configuration.event_record_class.new.tap do |record|
-              record.command_record_id = command_record.id
-              record.stream_record_id = event_stream.stream_record_id
-              record.event = event
-            end
+            record = Sequent.configuration.event_record_class.new
+            record.command_record_id = command_record.id
+            record.stream_record_id = event_stream.stream_record_id
+            record.event = event
+            record.attributes.slice(*column_names)
           end
         end
-        connection = Sequent.configuration.event_record_class.connection
-        values = event_records
-          .map { |r| "(#{column_names.map { |c| connection.quote(r[c.to_sym]) }.join(',')})" }
-          .join(',')
-        columns = column_names.map { |c| connection.quote_column_name(c) }.join(',')
-        sql = <<~SQL.chomp
-          insert into #{connection.quote_table_name(Sequent.configuration.event_record_class.table_name)} (#{columns}) values #{values}
-        SQL
-        Sequent.configuration.event_record_class.connection.insert(sql, nil, primary_key_event_records)
+        Sequent.configuration.event_record_class.insert_all!(event_records)
       rescue ActiveRecord::RecordNotUnique
         raise OptimisticLockingError
       end
