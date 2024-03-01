@@ -8,6 +8,7 @@ ActiveRecord::Schema.define do
     t.text "event_json", :null => false
     t.integer "command_record_id", :null => false
     t.integer "stream_record_id", :null => false
+    t.bigint "xact_id"
   end
 
   execute %Q{
