@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
     'https://github.com/zilverline/sequent'
   s.license = 'MIT'
 
-  active_star_version = '>= 6.0'
+  active_star_version = '>= 7.0'
 
   rspec_version = '~> 3.10'
 

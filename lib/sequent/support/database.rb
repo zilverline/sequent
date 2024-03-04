@@ -23,11 +23,7 @@ module Sequent
 
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
         config = YAML.safe_load(ERB.new(File.read(database_yml)).result, aliases: true)[env]
-        if Gem.loaded_specs['activerecord'].version >= Gem::Version.create('6.1.0')
-          ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
-        else
-          ActiveRecord::Base.resolve_config_for_connection(config)
-        end
+        ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
       end
 
       def self.create!(db_config)
@@ -122,11 +118,7 @@ module Sequent
       end
 
       def self.configuration_hash
-        if Gem.loaded_specs['activesupport'].version >= Gem::Version.create('6.1.0')
-          ActiveRecord::Base.connection_db_config.configuration_hash
-        else
-          ActiveRecord::Base.connection_config
-        end
+        ActiveRecord::Base.connection_db_config.configuration_hash
       end
 
       def schema_exists?(schema, event_records_table = nil)
