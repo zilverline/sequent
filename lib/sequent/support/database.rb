@@ -144,7 +144,6 @@ module Sequent
       def execute_sql(sql)
         self.class.execute_sql(sql)
       end
-
     end
   end
 end

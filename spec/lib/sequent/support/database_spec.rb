@@ -120,7 +120,7 @@ describe Sequent::Support::Database do
       it 'schema does not exist when specified table is not present' do
         database.create_schema!('eventstore')
         expect(database.schema_exists?('eventstore', 'event_records')).to eq(false)
-        database.execute_sql('CREATE VIEW eventstore.event_records (id) AS SELECT 1');
+        database.execute_sql('CREATE VIEW eventstore.event_records (id) AS SELECT 1')
         expect(database.schema_exists?('eventstore', 'event_records')).to eq(true)
       end
     end
