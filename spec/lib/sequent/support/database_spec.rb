@@ -104,7 +104,7 @@ describe Sequent::Support::Database do
   shared_examples 'instance methods' do
     describe '#create_schema!' do
       before do
-        Sequent::ApplicationRecord.connection.execute('drop schema if exists eventstore')
+        Sequent::ApplicationRecord.connection.execute('DROP SCHEMA IF EXISTS eventstore CASCADE')
       end
       it 'creates the schema' do
         expect { database.create_schema!('eventstore') }.to change {
@@ -115,6 +115,13 @@ describe Sequent::Support::Database do
       it 'ignores existing schema' do
         database.create_schema!('eventstore')
         expect { database.create_schema!('eventstore') }.to_not raise_error
+      end
+
+      it 'schema does not exist when specified table is not present' do
+        database.create_schema!('eventstore')
+        expect(database.schema_exists?('eventstore', 'event_records')).to eq(false)
+        database.execute_sql('CREATE VIEW eventstore.event_records (id) AS SELECT 1');
+        expect(database.schema_exists?('eventstore', 'event_records')).to eq(true)
       end
     end
 
