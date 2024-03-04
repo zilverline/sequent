@@ -1,9 +1,9 @@
 PATH
   remote: ..
   specs:
-    sequent (7.0.1)
-      activemodel (>= 6.0)
-      activerecord (>= 6.0)
+    sequent (7.1.0)
+      activemodel (>= 7.0)
+      activerecord (>= 7.0)
       bcrypt (~> 3.1)
       i18n
       oj (~> 3)
@@ -114,4 +114,4 @@ DEPENDENCIES
   timecop (~> 0.9)
 
 BUNDLED WITH
-   2.3.24
+   2.4.19
