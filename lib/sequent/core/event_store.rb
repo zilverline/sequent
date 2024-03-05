@@ -232,10 +232,15 @@ module Sequent
       def deserialize_event(event_hash)
         record = EventRecord.new
         record.event_type = event_hash.fetch('event_type')
-        record.event_json = event_hash.fetch('event_json')
-        # When the column type is JSON or JSONB the event record class expects the JSON to be
-        # deserialized into a hash already.
-        record.event_json = Sequent::Core::Oj.strict_load(record.event_json) unless record.serialize_json?
+        record.event_json =
+          if record.serialize_json?
+            event_hash.fetch('event_json')
+          else
+            # When the column type is JSON or JSONB the event record
+            # class expects the JSON to be deserialized into a hash
+            # already.
+            Sequent::Core::Oj.strict_load(event_hash.fetch('event_json'))
+          end
         record.event
       rescue StandardError
         raise DeserializeEventError, event_hash
