@@ -266,7 +266,7 @@ module Sequent
             record.attributes.slice(*column_names)
           end
         end
-        Sequent.configuration.event_record_class.insert_all!(event_records)
+        Sequent.configuration.event_record_class.insert_all!(event_records) if event_records.present?
       rescue ActiveRecord::RecordNotUnique
         raise OptimisticLockingError
       end
