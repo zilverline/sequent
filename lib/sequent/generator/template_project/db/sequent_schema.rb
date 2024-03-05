@@ -5,7 +5,7 @@ ActiveRecord::Schema.define do
     t.integer "sequence_number", :null => false
     t.datetime "created_at", :null => false
     t.string "event_type", :null => false
-    t.text "event_json", :null => false
+    t.jsonb "event_json", :null => false
     t.integer "command_record_id", :null => false
     t.integer "stream_record_id", :null => false
   end
@@ -29,7 +29,7 @@ CREATE INDEX snapshot_events ON event_records (aggregate_id, sequence_number DES
     t.string "user_id"
     t.uuid "aggregate_id"
     t.string "command_type", :null => false
-    t.text "command_json", :null => false
+    t.jsonb "command_json", :null => false
     t.datetime "created_at", :null => false
   end
 
