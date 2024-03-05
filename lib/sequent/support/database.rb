@@ -23,11 +23,7 @@ module Sequent
 
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
         config = YAML.safe_load(ERB.new(File.read(database_yml)).result, aliases: true)[env]
-        if Gem.loaded_specs['activerecord'].version >= Gem::Version.create('6.1.0')
-          ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
-        else
-          ActiveRecord::Base.resolve_config_for_connection(config)
-        end
+        ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
       end
 
       def self.create!(db_config)
@@ -102,22 +98,31 @@ module Sequent
         establish_connection(db_config)
       end
 
-      def self.schema_exists?(schema)
-        ActiveRecord::Base.connection.execute(
-          "SELECT schema_name FROM information_schema.schemata WHERE schema_name like '#{schema}'",
+      def self.schema_exists?(schema, event_records_table = nil)
+        schema_exists = ActiveRecord::Base.connection.exec_query(
+          'SELECT 1 FROM information_schema.schemata WHERE schema_name LIKE $1',
+          'schema_exists?',
+          [schema],
+        ).count == 1
+
+        # The ActiveRecord 7.1 schema_dumper.rb now also adds `create_schema` statements for any schema that
+        # is not named `public`, and in this case the schema may already be created so we check for the
+        # existence of the `event_records` table (or view) as well.
+        return schema_exists unless event_records_table
+
+        ActiveRecord::Base.connection.exec_query(
+          'SELECT 1 FROM information_schema.tables WHERE table_schema LIKE $1 AND table_name LIKE $2',
+          'schema_exists?',
+          [schema, event_records_table],
         ).count == 1
       end
 
       def self.configuration_hash
-        if Gem.loaded_specs['activesupport'].version >= Gem::Version.create('6.1.0')
-          ActiveRecord::Base.connection_db_config.configuration_hash
-        else
-          ActiveRecord::Base.connection_config
-        end
+        ActiveRecord::Base.connection_db_config.configuration_hash
       end
 
-      def schema_exists?(schema)
-        self.class.schema_exists?(schema)
+      def schema_exists?(schema, event_records_table = nil)
+        self.class.schema_exists?(schema, event_records_table)
       end
 
       def create_schema!(schema)
@@ -131,7 +136,6 @@ module Sequent
       def execute_sql(sql)
         self.class.execute_sql(sql)
       end
-
     end
   end
 end

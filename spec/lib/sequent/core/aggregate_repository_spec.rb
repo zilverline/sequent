@@ -150,8 +150,8 @@ describe Sequent::Core::AggregateRepository do
 
       repository.add_aggregate aggregate
       expect { repository.load_aggregate(aggregate.id, String) }.to raise_error { |error|
-                                                                      expect(error).to be_a TypeError
-                                                                    }
+        expect(error).to be_a TypeError
+      }
     end
 
     it 'should prevent different aggregates with the same id from being added' do

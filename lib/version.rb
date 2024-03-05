@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Sequent
-  VERSION = '7.0.1'
+  VERSION = '8.0.0-dev.1'
 end

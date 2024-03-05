@@ -29,10 +29,6 @@ jobs:
             gemfile: 'ar_7_0'
           - ruby-version: 3.0.5
             gemfile: 'ar_7_0'
-          - ruby-version: 3.0.5
-            gemfile: 'ar_6_1'
-          - ruby-version: 3.0.5
-            gemfile: 'ar_6_0'
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:
@@ -84,7 +80,7 @@ jobs:
       - name: Run integration tests simple
         run: |
           cd integration-specs/simple
-          bundle exec rspec    
+          bundle exec rspec
 
   integration_rails:
     env:
@@ -119,4 +115,3 @@ jobs:
           bundle exec rake sequent:db:create_event_store
           bundle exec rake sequent:db:create_view_schema
           bundle exec rspec spec
-      

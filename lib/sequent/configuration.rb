@@ -129,7 +129,7 @@ module Sequent
     end
 
     def can_use_multiple_databases?
-      enable_multiple_database_support && ActiveRecord.version > Gem::Version.new('6.1.0')
+      enable_multiple_database_support
     end
 
     def versions_table_name=(table_name)
