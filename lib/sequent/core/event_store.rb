@@ -153,13 +153,14 @@ module Sequent
                              WHERE aggregate_id = #{quote(aggregate_id)}
                              ORDER BY sequence_number DESC
                              LIMIT 1)
-          SELECT snapshot_type AS event_type, snapshot_json AS event_json FROM snapshot
+          SELECT snapshot_type AS event_type, snapshot_json AS event_json, 0 AS sequence_number
+            FROM snapshot
            UNION ALL
-          (SELECT event_type, event_json
-             FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
-            WHERE aggregate_id = #{quote(aggregate_id)}
-              AND sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
-            ORDER BY sequence_number ASC)
+          SELECT event_type, event_json, sequence_number
+            FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
+           WHERE aggregate_id = #{quote(aggregate_id)}
+             AND sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
+          ORDER BY sequence_number ASC
           )
         SQL
       end
