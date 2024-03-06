@@ -85,6 +85,10 @@ module Sequent
         fail ArgumentError, 'no events for this aggregate' unless has_events
       end
 
+      def load_event(aggregate_id, sequence_number)
+        EventRecord.find_by(aggregate_id:, sequence_number:)&.event
+      end
+
       ##
       # Returns all events for the aggregate ordered by sequence_number, loading them from the latest snapshot
       # event onwards, if a snapshot is present
