@@ -236,6 +236,21 @@ module Sequent
         record&.event_stream
       end
 
+      def permanently_delete_event_stream(aggregate_id)
+        SnapshotRecord.where(aggregate_id: aggregate_id).delete_all
+        EventRecord.where(aggregate_id: aggregate_id).delete_all
+        StreamRecord.where(aggregate_id: aggregate_id).delete_all
+      end
+
+      def permanently_delete_commands_without_events(aggregate_id)
+        connection = Sequent.configuration.event_record_class.connection
+        connection.exec_update(<<~EOS, 'permanently_delete_commands_without_events', [aggregate_id])
+          DELETE FROM command_records
+           WHERE aggregate_id = $1
+             AND NOT EXISTS (SELECT 1 FROM event_records WHERE command_record_id = command_records.id)
+        EOS
+      end
+
       private
 
       def event_types
