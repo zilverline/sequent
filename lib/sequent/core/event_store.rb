@@ -116,14 +116,16 @@ module Sequent
       end
 
       def store_snapshots(snapshots)
+        serializer = SnapshotRecord.new
         SnapshotRecord.insert_all!(
           snapshots.map do |snapshot|
+            serializer.event = snapshot
             {
-              aggregate_id: snapshot.aggregate_id,
-              sequence_number: snapshot.sequence_number,
-              created_at: snapshot.created_at,
-              snapshot_type: snapshot.class.name,
-              snapshot_json: Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(snapshot)),
+              aggregate_id: serializer.aggregate_id,
+              sequence_number: serializer.sequence_number,
+              created_at: serializer.created_at,
+              snapshot_type: serializer.snapshot_type,
+              snapshot_json: serializer.snapshot_json,
             }
           end,
         )

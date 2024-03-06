@@ -122,12 +122,21 @@ module Sequent
         snapshot_type
       end
 
+      def event_type=(type)
+        self.snapshot_type = type
+      end
+
       def event_json
         snapshot_json
       end
 
+      def event_json=(json)
+        self.snapshot_json = json
+      end
+
       def serialize_json?
-        false
+        json_column_type = self.class.columns_hash['snapshot_json'].sql_type_metadata.type
+        %i[json jsonb].exclude? json_column_type
       end
     end
   end
