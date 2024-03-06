@@ -80,6 +80,7 @@ module Sequent
     class EventRecord < Sequent::ApplicationRecord
       include SerializesEvent
 
+      self.primary_key = %i[aggregate_id sequence_number]
       self.table_name = 'event_records'
       self.ignored_columns = %w[xact_id]
 
@@ -111,6 +112,7 @@ module Sequent
     class SnapshotRecord < Sequent::ApplicationRecord
       include SerializesEvent
 
+      self.primary_key = %i[aggregate_id sequence_number]
       self.table_name = 'snapshot_records'
 
       belongs_to :stream_record, foreign_key: :aggregate_id, primary_key: :aggregate_id

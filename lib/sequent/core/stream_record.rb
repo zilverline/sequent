@@ -15,6 +15,7 @@ module Sequent
     end
 
     class StreamRecord < Sequent::ApplicationRecord
+      self.primary_key = %i[aggregate_id]
       self.table_name = 'stream_records'
 
       validates_presence_of :aggregate_type, :aggregate_id
