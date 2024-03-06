@@ -223,6 +223,8 @@ describe Sequent::Core::EventStore do
         stream, events = event_store.load_events(aggregate_id)
         expect(stream).to be
         expect(events.first).to be_kind_of(TestEventForCaching)
+
+        expect(event_store.load_event(aggregate_id, events.first.sequence_number)).to eq(events.first)
       end
     end
   end
@@ -529,6 +531,35 @@ describe Sequent::Core::EventStore do
 
     on Sequent::Core::Event do |_|
       @replay_count += 1
+    end
+  end
+
+  describe '#permanently_delete_commands_without_events' do
+    before do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id:,
+              snapshot_threshold: 13,
+            ),
+            [MyEvent.new(aggregate_id:, sequence_number: 1)],
+          ],
+        ],
+      )
+    end
+
+    it 'does not delete commands with associated events' do
+      event_store.permanently_delete_commands_without_events(aggregate_id)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id:)).to be_truthy
+    end
+
+    it 'deletes commands without associated events' do
+      event_store.permanently_delete_event_stream(aggregate_id)
+      event_store.permanently_delete_commands_without_events(aggregate_id)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id:)).to be_falsy
     end
   end
 end
