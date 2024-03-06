@@ -248,13 +248,11 @@ module Sequent
         StreamRecord.where(aggregate_id: aggregate_id).delete_all
       end
 
-      def permanently_delete_commands_without_events(aggregate_id)
-        connection = Sequent.configuration.event_record_class.connection
-        connection.exec_update(<<~EOS, 'permanently_delete_commands_without_events', [aggregate_id])
-          DELETE FROM command_records
-           WHERE aggregate_id = $1
-             AND NOT EXISTS (SELECT 1 FROM event_records WHERE command_record_id = command_records.id)
-        EOS
+      def permanently_delete_commands_without_events(where_clause)
+        CommandRecord
+          .where(where_clause)
+          .where('NOT EXISTS (SELECT 1 FROM event_records WHERE command_record_id = command_records.id)')
+          .delete_all
       end
 
       private

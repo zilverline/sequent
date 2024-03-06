@@ -552,13 +552,13 @@ describe Sequent::Core::EventStore do
     end
 
     it 'does not delete commands with associated events' do
-      event_store.permanently_delete_commands_without_events(aggregate_id)
+      event_store.permanently_delete_commands_without_events(aggregate_id:)
       expect(Sequent::Core::CommandRecord.exists?(aggregate_id:)).to be_truthy
     end
 
     it 'deletes commands without associated events' do
       event_store.permanently_delete_event_stream(aggregate_id)
-      event_store.permanently_delete_commands_without_events(aggregate_id)
+      event_store.permanently_delete_commands_without_events(aggregate_id:)
       expect(Sequent::Core::CommandRecord.exists?(aggregate_id:)).to be_falsy
     end
   end
