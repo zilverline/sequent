@@ -306,7 +306,7 @@ module Sequent
             aggregate_type: event_stream.aggregate_type,
             snapshot_threshold: event_stream.snapshot_threshold,
           }
-        end
+        end.uniq { |s| s[:aggregate_id] }
         StreamRecord.upsert_all(streams, unique_by: :aggregate_id, update_only: %i[snapshot_threshold])
 
         event_records = streams_with_events.flat_map do |_, uncommitted_events|
