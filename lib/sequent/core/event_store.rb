@@ -115,17 +115,45 @@ module Sequent
           end
       end
 
+      def store_snapshots(snapshots)
+        SnapshotRecord.insert_all!(
+          snapshots.map do |snapshot|
+            {
+              aggregate_id: snapshot.aggregate_id,
+              sequence_number: snapshot.sequence_number,
+              created_at: snapshot.created_at,
+              snapshot_type: snapshot.class.name,
+              snapshot_json: Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(snapshot)),
+            }
+          end,
+        )
+      end
+
+      def load_latest_snapshot(aggregate_id)
+        latest_snapshot = SnapshotRecord.where(aggregate_id:).order(:sequence_number).last
+        latest_snapshot&.event
+      end
+
+      # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
+      def delete_snapshots_before(aggregate_id, sequence_number)
+        SnapshotRecord.where(aggregate_id: aggregate_id).where('sequence_number < ?', sequence_number).delete_all
+      end
+
       def aggregate_query(aggregate_id)
         <<~SQL.chomp
           (
-          SELECT event_type, event_json
-            FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
-          WHERE aggregate_id = #{quote(aggregate_id)}
-          AND sequence_number >= COALESCE((SELECT MAX(sequence_number)
-                                           FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS i
-                                           WHERE event_type = #{quote Sequent.configuration.snapshot_event_class.name}
-                                             AND i.aggregate_id = #{quote(aggregate_id)}), 0)
-          ORDER BY sequence_number ASC, (CASE event_type WHEN #{quote Sequent.configuration.snapshot_event_class.name} THEN 0 ELSE 1 END) ASC
+          WITH snapshot AS (SELECT *
+                              FROM #{quote_table_name Sequent.configuration.snapshot_record_class.table_name}
+                             WHERE aggregate_id = #{quote(aggregate_id)}
+                             ORDER BY sequence_number DESC
+                             LIMIT 1)
+          SELECT snapshot_type AS event_type, snapshot_json AS event_json FROM snapshot
+           UNION ALL
+          (SELECT event_type, event_json
+             FROM #{quote_table_name Sequent.configuration.event_record_class.table_name} AS o
+            WHERE aggregate_id = #{quote(aggregate_id)}
+              AND sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
+            ORDER BY sequence_number ASC)
           )
         SQL
       end
@@ -164,7 +192,7 @@ module Sequent
           event = deserialize_event(record)
           publish_events([event])
           progress += 1
-          ids_replayed << record['id']
+          ids_replayed << record['aggregate_id']
           if progress % block_size == 0
             on_progress[progress, false, ids_replayed]
             ids_replayed.clear
@@ -187,14 +215,15 @@ module Sequent
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
         stream_table = quote_table_name Sequent.configuration.stream_record_class.table_name
         event_table = quote_table_name Sequent.configuration.event_record_class.table_name
+        snapshot_table = quote_table_name Sequent.configuration.snapshot_record_class.table_name
         query = <<~SQL.chomp
           SELECT aggregate_id
             FROM #{stream_table} stream
            WHERE aggregate_id::varchar > COALESCE(#{quote last_aggregate_id}, '')
              AND snapshot_threshold IS NOT NULL
              AND snapshot_threshold <= (
-                   (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE events.event_type <> #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = events.aggregate_id) -
-                   COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{event_table} snapshots WHERE snapshots.event_type = #{quote Sequent.configuration.snapshot_event_class.name} AND stream.aggregate_id = snapshots.aggregate_id), 0))
+                   (SELECT MAX(events.sequence_number) FROM #{event_table} events WHERE stream.aggregate_id = events.aggregate_id) -
+                   COALESCE((SELECT MAX(snapshots.sequence_number) FROM #{snapshot_table} snapshots WHERE stream.aggregate_id = snapshots.aggregate_id), 0))
            ORDER BY aggregate_id
            LIMIT #{quote limit}
            FOR UPDATE
@@ -256,17 +285,19 @@ module Sequent
 
       def store_events(command, streams_with_events = [])
         command_record = CommandRecord.create!(command: command)
-        event_records = streams_with_events.flat_map do |event_stream, uncommitted_events|
-          unless event_stream.stream_record_id
-            stream_record = Sequent.configuration.stream_record_class.new
-            stream_record.event_stream = event_stream
-            stream_record.save!
-            event_stream.stream_record_id = stream_record.id
-          end
+        streams = streams_with_events.map do |event_stream, _|
+          {
+            aggregate_id: event_stream.aggregate_id,
+            aggregate_type: event_stream.aggregate_type,
+            snapshot_threshold: event_stream.snapshot_threshold,
+          }
+        end
+        StreamRecord.upsert_all(streams, unique_by: :aggregate_id, update_only: %i[snapshot_threshold])
+
+        event_records = streams_with_events.flat_map do |_, uncommitted_events|
           uncommitted_events.map do |event|
             record = Sequent.configuration.event_record_class.new
             record.command_record_id = command_record.id
-            record.stream_record_id = event_stream.stream_record_id
             record.event = event
             record.attributes.slice(*column_names)
           end

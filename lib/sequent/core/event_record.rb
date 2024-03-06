@@ -83,7 +83,7 @@ module Sequent
       self.table_name = 'event_records'
       self.ignored_columns = %w[xact_id]
 
-      belongs_to :stream_record
+      belongs_to :stream_record, foreign_key: :aggregate_id, primary_key: :aggregate_id
       belongs_to :command_record
 
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
@@ -105,6 +105,29 @@ module Sequent
         return find_origin(record.parent) if record.parent.present?
 
         record
+      end
+    end
+
+    class SnapshotRecord < Sequent::ApplicationRecord
+      include SerializesEvent
+
+      self.table_name = 'snapshot_records'
+
+      belongs_to :stream_record, foreign_key: :aggregate_id, primary_key: :aggregate_id
+
+      validates_presence_of :aggregate_id, :sequence_number, :snapshot_json, :stream_record
+      validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
+
+      def event_type
+        snapshot_type
+      end
+
+      def event_json
+        snapshot_json
+      end
+
+      def serialize_json?
+        false
       end
     end
   end

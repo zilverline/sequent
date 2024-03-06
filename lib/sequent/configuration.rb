@@ -38,6 +38,7 @@ module Sequent
                   :event_store_cache_event_types,
                   :command_service,
                   :event_record_class,
+                  :snapshot_record_class,
                   :stream_record_class,
                   :snapshot_event_class,
                   :transaction_provider,
@@ -95,6 +96,7 @@ module Sequent
       self.event_store = Sequent::Core::EventStore.new
       self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
+      self.snapshot_record_class = Sequent::Core::SnapshotRecord
       self.stream_record_class = Sequent::Core::StreamRecord
       self.snapshot_event_class = Sequent::Core::SnapshotEvent
       self.transaction_provider = Sequent::Core::Transactions::ActiveRecordTransactionProvider.new

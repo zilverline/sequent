@@ -24,23 +24,27 @@ module Sequent
           @last_aggregate_id,
           command.limit,
         )
-        aggregate_ids.each do |aggregate_id|
-          take_snapshot!(aggregate_id)
-        end
+        snapshots = aggregate_ids.map do |aggregate_id|
+          take_snapshot(aggregate_id)
+        end.compact
+        Sequent.configuration.event_store.store_snapshots(snapshots)
+
         @last_aggregate_id = aggregate_ids.last
         throw :done if @last_aggregate_id.nil?
       end
 
       on TakeSnapshot do |command|
-        take_snapshot!(command.aggregate_id)
+        snapshot = take_snapshot(command.aggregate_id)
+        Sequent.configuration.event_store.store_snapshots([snapshot]) if snapshot
       end
 
-      def take_snapshot!(aggregate_id)
+      def take_snapshot(aggregate_id)
         aggregate = repository.load_aggregate(aggregate_id)
         Sequent.logger.info "Taking snapshot for aggregate #{aggregate}"
-        aggregate.take_snapshot!
+        aggregate.take_snapshot
       rescue StandardError => e
         Sequent.logger.error("Failed to take snapshot for aggregate #{aggregate_id}: #{e}, #{e.inspect}")
+        nil
       end
     end
   end

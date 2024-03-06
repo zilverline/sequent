@@ -41,9 +41,9 @@ describe Sequent::Core::AggregateSnapshotter do
   end
 
   it 'can take a snapshot' do
-    Sequent.command_service.execute_commands(*take_snapshot)
+    Sequent.command_service.execute_commands(take_snapshot)
 
-    expect(Sequent::Core::EventRecord.last.event_type).to eq Sequent::Core::SnapshotEvent.name
+    expect(Sequent::Core::SnapshotRecord.last.snapshot_type).to eq Sequent::Core::SnapshotEvent.name
   end
 
   context 'loads aggregates with snapshots' do

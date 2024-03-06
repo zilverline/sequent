@@ -1,35 +1,5 @@
 ActiveRecord::Schema.define do
 
-  create_table "event_records", :force => true do |t|
-    t.uuid "aggregate_id", :null => false
-    t.integer "sequence_number", :null => false
-    t.datetime "created_at", :null => false
-    t.string "event_type", :null => false
-    t.jsonb "event_json", :null => false
-    t.integer "command_record_id", :null => false
-    t.integer "stream_record_id", :null => false
-    t.bigint "xact_id"
-  end
-
-  execute %Q{
-ALTER TABLE event_records ALTER COLUMN xact_id SET DEFAULT pg_current_xact_id()::text::bigint
-}
-  execute %Q{
-CREATE UNIQUE INDEX unique_event_per_aggregate ON event_records (
-  aggregate_id,
-  sequence_number,
-  (CASE event_type WHEN 'Sequent::Core::SnapshotEvent' THEN 0 ELSE 1 END)
-)
-}
-  execute %Q{
-CREATE INDEX snapshot_events ON event_records (aggregate_id, sequence_number DESC) WHERE event_type = 'Sequent::Core::SnapshotEvent'
-}
-
-  add_index "event_records", ["command_record_id"], :name => "index_event_records_on_command_record_id"
-  add_index "event_records", ["event_type"], :name => "index_event_records_on_event_type"
-  add_index "event_records", ["created_at"], :name => "index_event_records_on_created_at"
-  add_index "event_records", ["xact_id"], :name => "index_event_records_on_xact_id"
-
   create_table "command_records", :force => true do |t|
     t.string "user_id"
     t.uuid "aggregate_id"
@@ -42,19 +12,47 @@ CREATE INDEX snapshot_events ON event_records (aggregate_id, sequence_number DES
 
   add_index "command_records", ["event_aggregate_id", 'event_sequence_number'], :name => "index_command_records_on_event"
 
-  create_table "stream_records", :force => true do |t|
+  create_table "stream_records", :primary_key => ['aggregate_id'], :force => true do |t|
     t.datetime "created_at", :null => false
     t.string "aggregate_type", :null => false
     t.uuid "aggregate_id", :null => false
     t.integer "snapshot_threshold"
   end
 
-  add_index "stream_records", ["aggregate_id"], :name => "index_stream_records_on_aggregate_id", :unique => true
+  create_table "event_records", :primary_key => ["aggregate_id", "sequence_number"], :force => true do |t|
+    t.uuid "aggregate_id", :null => false
+    t.integer "sequence_number", :null => false
+    t.datetime "created_at", :null => false
+    t.string "event_type", :null => false
+    t.jsonb "event_json", :null => false
+    t.integer "command_record_id", :null => false
+    t.bigint "xact_id", :null => false
+  end
+
+  add_index "event_records", ["command_record_id"], :name => "index_event_records_on_command_record_id"
+  add_index "event_records", ["event_type"], :name => "index_event_records_on_event_type"
+  add_index "event_records", ["created_at"], :name => "index_event_records_on_created_at"
+  add_index "event_records", ["xact_id"], :name => "index_event_records_on_xact_id"
+
+  execute %Q{
+ALTER TABLE event_records ALTER COLUMN xact_id SET DEFAULT pg_current_xact_id()::text::bigint
+}
   execute %q{
 ALTER TABLE event_records ADD CONSTRAINT command_fkey FOREIGN KEY (command_record_id) REFERENCES command_records (id)
 }
   execute %q{
-ALTER TABLE event_records ADD CONSTRAINT stream_fkey FOREIGN KEY (stream_record_id) REFERENCES stream_records (id)
+ALTER TABLE event_records ADD CONSTRAINT stream_fkey FOREIGN KEY (aggregate_id) REFERENCES stream_records (aggregate_id)
 }
 
+  create_table "snapshot_records", :primary_key => ["aggregate_id", "sequence_number"], :force => true do |t|
+    t.uuid "aggregate_id", :null => false
+    t.integer "sequence_number", :null => false
+    t.datetime "created_at", :null => false
+    t.text "snapshot_type", :null => false
+    t.jsonb "snapshot_json", :null => false
+  end
+
+  execute %q{
+ALTER TABLE snapshot_records ADD CONSTRAINT stream_fkey FOREIGN KEY (aggregate_id) REFERENCES stream_records (aggregate_id)
+}
 end

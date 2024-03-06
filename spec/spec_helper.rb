@@ -33,14 +33,15 @@ RSpec.configure do |c|
   end
 
   def insert_events(aggregate_type, events)
+    streams_with_events = events.group_by(&:aggregate_id).map do |aggregate_id, aggregate_events|
+      [
+        Sequent::Core::EventStream.new(aggregate_type: aggregate_type, aggregate_id: aggregate_id),
+        aggregate_events,
+      ]
+    end
     Sequent.configuration.event_store.commit_events(
       Sequent::Core::CommandRecord.new,
-      [
-        [
-          Sequent::Core::EventStream.new(aggregate_type: aggregate_type, aggregate_id: events.first.aggregate_id),
-          events,
-        ],
-      ],
+      streams_with_events,
     )
   end
 end
