@@ -49,15 +49,15 @@ ActiveRecord::Schema.define do
 
   add_foreign_key :event_records,
                   :command_records,
-                  name: 'commands_fkey'
+                  name: 'command_fkey'
   add_foreign_key :event_records,
                   :stream_records,
                   column: :aggregate_id,
                   primary_key: :aggregate_id,
-                  name: 'streams_fkey'
+                  name: 'stream_fkey'
   add_foreign_key :snapshot_records,
                   :stream_records,
                   column: :aggregate_id,
                   primary_key: :aggregate_id,
-                  name: 'streams_fkey'
+                  name: 'stream_fkey'
 end
