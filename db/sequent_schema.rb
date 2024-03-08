@@ -59,5 +59,6 @@ ActiveRecord::Schema.define do
                   :stream_records,
                   column: :aggregate_id,
                   primary_key: :aggregate_id,
+                  on_delete: :cascade,
                   name: 'stream_fkey'
 end

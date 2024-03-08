@@ -244,7 +244,6 @@ module Sequent
       end
 
       def permanently_delete_event_stream(aggregate_id)
-        SnapshotRecord.where(aggregate_id: aggregate_id).delete_all
         EventRecord.where(aggregate_id: aggregate_id).delete_all
         StreamRecord.where(aggregate_id: aggregate_id).delete_all
       end
