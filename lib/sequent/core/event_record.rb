@@ -46,7 +46,7 @@ module Sequent
 
     module SerializesEvent
       def event
-        payload = Sequent::Core::Oj.strict_load(event_json)
+        payload = serialize_json? ? Sequent::Core::Oj.strict_load(event_json) : event_json
         Class.const_get(event_type).deserialize_from_json(payload)
       end
 
@@ -56,7 +56,7 @@ module Sequent
         self.organization_id = event.organization_id if event.respond_to?(:organization_id)
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = self.class.serialize_to_json(event)
+        self.event_json = serialize_json? ? self.class.serialize_to_json(event) : event.attributes
 
         Sequent.configuration.event_record_hooks_class.after_serialization(self, event)
       end
@@ -69,6 +69,11 @@ module Sequent
 
       def self.included(host_class)
         host_class.extend(ClassMethods)
+      end
+
+      def serialize_json?
+        json_column_type = self.class.columns_hash['event_json'].sql_type_metadata.type
+        %i[json jsonb].exclude? json_column_type
       end
     end
 

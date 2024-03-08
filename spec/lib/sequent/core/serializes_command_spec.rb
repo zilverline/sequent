@@ -14,6 +14,10 @@ describe Sequent::Core::SerializesCommand do
                   :event_aggregate_id,
                   :event_sequence_number,
                   :organization_id
+
+    def serialize_json?
+      true
+    end
   end
 
   class RecordCommand < Sequent::Core::Command
@@ -57,6 +61,10 @@ describe Sequent::Core::SerializesCommand do
           @user_id = user_id
           @command_type = command_type
           @command_json = command_json
+        end
+
+        def serialize_json?
+          true
         end
       end
 

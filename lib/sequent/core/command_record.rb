@@ -7,7 +7,7 @@ module Sequent
   module Core
     module SerializesCommand
       def command
-        args = Sequent::Core::Oj.strict_load(command_json)
+        args = serialize_json? ? Sequent::Core::Oj.strict_load(command_json) : command_json
         Class.const_get(command_type).deserialize_from_json(args)
       end
 
@@ -16,7 +16,7 @@ module Sequent
         self.aggregate_id = command.aggregate_id if command.respond_to? :aggregate_id
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
-        self.command_json = Sequent::Core::Oj.dump(command.attributes)
+        self.command_json = serialize_json? ? Sequent::Core::Oj.dump(command.attributes) : command.attributes
 
         # optional attributes (here for historic reasons)
         # this should be moved to a configurable CommandSerializer
@@ -29,6 +29,11 @@ module Sequent
       end
 
       private
+
+      def serialize_json?
+        json_column_type = self.class.columns_hash['command_json'].sql_type_metadata.type
+        %i[json jsonb].exclude? json_column_type
+      end
 
       def serialize_attribute?(command, attribute)
         [self, command].all? { |obj| obj.respond_to?(attribute) }
