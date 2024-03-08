@@ -86,7 +86,7 @@ module Sequent
       end
 
       def load_event(aggregate_id, sequence_number)
-        EventRecord.find_by(aggregate_id:, sequence_number:)&.event
+        Sequent.configuration.event_record_class.find_by(aggregate_id:, sequence_number:)&.event
       end
 
       ##
@@ -244,8 +244,8 @@ module Sequent
       end
 
       def permanently_delete_event_stream(aggregate_id)
-        EventRecord.where(aggregate_id: aggregate_id).delete_all
-        StreamRecord.where(aggregate_id: aggregate_id).delete_all
+        Sequent.configuration.event_record_class.where(aggregate_id: aggregate_id).delete_all
+        Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_id).delete_all
       end
 
       def permanently_delete_commands_without_events(where_clause)
@@ -278,7 +278,7 @@ module Sequent
       end
 
       def deserialize_event(event_hash)
-        record = EventRecord.new
+        record = Sequent.configuration.event_record_class.new
         record.event_type = event_hash.fetch('event_type')
         record.event_json =
           if record.serialize_json?
@@ -311,7 +311,8 @@ module Sequent
             snapshot_threshold: event_stream.snapshot_threshold,
           }
         end.uniq { |s| s[:aggregate_id] }
-        StreamRecord.upsert_all(streams, unique_by: :aggregate_id, update_only: %i[snapshot_threshold])
+        Sequent.configuration.stream_record_class
+          .upsert_all(streams, unique_by: :aggregate_id, update_only: %i[snapshot_threshold])
 
         event_records = streams_with_events.flat_map do |_, uncommitted_events|
           uncommitted_events.map do |event|
