@@ -1,4 +1,27 @@
-# Changelog 7.0.x (changes since 7.0.0)
+# Changelog 8.0.x (changes since 7.0.1)
+
+- Sequent now requires at least Ruby 3.1 and ActiveRecord 7.1.
+- `AggregateRoot#take_snapshot!` has been replaced with
+  `AggregateRoot#take_snapshot` which returns the snapshot instead of
+  adding it to the uncommitted events. Snapshots can be stored using
+  `EventStore#store_snapshots`.
+- Events, commands, and snapshot can now be serialized directly to a
+  `JSON` or `JSONB` PostgreSQL column. Support for the `TEXT` column
+  type will be removed in a future release.
+- Snapshots are now stored into a separate `snapshot_records` table
+  instead of being mixed in with events in the `event_records` table.
+  This also makes it possible to store snapshots without an associated
+  command record.
+- The `id` column `event_streams` has been removed and the primary key
+  is now the `aggregate_id` column.
+- The `id` column of `event_records` has been removed and the primary
+  key are now the `aggregate_id` and `sequence_number` columns.
+- New APIs have been added to the event store to prepare for more
+  internal storage changes. Events streams and commands can now be
+  permanently deleted, snapshots can be managed, and events can be
+  loaded individually.
+
+# Changelog 7.0.1 (changes since 7.0.0)
 
 - Replaying all events for the view schema (using `sequent:migrate:online` and `sequent:migrate:offline`) now make use of the PostgreSQL committed transaction id to track events that have already been replayed.  The replayed ids table (specified by the removed `Sequent::configuration.replayed_ids_table_name` option) is no longer used and can be dropped from your database.
 - The `MessageDispatcher` class has been removed.
