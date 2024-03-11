@@ -17,6 +17,8 @@ module Sequent
       validates_presence_of :aggregate_id, :sequence_number, :snapshot_json, :stream_record
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
 
+      private
+
       def event_type
         snapshot_type
       end
