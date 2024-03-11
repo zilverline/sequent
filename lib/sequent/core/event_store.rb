@@ -3,6 +3,7 @@
 require 'forwardable'
 require_relative 'event_record'
 require_relative 'sequent_oj'
+require_relative 'snapshot_record'
 
 module Sequent
   module Core
