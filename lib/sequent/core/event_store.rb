@@ -323,9 +323,33 @@ module Sequent
             record.attributes.slice(*column_names)
           end
         end
-        Sequent.configuration.event_record_class.insert_all!(event_records) if event_records.present?
+
+        return unless event_records.present?
+
+        PatchedInsertAll.new(
+          Sequent.configuration.event_record_class,
+          event_records,
+          on_duplicate: :raise,
+        ).execute
+
+        nil
       rescue ActiveRecord::RecordNotUnique
         raise OptimisticLockingError
+      end
+    end
+
+    class PatchedInsertAll < ActiveRecord::InsertAll
+      def find_unique_index_for(_unique_by)
+        # Find_unique_index_for doesn't work if there is no proper
+        # primary key index, which is the case while Jortt is
+        # migrating from the old combined events+snapshots table For
+        # some reason `ActiveRecord::InsertAll#find_unique_index_for`
+        # wants to find such an index anyway, even though it is not
+        # needed for a simple bulk INSERT.  Override this method to
+        # always return nil here, so the `insert_all!` succeeds.  Once
+        # the primary key constraint + index is properly generated we
+        # can simply use `insert_all` directly again.
+        nil
       end
     end
   end
