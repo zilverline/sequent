@@ -467,11 +467,9 @@ describe Sequent::Core::EventStore do
       -> do
         event_records = Sequent.configuration.event_record_class.table_name
         stream_records = Sequent.configuration.stream_record_class.table_name
-        snapshot_event_type = Sequent.configuration.snapshot_event_class
         Sequent.configuration.event_record_class
           .select('event_type, event_json')
           .joins("INNER JOIN #{stream_records} ON #{event_records}.aggregate_id = #{stream_records}.aggregate_id")
-          .where('event_type <> ?', snapshot_event_type)
           .order!("#{stream_records}.aggregate_id, #{event_records}.sequence_number")
       end
     end

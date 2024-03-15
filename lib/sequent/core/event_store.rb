@@ -73,7 +73,6 @@ module Sequent
           .configuration
           .event_record_class
           .where(aggregate_id: aggregate_id)
-          .where.not(event_type: Sequent.configuration.snapshot_event_class.name)
           .order(:sequence_number)
         q = q.where('created_at < ?', load_until) if load_until.present?
         has_events = false
