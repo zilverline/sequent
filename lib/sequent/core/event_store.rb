@@ -244,8 +244,12 @@ module Sequent
       end
 
       def permanently_delete_event_stream(aggregate_id)
-        Sequent.configuration.event_record_class.where(aggregate_id: aggregate_id).delete_all
-        Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_id).delete_all
+        permanently_delete_event_streams([aggregate_id])
+      end
+
+      def permanently_delete_event_streams(aggregate_ids)
+        Sequent.configuration.event_record_class.where(aggregate_id: aggregate_ids).delete_all
+        Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_ids).delete_all
       end
 
       def permanently_delete_commands_without_events(where_clause)
