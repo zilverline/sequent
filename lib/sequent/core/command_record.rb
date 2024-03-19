@@ -53,7 +53,6 @@ module Sequent
       def parent
         EventRecord
           .where(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
-          .where('event_type != ?', Sequent::Core::SnapshotEvent.name)
           .first
       end
 

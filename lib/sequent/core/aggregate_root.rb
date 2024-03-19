@@ -104,9 +104,8 @@ module Sequent
         @uncommitted_events = []
       end
 
-      def take_snapshot!
-        snapshot = build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
-        @uncommitted_events << snapshot
+      def take_snapshot
+        build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
       end
 
       def apply_event(event)

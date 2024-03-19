@@ -448,7 +448,8 @@ describe Sequent::Core::AggregateRepository do
 
         Sequent.aggregate_repository.add_aggregate(dummy_aggregate)
         Sequent.aggregate_repository.commit(DummyCommand.new)
-        dummy_aggregate.take_snapshot!
+        snapshot = dummy_aggregate.take_snapshot
+        Sequent.configuration.event_store.store_snapshots([snapshot])
 
         Timecop.travel(30.minutes)
         dummy_aggregate.ping
@@ -467,7 +468,8 @@ describe Sequent::Core::AggregateRepository do
         dummy_aggregate.ping
         Sequent.aggregate_repository.add_aggregate(dummy_aggregate)
         Sequent.aggregate_repository.commit(DummyCommand.new)
-        dummy_aggregate.take_snapshot!
+        snapshot = dummy_aggregate.take_snapshot
+        Sequent.configuration.event_store.store_snapshots([snapshot])
         dummy_aggregate.ping
         Sequent.aggregate_repository.commit(DummyCommand.new)
         Sequent.aggregate_repository.clear

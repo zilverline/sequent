@@ -5,17 +5,17 @@ require 'active_record'
 module Sequent
   module Core
     class EventStream
-      attr_accessor :aggregate_type, :aggregate_id, :snapshot_threshold, :stream_record_id
+      attr_accessor :aggregate_type, :aggregate_id, :snapshot_threshold
 
-      def initialize(aggregate_type:, aggregate_id:, snapshot_threshold: nil, stream_record_id: nil)
+      def initialize(aggregate_type:, aggregate_id:, snapshot_threshold: nil)
         @aggregate_type = aggregate_type
         @aggregate_id = aggregate_id
         @snapshot_threshold = snapshot_threshold
-        @stream_record_id = stream_record_id
       end
     end
 
     class StreamRecord < Sequent::ApplicationRecord
+      self.primary_key = %i[aggregate_id]
       self.table_name = 'stream_records'
 
       validates_presence_of :aggregate_type, :aggregate_id
@@ -28,7 +28,6 @@ module Sequent
           aggregate_type: aggregate_type,
           aggregate_id: aggregate_id,
           snapshot_threshold: snapshot_threshold,
-          stream_record_id: id,
         )
       end
 

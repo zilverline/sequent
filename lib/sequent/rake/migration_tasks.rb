@@ -235,7 +235,7 @@ module Sequent
               result = Sequent::ApplicationRecord
                 .connection
                 .execute(<<~EOS)
-                  DELETE FROM #{Sequent.configuration.event_record_class.table_name} WHERE event_type = 'Sequent::Core::SnapshotEvent'
+                  DELETE FROM #{Sequent.configuration.snapshot_record_class.table_name}'
                 EOS
               Sequent.logger.info "Deleted #{result.cmd_tuples} aggregate snapshots from the event store"
             end
