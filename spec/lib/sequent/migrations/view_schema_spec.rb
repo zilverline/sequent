@@ -5,6 +5,17 @@ require 'active_support/hash_with_indifferent_access'
 require_relative '../fixtures/spec_migrations'
 
 describe Sequent::Migrations::ViewSchema do
+  wait_for_persisted_events_to_become_visible_for_online_migration = -> do
+    query = <<~EOS
+      SELECT max(xact_id) IS NULL OR
+             max(xact_id) < pg_snapshot_xmin(pg_current_snapshot())::text::bigint AS done
+        FROM event_records
+    EOS
+    until ActiveRecord::Base.connection.exec_query(query).first['done']
+      Sequent.logger.info 'Waiting for transactions to finish so test events are visible for online migration'
+    end
+  end
+
   let(:opts) { {db_config: db_config} }
   let(:migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
   let(:database_name) { Sequent.new_uuid }
@@ -181,6 +192,7 @@ describe Sequent::Migrations::ViewSchema do
             MessageSet.new(aggregate_id: message_aggregate_id, sequence_number: 2, message: 'Foobar'),
           ],
         )
+        wait_for_persisted_events_to_become_visible_for_online_migration[]
 
         before_migration_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
 
@@ -224,6 +236,7 @@ describe Sequent::Migrations::ViewSchema do
               MessageSet.new(aggregate_id: message_aggregate_id, sequence_number: 2, message: 'Foobar'),
             ],
           )
+          wait_for_persisted_events_to_become_visible_for_online_migration[]
 
           migrator.migrate_online
 
@@ -272,6 +285,7 @@ describe Sequent::Migrations::ViewSchema do
             AccountCreated.new(aggregate_id: account_id, sequence_number: 2),
           ],
         )
+        wait_for_persisted_events_to_become_visible_for_online_migration[]
 
         expect { migrator.migrate_online }.to raise_error(Parallel::UndumpableException)
 
@@ -293,6 +307,7 @@ describe Sequent::Migrations::ViewSchema do
               AccountCreated.new(aggregate_id: Sequent.new_uuid, sequence_number: 1),
             ],
           )
+          wait_for_persisted_events_to_become_visible_for_online_migration[]
 
           result = Parallel.map([1, 2], in_processes: 2) do |_id|
             @connected ||= Sequent::Support::Database.establish_connection(db_config)
@@ -371,6 +386,7 @@ describe Sequent::Migrations::ViewSchema do
 
         insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
         insert_events('Message', [MessageCreated.new(aggregate_id: message_id, sequence_number: 1)])
+        wait_for_persisted_events_to_become_visible_for_online_migration[]
 
         migrator.migrate_online
 
@@ -430,6 +446,8 @@ describe Sequent::Migrations::ViewSchema do
 
       it 'stops and does a rollback' do
         insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
+        wait_for_persisted_events_to_become_visible_for_online_migration[]
+
         migrator.migrate_online
 
         account_id_2 = Sequent.new_uuid
@@ -458,6 +476,7 @@ describe Sequent::Migrations::ViewSchema do
         before :each do
           insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])
           insert_events('Message', [MessageCreated.new(aggregate_id: message_id, sequence_number: 1)])
+          wait_for_persisted_events_to_become_visible_for_online_migration[]
 
           migrator.migrate_online
           migrator.migrate_offline
