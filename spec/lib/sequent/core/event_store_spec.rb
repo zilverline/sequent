@@ -6,6 +6,7 @@ require 'postgresql_cursor'
 
 describe Sequent::Core::EventStore do
   class MyEvent < Sequent::Core::Event
+    attrs data: String
   end
 
   class MyAggregate < Sequent::Core::AggregateRoot
@@ -75,6 +76,7 @@ describe Sequent::Core::EventStore do
       expect(stream.aggregate_id).to eq(aggregate_id)
       expect(events.first.aggregate_id).to eq(aggregate_id)
       expect(events.first.sequence_number).to eq(1)
+      expect(events.first.data).to eq("with ' unsafe SQL characters;\n")
     end
 
     it 'can find streams that need snapshotting' do
@@ -121,7 +123,7 @@ describe Sequent::Core::EventStore do
   end
 
   describe '#events_exists?' do
-    it 'gets true for an existing aggregate' do
+    before do
       event_store.commit_events(
         Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
@@ -135,16 +137,24 @@ describe Sequent::Core::EventStore do
           ],
         ],
       )
+    end
+
+    it 'gets true for an existing aggregate' do
       expect(event_store.events_exists?(aggregate_id)).to eq(true)
     end
 
     it 'gets false for an non-existing aggregate' do
+      expect(event_store.events_exists?(Sequent.new_uuid)).to eq(false)
+    end
+
+    it 'gets false after deletion' do
+      event_store.permanently_delete_event_stream(aggregate_id)
       expect(event_store.events_exists?(aggregate_id)).to eq(false)
     end
   end
 
   describe '#stream_exists?' do
-    it 'gets true for an existing aggregate' do
+    before do
       event_store.commit_events(
         Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
@@ -158,10 +168,18 @@ describe Sequent::Core::EventStore do
           ],
         ],
       )
+    end
+
+    it 'gets true for an existing aggregate' do
       expect(event_store.stream_exists?(aggregate_id)).to eq(true)
     end
 
     it 'gets false for an non-existing aggregate' do
+      expect(event_store.stream_exists?(Sequent.new_uuid)).to eq(false)
+    end
+
+    it 'gets false after deletion' do
+      event_store.permanently_delete_event_stream(aggregate_id)
       expect(event_store.stream_exists?(aggregate_id)).to eq(false)
     end
   end
@@ -186,6 +204,8 @@ describe Sequent::Core::EventStore do
       stream, events = event_store.load_events(aggregate_id)
       expect(stream).to be
       expect(events).to be
+
+      expect(event_store.load_event(aggregate_id, events.first.sequence_number)).to eq(events.first)
     end
 
     context 'and event type caching disabled' do
@@ -515,6 +535,35 @@ describe Sequent::Core::EventStore do
       total_events = Sequent::Core::EventRecord.count
       expect(progress).to eq(total_events)
       expect(progress_reported_count).to eq((total_events / 2.0).ceil)
+    end
+  end
+
+  describe '#delete_commands_without_events' do
+    before do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_threshold: 13,
+            ),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
+      )
+    end
+
+    it 'does not delete commands with associated events' do
+      event_store.permanently_delete_commands_without_events(aggregate_id: aggregate_id)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id: aggregate_id)).to be_truthy
+    end
+
+    it 'deletes commands without associated events' do
+      event_store.permanently_delete_event_stream(aggregate_id)
+      event_store.permanently_delete_commands_without_events(aggregate_id: aggregate_id)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id: aggregate_id)).to be_falsy
     end
   end
 

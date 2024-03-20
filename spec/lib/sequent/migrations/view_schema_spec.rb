@@ -437,8 +437,8 @@ describe Sequent::Migrations::ViewSchema do
         insert_events(
           'Account',
           [
+            AccountCreated.new(aggregate_id: account_id_2, sequence_number: 1),
             AccountCreated.new(aggregate_id: account_id_2, sequence_number: 2),
-            AccountCreated.new(aggregate_id: account_id_2, sequence_number: 3),
           ],
         )
 
@@ -483,8 +483,8 @@ describe Sequent::Migrations::ViewSchema do
           insert_events(
             'Account',
             [
+              AccountCreated.new(aggregate_id: account_id_2, sequence_number: 1),
               AccountCreated.new(aggregate_id: account_id_2, sequence_number: 2),
-              AccountCreated.new(aggregate_id: account_id_2, sequence_number: 3),
             ],
           )
 
