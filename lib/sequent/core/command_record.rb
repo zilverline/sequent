@@ -46,6 +46,7 @@ module Sequent
     class CommandRecord < Sequent::ApplicationRecord
       include SerializesCommand
 
+      self.primary_key = :id
       self.table_name = 'command_records'
 
       has_many :event_records
