@@ -68,6 +68,22 @@ describe Sequent::Core::EventStore do
       )
     end
 
+    it 'stores the event as JSON object' do
+      # Test to ensure stored data is not accidentally doubly-encoded,
+      # so query database directly instead of using `load_event`.
+      row = ActiveRecord::Base.connection.exec_query(
+        "SELECT event_json, event_json::jsonb->>'data' AS data FROM event_records \
+          WHERE aggregate_id = $1 and sequence_number = $2",
+        'query_event',
+        [aggregate_id, 1],
+      ).first
+
+      expect(row['data']).to eq("with ' unsafe SQL characters;\n")
+      json = Sequent::Core::Oj.strict_load(row['event_json'])
+      expect(json['aggregate_id']).to eq(aggregate_id)
+      expect(json['sequence_number']).to eq(1)
+    end
+
     it 'can store events' do
       stream, events = event_store.load_events aggregate_id
 
