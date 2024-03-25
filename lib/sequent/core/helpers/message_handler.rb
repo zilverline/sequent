@@ -107,7 +107,9 @@ module Sequent
 
         def dispatch_message(message, handlers)
           handlers.each do |handler|
-            Sequent.logger.debug("[MessageHandler] Handler #{@context.class} handling #{message.class}")
+            if Sequent.logger.debug?
+              Sequent.logger.debug("[MessageHandler] Handler #{self.class} handling #{message.class}")
+            end
             instance_exec(message, &handler)
           end
         end
