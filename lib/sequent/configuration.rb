@@ -159,18 +159,20 @@ module Sequent
 
       self.class.instance.command_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::CommandHandler) do |command_handler_class|
-        Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
+        if Sequent.logger.debug?
+          Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
+        end
         self.class.instance.command_handlers << command_handler_class.new
       end
 
       self.class.instance.event_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::Projector) do |projector_class|
-        Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}")
+        Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}") if Sequent.logger.debug?
         self.class.instance.event_handlers << projector_class.new
       end
 
       for_each_autoregisterable_descenant_of(Sequent::Workflow) do |workflow_class|
-        Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}")
+        Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}") if Sequent.logger.debug?
         self.class.instance.event_handlers << workflow_class.new
       end
 

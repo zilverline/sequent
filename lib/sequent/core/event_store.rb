@@ -209,10 +209,12 @@ module Sequent
       end
 
       PRINT_PROGRESS = ->(progress, done, _) do
+        next unless Sequent.logger.debug?
+
         if done
-          Sequent.logger.debug "Done replaying #{progress} events"
+          Sequent.logger.debug("Done replaying #{progress} events")
         else
-          Sequent.logger.debug "Replayed #{progress} events"
+          Sequent.logger.debug("Replayed #{progress} events")
         end
       end
 
