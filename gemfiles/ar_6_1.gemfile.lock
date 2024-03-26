@@ -8,7 +8,7 @@ PATH
       i18n
       oj (~> 3)
       parallel (~> 1.20)
-      parser (>= 2.6.5, < 3.3)
+      parser (>= 2.6.5, < 3.4)
       pg (~> 1.2)
       postgresql_cursor (~> 0.6)
       thread_safe (~> 0.3.6)
@@ -100,6 +100,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-22
+  arm64-darwin-23
   x86_64-linux
 
 DEPENDENCIES
