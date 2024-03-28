@@ -23,7 +23,7 @@ Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['SEQUENT_E
 RSpec.configure do |c|
   c.before do
     Database.establish_connection
-    Sequent::ApplicationRecord.connection.execute('TRUNCATE command_records, stream_records CASCADE')
+    Sequent::ApplicationRecord.connection.execute('TRUNCATE commands, aggregates CASCADE')
     Sequent::Configuration.reset
     Sequent.configuration.database_config_directory = 'tmp'
   end

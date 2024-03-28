@@ -2,10 +2,10 @@
 
 ActiveRecord::Schema.define do
   create_table 'command_records', force: true do |t|
-    t.string 'user_id'
+    t.uuid 'user_id'
     t.uuid 'aggregate_id'
     t.string 'command_type', null: false
-    t.string 'event_aggregate_id'
+    t.uuid 'event_aggregate_id'
     t.integer 'event_sequence_number'
     t.jsonb 'command_json', null: false
     t.datetime 'created_at', null: false
