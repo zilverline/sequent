@@ -33,7 +33,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'i18n'
   s.add_dependency 'oj', '~> 3'
   s.add_dependency 'parallel', '~> 1.20'
-  s.add_dependency 'parser', '>= 2.6.5', '< 3.3'
+  s.add_dependency 'parser', '>= 2.6.5', '< 3.4'
   s.add_dependency 'pg', '~> 1.2'
   s.add_dependency 'postgresql_cursor', '~> 0.6'
   s.add_dependency 'thread_safe', '~> 0.3.6'
