@@ -3,6 +3,16 @@
 module Sequent
   module Migrations
     module Grouper
+      GroupEndpoint = Data.define(:partition_key, :aggregate_id) do
+        def <=>(other)
+          return unless other.is_a?(self.class)
+
+          [partition_key, aggregate_id] <=> [other.partition_key, other.aggregate_id]
+        end
+
+        include Comparable
+      end
+
       # Generate approximately equally sized groups based on the
       # events partition keys and the number of events per partition
       # key.  Each group is defined by a lower bound (partition-key,
@@ -23,32 +33,34 @@ module Sequent
         result = []
 
         partition = partitions.shift
-        current_start = [partition.key, LOWEST_UUID]
+        current_start = GroupEndpoint.new(partition.key, LOWEST_UUID)
         current_size = 0
 
         while partition.present?
           if current_size + partition.remaining_size < target_group_size
             current_size += partition.remaining_size
             if partitions.empty?
-              result << (current_start .. [partition.key, HIGHEST_UUID])
+              result << (current_start..GroupEndpoint.new(partition.key, HIGHEST_UUID))
               break
             end
             partition = partitions.shift
           elsif current_size + partition.remaining_size == target_group_size
-            result << (current_start .. [partition.key, HIGHEST_UUID])
+            result << (current_start..GroupEndpoint.new(partition.key, HIGHEST_UUID))
 
             partition = partitions.shift
-            current_start = [partition&.key, LOWEST_UUID]
+            break unless partition
+
+            current_start = GroupEndpoint.new(partition.key, LOWEST_UUID)
             current_size = 0
           else
             taken = target_group_size - current_size
             upper_bound = partition.lower_bound + UUID_COUNT * taken / partition.original_size
 
-            result << (current_start .. [partition.key, number_to_uuid(upper_bound - 1)])
+            result << (current_start..GroupEndpoint.new(partition.key, number_to_uuid(upper_bound - 1)))
 
             remaining_size = partition.remaining_size - taken
             partition = partition.with(remaining_size:, lower_bound: upper_bound)
-            current_start = [partition.key, number_to_uuid(upper_bound)]
+            current_start = GroupEndpoint.new(partition.key, number_to_uuid(upper_bound))
             current_size = 0
           end
         end
@@ -62,6 +74,10 @@ module Sequent
 
         s = format('%032x', number)
         "#{s[0..7]}-#{s[8..11]}-#{s[12..15]}-#{s[16..19]}-#{s[20..]}"
+      end
+
+      def self.uuid_to_number(uuid)
+        Integer(uuid.gsub(/-/, ''), 16)
       end
 
       UUID_COUNT = 2**128
