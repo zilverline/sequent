@@ -38,6 +38,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'postgresql_cursor', '~> 0.6'
   s.add_dependency 'thread_safe', '~> 0.3.6'
   s.add_dependency 'tzinfo', '>= 1.1'
+  s.add_development_dependency 'prop_check', '~> 1.0'
   s.add_development_dependency 'pry', '~> 0.13'
   s.add_development_dependency 'rake', '~> 13'
   s.add_development_dependency 'rspec', rspec_version

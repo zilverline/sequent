@@ -60,6 +60,7 @@ GEM
     pg (1.5.6)
     postgresql_cursor (0.6.8)
       activerecord (>= 6.0)
+    prop_check (1.0.0)
     pry (0.14.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
@@ -113,11 +114,13 @@ GEM
 
 PLATFORMS
   arm64-darwin-22
+  arm64-darwin-23
   x86_64-linux
 
 DEPENDENCIES
   activemodel (= 7.1.1)
   activerecord (= 7.1.1)
+  prop_check (~> 1.0)
   pry (~> 0.13)
   rake (~> 13)
   rspec (~> 3.10)

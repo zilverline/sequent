@@ -2,8 +2,11 @@
 
 require 'spec_helper'
 require_relative '../../../../lib/sequent/migrations/grouper'
+require 'prop_check'
 
 describe Sequent::Migrations::Grouper do
+  G = PropCheck::Generators
+
   EP = ->(partition_key, aggregate_id) { Sequent::Migrations::Grouper::GroupEndpoint.new(partition_key, aggregate_id) }
   NEXT_UUID = ->(uuid) {
     Sequent::Migrations::Grouper.number_to_uuid(
@@ -16,20 +19,34 @@ describe Sequent::Migrations::Grouper do
     {a: 200, b: 600, c: 200}
   end
 
-  def ensure_invariants(groups)
-    groups.each do |group|
-      # begin must be before end for each group
-      expect(group.exclude_end?).to be_falsey
-      expect(group.begin).to be <= group.end
-    end
-    groups.each_cons(2).each do |prev_group, next_group|
-      # end of previous group must be before begin of next group
-      expect(prev_group.end).to be < next_group.begin
-      if prev_group.end.partition_key == next_group.begin.partition_key
-        expect(NEXT_UUID[prev_group.end.aggregate_id]).to eq(next_group.begin.aggregate_id)
-      else
-        expect(prev_group.end.aggregate_id).to eq(Sequent::Migrations::Grouper::HIGHEST_UUID)
-        expect(next_group.begin.aggregate_id).to eq(Sequent::Migrations::Grouper::LOWEST_UUID)
+  it 'groups partitions into a sorted list covering all partitions without gaps' do
+    PropCheck.forall(
+      G.hash(G.alphanumeric_string, G.positive_integer),
+      G.positive_integer,
+    ) do |partitions, group_target_size|
+      next unless partitions.present?
+
+      groups = subject.group_partitions(partitions, group_target_size)
+
+      # The groups must cover all partitions
+      expect(groups.first.begin).to eq(EP[partitions.keys.min, Sequent::Migrations::Grouper::LOWEST_UUID])
+      expect(groups.last.end).to eq(EP[partitions.keys.max, Sequent::Migrations::Grouper::HIGHEST_UUID])
+
+      groups.each do |group|
+        # begin must be before end for each group
+        expect(group).not_to be_exclude_end
+        expect(group.begin).to be <= group.end
+      end
+      groups.each_cons(2).each do |prev_group, next_group|
+        # end of previous group must be before begin of next group
+        expect(prev_group.end).to be < next_group.begin
+        # groups must be consecutive
+        if prev_group.end.partition_key == next_group.begin.partition_key
+          expect(NEXT_UUID[prev_group.end.aggregate_id]).to eq(next_group.begin.aggregate_id)
+        else
+          expect(prev_group.end.aggregate_id).to eq(Sequent::Migrations::Grouper::HIGHEST_UUID)
+          expect(next_group.begin.aggregate_id).to eq(Sequent::Migrations::Grouper::LOWEST_UUID)
+        end
       end
     end
   end
@@ -48,7 +65,6 @@ describe Sequent::Migrations::Grouper do
           EP[:a, 'cccccccc-cccc-cccc-cccc-cccccccccccc']..EP[:a, subject::HIGHEST_UUID],
         ],
       )
-    ensure_invariants(subject.group_partitions({a: 100}, 40))
   end
 
   context 'splits groups assuming an uniform distribution' do
