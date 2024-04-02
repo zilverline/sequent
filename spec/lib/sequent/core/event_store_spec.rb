@@ -484,44 +484,32 @@ describe Sequent::Core::EventStore do
   end
 
   describe '#replay_events_from_cursor' do
-    let(:stream_record) do
-      Sequent::Core::StreamRecord.create!(
-        aggregate_type: 'Sequent::Core::AggregateRoot',
-        aggregate_id: aggregate_id,
-        created_at: DateTime.now,
-      )
+    let(:events) do
+      5.times.map { |n| Sequent::Core::Event.new(aggregate_id:, sequence_number: n + 1) }
     end
-    let(:command_record) do
-      Sequent::Core::CommandRecord.create!(
-        command_type: 'Sequent::Core::Command',
-        command_json: '{}',
-        aggregate_id: stream_record.aggregate_id,
+
+    before do
+      ActiveRecord::Base.connection.exec_update('TRUNCATE TABLE aggregates CASCADE')
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'Sequent::Core::AggregateRoot',
+              aggregate_id:,
+              events_partition_key: 'Y24',
+            ),
+            events,
+          ],
+        ],
       )
     end
 
     let(:get_events) do
       -> do
-        event_records = Sequent.configuration.event_record_class.table_name
-        stream_records = Sequent.configuration.stream_record_class.table_name
         Sequent.configuration.event_record_class
           .select('event_type, event_json')
-          .joins("INNER JOIN #{stream_records} ON #{event_records}.aggregate_id = #{stream_records}.aggregate_id")
-          .order!("#{stream_records}.aggregate_id, #{event_records}.sequence_number")
-      end
-    end
-
-    before do
-      Sequent::Core::EventRecord.delete_all
-      5.times do |n|
-        Sequent::Core::EventRecord.create!(
-          aggregate_id: stream_record.aggregate_id,
-          sequence_number: n + 1,
-          event_type: 'Sequent::Core::Event',
-          event_json: '{}',
-          created_at: DateTime.now,
-          command_record_id: command_record.id,
-          stream_record: stream_record,
-        )
+          .order(:aggregate_id, :sequence_number)
       end
     end
 

@@ -11,6 +11,10 @@ module Sequent
         end
 
         include Comparable
+
+        def to_s
+          "(#{partition_key}, #{aggregate_id})"
+        end
       end
 
       # Generate approximately equally sized groups based on the
@@ -22,20 +26,18 @@ module Sequent
       # For splitting a partition into equal sized groups the
       # assumption is made that aggregate-ids and their events are
       # equally distributed.
-      def self.group_partitions(partitions, target_group_size, _minimum_group_count)
+      def self.group_partitions(partitions, target_group_size)
         return [] unless partitions.present?
 
         partitions = partitions.sort.map do |key, count|
           PartitionData.new(key:, original_size: count, remaining_size: count, lower_bound: 0)
         end
 
-        # total_count = partitions.reduce(0) { |acc, (_, count)| acc + count }
-        result = []
-
         partition = partitions.shift
         current_start = GroupEndpoint.new(partition.key, LOWEST_UUID)
         current_size = 0
 
+        result = []
         while partition.present?
           if current_size + partition.remaining_size < target_group_size
             current_size += partition.remaining_size

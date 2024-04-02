@@ -35,12 +35,12 @@ describe Sequent::Migrations::Grouper do
   end
 
   it 'creates a single group when all partitions fit' do
-    expect(subject.group_partitions(partitions, 1000, 1))
+    expect(subject.group_partitions(partitions, 1000))
       .to eq([EP[:a, subject::LOWEST_UUID]..EP[:c, subject::HIGHEST_UUID]])
   end
 
   it 'creates multiple groups from a single large partition' do
-    expect(subject.group_partitions({a: 100}, 40, 1))
+    expect(subject.group_partitions({a: 100}, 40))
       .to eq(
         [
           EP[:a, subject::LOWEST_UUID]..EP[:a, '66666666-6666-6666-6666-666666666665'],
@@ -48,12 +48,12 @@ describe Sequent::Migrations::Grouper do
           EP[:a, 'cccccccc-cccc-cccc-cccc-cccccccccccc']..EP[:a, subject::HIGHEST_UUID],
         ],
       )
-    ensure_invariants(subject.group_partitions({a: 100}, 40, 1))
+    ensure_invariants(subject.group_partitions({a: 100}, 40))
   end
 
   context 'splits groups assuming an uniform distribution' do
     it 'splits group in half' do
-      expect(subject.group_partitions(partitions, 500, 1))
+      expect(subject.group_partitions(partitions, 500))
         .to eq(
           [
             EP[:a, subject::LOWEST_UUID]..EP[:b, '7fffffff-ffff-ffff-ffff-ffffffffffff'],
@@ -63,7 +63,7 @@ describe Sequent::Migrations::Grouper do
     end
 
     it 'splits group in three unequal parts' do
-      expect(subject.group_partitions(partitions, 400, 1))
+      expect(subject.group_partitions(partitions, 400))
         .to eq(
           [
             EP[:a, subject::LOWEST_UUID]..EP[:b, '55555555-5555-5555-5555-555555555554'],
@@ -74,7 +74,7 @@ describe Sequent::Migrations::Grouper do
     end
 
     it 'splits group in three equal parts' do
-      expect(subject.group_partitions({a: 200, b: 500, c: 200}, 300, 1))
+      expect(subject.group_partitions({a: 200, b: 500, c: 200}, 300))
         .to eq(
           [
             EP[:a, subject::LOWEST_UUID]..EP[:b, '33333333-3333-3333-3333-333333333332'],
@@ -85,7 +85,7 @@ describe Sequent::Migrations::Grouper do
     end
 
     it 'splits group in many equal parts' do
-      expect(subject.group_partitions({a: 200, b: 500, c: 200}, 300, 1))
+      expect(subject.group_partitions({a: 200, b: 500, c: 200}, 300))
         .to eq(
           [
             EP[:a, subject::LOWEST_UUID]..EP[:b, '33333333-3333-3333-3333-333333333332'],

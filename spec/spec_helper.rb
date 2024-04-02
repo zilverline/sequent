@@ -32,10 +32,10 @@ RSpec.configure do |c|
     Sequent::ApplicationRecord.connection.execute(sql)
   end
 
-  def insert_events(aggregate_type, events)
+  def insert_events(aggregate_type, events, events_partition_key: '')
     streams_with_events = events.group_by(&:aggregate_id).map do |aggregate_id, aggregate_events|
       [
-        Sequent::Core::EventStream.new(aggregate_type: aggregate_type, aggregate_id: aggregate_id),
+        Sequent::Core::EventStream.new(aggregate_type:, aggregate_id:, events_partition_key:),
         aggregate_events,
       ]
     end

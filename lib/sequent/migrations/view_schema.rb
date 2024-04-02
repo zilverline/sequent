@@ -13,6 +13,7 @@ require_relative 'planner'
 require_relative 'executor'
 require_relative 'sql'
 require_relative 'versions'
+require_relative 'grouper'
 
 module Sequent
   module Migrations
@@ -60,16 +61,6 @@ module Sequent
     #
     # end
     class ViewSchema
-      # Corresponds with the index on aggregate_id column in the event_records table
-      #
-      # Since we replay in batches of the first 3 chars of the uuid we created an index on
-      # these 3 characters. Hence the name ;-)
-      #
-      # This also means that the online replay is divided up into 16**3 groups
-      # This might seem a lot for starting event store, but when you will get more
-      # events, you will see that this is pretty good partitioned.
-      LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE = 3
-
       include Sequent::Util::Timer
       include Sequent::Util::Printer
       include Sql
@@ -143,11 +134,10 @@ module Sequent
       # Utility method that replays events for all managed_tables from all Sequent::Core::Projector's
       #
       # This method is mainly useful in test scenario's or development tasks
-      def replay_all!(group_exponent: 1)
+      def replay_all!
         replay!(
           Sequent.configuration.online_replay_persistor_class.new,
           projectors: Core::Migratable.projectors,
-          groups: groups(group_exponent: group_exponent),
         )
       end
 
@@ -205,7 +195,6 @@ module Sequent
         if plan.projectors.any?
           replay!(
             Sequent.configuration.online_replay_persistor_class.new,
-            groups: groups,
             maximum_xact_id_exclusive: Versions.running.first.xmin_xact_id,
           )
         end
@@ -259,7 +248,6 @@ module Sequent
         if plan.projectors.any?
           replay!(
             Sequent.configuration.offline_replay_persistor_class.new,
-            groups: groups(group_exponent: 1),
             minimum_xact_id_inclusive: Versions.running.first.xmin_xact_id,
           )
         end
@@ -308,18 +296,23 @@ module Sequent
 
       def replay!(
         replay_persistor,
-        groups:,
         projectors: plan.projectors,
         minimum_xact_id_inclusive: nil,
         maximum_xact_id_exclusive: nil
       )
-        logger.info "groups: #{groups.size}"
+        event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
+        group_target_size = Sequent.configuration.replay_group_target_size
+        partitions = Sequent.configuration.event_record_class.where(event_type: event_types)
+          .group(:partition_key)
+          .order(:partition_key)
+          .count
+        event_count = partitions.map(&:count).sum
+        groups = Sequent::Migrations::Grouper.group_partitions(partitions, group_target_size)
 
         with_sequent_config(replay_persistor, projectors) do
-          logger.info 'Start replaying events'
+          logger.info "Start replaying #{event_count} events in #{groups.size} groups"
 
-          time("#{groups.size} groups replayed") do
-            event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
+          time("#{event_count} events in #{groups.size} groups replayed") do
             disconnect!
 
             @connected = false
@@ -327,24 +320,23 @@ module Sequent
             result = Parallel.map_with_index(
               groups,
               in_processes: Sequent.configuration.number_of_replay_processes,
-            ) do |aggregate_prefixes, index|
+            ) do |group, index|
               @connected ||= establish_connection
               msg = <<~EOS.chomp
-                Group (#{aggregate_prefixes.first}-#{aggregate_prefixes.last}) #{index + 1}/#{groups.size} replayed
+                Group #{group} (#{index + 1}/#{groups.size}) replayed
               EOS
               time(msg) do
                 replay_events(
-                  aggregate_prefixes,
-                  event_types,
-                  minimum_xact_id_inclusive,
-                  maximum_xact_id_exclusive,
+                  -> {
+                    event_stream(group, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+                  },
                   replay_persistor,
                   &on_progress
                 )
               end
               nil
             rescue StandardError => e
-              logger.error "Replaying failed for ids: ^#{aggregate_prefixes.first} - #{aggregate_prefixes.last}"
+              logger.error "Replaying failed for group: #{group}"
               logger.error '+++++++++++++++ ERROR +++++++++++++++'
               recursively_print(e)
               raise Parallel::Kill # immediately kill all sub-processes
@@ -356,19 +348,14 @@ module Sequent
       end
 
       def replay_events(
-        aggregate_prefixes,
-        event_types,
-        minimum_xact_id_inclusive,
-        maximum_xact_id_exclusive,
+        get_events,
         replay_persistor,
         &on_progress
       )
         Sequent.configuration.event_store.replay_events_from_cursor(
           block_size: 1000,
-          get_events: -> {
-            event_stream(aggregate_prefixes, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
-          },
-          on_progress: on_progress,
+          get_events:,
+          on_progress:,
         )
 
         replay_persistor.commit
@@ -384,30 +371,6 @@ module Sequent
 
         executor.reset_table_names(plan)
         Versions.rollback!(Sequent.new_version)
-      end
-
-      def groups(group_exponent: 3, limit: nil, offset: nil)
-        number_of_groups = 16**group_exponent
-        groups = groups_of_aggregate_id_prefixes(number_of_groups)
-        groups = groups.drop(offset) unless offset.nil?
-        groups = groups.take(limit) unless limit.nil?
-        groups
-      end
-
-      def groups_of_aggregate_id_prefixes(number_of_groups)
-        all_prefixes = (0...16**LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE).to_a.map do |i|
-          i.to_s(16)
-        end
-        all_prefixes = all_prefixes.map { |s| s.length == 3 ? s : "#{'0' * (3 - s.length)}#{s}" }
-
-        logger.info "Number of groups #{number_of_groups}"
-
-        logger.debug "Prefixes: #{all_prefixes.length}"
-        if number_of_groups > all_prefixes.length
-          fail "Can not have more groups #{number_of_groups} than number of prefixes #{all_prefixes.length}"
-        end
-
-        all_prefixes.each_slice(all_prefixes.length / number_of_groups).to_a
       end
 
       def in_view_schema(&block)
@@ -450,13 +413,18 @@ module Sequent
         Sequent::Configuration.restore(old_config)
       end
 
-      def event_stream(aggregate_prefixes, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
-        fail ArgumentError, 'aggregate_prefixes is mandatory' unless aggregate_prefixes.present?
+      def event_stream(group, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+        fail ArgumentError, 'group is mandatory' if group.nil?
 
-        event_stream = Sequent.configuration.event_record_class.where(event_type: event_types)
-        event_stream = event_stream.where(<<~SQL, aggregate_prefixes)
-          substring(aggregate_id::text from 1 for #{LENGTH_OF_SUBSTRING_INDEX_ON_AGGREGATE_ID_IN_EVENT_STORE}) in (?)
-        SQL
+        event_stream = Sequent.configuration.event_record_class.where(
+          event_type: event_types,
+        ).where(
+          '(partition_key, aggregate_id) BETWEEN (?, ?) AND (?, ?)',
+          group.begin.partition_key,
+          group.begin.aggregate_id,
+          group.end.partition_key,
+          group.end.aggregate_id,
+        )
         if minimum_xact_id_inclusive && maximum_xact_id_exclusive
           event_stream = event_stream.where(
             'xact_id >= ? AND xact_id < ?',
@@ -469,7 +437,7 @@ module Sequent
           event_stream = event_stream.where('xact_id IS NULL OR xact_id < ?', maximum_xact_id_exclusive)
         end
         event_stream
-          .order('aggregate_id ASC, sequence_number ASC')
+          .order(:partition_key, :aggregate_id, :sequence_number)
           .select('event_type, event_json')
       end
 
