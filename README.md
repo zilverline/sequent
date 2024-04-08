@@ -47,7 +47,13 @@ createuser -D -s -R sequent
 SEQUENT_ENV=test bundle exec rake sequent:db:create
 ```
 
-Run `rspec spec` to run the tests.
+Run `rspec spec` to run the tests with the current database schema.
+
+To ensure the specs use the latest database schema run:
+
+```
+SEQUENT_ENV=test rake sequent:db:drop sequent:db:create spec
+```
 
 ## Changelog
 

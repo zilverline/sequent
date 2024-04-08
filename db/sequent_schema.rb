@@ -61,4 +61,7 @@ ActiveRecord::Schema.define do
                   primary_key: :aggregate_id,
                   on_delete: :cascade,
                   name: 'stream_fkey'
+
+  schema = File.read("#{File.dirname(__FILE__)}/sequent_schema.sql")
+  execute schema
 end

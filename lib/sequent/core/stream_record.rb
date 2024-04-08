@@ -5,11 +5,12 @@ require 'active_record'
 module Sequent
   module Core
     class EventStream
-      attr_accessor :aggregate_type, :aggregate_id, :snapshot_threshold
+      attr_accessor :aggregate_type, :aggregate_id, :events_partition_key, :snapshot_threshold
 
-      def initialize(aggregate_type:, aggregate_id:, snapshot_threshold: nil)
+      def initialize(aggregate_type:, aggregate_id:, events_partition_key: '', snapshot_threshold: nil)
         @aggregate_type = aggregate_type
         @aggregate_id = aggregate_id
+        @events_partition_key = events_partition_key
         @snapshot_threshold = snapshot_threshold
       end
     end
@@ -21,7 +22,7 @@ module Sequent
       validates_presence_of :aggregate_type, :aggregate_id
       validates_numericality_of :snapshot_threshold, only_integer: true, greater_than: 0, allow_nil: true
 
-      has_many :event_records
+      has_many :event_records, foreign_key: :aggregate_id, primary_key: :aggregate_id
 
       def event_stream
         EventStream.new(

@@ -65,6 +65,13 @@ module Sequent
         def serialize_to_json(event)
           Sequent::Core::Oj.dump(event)
         end
+
+        def serialize_json?
+          return true unless respond_to? :columns_hash
+
+          json_column_type = columns_hash['event_json'].sql_type_metadata.type
+          %i[json jsonb].exclude? json_column_type
+        end
       end
 
       def self.included(host_class)
@@ -72,8 +79,7 @@ module Sequent
       end
 
       def serialize_json?
-        json_column_type = self.class.columns_hash['event_json'].sql_type_metadata.type
-        %i[json jsonb].exclude? json_column_type
+        self.class.serialize_json?
       end
     end
 

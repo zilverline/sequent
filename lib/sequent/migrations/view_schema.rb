@@ -470,7 +470,7 @@ module Sequent
         end
         event_stream
           .order('aggregate_id ASC, sequence_number ASC')
-          .select('aggregate_id, event_type, event_json, sequence_number')
+          .select('event_type, event_json')
       end
 
       ## shortcut methods
