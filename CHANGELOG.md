@@ -1,6 +1,24 @@
 # Changelog 7.0.x (changes since 7.0.0)
 
-- Replaying all events for the view schema (using `sequent:migrate:online` and `sequent:migrate:offline`) now make use of the PostgreSQL committed transaction id to track events that have already been replayed.  The replayed ids table (specified by the removed `Sequent::configuration.replayed_ids_table_name` option) is no longer used and can be dropped from your database.
+- Replaying all events for the view schema (using `sequent:migrate:online` and `sequent:migrate:offline`) now make use of the PostgreSQL committed transaction id (`xact_id()`) to track events that have already been replayed.  The replayed ids table (specified by the removed `Sequent::configuration.replayed_ids_table_name` option) is no longer used and can be dropped from your database.
+There is no activerecord migration provided for the event store to add the `xact_id` since depending on the size of the event store you may want to take run this migration yourself. Replace `SCHEMA_NAME` with the name of the sequent schema:
+
+```postgresql
+BEGIN;
+ALTER TABLE SCHEMA_NAME.event_records ADD COLUMN xact_id bigint;
+COMMIT;
+
+BEGIN;
+# SET max_parallel_maintenance_workers = 8; # optionally set this depending on size of your event_records
+# ALTER TABLE SCHEMA_NAME.event_records SET (parallel_workers = 8); # optionally set this depending on size of your event_records
+CREATE INDEX event_records_xact_id_idx ON SCHEMA_NAME.event_records (xact_id) WHERE xact_id IS NOT NULL;
+# ALTER TABLE SCHEMA_NAME.event_records RESET (parallel_workers); # optionally set this depending on size of your event_records
+COMMIT;
+
+ALTER TABLE SCHEMA_NAME.event_records ALTER COLUMN xact_id SET DEFAULT pg_current_xact_id()::text::bigint;
+```
+Next to this migration make sure you copy over the new `sequent_schema.rb` into your project so when you regenerate the database from scratch
+in for instance your development environment you have the correct version. 
 - The `MessageDispatcher` class has been removed.
 - Instance-of routes in projectors and other message handlers now use an optimized lookup mechanism. These are the most common handlers (`on MyEvent do ... end`).
 - Many optimizations were applied to the `ReplayOptimizedPostgresPersistor`:
