@@ -105,13 +105,7 @@ module Sequent
       end
 
       def origin
-        parent.present? ? find_origin(parent) : self
-      end
-
-      def find_origin(record)
-        return find_origin(record.parent) if record.parent.present?
-
-        record
+        parent&.origin
       end
     end
   end
