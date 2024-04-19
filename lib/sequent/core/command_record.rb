@@ -49,23 +49,29 @@ module Sequent
       self.primary_key = :id
       self.table_name = 'command_records'
 
-      has_many :event_records
+      has_many :child_events,
+               inverse_of: :parent_command,
+               class_name: :EventRecord,
+               foreign_key: :command_record_id
 
       validates_presence_of :command_type, :command_json
 
-      def parent
-        EventRecord
-          .where(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
-          .first
+      # A `belongs_to` association fails in weird ways with ActiveRecord 7.1, probably due to the use of composite
+      # primary keys so use an explicit query here and cache the result.
+      def parent_event
+        @parent_event ||= EventRecord.find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
       end
 
-      def children
-        event_records
+      def origin_command
+        parent_event&.parent_command&.origin_command || self
       end
 
-      def origin
-        parent&.origin || self
-      end
+      # @deprecated
+      alias parent parent_event
+      # @deprecated
+      alias children child_events
+      # @deprecated
+      alias origin origin_command
     end
   end
 end
