@@ -103,7 +103,7 @@ module Sequent
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
 
       def self.find_by_event(event)
-        where(aggregate_id: event.aggregate_id, sequence_number: event.sequence_number).first
+        find_by(aggregate_id: event.aggregate_id, sequence_number: event.sequence_number)
       end
 
       def origin_command

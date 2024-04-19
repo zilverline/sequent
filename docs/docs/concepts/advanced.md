@@ -34,7 +34,7 @@ command_record.child_events
 
 From a `Sequent::Core::EventRecord`
 ```ruby
-event_record = Sequent::Core::EventRecord.find(1)
+event_record = Sequent::Core::EventRecord.first
 
 # Returns the Sequent::Core::CommandRecord that 'caused' this Event
 event_record.parent_command
