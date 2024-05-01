@@ -302,8 +302,8 @@ module Sequent
       )
         event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
         group_target_size = Sequent.configuration.replay_group_target_size
-        event_type_ids = Sequent::Core::EventType.where(type: event_types).pluck(:id)
-        partitions = Sequent::Core::PartitionedEvent.where(event_type_id: event_type_ids)
+        event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
+        partitions = Internal::PartitionedEvent.where(event_type_id: event_type_ids)
           .group(:partition_key)
           .order(:partition_key)
           .count
@@ -424,7 +424,7 @@ module Sequent
       def event_stream(group, event_type_ids, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
         fail ArgumentError, 'group is mandatory' if group.nil?
 
-        event_stream = Core::PartitionedEvent
+        event_stream = Internal::PartitionedEvent
           .joins('JOIN event_types ON events.event_type_id = event_types.id')
           .where(
             event_type_id: event_type_ids,

@@ -4,7 +4,7 @@ require 'active_record'
 require_relative '../application_record'
 
 module Sequent
-  module Core
+  module Internal
     class PartitionedCommand < Sequent::ApplicationRecord
       self.table_name = :commands
 

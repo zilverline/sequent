@@ -4,7 +4,7 @@ require 'active_record'
 require_relative '../application_record'
 
 module Sequent
-  module Core
+  module Internal
     class PartitionedAggregate < Sequent::ApplicationRecord
       self.table_name = :aggregates
       self.primary_key = %i[aggregate_id]

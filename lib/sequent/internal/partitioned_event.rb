@@ -4,7 +4,7 @@ require 'active_record'
 require_relative '../application_record'
 
 module Sequent
-  module Core
+  module Internal
     class PartitionedEvent < Sequent::ApplicationRecord
       self.table_name = :events
       self.primary_key = %i[partition_key aggregate_id sequence_number]
