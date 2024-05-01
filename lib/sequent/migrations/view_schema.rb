@@ -302,12 +302,20 @@ module Sequent
       )
         event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
         group_target_size = Sequent.configuration.replay_group_target_size
-        partitions = Sequent.configuration.event_record_class.where(event_type: event_types)
+        event_type_ids = Sequent::Core::EventType.where(type: event_types).pluck(:id)
+        partitions = Sequent::Core::PartitionedEvent.where(event_type_id: event_type_ids)
           .group(:partition_key)
           .order(:partition_key)
           .count
         event_count = partitions.map(&:count).sum
         groups = Sequent::Migrations::Grouper.group_partitions(partitions, group_target_size)
+
+        if groups.empty?
+          groups = [nil..nil]
+        else
+          groups.prepend(nil..groups.first.begin)
+          groups.append(groups.last.end..nil)
+        end
 
         with_sequent_config(replay_persistor, projectors) do
           logger.info "Start replaying #{event_count} events in #{groups.size} groups"
@@ -328,7 +336,7 @@ module Sequent
               time(msg) do
                 replay_events(
                   -> {
-                    event_stream(group, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+                    event_stream(group, event_type_ids, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
                   },
                   replay_persistor,
                   &on_progress
@@ -413,18 +421,35 @@ module Sequent
         Sequent::Configuration.restore(old_config)
       end
 
-      def event_stream(group, event_types, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+      def event_stream(group, event_type_ids, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
         fail ArgumentError, 'group is mandatory' if group.nil?
 
-        event_stream = Sequent.configuration.event_record_class.where(
-          event_type: event_types,
-        ).where(
-          '(partition_key, aggregate_id) BETWEEN (?, ?) AND (?, ?)',
-          group.begin.partition_key,
-          group.begin.aggregate_id,
-          group.end.partition_key,
-          group.end.aggregate_id,
-        )
+        event_stream = Core::PartitionedEvent
+          .joins('JOIN event_types ON events.event_type_id = event_types.id')
+          .where(
+            event_type_id: event_type_ids,
+          )
+        if group.begin && group.end
+          event_stream = event_stream.where(
+            '(events.partition_key, events.aggregate_id) BETWEEN (?, ?) AND (?, ?)',
+            group.begin.partition_key,
+            group.begin.aggregate_id,
+            group.end.partition_key,
+            group.end.aggregate_id,
+          )
+        elsif group.end
+          event_stream = event_stream.where(
+            '(events.partition_key, events.aggregate_id) < (?, ?)',
+            group.end.partition_key,
+            group.end.aggregate_id,
+          )
+        elsif group.begin
+          event_stream = event_stream.where(
+            '(events.partition_key, events.aggregate_id) > (?, ?)',
+            group.begin.partition_key,
+            group.begin.aggregate_id,
+          )
+        end
         if minimum_xact_id_inclusive && maximum_xact_id_exclusive
           event_stream = event_stream.where(
             'xact_id >= ? AND xact_id < ?',
@@ -437,8 +462,8 @@ module Sequent
           event_stream = event_stream.where('xact_id IS NULL OR xact_id < ?', maximum_xact_id_exclusive)
         end
         event_stream
-          .order(:partition_key, :aggregate_id, :sequence_number)
-          .select('event_type, event_json')
+          .order('events.partition_key', 'events.aggregate_id', 'events.sequence_number')
+          .select('event_types.type AS event_type, enrich_event_json(events) AS event_json')
       end
 
       ## shortcut methods

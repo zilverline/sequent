@@ -404,7 +404,7 @@ CREATE VIEW event_records (aggregate_id, partition_key, sequence_number, created
             event.sequence_number,
             event.created_at,
             type.type,
-            enrich_event_json(event.*)::text AS event_json,
+            enrich_event_json(event) AS event_json,
             command_id,
             event.xact_id
        FROM aggregates aggregate
