@@ -281,20 +281,15 @@ BEGIN
               WHERE aggregates.events_partition_key <> EXCLUDED.events_partition_key
                  OR aggregates.snapshot_threshold <> EXCLUDED.snapshot_threshold;
 
-    FOR _event IN SELECT * FROM jsonb_array_elements(_events) LOOP
-      _created_at = (_event->>'created_at')::timestamptz;
-      _sequence_number = _event->'event_json'->>'sequence_number';
-      INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
-          VALUES (
-             _events_partition_key,
-             _aggregate_id,
-             _sequence_number,
-             _created_at,
-             _command_id,
-           (SELECT id FROM event_types WHERE type = _event->>'event_type'),
-             (_event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number,stream_record_id}'::text[]
-           );
-    END LOOP;
+    INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
+    SELECT _events_partition_key,
+           _aggregate_id,
+           (event->'event_json'->'sequence_number')::integer,
+           (event->>'created_at')::timestamptz,
+           _command_id,
+           (SELECT id FROM event_types WHERE type = event->>'event_type'),
+           (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
+      FROM jsonb_array_elements(_events) AS event;
   END LOOP;
 END;
 $$;
