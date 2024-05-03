@@ -91,28 +91,29 @@ module Sequent
       self.ignored_columns = %w[xact_id]
 
       belongs_to :stream_record, foreign_key: :aggregate_id, primary_key: :aggregate_id
-      belongs_to :command_record
 
-      validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
+      belongs_to :parent_command, class_name: :CommandRecord, foreign_key: :command_record_id
+
+      has_many :child_commands,
+               class_name: :CommandRecord,
+               query_constraints: %i[event_aggregate_id event_sequence_number],
+               primary_key: %i[aggregate_id sequence_number]
+
+      validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :parent_command
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
 
-      def parent
-        command_record
+      def self.find_by_event(event)
+        find_by(aggregate_id: event.aggregate_id, sequence_number: event.sequence_number)
       end
 
-      def children
-        CommandRecord.where(event_aggregate_id: aggregate_id, event_sequence_number: sequence_number)
+      def origin_command
+        parent_command&.origin_command
       end
 
-      def origin
-        parent.present? ? find_origin(parent) : self
-      end
-
-      def find_origin(record)
-        return find_origin(record.parent) if record.parent.present?
-
-        record
-      end
+      # @deprecated
+      alias parent parent_command
+      alias children child_commands
+      alias origin origin_command
     end
   end
 end
