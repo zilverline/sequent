@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../../../lib/sequent/migrations/grouper'
 require 'prop_check'
+require 'sequent/migrations/grouper'
 
 describe Sequent::Migrations::Grouper do
   G = PropCheck::Generators
