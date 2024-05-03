@@ -195,7 +195,7 @@ CREATE OR REPLACE FUNCTION store_command(_command jsonb) RETURNS bigint
 LANGUAGE plpgsql AS $$
 DECLARE
   _id commands.id%TYPE;
-  _command_without_nulls jsonb = jsonb_strip_nulls(_command->'command_json');
+  _command_json jsonb = _command->'command_json';
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
     -- Only try inserting if it doesn't exist to avoid exhausting the id sequence
@@ -209,12 +209,12 @@ BEGIN
     event_aggregate_id, event_sequence_number
   ) VALUES (
     (_command->>'created_at')::timestamptz,
-    (_command_without_nulls->>'user_id')::uuid,
-    (_command_without_nulls->>'aggregate_id')::uuid,
+    (_command_json->>'user_id')::uuid,
+    (_command_json->>'aggregate_id')::uuid,
     (SELECT id FROM command_types WHERE type = _command->>'command_type'),
     (_command->'command_json') - '{command_type,created_at,organization_id,user_id,aggregate_id,event_aggregate_id,event_sequence_number}'::text[],
-    (_command_without_nulls->>'event_aggregate_id')::uuid,
-    (_command_without_nulls->>'event_sequence_number')::integer
+    (_command_json->>'event_aggregate_id')::uuid,
+    NULLIF(_command_json->'event_sequence_number', 'null'::jsonb)::integer
   ) RETURNING id INTO STRICT _id;
   RETURN _id;
 END;
@@ -225,16 +225,12 @@ LANGUAGE plpgsql AS $$
 DECLARE
   _command_id commands.id%TYPE;
   _aggregate jsonb;
-  _aggregate_without_nulls jsonb;
   _events jsonb;
-  _event jsonb;
   _aggregate_id aggregates.aggregate_id%TYPE;
-  _created_at aggregates.created_at%TYPE;
   _provided_events_partition_key aggregates.events_partition_key%TYPE;
   _existing_events_partition_key aggregates.events_partition_key%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
   _snapshot_threshold aggregates.snapshot_threshold%TYPE;
-  _sequence_number events.sequence_number%TYPE;
 BEGIN
   _command_id = store_command(_command);
 
@@ -261,9 +257,8 @@ BEGIN
 
   FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
-    _aggregate_without_nulls = jsonb_strip_nulls(_aggregate);
-    _snapshot_threshold = _aggregate_without_nulls->'snapshot_threshold';
-    _provided_events_partition_key = _aggregate_without_nulls->>'events_partition_key';
+    _snapshot_threshold = NULLIF(_aggregate->'snapshot_threshold', 'null'::jsonb);
+    _provided_events_partition_key = _aggregate->>'events_partition_key';
 
     SELECT events_partition_key INTO _existing_events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id;
     _events_partition_key = COALESCE(_provided_events_partition_key, _existing_events_partition_key, '');
