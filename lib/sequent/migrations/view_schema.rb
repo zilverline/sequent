@@ -307,7 +307,7 @@ module Sequent
           .group(:partition_key)
           .order(:partition_key)
           .count
-        event_count = partitions.map(&:count).sum
+        event_count = partitions.sum(&:count)
         groups = Sequent::Migrations::Grouper.group_partitions(partitions, group_target_size)
 
         if groups.empty?
