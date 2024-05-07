@@ -74,8 +74,6 @@ CREATE TABLE events_2024 PARTITION OF events FOR VALUES FROM ('Y24') TO ('Y25');
 ALTER TABLE events_2024 CLUSTER ON events_2024_pkey;
 CREATE TABLE events_2025_and_later PARTITION OF events FOR VALUES FROM ('Y25') TO ('Y99');
 ALTER TABLE events_2025_and_later CLUSTER ON events_2025_and_later_pkey;
-CREATE TABLE events_organizations PARTITION OF events FOR VALUES FROM ('O') TO ('Og');
-ALTER TABLE events_organizations CLUSTER ON events_organizations_pkey;
 CREATE TABLE events_aggregate PARTITION OF events FOR VALUES FROM ('A') TO ('Ag');
 ALTER TABLE events_aggregate CLUSTER ON events_aggregate_pkey;
 
