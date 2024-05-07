@@ -59,6 +59,8 @@ module Sequent
       # A `belongs_to` association fails in weird ways with ActiveRecord 7.1, probably due to the use of composite
       # primary keys so use an explicit query here and cache the result.
       def parent_event
+        return nil unless event_aggregate_id && event_sequence_number
+
         @parent_event ||= EventRecord.find_by(aggregate_id: event_aggregate_id, sequence_number: event_sequence_number)
       end
 
