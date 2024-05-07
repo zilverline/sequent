@@ -72,7 +72,7 @@ module Sequent
       PartitionData = Data.define(:key, :original_size, :remaining_size, :lower_bound)
 
       def self.number_to_uuid(number)
-        fail ArgumentError, number unless (0..2**128 - 1).include? number
+        fail ArgumentError, number unless (0..UUID_COUNT - 1).include? number
 
         s = format('%032x', number)
         "#{s[0..7]}-#{s[8..11]}-#{s[12..15]}-#{s[16..19]}-#{s[20..]}"
