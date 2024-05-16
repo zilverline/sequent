@@ -158,11 +158,12 @@ describe Sequent::Support::Database do
   end
 
   describe 'connection options' do
+    let(:test_config) { Database.test_config }
     let(:db_config) do
-      test_config = Database.test_config
       # Use test config from all other tests but turn it into an URL. Hardcode
       # the default port to enforce a proper URL.
       {
+        'schema_search_path' => test_config['schema_search_path'],
         'url' => <<~EOS.chomp,
           postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}
         EOS
@@ -172,7 +173,49 @@ describe Sequent::Support::Database do
     it 'connects using an url option' do
       Sequent::Support::Database.establish_connection(db_config)
       expect(Sequent::ApplicationRecord.connection).to be_active
+
+      Sequent::Support::Database.with_schema_search_path('view_schema', db_config) do
+        expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq 'view_schema'
+        expect(Sequent::ApplicationRecord.connection).to be_active
+      end
+
+      expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq test_config['schema_search_path']
     end
+
+    context 'multiple database support',
+            skip: Gem.loaded_specs['activerecord'].version < Gem::Version.create('7.0.0') do
+              before { Sequent.configuration.enable_multiple_database_support = true }
+              after { Sequent.configuration.enable_multiple_database_support = false }
+              let(:test_config) { Database.test_config[Sequent.configuration.primary_database_key] }
+              let(:db_config) do
+                {
+                  Sequent.configuration.primary_database_key => {
+                    'url' => <<~EOS.chomp,
+                      postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}
+                    EOS
+                    'schema_search_path' => test_config['schema_search_path'],
+                  },
+                  'replica' => {
+                    'replica' => true,
+                    'url' => <<~EOS.chomp,
+                      postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}
+                    EOS
+                    'schema_search_path' => test_config['schema_search_path'],
+                  },
+                }
+              end
+              it 'connects using an url option' do
+                Sequent::Support::Database.establish_connection(db_config)
+                expect(Sequent::ApplicationRecord.connection).to be_active
+
+                Sequent::Support::Database.with_schema_search_path('view_schema', db_config) do
+                  expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq 'view_schema'
+                  expect(Sequent::ApplicationRecord.connection).to be_active
+                end
+
+                expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq test_config['schema_search_path']
+              end
+            end
   end
 
   def database_exists?
