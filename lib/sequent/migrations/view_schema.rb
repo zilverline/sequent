@@ -469,6 +469,8 @@ module Sequent
           events_query.where('xact_id >= ?', minimum_xact_id_inclusive)
         elsif maximum_xact_id_exclusive
           events_query.where('xact_id IS NULL OR xact_id < ?', maximum_xact_id_exclusive)
+        else
+          events_query
         end
       end
 
