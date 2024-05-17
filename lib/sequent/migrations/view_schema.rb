@@ -303,11 +303,13 @@ module Sequent
         event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
         group_target_size = Sequent.configuration.replay_group_target_size
         event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
-        partitions = Internal::PartitionedEvent.where(event_type_id: event_type_ids)
-          .group(:partition_key)
-          .order(:partition_key)
-          .count
+
+        partitions_query = Internal::PartitionedEvent.where(event_type_id: event_type_ids)
+        partitions_query = xact_id_filter(partitions_query, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+
+        partitions = partitions_query.group(:partition_key).order(:partition_key).count
         event_count = partitions.sum(&:count)
+
         groups = Sequent::Migrations::Grouper.group_partitions(partitions, group_target_size)
 
         if groups.empty?
@@ -450,20 +452,24 @@ module Sequent
             group.begin.aggregate_id,
           )
         end
+        event_stream = xact_id_filter(event_stream, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+        event_stream
+          .order('events.partition_key', 'events.aggregate_id', 'events.sequence_number')
+          .select('event_types.type AS event_type, enrich_event_json(events) AS event_json')
+      end
+
+      def xact_id_filter(events_query, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
         if minimum_xact_id_inclusive && maximum_xact_id_exclusive
-          event_stream = event_stream.where(
+          events_query.where(
             'xact_id >= ? AND xact_id < ?',
             minimum_xact_id_inclusive,
             maximum_xact_id_exclusive,
           )
         elsif minimum_xact_id_inclusive
-          event_stream = event_stream.where('xact_id >= ?', minimum_xact_id_inclusive)
+          events_query.where('xact_id >= ?', minimum_xact_id_inclusive)
         elsif maximum_xact_id_exclusive
-          event_stream = event_stream.where('xact_id IS NULL OR xact_id < ?', maximum_xact_id_exclusive)
+          events_query.where('xact_id IS NULL OR xact_id < ?', maximum_xact_id_exclusive)
         end
-        event_stream
-          .order('events.partition_key', 'events.aggregate_id', 'events.sequence_number')
-          .select('event_types.type AS event_type, enrich_event_json(events) AS event_json')
       end
 
       ## shortcut methods
