@@ -41,7 +41,7 @@ module Sequent
       include SnapshotConfiguration
       extend ActiveSupport::DescendantsTracker
 
-      attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
+      attr_reader :id, :uncommitted_events, :sequence_number
 
       def self.load_from_history(stream, events)
         first, *rest = events
@@ -61,9 +61,6 @@ module Sequent
         @id = id
         @uncommitted_events = []
         @sequence_number = 1
-        @event_stream = EventStream.new aggregate_type: self.class.name,
-                                        aggregate_id: id,
-                                        snapshot_threshold: self.class.snapshot_default_threshold
       end
 
       def load_from_history(stream, events)
@@ -98,6 +95,24 @@ module Sequent
 
       def to_s
         "#{self.class.name}: #{@id}"
+      end
+
+      def event_stream
+        EventStream.new aggregate_type: self.class.name,
+                        aggregate_id: id,
+                        events_partition_key: events_partition_key,
+                        snapshot_threshold: self.class.snapshot_default_threshold
+      end
+
+      # Provide the partitioning key for storing events. This value
+      # must be a string and will be used by PostgreSQL to store the
+      # events in the right partition.
+      #
+      # The value may change over the lifetime of the aggregate, old
+      # events will be moved to the correct partition after a
+      # change. This can be an expensive database operation.
+      def events_partition_key
+        nil
       end
 
       def clear_events

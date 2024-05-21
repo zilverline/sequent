@@ -21,6 +21,7 @@ module Sequent
     MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
 
     DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
+    DEFAULT_REPLAY_GROUP_TARGET_SIZE = 250_000
 
     DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
     DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
@@ -56,6 +57,7 @@ module Sequent
                   :offline_replay_persistor_class,
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
+                  :replay_group_target_size,
                   :database_config_directory,
                   :database_schema_directory,
                   :event_store_schema_name,
@@ -107,6 +109,7 @@ module Sequent
       self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
       self.migrations_class_name = MIGRATIONS_CLASS_NAME
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
+      self.replay_group_target_size = DEFAULT_REPLAY_GROUP_TARGET_SIZE
 
       self.event_record_hooks_class = DEFAULT_EVENT_RECORD_HOOKS_CLASS
 

@@ -182,6 +182,7 @@ describe Sequent::Migrations::ViewSchema do
             AccountCreated.new(aggregate_id: Sequent.new_uuid, sequence_number: 1),
             AccountCreated.new(aggregate_id: Sequent.new_uuid, sequence_number: 1),
           ],
+          events_partition_key: 'a',
         )
 
         message_aggregate_id = Sequent.new_uuid
@@ -191,6 +192,7 @@ describe Sequent::Migrations::ViewSchema do
             MessageCreated.new(aggregate_id: message_aggregate_id, sequence_number: 1),
             MessageSet.new(aggregate_id: message_aggregate_id, sequence_number: 2, message: 'Foobar'),
           ],
+          events_partition_key: 'b',
         )
         wait_for_persisted_events_to_become_visible_for_online_migration[]
 

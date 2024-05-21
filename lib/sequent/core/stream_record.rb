@@ -4,14 +4,9 @@ require 'active_record'
 
 module Sequent
   module Core
-    class EventStream
-      attr_accessor :aggregate_type, :aggregate_id, :events_partition_key, :snapshot_threshold
-
+    EventStream = Data.define(:aggregate_type, :aggregate_id, :events_partition_key, :snapshot_threshold) do
       def initialize(aggregate_type:, aggregate_id:, events_partition_key: '', snapshot_threshold: nil)
-        @aggregate_type = aggregate_type
-        @aggregate_id = aggregate_id
-        @events_partition_key = events_partition_key
-        @snapshot_threshold = snapshot_threshold
+        super(aggregate_type:, aggregate_id:, events_partition_key:, snapshot_threshold:)
       end
     end
 
