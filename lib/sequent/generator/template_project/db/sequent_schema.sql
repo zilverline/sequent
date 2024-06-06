@@ -129,10 +129,17 @@ BEGIN
     FROM aggregate_types
    WHERE id = _aggregate.aggregate_type_id;
 
-  RETURN QUERY SELECT _aggregate_type, aggregate_id, _aggregate.events_partition_key, _aggregate.snapshot_threshold, event_type, event_json::jsonb
-                 FROM event_records
-                WHERE aggregate_id = _aggregate_id
-                  AND sequence_number = _sequence_number;
+  RETURN QUERY SELECT _aggregate_type,
+                      _aggregate_id,
+                      _aggregate.events_partition_key,
+                      _aggregate.snapshot_threshold,
+                      event_types.type,
+                      enrich_event_json(events)
+                 FROM events
+                     INNER JOIN event_types ON events.event_type_id = event_types.id
+                WHERE events.partition_key = _aggregate.events_partition_key
+                  AND events.aggregate_id = _aggregate_id
+                  AND events.sequence_number = _sequence_number;
 END;
 $$;
 
