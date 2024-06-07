@@ -137,6 +137,7 @@ DECLARE
   _provided_events_partition_key aggregates.events_partition_key%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
   _snapshot_threshold aggregates.snapshot_threshold%TYPE;
+  _last_event_sequence_number events.sequence_number%TYPE;
   _snapshot_outdated boolean;
 BEGIN
   _command_id = store_command(_command);
@@ -195,15 +196,19 @@ BEGIN
            (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
       FROM jsonb_array_elements(_events) AS event;
 
-    -- Require a new snapshot when an event is stored with a sequence number that is a multiple of snapshot_threshold
-    _snapshot_outdated = EXISTS (SELECT * FROM jsonb_array_elements(_events) AS event
-                                  WHERE (event->'event_json'->'sequence_number')::integer % _snapshot_threshold = 0);
-    IF _snapshot_outdated THEN
-      INSERT INTO aggregates_that_need_snapshots AS target
-      VALUES (_aggregate_id, pg_current_xact_id()::text::bigint, NULL)
-          ON CONFLICT (aggregate_id) DO UPDATE
-         SET snapshot_outdated_xact_id = EXCLUDED.snapshot_outdated_xact_id
-       WHERE target.snapshot_outdated_xact_id IS NULL;
+    _last_event_sequence_number = (SELECT MAX((event->'event_json'->'sequence_number')::integer) FROM jsonb_array_elements(_events) AS event);
+    IF _last_event_sequence_number >= _snapshot_threshold THEN
+      _snapshot_outdated = _last_event_sequence_number - COALESCE(
+                             (SELECT sequence_number FROM snapshot_records WHERE aggregate_id = _aggregate_id ORDER BY 1 DESC LIMIT 1),
+                             0
+                           ) >= _snapshot_threshold;
+      IF _snapshot_outdated THEN
+        INSERT INTO aggregates_that_need_snapshots AS target
+        VALUES (_aggregate_id, pg_current_xact_id()::text::bigint, NULL)
+            ON CONFLICT (aggregate_id) DO UPDATE
+           SET snapshot_outdated_xact_id = EXCLUDED.snapshot_outdated_xact_id
+         WHERE target.snapshot_outdated_xact_id IS NULL;
+      END IF;
     END IF;
   END LOOP;
 END;
