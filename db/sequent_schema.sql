@@ -92,3 +92,16 @@ CREATE TABLE saved_event_records (
   xact_id bigint,
   PRIMARY KEY (aggregate_id, sequence_number, timestamp)
 );
+
+CREATE TABLE aggregates_that_need_snapshots (
+  aggregate_id uuid NOT NULL PRIMARY KEY REFERENCES aggregates (aggregate_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  snapshot_outdated_xact_id bigint,
+  snapshot_sequence_number_high_water_mark integer
+);
+CREATE INDEX aggregates_that_need_snapshots_outdated_idx
+          ON aggregates_that_need_snapshots (snapshot_outdated_xact_id ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC)
+       WHERE snapshot_outdated_xact_id IS NOT NULL;
+COMMENT ON TABLE aggregates_that_need_snapshots IS 'Contains a row for every aggregate with more events than its snapshot threshold.';
+COMMENT ON COLUMN aggregates_that_need_snapshots.snapshot_outdated_xact_id IS 'Not NULL indicates a snapshot is needed since the stored transaction id';
+COMMENT ON COLUMN aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark
+  IS 'The highest sequence number of the stored snapshot. Kept when snapshot are deleted to more easily query aggregates that need snapshotting the most';

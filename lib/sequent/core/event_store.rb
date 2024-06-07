@@ -154,6 +154,15 @@ module Sequent
         deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
       end
 
+      # Deletes all snapshots for all aggregates
+      def delete_all_snapshots
+        connection.exec_update(
+          'CALL delete_all_snapshots()',
+          'delete_all_snapshots',
+          [],
+        )
+      end
+
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
         connection.exec_update(
@@ -225,6 +234,14 @@ module Sequent
           'SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2)',
           'aggregates_that_need_snapshots',
           [last_aggregate_id, limit],
+        ).map { |x| x['aggregate_id'] }
+      end
+
+      def aggregates_that_need_snapshots_ordered_by_priority(limit = 10)
+        connection.exec_query(
+          'SELECT aggregate_id FROM aggregates_that_need_snapshots_ordered_by_priority($1)',
+          'aggregates_that_need_snapshots',
+          [limit],
         ).map { |x| x['aggregate_id'] }
       end
 

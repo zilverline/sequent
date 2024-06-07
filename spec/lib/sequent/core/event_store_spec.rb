@@ -100,16 +100,41 @@ describe Sequent::Core::EventStore do
     end
 
     it 'can store and delete snapshots' do
-      aggregate = MyAggregate.new(aggregate_id)
+      stream, events = event_store.load_events(aggregate_id)
+      aggregate = Sequent::Core::AggregateRoot.load_from_history(stream, events)
       snapshot = aggregate.take_snapshot
       snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
 
       event_store.store_snapshots([snapshot])
 
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to be_empty
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot)
 
       event_store.delete_snapshots_before(aggregate_id, snapshot.sequence_number + 1)
+
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to include(aggregate_id)
+    end
+
+    it 'can delete all snapshots' do
+      stream, events = event_store.load_events(aggregate_id)
+      aggregate = Sequent::Core::AggregateRoot.load_from_history(stream, events)
+      snapshot = aggregate.take_snapshot
+      snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot)
+      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to be_empty
+
+      event_store.delete_all_snapshots
+
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to include(aggregate_id)
     end
   end
 
