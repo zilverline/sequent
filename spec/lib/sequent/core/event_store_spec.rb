@@ -224,6 +224,77 @@ describe Sequent::Core::EventStore do
       expect(event_store.load_event(aggregate_id, events.first.sequence_number)).to eq(events.first)
     end
 
+    context 'changing the partition_key and loading concurrently' do
+      before do
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+                events_partition_key: 'Y24',
+              ),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            ],
+          ],
+        )
+      end
+      let(:thread_stopper) do
+        Class.new do
+          def initialize
+            @stop = false
+          end
+          def stopped?
+            @stop
+          end
+          def stop
+            @stop = true
+          end
+        end
+      end
+
+      it 'will still allow to load the events' do
+        stopper = thread_stopper.new
+
+        reader_thread = Thread.new do
+          events = []
+          ActiveRecord::Base.connection_pool.with_connection do
+            until stopper.stopped?
+              ActiveRecord::Base.transaction do
+                events << event_store.load_events(aggregate_id)&.first
+              end
+              sleep(0.001)
+            end
+          end
+          events
+        end
+        updater_thread = Thread.new do
+          1000.times do |_i|
+            ActiveRecord::Base.connection_pool.with_connection do |c|
+              c.exec_update(
+                'UPDATE aggregates SET events_partition_key = $1 WHERE aggregate_id = $2',
+                'aggregates',
+                [%w[Y23 Y24].sample, aggregate_id],
+              )
+              sleep(0.0005)
+            end
+          end
+        end
+        updater_thread.join
+        stopper.stop
+        # wait for t1 to stop and collect its return value
+        events = reader_thread.value
+        # check that our test pool has some meaningful size
+        expect(events.length > 100).to be_truthy
+
+        misses = events.select(&:nil?).length
+        expect(misses).to eq(0), <<~EOS
+          Expected the events can always be loaded when the partition key is changed. But there are #{misses} misses.
+        EOS
+      end
+    end
+
     context 'and event type caching disabled' do
       around do |example|
         current = Sequent.configuration.event_store_cache_event_types
