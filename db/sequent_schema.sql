@@ -235,7 +235,9 @@ BEGIN
    ORDER BY 1
       ON CONFLICT DO NOTHING;
 
-  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row ORDER BY 1 LOOP
+  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row
+                             ORDER BY row->0->'aggregate_id', row->1->0->'event_json'->'sequence_number'
+  LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
     _snapshot_threshold = NULLIF(_aggregate->'snapshot_threshold', 'null'::jsonb);
     _provided_events_partition_key = _aggregate->>'events_partition_key';
