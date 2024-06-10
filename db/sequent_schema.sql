@@ -114,32 +114,19 @@ CREATE OR REPLACE FUNCTION load_event(
   _sequence_number integer
 ) RETURNS SETOF aggregate_event_type
 LANGUAGE plpgsql AS $$
-DECLARE
-  _aggregate aggregates;
-  _aggregate_type text;
 BEGIN
-  SELECT * INTO _aggregate
-    FROM aggregates
-   WHERE aggregate_id = _aggregate_id;
-  IF NOT FOUND THEN
-    RETURN;
-  END IF;
-
-  SELECT type INTO STRICT _aggregate_type
-    FROM aggregate_types
-   WHERE id = _aggregate.aggregate_type_id;
-
-  RETURN QUERY SELECT _aggregate_type,
-                      _aggregate_id,
-                      _aggregate.events_partition_key,
-                      _aggregate.snapshot_threshold,
-                      event_types.type,
-                      enrich_event_json(events)
-                 FROM events
-                     INNER JOIN event_types ON events.event_type_id = event_types.id
-                WHERE events.partition_key = _aggregate.events_partition_key
-                  AND events.aggregate_id = _aggregate_id
-                  AND events.sequence_number = _sequence_number;
+  RETURN QUERY SELECT aggregate_types.type,
+         a.aggregate_id,
+         a.events_partition_key,
+         a.snapshot_threshold,
+         event_types.type,
+         enrich_event_json(e)
+    FROM aggregates a
+        INNER JOIN events e ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
+        INNER JOIN aggregate_types ON a.aggregate_type_id = aggregate_types.id
+        INNER JOIN event_types ON e.event_type_id = event_types.id
+   WHERE a.aggregate_id = _aggregate_id
+     AND e.sequence_number = _sequence_number;
 END;
 $$;
 
@@ -150,48 +137,36 @@ CREATE OR REPLACE FUNCTION load_events(
 ) RETURNS SETOF aggregate_event_type
 LANGUAGE plpgsql AS $$
 DECLARE
-  _aggregate_type text;
   _aggregate_id aggregates.aggregate_id%TYPE;
-  _aggregate aggregates;
-  _snapshot snapshot_records;
-  _start_sequence_number events.sequence_number%TYPE;
 BEGIN
   FOR _aggregate_id IN SELECT * FROM jsonb_array_elements_text(_aggregate_ids) LOOP
-    SELECT * INTO _aggregate FROM aggregates WHERE aggregates.aggregate_id = _aggregate_id;
-    IF NOT FOUND THEN
-      CONTINUE;
-    END IF;
-
-    SELECT type INTO STRICT _aggregate_type
-      FROM aggregate_types
-     WHERE id = _aggregate.aggregate_type_id;
-
-    _start_sequence_number = 0;
-    IF _use_snapshots THEN
-      SELECT * INTO _snapshot FROM snapshot_records snapshots WHERE snapshots.aggregate_id = _aggregate.aggregate_id ORDER BY sequence_number DESC LIMIT 1;
-      IF FOUND THEN
-        _start_sequence_number := _snapshot.sequence_number;
-        RETURN NEXT (_aggregate_type,
-                     _aggregate.aggregate_id,
-                     _aggregate.events_partition_key,
-                     _aggregate.snapshot_threshold,
-                     _snapshot.snapshot_type,
-                     _snapshot.snapshot_json);
-      END IF;
-    END IF;
-    RETURN QUERY SELECT _aggregate_type,
-                        _aggregate.aggregate_id,
-                        _aggregate.events_partition_key,
-                        _aggregate.snapshot_threshold,
-                        event_types.type,
-                        enrich_event_json(events)
-                   FROM events
-                       INNER JOIN event_types ON events.event_type_id = event_types.id
-                  WHERE events.partition_key = _aggregate.events_partition_key
-                    AND events.aggregate_id = _aggregate.aggregate_id
-                    AND events.sequence_number >= _start_sequence_number
-                    AND (_until IS NULL OR events.created_at < _until)
-                  ORDER BY events.sequence_number;
+    -- Use a single query to avoid race condition with UPDATEs to the events partition key
+    -- in case transaction isolation level is lower than repeatable read (the default of
+    -- PostgreSQL is read committed).
+    RETURN QUERY WITH
+      aggregate AS (
+        SELECT aggregate_types.type, aggregate_id, events_partition_key, snapshot_threshold
+          FROM aggregates
+          JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
+         WHERE aggregate_id = _aggregate_id
+      ),
+      snapshot AS (
+        SELECT *
+          FROM snapshot_records
+         WHERE _use_snapshots
+           AND aggregate_id = _aggregate_id
+           AND (_until IS NULL OR created_at < _until)
+         ORDER BY sequence_number DESC LIMIT 1
+      )
+    (SELECT a.*, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s)
+    UNION ALL
+    (SELECT a.*, event_types.type, enrich_event_json(e)
+       FROM aggregate a
+       JOIN events e ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
+       JOIN event_types ON e.event_type_id = event_types.id
+      WHERE e.sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
+        AND (_until IS NULL OR e.created_at < _until)
+      ORDER BY e.sequence_number ASC);
   END LOOP;
 END;
 $$;
@@ -260,12 +235,12 @@ BEGIN
    ORDER BY 1
       ON CONFLICT DO NOTHING;
 
-  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
+  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row ORDER BY 1 LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
     _snapshot_threshold = NULLIF(_aggregate->'snapshot_threshold', 'null'::jsonb);
     _provided_events_partition_key = _aggregate->>'events_partition_key';
 
-    SELECT events_partition_key INTO _existing_events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id;
+    SELECT events_partition_key INTO _existing_events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id FOR UPDATE;
     _events_partition_key = COALESCE(_provided_events_partition_key, _existing_events_partition_key, '');
 
     INSERT INTO aggregates (aggregate_id, created_at, aggregate_type_id, events_partition_key, snapshot_threshold)
@@ -278,8 +253,8 @@ BEGIN
     ) ON CONFLICT (aggregate_id)
       DO UPDATE SET events_partition_key = EXCLUDED.events_partition_key,
                     snapshot_threshold = EXCLUDED.snapshot_threshold
-              WHERE aggregates.events_partition_key <> EXCLUDED.events_partition_key
-                 OR aggregates.snapshot_threshold <> EXCLUDED.snapshot_threshold;
+              WHERE aggregates.events_partition_key IS DISTINCT FROM EXCLUDED.events_partition_key
+                 OR aggregates.snapshot_threshold IS DISTINCT FROM EXCLUDED.snapshot_threshold;
 
     INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
     SELECT _events_partition_key,
