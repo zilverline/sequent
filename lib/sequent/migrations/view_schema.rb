@@ -308,7 +308,7 @@ module Sequent
         partitions_query = xact_id_filter(partitions_query, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
 
         partitions = partitions_query.group(:partition_key).order(:partition_key).count
-        event_count = partitions.sum(&:count)
+        event_count = partitions.values.sum
 
         groups = Sequent::Migrations::Grouper.group_partitions(partitions, group_target_size)
 
