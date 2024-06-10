@@ -275,7 +275,7 @@ describe Sequent::Core::EventStore do
               c.exec_update(
                 'UPDATE aggregates SET events_partition_key = $1 WHERE aggregate_id = $2',
                 'aggregates',
-                [%w[Y23 Y24].sample, aggregate_id],
+                [('aa'..'zz').to_a.sample, aggregate_id],
               )
               sleep(0.0005)
             end
@@ -286,7 +286,7 @@ describe Sequent::Core::EventStore do
         # wait for t1 to stop and collect its return value
         events = reader_thread.value
         # check that our test pool has some meaningful size
-        expect(events.length > 100).to be_truthy
+        expect(events.length).to be > 100
 
         misses = events.select(&:nil?).length
         expect(misses).to eq(0), <<~EOS
