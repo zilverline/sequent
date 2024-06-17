@@ -138,34 +138,73 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe '#events_exists?' do
+  describe '#permanently_delete_events' do
     before do
       event_store.commit_events(
-        Sequent::Core::Command.new(aggregate_id: aggregate_id),
+        Sequent::Core::Command.new(aggregate_id:),
         [
           [
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
-              aggregate_id: aggregate_id,
+              aggregate_id:,
               snapshot_threshold: 13,
             ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            [MyEvent.new(aggregate_id:, sequence_number: 1)],
           ],
         ],
       )
     end
 
-    it 'gets true for an existing aggregate' do
-      expect(event_store.events_exists?(aggregate_id)).to eq(true)
+    context 'should save deleted and updated events' do
+      it 'saves updated events into separate table' do
+        ActiveRecord::Base.connection.exec_update(
+          "UPDATE events SET event_json = '{}' WHERE aggregate_id = $1",
+          'update event',
+          [aggregate_id],
+        )
+
+        saved_events = ActiveRecord::Base.connection.exec_query(
+          'SELECT * FROM saved_event_records WHERE aggregate_id = $1',
+          'saved_events',
+          [aggregate_id],
+        ).to_a
+
+        expect(saved_events.size).to eq(1)
+        expect(saved_events[0]['operation']).to eq('U')
+        expect(saved_events[0]['event_type']).to eq('MyEvent')
+        expect(saved_events[0]['sequence_number']).to eq(1)
+        expect(saved_events[0]['event_json']).to eq('{"data": null}')
+      end
+      it 'saves deleted events into separate table' do
+        event_store.permanently_delete_event_stream(aggregate_id)
+
+        saved_events = ActiveRecord::Base.connection.exec_query(
+          'SELECT * FROM saved_event_records WHERE aggregate_id = $1',
+          'saved_events',
+          [aggregate_id],
+        ).to_a
+
+        expect(saved_events.size).to eq(1)
+        expect(saved_events[0]['operation']).to eq('D')
+        expect(saved_events[0]['event_type']).to eq('MyEvent')
+        expect(saved_events[0]['sequence_number']).to eq(1)
+        expect(saved_events[0]['event_json']).to eq('{"data": null}')
+      end
     end
 
-    it 'gets false for an non-existing aggregate' do
-      expect(event_store.events_exists?(Sequent.new_uuid)).to eq(false)
-    end
+    context '#events_exists?' do
+      it 'gets true for an existing aggregate' do
+        expect(event_store.events_exists?(aggregate_id)).to eq(true)
+      end
 
-    it 'gets false after deletion' do
-      event_store.permanently_delete_event_stream(aggregate_id)
-      expect(event_store.events_exists?(aggregate_id)).to eq(false)
+      it 'gets false for an non-existing aggregate' do
+        expect(event_store.events_exists?(Sequent.new_uuid)).to eq(false)
+      end
+
+      it 'gets false after deletion' do
+        event_store.permanently_delete_event_stream(aggregate_id)
+        expect(event_store.events_exists?(aggregate_id)).to eq(false)
+      end
     end
   end
 
