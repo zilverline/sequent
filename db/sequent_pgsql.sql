@@ -320,7 +320,9 @@ CREATE OR REPLACE VIEW stream_records (aggregate_id, events_partition_key, aggre
 CREATE OR REPLACE FUNCTION save_events_on_delete_trigger() RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO saved_event_records (operation, timestamp, "user", aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_id, xact_id)
-  SELECT 'D', statement_timestamp(), user,
+  SELECT 'D',
+         statement_timestamp(),
+         user,
          o.aggregate_id,
          o.partition_key,
          o.sequence_number,
@@ -337,7 +339,9 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION save_events_on_update_trigger() RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO saved_event_records (operation, timestamp, "user", aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_id, xact_id)
-  SELECT 'U', statement_timestamp(), user,
+  SELECT 'U',
+         statement_timestamp(),
+         user,
          o.aggregate_id,
          o.partition_key,
          o.sequence_number,
