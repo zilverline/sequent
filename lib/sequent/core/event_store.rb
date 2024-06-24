@@ -163,6 +163,15 @@ module Sequent
         )
       end
 
+      def ignore_aggregates_for_snapshotting_with_last_event_before(timestamp)
+        connection.exec_update(<<~EOS, 'ignore_aggregates_for_snapshotting_with_last_event_before', [timestamp])
+          DELETE FROM aggregates_that_need_snapshotting s
+           WHERE NOT EXISTS (SELECT *
+                               FROM aggregates a JOIN events e ON (a.aggregate_id, a.partition_key) = (e.aggregate_id, e.partition_key)
+                              WHERE a.aggregate_id = s.aggregate_id AND e.created_at >= $1)
+        EOS
+      end
+
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
         connection.exec_update(
