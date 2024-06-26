@@ -3,7 +3,6 @@ CREATE TYPE aggregate_event_type AS (
   aggregate_type text,
   aggregate_id uuid,
   events_partition_key text,
-  snapshot_threshold integer,
   event_type text,
   event_json jsonb
 );
@@ -44,7 +43,6 @@ BEGIN
   RETURN QUERY SELECT aggregate_types.type,
          a.aggregate_id,
          a.events_partition_key,
-         a.snapshot_threshold,
          event_types.type,
          enrich_event_json(e)
     FROM aggregates a
@@ -71,7 +69,7 @@ BEGIN
     -- PostgreSQL is read committed).
     RETURN QUERY WITH
       aggregate AS (
-        SELECT aggregate_types.type, aggregate_id, events_partition_key, snapshot_threshold
+        SELECT aggregate_types.type, aggregate_id, events_partition_key
           FROM aggregates
           JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
          WHERE aggregate_id = _aggregate_id
@@ -136,9 +134,7 @@ DECLARE
   _aggregate_row aggregates%ROWTYPE;
   _provided_events_partition_key aggregates.events_partition_key%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
-  _snapshot_threshold aggregates.snapshot_threshold%TYPE;
-  _last_event_sequence_number events.sequence_number%TYPE;
-  _snapshot_outdated boolean;
+  _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
 BEGIN
   _command_id = store_command(_command);
 
@@ -167,24 +163,21 @@ BEGIN
                              ORDER BY row->0->'aggregate_id', row->1->0->'event_json'->'sequence_number'
   LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
-    _snapshot_threshold = NULLIF(_aggregate->'snapshot_threshold', 'null'::jsonb);
     _provided_events_partition_key = _aggregate->>'events_partition_key';
+    _snapshot_outdated_at = _aggregate->>'snapshot_outdated_at';
 
     SELECT * INTO _aggregate_row FROM aggregates WHERE aggregate_id = _aggregate_id;
     _events_partition_key = COALESCE(_provided_events_partition_key, _aggregate_row.events_partition_key, '');
 
-    INSERT INTO aggregates (aggregate_id, created_at, aggregate_type_id, events_partition_key, snapshot_threshold)
+    INSERT INTO aggregates (aggregate_id, created_at, aggregate_type_id, events_partition_key)
     VALUES (
       _aggregate_id,
       (_events->0->>'created_at')::timestamptz,
       (SELECT id FROM aggregate_types WHERE type = _aggregate->>'aggregate_type'),
-      _events_partition_key,
-      _snapshot_threshold
+      _events_partition_key
     ) ON CONFLICT (aggregate_id)
-      DO UPDATE SET events_partition_key = EXCLUDED.events_partition_key,
-                    snapshot_threshold = EXCLUDED.snapshot_threshold
-              WHERE aggregates.events_partition_key IS DISTINCT FROM EXCLUDED.events_partition_key
-                 OR aggregates.snapshot_threshold IS DISTINCT FROM EXCLUDED.snapshot_threshold;
+      DO UPDATE SET events_partition_key = EXCLUDED.events_partition_key
+              WHERE aggregates.events_partition_key IS DISTINCT FROM EXCLUDED.events_partition_key;
 
     INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
     SELECT _events_partition_key,
@@ -196,19 +189,12 @@ BEGIN
            (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
       FROM jsonb_array_elements(_events) AS event;
 
-    _last_event_sequence_number = (SELECT MAX((event->'event_json'->'sequence_number')::integer) FROM jsonb_array_elements(_events) AS event);
-    IF _last_event_sequence_number >= _snapshot_threshold THEN
-      _snapshot_outdated = _last_event_sequence_number - COALESCE(
-                             (SELECT sequence_number FROM snapshot_records WHERE aggregate_id = _aggregate_id ORDER BY 1 DESC LIMIT 1),
-                             0
-                           ) >= _snapshot_threshold;
-      IF _snapshot_outdated THEN
-        INSERT INTO aggregates_that_need_snapshots AS target
-        VALUES (_aggregate_id, pg_current_xact_id()::text::bigint, NULL)
-            ON CONFLICT (aggregate_id) DO UPDATE
-           SET snapshot_outdated_xact_id = EXCLUDED.snapshot_outdated_xact_id
-         WHERE target.snapshot_outdated_xact_id IS NULL;
-      END IF;
+    IF _snapshot_outdated_at IS NOT NULL THEN
+      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
+      VALUES (_aggregate_id, _snapshot_outdated_at)
+          ON CONFLICT (aggregate_id) DO UPDATE
+         SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
+       WHERE row.snapshot_outdated_at IS DISTINCT FROM EXCLUDED.snapshot_outdated_at;
     END IF;
   END LOOP;
 END;
@@ -219,20 +205,28 @@ LANGUAGE plpgsql AS $$
 DECLARE
   _aggregate_id uuid;
   _snapshot jsonb;
+  _sequence_number snapshot_records.sequence_number%TYPE;
 BEGIN
   FOR _snapshot IN SELECT * FROM jsonb_array_elements(_snapshots) LOOP
     _aggregate_id = _snapshot->>'aggregate_id';
+    _sequence_number = _snapshot->'sequence_number';
 
     INSERT INTO snapshot_records (aggregate_id, sequence_number, created_at, snapshot_type, snapshot_json)
          VALUES (
            _aggregate_id,
-           (_snapshot->'sequence_number')::integer,
+           _sequence_number,
            (_snapshot->>'created_at')::timestamptz,
            _snapshot->>'snapshot_type',
            _snapshot->'snapshot_json'
          );
 
-    CALL update_snapshot_status(_aggregate_id);
+    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at, snapshot_sequence_number_high_water_mark)
+    VALUES (_aggregate_id, NULL, _sequence_number)
+        ON CONFLICT (aggregate_id) DO UPDATE
+       SET snapshot_outdated_at = NULL,
+           snapshot_sequence_number_high_water_mark = EXCLUDED.snapshot_sequence_number_high_water_mark
+     WHERE row.snapshot_sequence_number_high_water_mark IS NULL
+        OR row.snapshot_sequence_number_high_water_mark < EXCLUDED.snapshot_sequence_number_high_water_mark;
   END LOOP;
 END;
 $$;
@@ -242,7 +236,6 @@ LANGUAGE SQL AS $$
   SELECT (SELECT type FROM aggregate_types WHERE id = a.aggregate_type_id),
          a.aggregate_id,
          a.events_partition_key,
-         a.snapshot_threshold,
          s.snapshot_type,
          s.snapshot_json
     FROM aggregates a JOIN snapshot_records s ON a.aggregate_id = s.aggregate_id
@@ -255,8 +248,8 @@ CREATE OR REPLACE PROCEDURE delete_all_snapshots()
 LANGUAGE plpgsql AS $$
 BEGIN
   UPDATE aggregates_that_need_snapshots
-     SET snapshot_outdated_xact_id = pg_current_xact_id()::text::bigint
-   WHERE snapshot_outdated_xact_id IS NULL;
+     SET snapshot_outdated_at = NOW()
+   WHERE snapshot_outdated_at IS NULL;
   DELETE FROM snapshot_records;
 END;
 $$;
@@ -268,41 +261,11 @@ BEGIN
    WHERE aggregate_id = _aggregate_id
      AND sequence_number < _sequence_number;
 
-  CALL update_snapshot_status(_aggregate_id);
-END;
-$$;
-
-CREATE OR REPLACE PROCEDURE update_snapshot_status(_aggregate_id uuid)
-LANGUAGE plpgsql AS $$
-DECLARE
-  _snapshot_threshold aggregates.snapshot_threshold%TYPE;
-  _last_event_sequence_number events.sequence_number%TYPE;
-  _last_snapshot_sequence_number events.sequence_number%TYPE;
-  _snapshot_outdated_xact_id bigint = NULL;
-BEGIN
-  SELECT a.snapshot_threshold, e.sequence_number INTO STRICT _snapshot_threshold, _last_event_sequence_number
-    FROM aggregates a JOIN events e ON a.events_partition_key = e.partition_key AND a.aggregate_id = e.aggregate_id
-   WHERE a.aggregate_id = _aggregate_id
-   ORDER BY 2 DESC LIMIT 1;
-
-  SELECT sequence_number INTO _last_snapshot_sequence_number
-    FROM snapshot_records
+  UPDATE aggregates_that_need_snapshots
+     SET snapshot_outdated_at = NOW()
    WHERE aggregate_id = _aggregate_id
-   ORDER BY 1 DESC LIMIT 1;
-
-  IF _last_event_sequence_number - COALESCE(_last_snapshot_sequence_number, 0) >= _snapshot_threshold THEN
-    _snapshot_outdated_xact_id = pg_current_xact_id()::text::bigint;
-  END IF;
-
-  INSERT INTO aggregates_that_need_snapshots AS target
-  VALUES (_aggregate_id, _snapshot_outdated_xact_id, _last_snapshot_sequence_number)
-      ON CONFLICT (aggregate_id) DO UPDATE
-     SET snapshot_outdated_xact_id = (CASE
-                                        WHEN EXCLUDED.snapshot_outdated_xact_id IS NULL THEN NULL
-                                        ELSE LEAST(target.snapshot_outdated_xact_id, EXCLUDED.snapshot_outdated_xact_id)
-                                      END),
-         snapshot_sequence_number_high_water_mark =
-           GREATEST(target.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark);
+     AND snapshot_outdated_at IS NULL
+     AND NOT EXISTS (SELECT 1 FROM snapshot_records WHERE aggregate_id = _aggregate_id);
 END;
 $$;
 
@@ -312,7 +275,7 @@ LANGUAGE plpgsql AS $$
 BEGIN
   RETURN QUERY SELECT a.aggregate_id
     FROM aggregates_that_need_snapshots a
-   WHERE a.snapshot_outdated_xact_id IS NOT NULL
+   WHERE a.snapshot_outdated_at IS NOT NULL
      AND (_last_aggregate_id IS NULL OR a.aggregate_id > _last_aggregate_id)
    ORDER BY 1
    LIMIT _limit;
@@ -325,8 +288,8 @@ LANGUAGE plpgsql AS $$
 BEGIN
   RETURN QUERY SELECT a.aggregate_id
     FROM aggregates_that_need_snapshots a
-   WHERE snapshot_outdated_xact_id IS NOT NULL
-   ORDER BY snapshot_outdated_xact_id ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
+   WHERE snapshot_outdated_at IS NOT NULL
+   ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
    LIMIT _limit;
 END;
 $$;
@@ -382,11 +345,10 @@ CREATE OR REPLACE VIEW event_records (aggregate_id, partition_key, sequence_numb
        JOIN events event ON aggregate.aggregate_id = event.aggregate_id AND aggregate.events_partition_key = event.partition_key
        JOIN event_types type ON event.event_type_id = type.id;
 
-CREATE OR REPLACE VIEW stream_records (aggregate_id, events_partition_key, aggregate_type, snapshot_threshold, created_at) AS
+CREATE OR REPLACE VIEW stream_records (aggregate_id, events_partition_key, aggregate_type, created_at) AS
      SELECT aggregates.aggregate_id,
             aggregates.events_partition_key,
             aggregate_types.type,
-            aggregates.snapshot_threshold,
             aggregates.created_at
        FROM aggregates JOIN aggregate_types ON aggregates.aggregate_type_id = aggregate_types.id;
 

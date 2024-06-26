@@ -119,7 +119,6 @@ module Sequent
                 aggregate_type: rows.first['aggregate_type'],
                 aggregate_id: rows.first['aggregate_id'],
                 events_partition_key: rows.first['events_partition_key'],
-                snapshot_threshold: rows.first['snapshot_threshold'],
               ),
               rows.map { |row| deserialize_event(row) },
             ]

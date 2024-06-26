@@ -44,7 +44,6 @@ describe Sequent::Core::EventStore do
   end
 
   context 'snapshotting' do
-    let(:snapshot_threshold) { 1 }
     before do
       event_store.commit_events(
         Sequent::Core::Command.new(aggregate_id: aggregate_id),
@@ -53,7 +52,7 @@ describe Sequent::Core::EventStore do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_threshold: snapshot_threshold,
+              snapshot_outdated_at: Time.now,
             ),
             [
               MyEvent.new(
@@ -66,33 +65,6 @@ describe Sequent::Core::EventStore do
           ],
         ],
       )
-    end
-
-    it 'stores the event as JSON object' do
-      # Test to ensure stored data is not accidentally doubly-encoded,
-      # so query database directly instead of using `load_event`.
-      row = ActiveRecord::Base.connection.exec_query(
-        "SELECT event_json, event_json::jsonb->>'data' AS data FROM event_records \
-          WHERE aggregate_id = $1 and sequence_number = $2",
-        'query_event',
-        [aggregate_id, 1],
-      ).first
-
-      expect(row['data']).to eq("with ' unsafe SQL characters;\n")
-      json = Sequent::Core::Oj.strict_load(row['event_json'])
-      expect(json['aggregate_id']).to eq(aggregate_id)
-      expect(json['sequence_number']).to eq(1)
-    end
-
-    it 'can store events' do
-      stream, events = event_store.load_events aggregate_id
-
-      expect(stream.snapshot_threshold).to eq(1)
-      expect(stream.aggregate_type).to eq('MyAggregate')
-      expect(stream.aggregate_id).to eq(aggregate_id)
-      expect(events.first.aggregate_id).to eq(aggregate_id)
-      expect(events.first.sequence_number).to eq(1)
-      expect(events.first.data).to eq("with ' unsafe SQL characters;\n")
     end
 
     it 'can find streams that need snapshotting' do
@@ -139,20 +111,68 @@ describe Sequent::Core::EventStore do
   end
 
   describe '#commit_events' do
+    before do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_outdated_at: Time.now,
+            ),
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id,
+                sequence_number: 1,
+                created_at: Time.parse('2024-02-29T01:10:12Z'),
+                data: "with ' unsafe SQL characters;\n",
+              ),
+            ],
+          ],
+        ],
+      )
+    end
+
+    it 'can store events' do
+      stream, events = event_store.load_events aggregate_id
+
+      expect(stream.aggregate_type).to eq('MyAggregate')
+      expect(stream.aggregate_id).to eq(aggregate_id)
+      expect(events.first.aggregate_id).to eq(aggregate_id)
+      expect(events.first.sequence_number).to eq(1)
+      expect(events.first.data).to eq("with ' unsafe SQL characters;\n")
+    end
+
+    it 'stores the event as JSON object' do
+      # Test to ensure stored data is not accidentally doubly-encoded,
+      # so query database directly instead of using `load_event`.
+      row = ActiveRecord::Base.connection.exec_query(
+        "SELECT event_json, event_json->>'data' AS data FROM event_records \
+          WHERE aggregate_id = $1 and sequence_number = $2",
+        'query_event',
+        [aggregate_id, 1],
+      ).first
+
+      expect(row['data']).to eq("with ' unsafe SQL characters;\n")
+      json = Sequent::Core::Oj.strict_load(row['event_json'])
+      expect(json['aggregate_id']).to eq(aggregate_id)
+      expect(json['sequence_number']).to eq(1)
+    end
+
     it 'fails with OptimisticLockingError when RecordNotUnique' do
       expect do
         event_store.commit_events(
-          Sequent::Core::Command.new(aggregate_id: aggregate_id),
+          Sequent::Core::Command.new(aggregate_id:),
           [
             [
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
-                aggregate_id: aggregate_id,
-                snapshot_threshold: 13,
+                aggregate_id:,
               ),
               [
-                MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
-                MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
+                MyEvent.new(aggregate_id:, sequence_number: 2),
+                MyEvent.new(aggregate_id:, sequence_number: 2),
               ],
             ],
           ],
@@ -172,7 +192,6 @@ describe Sequent::Core::EventStore do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id:,
-              snapshot_threshold: 13,
             ),
             [MyEvent.new(aggregate_id:, sequence_number: 1)],
           ],
@@ -242,7 +261,6 @@ describe Sequent::Core::EventStore do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_threshold: 13,
             ),
             [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
           ],
@@ -549,7 +567,6 @@ describe Sequent::Core::EventStore do
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
                 aggregate_id: aggregate_id,
-                snapshot_threshold: 13,
               ),
               [my_event],
             ],
@@ -569,7 +586,6 @@ describe Sequent::Core::EventStore do
                 Sequent::Core::EventStream.new(
                   aggregate_type: 'MyAggregate',
                   aggregate_id: aggregate_id,
-                  snapshot_threshold: 13,
                 ),
                 [my_event],
               ],
@@ -591,7 +607,6 @@ describe Sequent::Core::EventStore do
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
                 aggregate_id: aggregate_id,
-                snapshot_threshold: 13,
               ),
               [my_event],
             ],
@@ -686,7 +701,6 @@ describe Sequent::Core::EventStore do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_threshold: 13,
             ),
             [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
           ],
@@ -729,7 +743,6 @@ describe Sequent::Core::EventStore do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id:,
-              snapshot_threshold: 13,
             ),
             [MyEvent.new(aggregate_id:, sequence_number: 1)],
           ],

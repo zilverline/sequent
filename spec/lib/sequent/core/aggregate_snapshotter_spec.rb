@@ -20,7 +20,6 @@ describe Sequent::Core::AggregateSnapshotter do
       Sequent.configuration.command_handlers = commands_handlers
     end
   end
-  let(:snapshot_threshold) { 1 }
   let(:events) { [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)] }
 
   before :each do
@@ -32,7 +31,6 @@ describe Sequent::Core::AggregateSnapshotter do
           Sequent::Core::EventStream.new(
             aggregate_type: 'MyAggregate',
             aggregate_id: aggregate_id,
-            snapshot_threshold: 1,
           ),
           events,
         ],
@@ -47,7 +45,6 @@ describe Sequent::Core::AggregateSnapshotter do
   end
 
   context 'loads aggregates with snapshots' do
-    let(:snapshot_threshold) { 2 }
     let(:events) do
       [
         MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
@@ -66,7 +63,6 @@ describe Sequent::Core::AggregateSnapshotter do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id_2,
-              snapshot_threshold: 10,
             ),
             [MyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1)],
           ],
