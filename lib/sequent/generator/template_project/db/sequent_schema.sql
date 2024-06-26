@@ -66,6 +66,19 @@ ALTER TABLE events_2025_and_later CLUSTER ON events_2025_and_later_pkey;
 CREATE TABLE events_aggregate PARTITION OF events FOR VALUES FROM ('A') TO ('Ag');
 ALTER TABLE events_aggregate CLUSTER ON events_aggregate_pkey;
 
+CREATE TABLE aggregates_that_need_snapshots (
+  aggregate_id uuid NOT NULL PRIMARY KEY REFERENCES aggregates (aggregate_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  snapshot_outdated_at timestamp with time zone,
+  snapshot_sequence_number_high_water_mark integer
+);
+CREATE INDEX aggregates_that_need_snapshots_outdated_idx
+          ON aggregates_that_need_snapshots (snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC)
+       WHERE snapshot_outdated_at IS NOT NULL;
+COMMENT ON TABLE aggregates_that_need_snapshots IS 'Contains a row for every aggregate with more events than its snapshot threshold.';
+COMMENT ON COLUMN aggregates_that_need_snapshots.snapshot_outdated_at IS 'Not NULL indicates a snapshot is needed since the stored timestamp';
+COMMENT ON COLUMN aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark
+  IS 'The highest sequence number of the stored snapshot. Kept when snapshot are deleted to more easily query aggregates that need snapshotting the most';
+
 CREATE TABLE snapshot_records (
   aggregate_id uuid NOT NULL,
   sequence_number integer NOT NULL,
@@ -73,7 +86,7 @@ CREATE TABLE snapshot_records (
   snapshot_type text NOT NULL,
   snapshot_json jsonb NOT NULL,
   PRIMARY KEY (aggregate_id, sequence_number),
-  FOREIGN KEY (aggregate_id) REFERENCES aggregates (aggregate_id)
+  FOREIGN KEY (aggregate_id) REFERENCES aggregates_that_need_snapshots (aggregate_id)
     ON UPDATE CASCADE ON DELETE CASCADE
 );
 
@@ -91,16 +104,3 @@ CREATE TABLE saved_event_records (
   xact_id bigint,
   PRIMARY KEY (aggregate_id, sequence_number, timestamp)
 );
-
-CREATE TABLE aggregates_that_need_snapshots (
-  aggregate_id uuid NOT NULL PRIMARY KEY REFERENCES aggregates (aggregate_id) ON UPDATE CASCADE ON DELETE CASCADE,
-  snapshot_outdated_at timestamp with time zone,
-  snapshot_sequence_number_high_water_mark integer
-);
-CREATE INDEX aggregates_that_need_snapshots_outdated_idx
-          ON aggregates_that_need_snapshots (snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC)
-       WHERE snapshot_outdated_at IS NOT NULL;
-COMMENT ON TABLE aggregates_that_need_snapshots IS 'Contains a row for every aggregate with more events than its snapshot threshold.';
-COMMENT ON COLUMN aggregates_that_need_snapshots.snapshot_outdated_at IS 'Not NULL indicates a snapshot is needed since the stored timestamp';
-COMMENT ON COLUMN aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark
-  IS 'The highest sequence number of the stored snapshot. Kept when snapshot are deleted to more easily query aggregates that need snapshotting the most';

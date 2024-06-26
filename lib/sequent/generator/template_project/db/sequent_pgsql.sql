@@ -211,22 +211,21 @@ BEGIN
     _aggregate_id = _snapshot->>'aggregate_id';
     _sequence_number = _snapshot->'sequence_number';
 
-    INSERT INTO snapshot_records (aggregate_id, sequence_number, created_at, snapshot_type, snapshot_json)
-         VALUES (
-           _aggregate_id,
-           _sequence_number,
-           (_snapshot->>'created_at')::timestamptz,
-           _snapshot->>'snapshot_type',
-           _snapshot->'snapshot_json'
-         );
-
     INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at, snapshot_sequence_number_high_water_mark)
     VALUES (_aggregate_id, NULL, _sequence_number)
         ON CONFLICT (aggregate_id) DO UPDATE
-       SET snapshot_outdated_at = NULL,
-           snapshot_sequence_number_high_water_mark = EXCLUDED.snapshot_sequence_number_high_water_mark
-     WHERE row.snapshot_sequence_number_high_water_mark IS NULL
-        OR row.snapshot_sequence_number_high_water_mark < EXCLUDED.snapshot_sequence_number_high_water_mark;
+       SET snapshot_outdated_at = EXCLUDED.snapshot_outdated_at,
+           snapshot_sequence_number_high_water_mark =
+             LEAST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark);
+
+    INSERT INTO snapshot_records (aggregate_id, sequence_number, created_at, snapshot_type, snapshot_json)
+    VALUES (
+      _aggregate_id,
+      _sequence_number,
+      (_snapshot->>'created_at')::timestamptz,
+      _snapshot->>'snapshot_type',
+      _snapshot->'snapshot_json'
+    );
   END LOOP;
 END;
 $$;

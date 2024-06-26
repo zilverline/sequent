@@ -52,7 +52,6 @@ describe Sequent::Core::EventStore do
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_outdated_at: Time.now,
             ),
             [
               MyEvent.new(
@@ -67,16 +66,64 @@ describe Sequent::Core::EventStore do
       )
     end
 
-    it 'can find streams that need snapshotting' do
+    let(:aggregate) do
+      stream, events = event_store.load_events(aggregate_id)
+      Sequent::Core::AggregateRoot.load_from_history(stream, events)
+    end
+
+    let(:snapshot) do
+      snapshot = aggregate.take_snapshot
+      snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+      snapshot
+    end
+
+    it 'can mark aggregates for snapshotting when storing new events' do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_outdated_at: Time.now,
+            ),
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id,
+                sequence_number: 2,
+                created_at: Time.parse('2024-02-30T01:10:12Z'),
+                data: "another event\n",
+              ),
+            ],
+          ],
+        ],
+      )
+      expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+
+      event_store.store_snapshots([snapshot])
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+    end
+
+    it 'can no longer find the aggregates that are cleared for snapshotting' do
+      event_store.store_snapshots([snapshot])
+
+      event_store.clear_aggregate_for_snapshotting(aggregate_id)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+
+      event_store.mark_aggregate_for_snapshotting(aggregate_id)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
     end
 
-    it 'can store and delete snapshots' do
-      stream, events = event_store.load_events(aggregate_id)
-      aggregate = Sequent::Core::AggregateRoot.load_from_history(stream, events)
-      snapshot = aggregate.take_snapshot
-      snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+    it 'can no longer find aggregates what are clear for snapshotting based on latest event timestamp' do
+      event_store.store_snapshots([snapshot])
 
+      event_store.clear_aggregates_for_snapshotting_with_last_event_before(Time.now)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+    end
+
+    it 'can store and delete snapshots' do
       event_store.store_snapshots([snapshot])
 
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
@@ -91,11 +138,6 @@ describe Sequent::Core::EventStore do
     end
 
     it 'can delete all snapshots' do
-      stream, events = event_store.load_events(aggregate_id)
-      aggregate = Sequent::Core::AggregateRoot.load_from_history(stream, events)
-      snapshot = aggregate.take_snapshot
-      snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
-
       event_store.store_snapshots([snapshot])
 
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty

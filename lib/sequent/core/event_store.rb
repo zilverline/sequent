@@ -153,6 +153,45 @@ module Sequent
         deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
       end
 
+      # Marks an aggregate for snapshotting. Marked aggregates will be
+      # picked up by the background snapshotting task. Another way to
+      # mark aggregates for snapshotting is to pass the
+      # *EventStream#snapshot_outdated_at* property to the
+      # *#store_events* method as is done automatically by the
+      # *AggregateRepository* based on the aggregate's
+      # *snapshot_threshold*.
+      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at = Time.now)
+        connection.exec_update(<<~EOS, 'mark_aggregate_for_snapshotting', [aggregate_id, snapshot_outdated_at])
+          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
+          VALUES ($1, $2)
+              ON CONFLICT (aggregate_id) DO UPDATE
+             SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
+        EOS
+      end
+
+      # Stops snapshotting the specified aggregate. Any existing
+      # snapshots for this aggregate are also deleted.
+      def clear_aggregate_for_snapshotting(aggregate_id)
+        connection.exec_update(
+          'DELETE FROM aggregates_that_need_snapshots WHERE aggregate_id = $1',
+          'clear_aggregate_for_snapshotting',
+          [aggregate_id],
+        )
+      end
+
+      # Stops snapshotting all aggregates where the last event
+      # occurred before the indicated timestamp. Any existing
+      # snapshots for this aggregate are also deleted.
+      def clear_aggregates_for_snapshotting_with_last_event_before(timestamp)
+        connection.exec_update(<<~EOS, 'clear_aggregates_for_snapshotting_with_last_event_before', [timestamp])
+          DELETE FROM aggregates_that_need_snapshots s
+           WHERE NOT EXISTS (SELECT *
+                               FROM aggregates a
+                               JOIN events e ON (a.aggregate_id, a.events_partition_key) = (e.aggregate_id, e.partition_key)
+                              WHERE a.aggregate_id = s.aggregate_id AND e.created_at >= $1)
+        EOS
+      end
+
       # Deletes all snapshots for all aggregates
       def delete_all_snapshots
         connection.exec_update(
@@ -160,15 +199,6 @@ module Sequent
           'delete_all_snapshots',
           [],
         )
-      end
-
-      def ignore_aggregates_for_snapshotting_with_last_event_before(timestamp)
-        connection.exec_update(<<~EOS, 'ignore_aggregates_for_snapshotting_with_last_event_before', [timestamp])
-          DELETE FROM aggregates_that_need_snapshotting s
-           WHERE NOT EXISTS (SELECT *
-                               FROM aggregates a JOIN events e ON (a.aggregate_id, a.partition_key) = (e.aggregate_id, e.partition_key)
-                              WHERE a.aggregate_id = s.aggregate_id AND e.created_at >= $1)
-        EOS
       end
 
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
