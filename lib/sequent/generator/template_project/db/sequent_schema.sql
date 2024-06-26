@@ -77,3 +77,18 @@ CREATE TABLE snapshot_records (
   FOREIGN KEY (aggregate_id) REFERENCES aggregates (aggregate_id)
     ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+CREATE TABLE saved_event_records (
+  operation varchar(1) NOT NULL CHECK (operation IN ('U', 'D')),
+  timestamp timestamptz NOT NULL,
+  "user" text NOT NULL,
+  aggregate_id uuid NOT NULL,
+  partition_key text DEFAULT '',
+  sequence_number integer NOT NULL,
+  created_at timestamp with time zone NOT NULL,
+  command_id bigint NOT NULL,
+  event_type text NOT NULL,
+  event_json jsonb NOT NULL,
+  xact_id bigint,
+  PRIMARY KEY (aggregate_id, sequence_number, timestamp)
+);
