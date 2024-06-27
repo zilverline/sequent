@@ -418,46 +418,6 @@ describe Sequent::Core::EventStore do
         EOS
       end
     end
-
-    context 'and event type caching disabled' do
-      around do |example|
-        current = Sequent.configuration.event_store_cache_event_types
-
-        Sequent.configuration.event_store_cache_event_types = false
-
-        example.run
-      ensure
-        Sequent.configuration.event_store_cache_event_types = current
-      end
-      let(:event_store) { Sequent::Core::EventStore.new }
-
-      it 'returns the stream and events for existing aggregates' do
-        TestEventForCaching = Class.new(Sequent::Core::Event)
-
-        event_store.commit_events(
-          Sequent::Core::Command.new(aggregate_id: aggregate_id),
-          [
-            [
-              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
-              [TestEventForCaching.new(aggregate_id: aggregate_id, sequence_number: 1)],
-            ],
-          ],
-        )
-        stream, events = event_store.load_events(aggregate_id)
-        expect(stream).to be
-        expect(events.first).to be_kind_of(TestEventForCaching)
-
-        # redefine TestEventForCaching class (ie. simulate Rails auto-loading)
-        OldTestEventForCaching = TestEventForCaching
-        TestEventForCaching = Class.new(Sequent::Core::Event)
-
-        stream, events = event_store.load_events(aggregate_id)
-        expect(stream).to be
-        expect(events.first).to be_kind_of(TestEventForCaching)
-
-        expect(event_store.load_event(aggregate_id, events.first.sequence_number)).to eq(events.first)
-      end
-    end
   end
 
   describe '#load_events_for_aggregates' do

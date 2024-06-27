@@ -135,15 +135,6 @@ module Sequent
       end
 
       ##
-      # Disables event type caching (ie. for in development).
-      #
-      class NoEventTypesCache
-        def fetch_or_store(event_type)
-          yield(event_type)
-        end
-      end
-
-      ##
       # Stores the events in the EventStore and publishes the events
       # to the registered event_handlers.
       #

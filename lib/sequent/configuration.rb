@@ -36,7 +36,6 @@ module Sequent
 
     attr_accessor :aggregate_repository,
                   :event_store,
-                  :event_store_cache_event_types,
                   :command_service,
                   :event_record_class,
                   :snapshot_record_class,
@@ -93,7 +92,6 @@ module Sequent
       self.command_middleware = Sequent::Core::Middleware::Chain.new
 
       self.aggregate_repository = Sequent::Core::AggregateRepository.new
-      self.event_store_cache_event_types = true
       self.event_store = Sequent::Core::EventStore.new
       self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
