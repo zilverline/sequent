@@ -7,7 +7,114 @@ require_relative 'snapshot_record'
 
 module Sequent
   module Core
+    module SnapshotStore
+      def store_snapshots(snapshots)
+        json = Sequent::Core::Oj.dump(
+          snapshots.map do |snapshot|
+            {
+              aggregate_id: snapshot.aggregate_id,
+              sequence_number: snapshot.sequence_number,
+              created_at: snapshot.created_at,
+              snapshot_type: snapshot.class.name,
+              snapshot_json: snapshot,
+            }
+          end,
+        )
+        connection.exec_update(
+          'CALL store_snapshots($1)',
+          'store_snapshots',
+          [json],
+        )
+      end
+
+      def load_latest_snapshot(aggregate_id)
+        snapshot_hash = connection.exec_query(
+          'SELECT * FROM load_latest_snapshot($1)',
+          'load_latest_snapshot',
+          [aggregate_id],
+        ).first
+        deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
+      end
+
+      # Deletes all snapshots for all aggregates
+      def delete_all_snapshots
+        connection.exec_update(
+          'CALL delete_all_snapshots()',
+          'delete_all_snapshots',
+          [],
+        )
+      end
+
+      # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
+      def delete_snapshots_before(aggregate_id, sequence_number)
+        connection.exec_update(
+          'CALL delete_snapshots_before($1, $2)',
+          'delete_snapshots_before',
+          [aggregate_id, sequence_number],
+        )
+      end
+
+      # Marks an aggregate for snapshotting. Marked aggregates will be
+      # picked up by the background snapshotting task. Another way to
+      # mark aggregates for snapshotting is to pass the
+      # *EventStream#snapshot_outdated_at* property to the
+      # *#store_events* method as is done automatically by the
+      # *AggregateRepository* based on the aggregate's
+      # *snapshot_threshold*.
+      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at = Time.now)
+        connection.exec_update(<<~EOS, 'mark_aggregate_for_snapshotting', [aggregate_id, snapshot_outdated_at])
+          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
+          VALUES ($1, $2)
+              ON CONFLICT (aggregate_id) DO UPDATE
+             SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
+        EOS
+      end
+
+      # Stops snapshotting the specified aggregate. Any existing
+      # snapshots for this aggregate are also deleted.
+      def clear_aggregate_for_snapshotting(aggregate_id)
+        connection.exec_update(
+          'DELETE FROM aggregates_that_need_snapshots WHERE aggregate_id = $1',
+          'clear_aggregate_for_snapshotting',
+          [aggregate_id],
+        )
+      end
+
+      # Stops snapshotting all aggregates where the last event
+      # occurred before the indicated timestamp. Any existing
+      # snapshots for this aggregate are also deleted.
+      def clear_aggregates_for_snapshotting_with_last_event_before(timestamp)
+        connection.exec_update(<<~EOS, 'clear_aggregates_for_snapshotting_with_last_event_before', [timestamp])
+          DELETE FROM aggregates_that_need_snapshots s
+           WHERE NOT EXISTS (SELECT *
+                               FROM aggregates a
+                               JOIN events e ON (a.aggregate_id, a.events_partition_key) = (e.aggregate_id, e.partition_key)
+                              WHERE a.aggregate_id = s.aggregate_id AND e.created_at >= $1)
+        EOS
+      end
+
+      ##
+      # Returns the ids of aggregates that need a new snapshot.
+      #
+      def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
+        connection.exec_query(
+          'SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2)',
+          'aggregates_that_need_snapshots',
+          [last_aggregate_id, limit],
+        ).map { |x| x['aggregate_id'] }
+      end
+
+      def aggregates_that_need_snapshots_ordered_by_priority(limit = 10)
+        connection.exec_query(
+          'SELECT aggregate_id FROM aggregates_that_need_snapshots_ordered_by_priority($1)',
+          'aggregates_that_need_snapshots',
+          [limit],
+        ).map { |x| x['aggregate_id'] }
+      end
+    end
+
     class EventStore
+      include SnapshotStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
 
@@ -125,91 +232,6 @@ module Sequent
           end
       end
 
-      def store_snapshots(snapshots)
-        json = Sequent::Core::Oj.dump(
-          snapshots.map do |snapshot|
-            {
-              aggregate_id: snapshot.aggregate_id,
-              sequence_number: snapshot.sequence_number,
-              created_at: snapshot.created_at,
-              snapshot_type: snapshot.class.name,
-              snapshot_json: snapshot,
-            }
-          end,
-        )
-        connection.exec_update(
-          'CALL store_snapshots($1)',
-          'store_snapshots',
-          [json],
-        )
-      end
-
-      def load_latest_snapshot(aggregate_id)
-        snapshot_hash = connection.exec_query(
-          'SELECT * FROM load_latest_snapshot($1)',
-          'load_latest_snapshot',
-          [aggregate_id],
-        ).first
-        deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
-      end
-
-      # Marks an aggregate for snapshotting. Marked aggregates will be
-      # picked up by the background snapshotting task. Another way to
-      # mark aggregates for snapshotting is to pass the
-      # *EventStream#snapshot_outdated_at* property to the
-      # *#store_events* method as is done automatically by the
-      # *AggregateRepository* based on the aggregate's
-      # *snapshot_threshold*.
-      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at = Time.now)
-        connection.exec_update(<<~EOS, 'mark_aggregate_for_snapshotting', [aggregate_id, snapshot_outdated_at])
-          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
-          VALUES ($1, $2)
-              ON CONFLICT (aggregate_id) DO UPDATE
-             SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
-        EOS
-      end
-
-      # Stops snapshotting the specified aggregate. Any existing
-      # snapshots for this aggregate are also deleted.
-      def clear_aggregate_for_snapshotting(aggregate_id)
-        connection.exec_update(
-          'DELETE FROM aggregates_that_need_snapshots WHERE aggregate_id = $1',
-          'clear_aggregate_for_snapshotting',
-          [aggregate_id],
-        )
-      end
-
-      # Stops snapshotting all aggregates where the last event
-      # occurred before the indicated timestamp. Any existing
-      # snapshots for this aggregate are also deleted.
-      def clear_aggregates_for_snapshotting_with_last_event_before(timestamp)
-        connection.exec_update(<<~EOS, 'clear_aggregates_for_snapshotting_with_last_event_before', [timestamp])
-          DELETE FROM aggregates_that_need_snapshots s
-           WHERE NOT EXISTS (SELECT *
-                               FROM aggregates a
-                               JOIN events e ON (a.aggregate_id, a.events_partition_key) = (e.aggregate_id, e.partition_key)
-                              WHERE a.aggregate_id = s.aggregate_id AND e.created_at >= $1)
-        EOS
-      end
-
-      # Deletes all snapshots for all aggregates
-      def delete_all_snapshots
-        connection.exec_update(
-          'CALL delete_all_snapshots()',
-          'delete_all_snapshots',
-          [],
-        )
-      end
-
-      # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
-      def delete_snapshots_before(aggregate_id, sequence_number)
-        connection.exec_update(
-          'CALL delete_snapshots_before($1, $2)',
-          'delete_snapshots_before',
-          [aggregate_id, sequence_number],
-        )
-      end
-
       def stream_exists?(aggregate_id)
         Sequent.configuration.stream_record_class.exists?(aggregate_id: aggregate_id)
       end
@@ -262,25 +284,6 @@ module Sequent
         else
           Sequent.logger.debug("Replayed #{progress} events")
         end
-      end
-
-      ##
-      # Returns the ids of aggregates that need a new snapshot.
-      #
-      def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
-        connection.exec_query(
-          'SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2)',
-          'aggregates_that_need_snapshots',
-          [last_aggregate_id, limit],
-        ).map { |x| x['aggregate_id'] }
-      end
-
-      def aggregates_that_need_snapshots_ordered_by_priority(limit = 10)
-        connection.exec_query(
-          'SELECT aggregate_id FROM aggregates_that_need_snapshots_ordered_by_priority($1)',
-          'aggregates_that_need_snapshots',
-          [limit],
-        ).map { |x| x['aggregate_id'] }
       end
 
       def find_event_stream(aggregate_id)
