@@ -317,14 +317,6 @@ module Sequent
 
       private
 
-      def event_types
-        @event_types = if Sequent.configuration.event_store_cache_event_types
-                         ThreadSafe::Cache.new
-                       else
-                         NoEventTypesCache.new
-                       end
-      end
-
       def connection
         Sequent.configuration.event_record_class.connection
       end
@@ -335,18 +327,6 @@ module Sequent
           'load_events',
           [aggregate_ids.to_json, use_snapshots, load_until],
         )
-      end
-
-      def column_names
-        @column_names ||= Sequent
-          .configuration
-          .event_record_class
-          .column_names
-          .reject { |c| c == primary_key_event_records }
-      end
-
-      def primary_key_event_records
-        @primary_key_event_records ||= Sequent.configuration.event_record_class.primary_key
       end
 
       def deserialize_event(event_hash)
@@ -365,10 +345,6 @@ module Sequent
         record.event
       rescue StandardError
         raise DeserializeEventError, event_hash
-      end
-
-      def resolve_event_type(event_type)
-        event_types.fetch_or_store(event_type) { |k| Class.const_get(k) }
       end
 
       def publish_events(events)
