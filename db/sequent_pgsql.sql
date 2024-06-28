@@ -340,8 +340,8 @@ CREATE OR REPLACE VIEW event_records (aggregate_id, partition_key, sequence_numb
             enrich_event_json(event) AS event_json,
             command_id,
             event.xact_id
-       FROM aggregates aggregate
-       JOIN events event ON aggregate.aggregate_id = event.aggregate_id AND aggregate.events_partition_key = event.partition_key
+       FROM events event
+       JOIN aggregates aggregate ON aggregate.aggregate_id = event.aggregate_id AND aggregate.events_partition_key = event.partition_key
        JOIN event_types type ON event.event_type_id = type.id;
 
 CREATE OR REPLACE VIEW stream_records (aggregate_id, events_partition_key, aggregate_type, created_at) AS
