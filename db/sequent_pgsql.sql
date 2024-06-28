@@ -320,7 +320,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE VIEW command_records (id, user_id, aggregate_id, command_type, command_json, created_at, event_aggregate_id, event_sequence_number) AS
+DROP VIEW IF EXISTS command_records;
+CREATE VIEW command_records (id, user_id, aggregate_id, command_type, command_json, created_at, event_aggregate_id, event_sequence_number) AS
   SELECT id,
          user_id,
          aggregate_id,
@@ -331,7 +332,8 @@ CREATE OR REPLACE VIEW command_records (id, user_id, aggregate_id, command_type,
          event_sequence_number
     FROM commands command;
 
-CREATE OR REPLACE VIEW event_records (aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_record_id, xact_id) AS
+DROP VIEW IF EXISTS event_records;
+CREATE VIEW event_records (aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_record_id, xact_id) AS
      SELECT aggregate.aggregate_id,
             event.partition_key,
             event.sequence_number,
@@ -344,7 +346,8 @@ CREATE OR REPLACE VIEW event_records (aggregate_id, partition_key, sequence_numb
        JOIN aggregates aggregate ON aggregate.aggregate_id = event.aggregate_id AND aggregate.events_partition_key = event.partition_key
        JOIN event_types type ON event.event_type_id = type.id;
 
-CREATE OR REPLACE VIEW stream_records (aggregate_id, events_partition_key, aggregate_type, created_at) AS
+DROP VIEW IF EXISTS stream_records;
+CREATE VIEW stream_records (aggregate_id, events_partition_key, aggregate_type, created_at) AS
      SELECT aggregates.aggregate_id,
             aggregates.events_partition_key,
             aggregate_types.type,

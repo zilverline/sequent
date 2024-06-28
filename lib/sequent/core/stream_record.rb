@@ -13,6 +13,7 @@ module Sequent
     class StreamRecord < Sequent::ApplicationRecord
       self.primary_key = %i[aggregate_id]
       self.table_name = 'stream_records'
+      self.ignored_columns = %w[snapshot_threshold]
 
       validates_presence_of :aggregate_type, :aggregate_id
 
