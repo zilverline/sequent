@@ -104,6 +104,45 @@ describe Sequent::Core::EventStore do
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
     end
 
+    it 'limits the number of concurrent aggregates scheduled for snapshotting' do
+      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.hour.ago)
+
+      aggregate_id_2 = Sequent.new_uuid
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id_2),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id_2,
+              snapshot_outdated_at: 2.minutes.ago,
+            ),
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id_2,
+                sequence_number: 1,
+                created_at: Time.parse('2024-02-30T01:10:12Z'),
+                data: "another event\n",
+              ),
+            ],
+          ],
+        ],
+      )
+
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id_2)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.minute.ago)
+
+      expect(event_store.select_aggregates_for_snapshotting(limit: 10, reschedule_snapshots_scheduled_before: Time.now))
+        .to include(aggregate_id, aggregate_id_2)
+    end
+
     it 'can no longer find the aggregates that are cleared for snapshotting' do
       event_store.store_snapshots([snapshot])
 
@@ -127,14 +166,14 @@ describe Sequent::Core::EventStore do
       event_store.store_snapshots([snapshot])
 
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
-      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to be_empty
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot)
 
       event_store.delete_snapshots_before(aggregate_id, snapshot.sequence_number + 1)
 
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
-      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
     end
 
     it 'can delete all snapshots' do
@@ -142,13 +181,13 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot)
-      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to be_empty
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
       event_store.delete_all_snapshots
 
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
-      expect(event_store.aggregates_that_need_snapshots_ordered_by_priority(nil)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
     end
   end
 

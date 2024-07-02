@@ -57,16 +57,17 @@ module Sequent
       # Marks an aggregate for snapshotting. Marked aggregates will be
       # picked up by the background snapshotting task. Another way to
       # mark aggregates for snapshotting is to pass the
-      # *EventStream#snapshot_outdated_at* property to the
-      # *#store_events* method as is done automatically by the
-      # *AggregateRepository* based on the aggregate's
-      # *snapshot_threshold*.
-      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at = Time.now)
+      # +EventStream#snapshot_outdated_at+ property to the
+      # +#store_events+ method as is done automatically by the
+      # +AggregateRepository+ based on the aggregate's
+      # +snapshot_threshold+.
+      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: Time.now)
         connection.exec_update(<<~EOS, 'mark_aggregate_for_snapshotting', [aggregate_id, snapshot_outdated_at])
           INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
           VALUES ($1, $2)
               ON CONFLICT (aggregate_id) DO UPDATE
-             SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
+             SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at),
+                 snapshot_scheduled_at = NULL
         EOS
       end
 
@@ -104,11 +105,11 @@ module Sequent
         ).map { |x| x['aggregate_id'] }
       end
 
-      def aggregates_that_need_snapshots_ordered_by_priority(limit = 10)
+      def select_aggregates_for_snapshotting(limit:, reschedule_snapshots_scheduled_before: nil)
         connection.exec_query(
-          'SELECT aggregate_id FROM aggregates_that_need_snapshots_ordered_by_priority($1)',
-          'aggregates_that_need_snapshots',
-          [limit],
+          'SELECT aggregate_id FROM select_aggregates_for_snapshotting($1, $2)',
+          'select_aggregates_for_snapshotting',
+          [limit, reschedule_snapshots_scheduled_before],
         ).map { |x| x['aggregate_id'] }
       end
     end

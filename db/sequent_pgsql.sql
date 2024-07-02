@@ -211,12 +211,13 @@ BEGIN
     _aggregate_id = _snapshot->>'aggregate_id';
     _sequence_number = _snapshot->'sequence_number';
 
-    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at, snapshot_sequence_number_high_water_mark)
-    VALUES (_aggregate_id, NULL, _sequence_number)
+    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_sequence_number_high_water_mark)
+    VALUES (_aggregate_id, _sequence_number)
         ON CONFLICT (aggregate_id) DO UPDATE
-       SET snapshot_outdated_at = EXCLUDED.snapshot_outdated_at,
-           snapshot_sequence_number_high_water_mark =
-             LEAST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark);
+       SET snapshot_sequence_number_high_water_mark =
+             LEAST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark),
+           snapshot_outdated_at = NULL,
+           snapshot_scheduled_at = NULL;
 
     INSERT INTO snapshot_records (aggregate_id, sequence_number, created_at, snapshot_type, snapshot_json)
     VALUES (
@@ -247,7 +248,8 @@ CREATE OR REPLACE PROCEDURE delete_all_snapshots()
 LANGUAGE plpgsql AS $$
 BEGIN
   UPDATE aggregates_that_need_snapshots
-     SET snapshot_outdated_at = NOW()
+     SET snapshot_outdated_at = NOW(),
+         snapshot_scheduled_at = NULL
    WHERE snapshot_outdated_at IS NULL;
   DELETE FROM snapshot_records;
 END;
@@ -261,7 +263,8 @@ BEGIN
      AND sequence_number < _sequence_number;
 
   UPDATE aggregates_that_need_snapshots
-     SET snapshot_outdated_at = NOW()
+     SET snapshot_outdated_at = NOW(),
+         snapshot_scheduled_at = NULL
    WHERE aggregate_id = _aggregate_id
      AND snapshot_outdated_at IS NULL
      AND NOT EXISTS (SELECT 1 FROM snapshot_records WHERE aggregate_id = _aggregate_id);
@@ -281,15 +284,23 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION aggregates_that_need_snapshots_ordered_by_priority(_limit integer)
+CREATE OR REPLACE FUNCTION select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone)
   RETURNS TABLE (aggregate_id uuid)
 LANGUAGE plpgsql AS $$
 BEGIN
-  RETURN QUERY SELECT a.aggregate_id
-    FROM aggregates_that_need_snapshots a
-   WHERE snapshot_outdated_at IS NOT NULL
-   ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
-   LIMIT _limit;
+  RETURN QUERY WITH scheduled AS MATERIALIZED (
+    SELECT a.aggregate_id
+      FROM aggregates_that_need_snapshots AS a
+     WHERE snapshot_outdated_at IS NOT NULL
+     ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
+     LIMIT _limit
+       FOR UPDATE
+   ) UPDATE aggregates_that_need_snapshots AS row
+        SET snapshot_scheduled_at = NOW()
+       FROM scheduled
+      WHERE row.aggregate_id = scheduled.aggregate_id
+        AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)
+    RETURNING row.aggregate_id;
 END;
 $$;
 
