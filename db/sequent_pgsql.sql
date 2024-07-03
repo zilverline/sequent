@@ -215,7 +215,7 @@ BEGIN
     VALUES (_aggregate_id, _sequence_number)
         ON CONFLICT (aggregate_id) DO UPDATE
        SET snapshot_sequence_number_high_water_mark =
-             LEAST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark),
+             GREATEST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark),
            snapshot_outdated_at = NULL,
            snapshot_scheduled_at = NULL;
 
