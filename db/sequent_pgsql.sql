@@ -244,18 +244,17 @@ LANGUAGE SQL AS $$
    LIMIT 1;
 $$;
 
-CREATE OR REPLACE PROCEDURE delete_all_snapshots()
+CREATE OR REPLACE PROCEDURE delete_all_snapshots(_now timestamp with time zone DEFAULT NOW())
 LANGUAGE plpgsql AS $$
 BEGIN
   UPDATE aggregates_that_need_snapshots
-     SET snapshot_outdated_at = NOW(),
-         snapshot_scheduled_at = NULL
+     SET snapshot_outdated_at = _now
    WHERE snapshot_outdated_at IS NULL;
   DELETE FROM snapshot_records;
 END;
 $$;
 
-CREATE OR REPLACE PROCEDURE delete_snapshots_before(_aggregate_id uuid, _sequence_number integer)
+CREATE OR REPLACE PROCEDURE delete_snapshots_before(_aggregate_id uuid, _sequence_number integer, _now timestamp with time zone DEFAULT NOW())
 LANGUAGE plpgsql AS $$
 BEGIN
   DELETE FROM snapshot_records
@@ -263,8 +262,7 @@ BEGIN
      AND sequence_number < _sequence_number;
 
   UPDATE aggregates_that_need_snapshots
-     SET snapshot_outdated_at = NOW(),
-         snapshot_scheduled_at = NULL
+     SET snapshot_outdated_at = _now
    WHERE aggregate_id = _aggregate_id
      AND snapshot_outdated_at IS NULL
      AND NOT EXISTS (SELECT 1 FROM snapshot_records WHERE aggregate_id = _aggregate_id);
@@ -284,7 +282,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone)
+CREATE OR REPLACE FUNCTION select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT NOW())
   RETURNS TABLE (aggregate_id uuid)
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -296,7 +294,7 @@ BEGIN
      LIMIT _limit
        FOR UPDATE
    ) UPDATE aggregates_that_need_snapshots AS row
-        SET snapshot_scheduled_at = NOW()
+        SET snapshot_scheduled_at = _now
        FROM scheduled
       WHERE row.aggregate_id = scheduled.aggregate_id
         AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)

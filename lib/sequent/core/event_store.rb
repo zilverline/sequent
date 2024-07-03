@@ -39,18 +39,18 @@ module Sequent
       # Deletes all snapshots for all aggregates
       def delete_all_snapshots
         connection.exec_update(
-          'CALL delete_all_snapshots()',
+          'CALL delete_all_snapshots($1)',
           'delete_all_snapshots',
-          [],
+          [Time.now],
         )
       end
 
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
         connection.exec_update(
-          'CALL delete_snapshots_before($1, $2)',
+          'CALL delete_snapshots_before($1, $2, $3)',
           'delete_snapshots_before',
-          [aggregate_id, sequence_number],
+          [aggregate_id, sequence_number, Time.now],
         )
       end
 
@@ -107,9 +107,9 @@ module Sequent
 
       def select_aggregates_for_snapshotting(limit:, reschedule_snapshots_scheduled_before: nil)
         connection.exec_query(
-          'SELECT aggregate_id FROM select_aggregates_for_snapshotting($1, $2)',
+          'SELECT aggregate_id FROM select_aggregates_for_snapshotting($1, $2, $3)',
           'select_aggregates_for_snapshotting',
-          [limit, reschedule_snapshots_scheduled_before],
+          [limit, reschedule_snapshots_scheduled_before, Time.now],
         ).map { |x| x['aggregate_id'] }
       end
     end
