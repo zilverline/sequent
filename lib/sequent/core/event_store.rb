@@ -2,6 +2,7 @@
 
 require 'forwardable'
 require_relative 'event_record'
+require_relative 'helpers/pgsql_helpers'
 require_relative 'sequent_oj'
 require_relative 'snapshot_record'
 require_relative 'snapshot_store'
@@ -9,6 +10,7 @@ require_relative 'snapshot_store'
 module Sequent
   module Core
     class EventStore
+      include Helpers::PgsqlHelpers
       include SnapshotStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
@@ -84,11 +86,7 @@ module Sequent
       end
 
       def load_event(aggregate_id, sequence_number)
-        event_hash = connection.exec_query(
-          'SELECT * FROM load_event($1, $2)',
-          'load_event',
-          [aggregate_id, sequence_number],
-        ).first
+        event_hash = query_function('load_event', [aggregate_id, sequence_number]).first
         deserialize_event(event_hash) if event_hash
       end
 
@@ -182,11 +180,7 @@ module Sequent
       end
 
       def permanently_delete_event_streams(aggregate_ids)
-        connection.exec_update(
-          'CALL permanently_delete_event_streams($1)',
-          'permanently_delete_event_streams',
-          [aggregate_ids.to_json],
-        )
+        call_procedure('permanently_delete_event_streams', [aggregate_ids.to_json])
       end
 
       def permanently_delete_commands_without_events(aggregate_id: nil, organization_id: nil)
@@ -194,11 +188,7 @@ module Sequent
           fail ArgumentError, 'aggregate_id and/or organization_id must be specified'
         end
 
-        connection.exec_update(
-          'CALL permanently_delete_commands_without_events($1, $2)',
-          'permanently_delete_commands_without_events',
-          [aggregate_id, organization_id],
-        )
+        call_procedure('permanently_delete_commands_without_events', [aggregate_id, organization_id])
       end
 
       private
@@ -208,11 +198,7 @@ module Sequent
       end
 
       def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
-        connection.exec_query(
-          'SELECT * FROM load_events($1::JSONB, $2, $3)',
-          'load_events',
-          [aggregate_ids.to_json, use_snapshots, load_until],
-        )
+        query_function('load_events', [aggregate_ids.to_json, use_snapshots, load_until])
       end
 
       def deserialize_event(event_hash)
@@ -256,8 +242,7 @@ module Sequent
             end,
           ]
         end
-        connection.exec_update(
-          'CALL store_events($1, $2)',
+        call_procedure(
           'store_events',
           [
             Sequent::Core::Oj.dump(command_record),

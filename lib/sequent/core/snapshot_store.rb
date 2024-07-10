@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 require_relative 'sequent_oj'
+require_relative 'helpers/pgsql_helpers'
 
 module Sequent
   module Core
     module SnapshotStore
+      include Helpers::PgsqlHelpers
+
       def store_snapshots(snapshots)
         json = Sequent::Core::Oj.dump(
           snapshots.map do |snapshot|
@@ -17,38 +20,23 @@ module Sequent
             }
           end,
         )
-        connection.exec_update(
-          'CALL store_snapshots($1)',
-          'store_snapshots',
-          [json],
-        )
+
+        call_procedure('store_snapshots', [json])
       end
 
       def load_latest_snapshot(aggregate_id)
-        snapshot_hash = connection.exec_query(
-          'SELECT * FROM load_latest_snapshot($1)',
-          'load_latest_snapshot',
-          [aggregate_id],
-        ).first
+        snapshot_hash = query_function('load_latest_snapshot', [aggregate_id]).first
         deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
       end
 
       # Deletes all snapshots for all aggregates
       def delete_all_snapshots
-        connection.exec_update(
-          'CALL delete_all_snapshots($1)',
-          'delete_all_snapshots',
-          [Time.now],
-        )
+        call_procedure('delete_all_snapshots', [Time.now])
       end
 
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
-        connection.exec_update(
-          'CALL delete_snapshots_before($1, $2, $3)',
-          'delete_snapshots_before',
-          [aggregate_id, sequence_number, Time.now],
-        )
+        call_procedure('delete_snapshots_before', [aggregate_id, sequence_number, Time.now])
       end
 
       # Marks an aggregate for snapshotting. Marked aggregates will be
@@ -95,19 +83,16 @@ module Sequent
       # Returns the ids of aggregates that need a new snapshot.
       #
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
-        connection.exec_query(
-          'SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2)',
-          'aggregates_that_need_snapshots',
-          [last_aggregate_id, limit],
-        ).map { |x| x['aggregate_id'] }
+        query_function('aggregates_that_need_snapshots', [last_aggregate_id, limit], ['aggregate_id'])
+          .pluck('aggregate_id')
       end
 
       def select_aggregates_for_snapshotting(limit:, reschedule_snapshots_scheduled_before: nil)
-        connection.exec_query(
-          'SELECT aggregate_id FROM select_aggregates_for_snapshotting($1, $2, $3)',
+        query_function(
           'select_aggregates_for_snapshotting',
           [limit, reschedule_snapshots_scheduled_before, Time.now],
-        ).map { |x| x['aggregate_id'] }
+          ['aggregate_id'],
+        ).pluck('aggregate_id')
       end
     end
   end
