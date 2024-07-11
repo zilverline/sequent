@@ -22,6 +22,7 @@ Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['SEQUENT_E
 
 RSpec.configure do |c|
   c.before do
+    Timecop.return
     Database.establish_connection
     Sequent::ApplicationRecord.connection.execute('TRUNCATE commands, aggregates, saved_event_records CASCADE')
     Sequent::Configuration.reset

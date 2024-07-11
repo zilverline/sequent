@@ -28,16 +28,16 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
 
 3) Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb) and put it in your `./db` directory.
 
-4) Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
-    
+4) Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations.
+
     ```ruby
     VIEW_SCHEMA_VERSION = 1
-    
+
     class SequentMigrations < Sequent::Migrations::Projectors
       def self.version
         VIEW_SCHEMA_VERSION
       end
-    
+
       def self.versions
         {
           '1' => [
@@ -46,36 +46,36 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
         }
       end
     end
-    
+
     ```
 
     For a complete overview on how Migrations work in Sequent, check out the [Migrations Guide](/docs/concepts/migrations.html)
-   
-  
+
+
 5) Add the following snippet to your `Rakefile`
 
     ```ruby
     # Sequent requires a `SEQUENT_ENV` environment to be set
-    # next to a `RAILS_ENV` 
+    # next to a `RAILS_ENV`
     ENV['SEQUENT_ENV'] = ENV['RAILS_ENV'] ||= 'development'
-    
+
     require 'sequent/rake/migration_tasks'
-    
+
     Sequent::Rake::MigrationTasks.new.register_tasks!
-    
+
     # The dependency of sequent:init on :environment ensures the Rails app is loaded
     # when running the sequent migrations. This is needed otherwise
     # the sequent initializer - which is required to run these rake tasks -
     # doesn't run
     task 'sequent:init' => [:environment]
     task 'sequent:migrate:init' => [:sequent_db_connect]
-    
+
     task 'sequent_db_connect' do
       Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
     end
-   
+
     # Create custom rake task setting the SEQUENT_MIGRATION_SCHEMAS for
-    # running the Rails migrations 
+    # running the Rails migrations
     task :migrate_public_schema do
       ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
       Rake::Task['db:migrate'].invoke
@@ -87,7 +87,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     ```
 
 
-    **You can't use rails db:migrate directly** anymore since  
+    **You can't use rails db:migrate directly** anymore since
     that will add all the tables of the `view_schema` and `sequent_schema`
     to the `schema.rb` file after running a Rails migration. To fix this
     the `rails db:migrate` must be wrapped in your own task setting the
@@ -97,7 +97,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     so running it without `SEQUENT_MIGRATION_SCHEMAS` set will fail.
     {: .notice--warning}
 
-6) Ensure your `database.yml` contains the schema_search_path: 
+6) Ensure your `database.yml` contains the schema_search_path:
 
     ```yaml
     default:
@@ -109,22 +109,21 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
    Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
    `AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
    For this to work properly, all classes must be eager loaded otherwise code depending on this fact might
-   produce unpredictable results. Set the `config.eager_load` to `true` for all environments 
+   produce unpredictable results. Set the `config.eager_load` to `true` for all environments
    (in production the Rails default is already `true`).
 
 8) Add `./config/initializers/sequent.rb` containing at least:
 
     ```ruby
     require_relative '../../db/sequent_migrations'
-   
+
     Rails.application.reloader.to_prepare do
       Sequent.configure do |config|
         config.migrations_class_name = 'SequentMigrations'
         config.enable_autoregistration = true
-        config.event_store_cache_event_types = !Rails.env.development?
 
         config.database_config_directory = 'config'
-      
+
         # this is the location of your sql files for your view_schema
         config.migration_sql_files_directory = 'db/sequent'
       end
@@ -134,21 +133,21 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
     **You must** wrap the sequent initializer code in `Rails.application.reloader.to_prepare` because during
     initialization, the autoloading hasn't run yet.
 
-9) Run the following commands to create the `sequent_schema` and `view_schema`  
+9) Run the following commands to create the `sequent_schema` and `view_schema`
 
     ```bash
     bundle exec rake sequent:db:create_event_store
     bundle exec rake sequent:db:create_view_schema
-    
+
     # only run this when you add or change projectors in SequentMigrations
     bundle exec rake sequent:migrate:online
-    bundle exec rake sequent:migrate:offline    
+    bundle exec rake sequent:migrate:offline
     ```
 
 10) Add the following to application.rb
 
    This step is actually only necessary if you load Aggregates outside the scope
-   of the Unit Of Work which is automatically started and committed via the `execute_commands` call. 
+   of the Unit Of Work which is automatically started and committed via the `execute_commands` call.
    If you for instance load Aggregates inside Controllers or or ActiveJob you have to clear Sequent's Unit Of Work (stored in the Thread.current) yourself.
    For the web you can add the following Rack middleware:
 
@@ -203,7 +202,7 @@ module Banking
 end
 ```
 
-The "downside" here is that you need to introduce an extra layer of naming to be able to group your events into a single file. 
+The "downside" here is that you need to introduce an extra layer of naming to be able to group your events into a single file.
 
 ### Rails Engines
 
@@ -211,8 +210,7 @@ Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html) work bas
 Some things to remember when working with Rails Engines:
 
 1. The Sequent config must be set in the main application `config/initializers`
-2. The main application is the maintainer of the `sequent_schema` and `view_schema`. 
+2. The main application is the maintainer of the `sequent_schema` and `view_schema`.
    So copy over the migration sql files to the main application directory like you would when an Engine provides active record migrations.
 
 Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples) Github repository.
-

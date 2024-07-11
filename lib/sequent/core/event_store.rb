@@ -2,12 +2,16 @@
 
 require 'forwardable'
 require_relative 'event_record'
+require_relative 'helpers/pgsql_helpers'
 require_relative 'sequent_oj'
 require_relative 'snapshot_record'
+require_relative 'snapshot_store'
 
 module Sequent
   module Core
     class EventStore
+      include Helpers::PgsqlHelpers
+      include SnapshotStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
 
@@ -24,15 +28,6 @@ module Sequent
 
         def message
           "Event hash: #{event_hash.inspect}\nCause: #{cause.inspect}"
-        end
-      end
-
-      ##
-      # Disables event type caching (ie. for in development).
-      #
-      class NoEventTypesCache
-        def fetch_or_store(event_type)
-          yield(event_type)
         end
       end
 
@@ -91,11 +86,7 @@ module Sequent
       end
 
       def load_event(aggregate_id, sequence_number)
-        event_hash = connection.exec_query(
-          'SELECT * FROM load_event($1, $2)',
-          'load_event',
-          [aggregate_id, sequence_number],
-        ).first
+        event_hash = query_function('load_event', [aggregate_id, sequence_number]).first
         deserialize_event(event_hash) if event_hash
       end
 
@@ -119,48 +110,10 @@ module Sequent
                 aggregate_type: rows.first['aggregate_type'],
                 aggregate_id: rows.first['aggregate_id'],
                 events_partition_key: rows.first['events_partition_key'],
-                snapshot_threshold: rows.first['snapshot_threshold'],
               ),
               rows.map { |row| deserialize_event(row) },
             ]
           end
-      end
-
-      def store_snapshots(snapshots)
-        json = Sequent::Core::Oj.dump(
-          snapshots.map do |snapshot|
-            {
-              aggregate_id: snapshot.aggregate_id,
-              sequence_number: snapshot.sequence_number,
-              created_at: snapshot.created_at,
-              snapshot_type: snapshot.class.name,
-              snapshot_json: snapshot,
-            }
-          end,
-        )
-        connection.exec_update(
-          'CALL store_snapshots($1)',
-          'store_snapshots',
-          [json],
-        )
-      end
-
-      def load_latest_snapshot(aggregate_id)
-        snapshot_hash = connection.exec_query(
-          'SELECT * FROM load_latest_snapshot($1)',
-          'load_latest_snapshot',
-          [aggregate_id],
-        ).first
-        deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
-      end
-
-      # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
-      def delete_snapshots_before(aggregate_id, sequence_number)
-        connection.exec_update(
-          'CALL delete_snapshots_before($1, $2)',
-          'delete_snapshots_before',
-          [aggregate_id, sequence_number],
-        )
       end
 
       def stream_exists?(aggregate_id)
@@ -217,17 +170,6 @@ module Sequent
         end
       end
 
-      ##
-      # Returns the ids of aggregates that need a new snapshot.
-      #
-      def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
-        connection.exec_query(
-          'SELECT aggregate_id FROM aggregates_that_need_snapshots($1, $2)',
-          'aggregates_that_need_snapshots',
-          [last_aggregate_id, limit],
-        ).map { |x| x['aggregate_id'] }
-      end
-
       def find_event_stream(aggregate_id)
         record = Sequent.configuration.stream_record_class.where(aggregate_id: aggregate_id).first
         record&.event_stream
@@ -238,11 +180,7 @@ module Sequent
       end
 
       def permanently_delete_event_streams(aggregate_ids)
-        connection.exec_update(
-          'CALL permanently_delete_event_streams($1)',
-          'permanently_delete_event_streams',
-          [aggregate_ids.to_json],
-        )
+        call_procedure('permanently_delete_event_streams', [aggregate_ids.to_json])
       end
 
       def permanently_delete_commands_without_events(aggregate_id: nil, organization_id: nil)
@@ -250,45 +188,17 @@ module Sequent
           fail ArgumentError, 'aggregate_id and/or organization_id must be specified'
         end
 
-        connection.exec_update(
-          'CALL permanently_delete_commands_without_events($1, $2)',
-          'permanently_delete_commands_without_events',
-          [aggregate_id, organization_id],
-        )
+        call_procedure('permanently_delete_commands_without_events', [aggregate_id, organization_id])
       end
 
       private
-
-      def event_types
-        @event_types = if Sequent.configuration.event_store_cache_event_types
-                         ThreadSafe::Cache.new
-                       else
-                         NoEventTypesCache.new
-                       end
-      end
 
       def connection
         Sequent.configuration.event_record_class.connection
       end
 
       def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
-        connection.exec_query(
-          'SELECT * FROM load_events($1::JSONB, $2, $3)',
-          'load_events',
-          [aggregate_ids.to_json, use_snapshots, load_until],
-        )
-      end
-
-      def column_names
-        @column_names ||= Sequent
-          .configuration
-          .event_record_class
-          .column_names
-          .reject { |c| c == primary_key_event_records }
-      end
-
-      def primary_key_event_records
-        @primary_key_event_records ||= Sequent.configuration.event_record_class.primary_key
+        query_function('load_events', [aggregate_ids.to_json, use_snapshots, load_until])
       end
 
       def deserialize_event(event_hash)
@@ -307,10 +217,6 @@ module Sequent
         record.event
       rescue StandardError
         raise DeserializeEventError, event_hash
-      end
-
-      def resolve_event_type(event_type)
-        event_types.fetch_or_store(event_type) { |k| Class.const_get(k) }
       end
 
       def publish_events(events)
@@ -336,8 +242,7 @@ module Sequent
             end,
           ]
         end
-        connection.exec_update(
-          'CALL store_events($1, $2)',
+        call_procedure(
           'store_events',
           [
             Sequent::Core::Oj.dump(command_record),

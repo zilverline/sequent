@@ -95,6 +95,7 @@ describe Sequent::Core::AggregateRoot do
       snapshot_event = subject.take_snapshot
       restored = TestAggregateRoot.load_from_history :stream, [snapshot_event]
       expect(restored.event_count).to eq 1
+      expect(restored.latest_snapshot_sequence_number).to eq(2)
     end
   end
 
