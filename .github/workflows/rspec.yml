@@ -19,8 +19,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
+          - ruby-version: 3.3
+            gemfile: 'ar_7_2'
           - ruby-version: 3.2
             gemfile: 'ar_7_1'
           - ruby-version: 3.2
@@ -84,7 +87,7 @@ jobs:
       - name: Run integration tests simple
         run: |
           cd integration-specs/simple
-          bundle exec rspec    
+          bundle exec rspec
 
   integration_rails:
     env:
@@ -119,4 +122,3 @@ jobs:
           bundle exec rake sequent:db:create_event_store
           bundle exec rake sequent:db:create_view_schema
           bundle exec rspec spec
-      

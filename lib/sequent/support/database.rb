@@ -64,6 +64,8 @@ module Sequent
           db_config = db_config.merge(db_config_overrides)
           ActiveRecord::Base.establish_connection(db_config)
         end
+
+        ActiveRecord::Base.connection.reconnect!
       end
 
       def self.disconnect!

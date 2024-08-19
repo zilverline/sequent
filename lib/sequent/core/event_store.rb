@@ -8,6 +8,11 @@ module Sequent
   module Core
     class EventStore
       include ActiveRecord::ConnectionAdapters::Quoting
+      if Gem.loaded_specs['activerecord'].version >= Gem::Version.create('7.2.0')
+        require 'active_record/connection_adapters/postgresql_adapter'
+        include ActiveRecord::ConnectionAdapters::PostgreSQL::Quoting::ClassMethods
+      end
+
       extend Forwardable
 
       class OptimisticLockingError < RuntimeError

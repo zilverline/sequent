@@ -1,0 +1,10 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+active_star_version = '= 7.2.0'
+
+gem 'activemodel', active_star_version
+gem 'activerecord', active_star_version
+
+gemspec path: '../'
