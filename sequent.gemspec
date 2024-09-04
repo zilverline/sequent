@@ -4,7 +4,7 @@ require_relative 'lib/version'
 
 Gem::Specification.new do |s|
   s.platform = Gem::Platform::RUBY
-  s.required_ruby_version = '>= 2.7'
+  s.required_ruby_version = '>= 3.0'
   s.name = 'sequent'
   s.version = Sequent::VERSION
   s.summary = 'Event sourcing framework for Ruby'
