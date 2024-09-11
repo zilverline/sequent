@@ -208,7 +208,9 @@ module Sequent
             desc <<~EOS
               Rake task that runs before all snapshots rake tasks. Hook applications can use to for instance run other rake tasks.
             EOS
-            task :init, :set_env_var do
+            task :init
+
+            task :connect, ['sequent:init', :init, :set_env_var] do
               ensure_sequent_env_set!
 
               Sequent.configuration.command_handlers << Sequent::Core::AggregateSnapshotter.new
@@ -220,7 +222,7 @@ module Sequent
             desc <<~EOS
               Takes up-to `limit` snapshots, starting with the highest priority aggregates (based on snapshot outdated time and number of events)
             EOS
-            task :take_snapshots, %i[limit] => ['sequent:init', :init] do |_t, args|
+            task :take_snapshots, %i[limit] => :connect do |_t, args|
               limit = args['limit']&.to_i
 
               unless limit
@@ -236,7 +238,10 @@ module Sequent
               end
             end
 
-            task :take_snapshot, %i[aggregate_id] => ['sequent:init', :init] do |_t, args|
+            desc <<~EOS
+              Takes a new snapshot for the aggregate specified by `aggregate_id`
+            EOS
+            task :take_snapshot, %i[aggregate_id] => :connect do |_t, args|
               aggregate_id = args['aggregate_id']
 
               unless aggregate_id
@@ -247,7 +252,10 @@ module Sequent
               Sequent.command_service.execute_commands(Sequent::Core::TakeSnapshot.new(aggregate_id:))
             end
 
-            task delete_all: ['sequent:init', :init] do
+            desc <<~EOS
+              Delete all aggregate snapshots, which can negatively impact performance of a running system.
+            EOS
+            task delete_all: :connect do
               Sequent.configuration.event_store.delete_all_snapshots
               Sequent.logger.info 'Deleted all aggregate snapshots from the event store'
             end
