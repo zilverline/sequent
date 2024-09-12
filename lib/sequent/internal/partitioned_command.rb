@@ -9,9 +9,8 @@ module Sequent
       self.table_name = :commands
 
       belongs_to :command_type
-      has_many :events,
-               inverse_of: :command,
-               class_name: :PartitionedEvent
+      has_many :partitioned_events,
+               inverse_of: :partitioned_command
     end
   end
 end
