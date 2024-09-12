@@ -210,31 +210,54 @@ module Sequent
             EOS
             task :init
 
-            task :set_snapshot_threshold, %i[aggregate_type threshold] => ['sequent:init', :init] do |_t, args|
-              aggregate_type = args['aggregate_type']
-              threshold = args['threshold']
+            task :connect, ['sequent:init', :init, :set_env_var] do
+              ensure_sequent_env_set!
 
-              unless aggregate_type
-                fail ArgumentError,
-                     'usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]'
-              end
-              unless threshold
-                fail ArgumentError,
-                     'usage rake sequent:snapshots:set_snapshot_threshold[AggregegateType,threshold]'
-              end
+              Sequent.configuration.command_handlers << Sequent::Core::AggregateSnapshotter.new
 
-              execute <<~EOS
-                UPDATE #{Sequent.configuration.stream_record_class} SET snapshot_threshold = #{threshold.to_i} WHERE aggregate_type = '#{aggregate_type}'
-              EOS
+              db_config = Sequent::Support::Database.read_config(@env)
+              Sequent::Support::Database.establish_connection(db_config)
             end
 
-            task delete_all: ['sequent:init', :init] do
-              result = Sequent::ApplicationRecord
-                .connection
-                .execute(<<~EOS)
-                  DELETE FROM #{Sequent.configuration.snapshot_record_class.table_name}'
-                EOS
-              Sequent.logger.info "Deleted #{result.cmd_tuples} aggregate snapshots from the event store"
+            desc <<~EOS
+              Takes up-to `limit` snapshots, starting with the highest priority aggregates (based on snapshot outdated time and number of events)
+            EOS
+            task :take_snapshots, %i[limit] => :connect do |_t, args|
+              limit = args['limit']&.to_i
+
+              unless limit
+                fail ArgumentError,
+                     'usage rake sequent:snapshots:take_snapshots[limit]'
+              end
+
+              aggregate_ids = Sequent.configuration.event_store.select_aggregates_for_snapshotting(limit:)
+
+              Sequent.logger.info "Taking #{aggregate_ids.size} snapshots"
+              aggregate_ids.each do |aggregate_id|
+                Sequent.command_service.execute_commands(Sequent::Core::TakeSnapshot.new(aggregate_id:))
+              end
+            end
+
+            desc <<~EOS
+              Takes a new snapshot for the aggregate specified by `aggregate_id`
+            EOS
+            task :take_snapshot, %i[aggregate_id] => :connect do |_t, args|
+              aggregate_id = args['aggregate_id']
+
+              unless aggregate_id
+                fail ArgumentError,
+                     'usage rake sequent:snapshots:take_snapshot[aggregate_id]'
+              end
+
+              Sequent.command_service.execute_commands(Sequent::Core::TakeSnapshot.new(aggregate_id:))
+            end
+
+            desc <<~EOS
+              Delete all aggregate snapshots, which can negatively impact performance of a running system.
+            EOS
+            task delete_all: :connect do
+              Sequent.configuration.event_store.delete_all_snapshots
+              Sequent.logger.info 'Deleted all aggregate snapshots from the event store'
             end
           end
         end
