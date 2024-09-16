@@ -19,8 +19,6 @@ AllCops:
     - '**/vendor/**/*'
     - '**/.git/**/*'
     # sequent
-    - '**/sequent/generator/template_aggregate/**/*'
-    - '**/sequent/generator/template_project/**/*'
     - 'db/sequent_schema.rb'
     - 'docs/**/*'
     - 'integration-specs/rails-app/bin/*'
