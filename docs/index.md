@@ -45,6 +45,12 @@ The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent i
 Next to the tutorials there is the [Reference Guide](/docs/concepts.html) to provide and
 in-depth explanation of the several concepts (like `AggregateRoot`, `Event`, `Command` etc) used in Sequent.
 
+## Upgrade Guide
+
+If you wish to upgrade your code and database to Sequent 8 from an
+older version please reasd the [Upgrade
+Guide](/docs/upgrade-guide.html).
+
 ## Further reading
 
 There is a lot more information available on CQRS and event sourcing:
