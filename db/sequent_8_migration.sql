@@ -1,3 +1,12 @@
+-- This script migrates a pre-sequent 8 database to the sequent 8 schema while preserving the data.
+-- It runs in a single transaction and when completed you can COMMIT or ROLLBACK the results.
+--
+-- Adjust this script to your needs (number of table partitions, etc). See comments marked with ###
+-- for configuration sections.
+--
+-- Ensure you test this on a copy of your production system to verify everything works and to
+-- get an indication of the required downtime for your system.
+
 \set ECHO all
 \set ON_ERROR_STOP
 \timing on
@@ -41,8 +50,8 @@ CREATE TABLE commands (
     event_sequence_number integer
 ) PARTITION BY RANGE (id);
 
+-- ### Configure partitions as needed
 CREATE TABLE commands_default PARTITION OF commands DEFAULT;
--- ### Add additional partitions as needed
 CREATE TABLE commands_0 PARTITION OF commands FOR VALUES FROM (1) TO (100e6);
 -- CREATE TABLE commands_1 PARTITION OF commands FOR VALUES FROM (100e6) TO (200e6);
 -- CREATE TABLE commands_2 PARTITION OF commands FOR VALUES FROM (200e6) TO (300e6);
@@ -56,6 +65,7 @@ CREATE TABLE aggregates (
     created_at timestamp with time zone NOT NULL DEFAULT NOW()
 ) PARTITION BY RANGE (aggregate_id);
 
+-- ### Configure partitions as needed
 CREATE TABLE aggregates_0 PARTITION OF aggregates FOR VALUES FROM (MINVALUE) TO ('40000000-0000-0000-0000-000000000000');
 CREATE TABLE aggregates_4 PARTITION OF aggregates FOR VALUES FROM ('40000000-0000-0000-0000-000000000000') TO ('80000000-0000-0000-0000-000000000000');
 CREATE TABLE aggregates_8 PARTITION OF aggregates FOR VALUES FROM ('80000000-0000-0000-0000-000000000000') TO ('c0000000-0000-0000-0000-000000000000');
@@ -74,6 +84,7 @@ CREATE TABLE events (
 
 CREATE INDEX events_xact_id_idx ON events (xact_id) WHERE xact_id IS NOT NULL;
 
+-- ### Configure partitions as needed
 CREATE TABLE events_default PARTITION OF events DEFAULT;
 CREATE TABLE events_2023_and_earlier PARTITION OF events FOR VALUES FROM ('Y00') TO ('Y24');
 CREATE TABLE events_2024 PARTITION OF events FOR VALUES FROM ('Y24') TO ('Y25');
@@ -143,6 +154,7 @@ SELECT id,
   FROM command;
 
 ALTER TABLE aggregates ADD UNIQUE (events_partition_key, aggregate_id);
+-- ### Configure clustering as needed
 ALTER TABLE aggregates_0 CLUSTER ON aggregates_0_events_partition_key_aggregate_id_key;
 ALTER TABLE aggregates_4 CLUSTER ON aggregates_4_events_partition_key_aggregate_id_key;
 ALTER TABLE aggregates_8 CLUSTER ON aggregates_8_events_partition_key_aggregate_id_key;
@@ -150,6 +162,7 @@ ALTER TABLE aggregates_c CLUSTER ON aggregates_c_events_partition_key_aggregate_
 
 ALTER TABLE events
   ADD PRIMARY KEY (partition_key, aggregate_id, sequence_number);
+-- ### Configure clustering as needed
 ALTER TABLE events_default CLUSTER ON events_default_pkey;
 ALTER TABLE events_2023_and_earlier CLUSTER ON events_2023_and_earlier_pkey;
 ALTER TABLE events_2024 CLUSTER ON events_2024_pkey;
