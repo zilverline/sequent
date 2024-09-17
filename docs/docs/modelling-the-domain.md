@@ -111,6 +111,7 @@ Let's define how the domain should behave when receiving our new `PublishPost` c
 ```ruby
 def publish(publication_date)
   fail PostAlreadyPubishedError if @publication_date.any?
+
   apply PostPublished, publication_date: publication_date
 end
 ```
@@ -139,7 +140,7 @@ _Learn all about events in the [Event](/docs/concepts/event.html) Reference Guid
 
 ## Adding an Author
 
-We have now gone through the generated example files. 
+We have now gone through the generated example files.
 
 Before we can add a `Post` we need to add an `Author`. In this guide, we will 'upgrade' `Author` to its own Aggregate Root. This means we need to add new files defining the `Author` Aggregate Root, and make some changes to the `Post` Commands and Events. i.e. using the author `aggregate_id` instead of an author String.
 
@@ -171,7 +172,7 @@ class Usernames < Sequent::AggregateRoot
   class UsernameAlreadyRegistered < StandardError; end
 
   # We can generate and hardcode the UUID since there is only one instance
-  ID = "85507d60-8645-4a8a-bdb8-3a9c86a0c635"
+  ID = '85507d60-8645-4a8a-bdb8-3a9c86a0c635'
 
   def self.instance(id = ID)
     Sequent.configuration.aggregate_repository.load_aggregate(id)
@@ -267,7 +268,7 @@ Sequent.configure do |config|
 end
 ```
 
-When we run the tests in `spec/lib/author/author_command_handler_spec.rb`, all are marked as `Pending: Not yet implemented`. Before we can go any further, we need to think about what kind of Events we are interested in. What do we want to know in this case? When registering our very first `Author`, it will not only create the Author, but also create our `Usernames` Aggregate to ensure uniqueness of the usernames. 
+When we run the tests in `spec/lib/author/author_command_handler_spec.rb`, all are marked as `Pending: Not yet implemented`. Before we can go any further, we need to think about what kind of Events we are interested in. What do we want to know in this case? When registering our very first `Author`, it will not only create the Author, but also create our `Usernames` Aggregate to ensure uniqueness of the usernames.
 
 The test will read something like:
 
@@ -285,21 +286,21 @@ context AddAuthor do
   let(:user_aggregate_id) { Sequent.new_uuid }
   let(:email) { 'ben@sequent.io' }
 
-  it "creates a user when valid input" do
-    when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: "Ben", email: email)
+  it 'creates a user when valid input' do
+    when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: 'Ben', email: email)
     then_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
                 UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2),
                 AuthorCreated.new(aggregate_id: user_aggregate_id, sequence_number: 1),
                 AuthorNameSet,
                 AuthorEmailSet.new(aggregate_id: user_aggregate_id, email: email, sequence_number: 3)
   end
-  it "fails if the username already exists"
-  it "ignores case in usernames"
+  it 'fails if the username already exists'
+  it 'ignores case in usernames'
 end
 ```
 
 In Sequent (or other event sourcing libraries) you test your code by checking the applied events, and which order they were run in.
-In this case we modelled the `AuthorNameSet` and `AuthorEmailSet` as separate events, since they probably don't change together. 
+In this case we modelled the `AuthorNameSet` and `AuthorEmailSet` as separate events, since they probably don't change together.
 
 In more comprehensive cases we can imagine triggering other events, e.g. when the email changes, a confirmation is sent. You should take these considerations into account when modelling your domain and defining your Events.
 
@@ -309,11 +310,9 @@ In `lib/usernames/events.rb`
 
 ```ruby
 class UsernamesCreated < Sequent::Event
-
 end
 
 class UsernameAdded < Sequent::Event
-
 end
 ```
 
@@ -326,7 +325,7 @@ class Usernames < Sequent::AggregateRoot
   class UsernameAlreadyRegistered < StandardError; end
 
   # We can generate and hardcode the UUID since there is only one instance
-  ID = "85507d60-8645-4a8a-bdb8-3a9c86a0c635"
+  ID = '85507d60-8645-4a8a-bdb8-3a9c86a0c635'
 
   def self.instance(id = ID)
     Sequent.aggregate_repository.load_aggregate(id)
@@ -350,7 +349,6 @@ end
 In `lib/author/events.rb`
 ```ruby
 class AuthorCreated < Sequent::Event
-
 end
 
 class AuthorNameSet < Sequent::Event
@@ -562,7 +560,7 @@ class Post < Sequent::AggregateRoot
   end
 
   # omitted ...
-  
+
   on PostAuthorChanged do |event|
     @author_aggregate_id = event.author_aggregate_id
   end
