@@ -259,4 +259,4 @@ SELECT clock_timestamp() AS migration_completed_at,
 
 \echo Migration complated in :migration_duration (started at :migration_started_at, completed at :migration_completed_at)
 
-\echo execute COMMIT to commit, ROLLBACK to abort
+\echo execute ROLLBACK to abort, COMMIT to commit followed by VACUUM VERBOSE ANALYZE to ensure good performance

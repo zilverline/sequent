@@ -14,6 +14,10 @@ You will have to adjust this script to match your desired partitioning
 setup, although the default configuration will work for many cases as
 well.
 
+**IMPORTANT**: If the migration succeeds and you COMMIT the results
+you must vacuum (e.g. using VACUUM VERBOSE ANALYZE) the new tables to
+ensure good performance!
+
 To make use of partitioning you will have to adjust your aggregates by
 overriding the `events_partitio_key` method to indicate in which
 partition the aggregate's events should be stored. For example, if you
