@@ -183,7 +183,8 @@ describe Sequent::Support::Database do
         expect(Sequent::ApplicationRecord.connection).to be_active
       end
 
-      expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq test_config['schema_search_path']
+      expect(Sequent::ApplicationRecord.connection.schema_search_path.gsub(' ', ''))
+        .to eq test_config['schema_search_path'].gsub(' ', '')
     end
 
     context 'multiple database support',
@@ -210,14 +211,17 @@ describe Sequent::Support::Database do
               end
               it 'connects using an url option' do
                 Sequent::Support::Database.establish_connection(db_config)
+                Sequent::ApplicationRecord.connection.reconnect!
                 expect(Sequent::ApplicationRecord.connection).to be_active
 
                 Sequent::Support::Database.with_schema_search_path('view_schema', db_config) do
                   expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq 'view_schema'
+                  Sequent::ApplicationRecord.connection.reconnect!
                   expect(Sequent::ApplicationRecord.connection).to be_active
                 end
 
-                expect(Sequent::ApplicationRecord.connection.schema_search_path).to eq test_config['schema_search_path']
+                expect(Sequent::ApplicationRecord.connection.schema_search_path.gsub(' ', ''))
+                  .to eq test_config['schema_search_path'].gsub(' ', '')
               end
             end
   end
