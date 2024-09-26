@@ -10,9 +10,8 @@ module Sequent
       self.primary_key = %i[aggregate_id]
 
       belongs_to :aggregate_type
-      has_many :events,
-               inverse_of: :aggregate,
-               class_name: :PartitionedEvent,
+      has_many :partitioned_events,
+               inverse_of: :partitioned_aggregate,
                primary_key: %i[events_partition_key aggregate_id],
                query_constraints: %i[partition_key aggregate_id]
     end

@@ -31,19 +31,19 @@ module Sequent
         expect(aggregate.events_partition_key).to eq(events_partition_key)
         expect(aggregate.aggregate_type.type).to eq('Aggregate')
 
-        events = aggregate.events.to_a
+        events = aggregate.partitioned_events.to_a
         expect(events.size).to eq(1)
 
         event = events[0]
-        expect(event.aggregate).to be(aggregate)
+        expect(event.partitioned_aggregate).to be(aggregate)
         expect(event.aggregate_id).to eq(aggregate_id)
         expect(event.partition_key).to eq(events_partition_key)
         expect(event.event_type.type).to eq('Sequent::Core::Event')
 
-        command = event.command
+        command = event.partitioned_command
         expect(command).to be_present
         expect(command.command_type.type).to eq('Sequent::Core::Command')
-        expect(command.events).to eq(events)
+        expect(command.partitioned_events).to eq(events)
       end
     end
   end
