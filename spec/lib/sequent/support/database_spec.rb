@@ -43,10 +43,12 @@ describe Sequent::Support::Database do
       after do
         Sequent::Support::Database.disconnect!
         Sequent::Support::Database.drop!(db_config)
+        Sequent::Support::Database.disconnect!
       end
 
       it 'connects the Sequent::ApplicationRecord pool' do
         Sequent::Support::Database.establish_connection(db_config)
+        Sequent::ApplicationRecord.connection.reconnect!
         expect(Sequent::ApplicationRecord.connection).to be_active
       end
     end
@@ -60,6 +62,7 @@ describe Sequent::Support::Database do
 
       it 'connects the Sequent::ApplicationRecord pool' do
         Sequent::Support::Database.with_schema_search_path('test2', db_config) do
+          Sequent::ApplicationRecord.connection.reconnect!
           expect(Sequent::ApplicationRecord.connection).to be_active
         end
       end
@@ -172,6 +175,7 @@ describe Sequent::Support::Database do
 
     it 'connects using an url option' do
       Sequent::Support::Database.establish_connection(db_config)
+      Sequent::ApplicationRecord.connection.reconnect!
       expect(Sequent::ApplicationRecord.connection).to be_active
 
       Sequent::Support::Database.with_schema_search_path('view_schema', db_config) do
