@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    sequent (7.0.1)
+    sequent (7.1.0)
       activemodel (>= 6.0)
       activerecord (>= 6.0)
       bcrypt (~> 3.1)
