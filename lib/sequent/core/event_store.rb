@@ -209,6 +209,10 @@ module Sequent
 
       private
 
+      def quote_table_name(table_name)
+        Sequent.configuration.event_record_class.connection.quote_table_name(table_name)
+      end
+
       def event_types
         @event_types = if Sequent.configuration.event_store_cache_event_types
                          ThreadSafe::Cache.new

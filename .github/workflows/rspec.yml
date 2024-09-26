@@ -23,6 +23,8 @@ jobs:
         include:
           - ruby-version: 3.3
             gemfile: 'ar_7_1'
+          - ruby-version: 3.3
+            gemfile: 'ar_7_2'
           - ruby-version: 3.2
             gemfile: 'ar_7_1'
           - ruby-version: 3.2
