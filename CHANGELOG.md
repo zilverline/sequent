@@ -1,4 +1,8 @@
-# Changelog 7.x (changes since 7.1.0)
+# Changelog 7.x (changes since 7.1.1)
+
+# Changelog 7.1.1 (changes since 7.1.0)
+
+Small bugfix for metadata tables migrations. See https://github.com/zilverline/sequent/issues/418. Thanks evsasse.
 
 # Changelog 7.1.0 (changes since 7.0.0)
 

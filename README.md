@@ -34,9 +34,11 @@ Open [localhost:4000](localhost:4000)
 
 ## Releasing
 
-Change the version in `lib/version.rb`. Commit this change.
+Ensure the version in `lib/version.rb` is the new version. If not change it and commit this change.
 
 Then run `rake release`. A git tag will be created and pushed, and the new version of the gem will be pushed to rubygems.
+
+Increase version to working version.
 
 ## Running the specs
 
