@@ -317,6 +317,20 @@ describe Sequent::Migrations::ViewSchema do
         end
       end
     end
+
+    context 'migration of metadata tables' do
+      before do
+        migrator.create_view_schema_if_not_exists
+        Sequent::Migrations::Versions.create!(version: new_version)
+        exec_sql("alter table #{Sequent::Migrations::Versions.table_name} drop column status ")
+        Sequent::Migrations::Versions.reset_column_information
+      end
+
+      it 'migrates the metadata tables correctly' do
+        migrator.migrate_online
+        expect(migrator.current_version).to eq new_version
+      end
+    end
   end
 
   context '#migrate_offline' do
