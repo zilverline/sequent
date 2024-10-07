@@ -39,7 +39,7 @@ Verify that you have a current version of Ruby installed:
 
 ```bash
 $ ruby -v
-ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-darwin20]
+ruby 3.3.5 (2024-09-03 revision ef084cc8f4) [arm64-darwin23]
 ```
 
 Sequent requires Ruby version 2.7.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
