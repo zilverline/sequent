@@ -48,7 +48,7 @@ in-depth explanation of the several concepts (like `AggregateRoot`, `Event`, `Co
 ## Upgrade Guide
 
 If you wish to upgrade your code and database to Sequent 8 from an
-older version please reasd the [Upgrade
+older version please read the [Upgrade
 Guide](/docs/upgrade-guide.html).
 
 ## Further reading
