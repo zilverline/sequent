@@ -30,7 +30,7 @@ bundle install
 bundle exec jekyll serve --livereload
 ```
 
-Open [localhost:4000](localhost:4000)
+Open [localhost:4000](http://localhost:4000)
 
 ## Releasing
 
