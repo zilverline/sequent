@@ -286,6 +286,7 @@ DEPENDENCIES
   github-pages
   jekyll-feed
   jekyll-include-cache
+  jekyll-sitemap
   minima (~> 2.0)
   ostruct
   webrick
