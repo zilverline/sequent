@@ -50,10 +50,10 @@ You will also need to have the PostgreSQL database server installed. Verify that
 
 ```bash
 $ pg_config --version
-PostgreSQL 11.2
+PostgreSQL 16.4
 ```
 
-Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org).
+Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://postgresql.org).
 
 #### Sequent
 
