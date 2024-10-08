@@ -16,7 +16,7 @@ Fork and send pull requests
 
 ## Documentation
 
-See the official site at https://www.sequent.io/
+See the official site at https://sequent.io/
 
 Want to help improve the documentation? Please let us know how we can improve by [creating an issue](https://github.com/zilverline/sequent/issues/new)
 
