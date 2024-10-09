@@ -1,5 +1,8 @@
 ---
 title: Getting started with Sequent
+toc: true
+toc_sticky: true
+classes: []
 ---
 
 ## Guide assumptions
