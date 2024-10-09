@@ -29,6 +29,12 @@ markdown: kramdown
 remote_theme: "mmistakes/minimal-mistakes"
 minimal_mistakes_skin: "mint" # "default", "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum" "sunrise"
 enable_copy_code_button: true
+# Enable site-wide search
+search: true
+lunr:
+  search_within_pages: true
+search_full_content: true
+
 plugins:
   - jekyll-feed
   - jemoji
