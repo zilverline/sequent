@@ -10,53 +10,53 @@ docs:
         url: "https://github.com/zilverline/sequent"
   - title: Introduction
     children:
-      - title: "1 Getting started"
+      - title: "1. Getting started"
         url: /docs/getting-started.html
-      - title: "2 Modelling the domain"
+      - title: "2. Modelling the domain"
         url: /docs/modelling-the-domain.html
-      - title: "3 Building a web application"
+      - title: "3. Building a web application"
         url: /docs/building-a-web-application.html
-      - title: "4 Finishing the web application"
+      - title: "4. Finishing the web application"
         url: /docs/finishing-the-web-application.html
-      - title: "5 Rails & Sequent"
+      - title: "5. Rails & Sequent"
         url: /docs/rails-sequent.html
 
   - title: Reference Guide
     url: /docs/concepts.html
     children:
-      - title: "1. AggregateRoot"
+      - title: "AggregateRoot"
         url: /docs/concepts/aggregate-root.html
-      - title: "2. Event"
+      - title: "Event"
         url: /docs/concepts/event.html
-      - title: "3. Command"
+      - title: "Command"
         url: /docs/concepts/command.html
-      - title: "4. CommandHandler"
+      - title: "CommandHandler"
         url: /docs/concepts/command-handler.html
-      - title: "5. Projector"
+      - title: "Projector"
         url: /docs/concepts/projector.html
-      - title: "6. Workflow"
+      - title: "Workflow"
         url: /docs/concepts/workflow.html
-      - title: "7. AggregateRepository"
+      - title: "AggregateRepository"
         url: /docs/concepts/aggregate-repository.html
-      - title: "8. CommandService"
+      - title: "CommandService"
         url: /docs/concepts/command-service.html
-      - title: "9. ValueObject"
+      - title: "ValueObject"
         url: /docs/concepts/value-object.html
-      - title: "10. Types"
+      - title: "Types"
         url: /docs/concepts/types.html
-      - title: "11. Validations"
+      - title: "Validations"
         url: /docs/concepts/validations.html
-      - title: "12. Migrations"
+      - title: "Migrations"
         url: /docs/concepts/migrations.html
-      - title: "13. Snapshotting"
+      - title: "Snapshotting"
         url: /docs/concepts/snapshotting.html
-      - title: "14. EventStream"
+      - title: "EventStream"
         url: /docs/concepts/event_stream.html
-      - title: "15. EventStore"
+      - title: "EventStore"
         url: /docs/concepts/event_store.html
-      - title: "16. Configuration"
+      - title: "Configuration"
         url: /docs/concepts/configuration.html
-      - title: "17. Advanced topics"
+      - title: "Advanced topics"
         url: /docs/concepts/advanced.html
-      - title: "18. GDPR"
+      - title: "GDPR"
         url: /docs/concepts/gdpr.html
