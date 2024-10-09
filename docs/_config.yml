@@ -62,7 +62,7 @@ analytics:
 defaults:
   # _posts
   - scope:
-      path: ""
+      path: "posts"
       type: posts
     values:
       layout: single
@@ -73,7 +73,7 @@ defaults:
       related: false
   # _pages
   - scope:
-      path: ""
+      path: "" # an empty string here means all files in the project
       type: pages
     values:
       layout: single
