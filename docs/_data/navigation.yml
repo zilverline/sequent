@@ -9,6 +9,7 @@ docs:
       - title: "Source code"
         url: "https://github.com/zilverline/sequent"
   - title: Introduction
+    url: /docs/getting-started.html
     children:
       - title: "1. Getting started"
         url: /docs/getting-started.html
