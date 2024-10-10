@@ -1,5 +1,5 @@
 ---
-title: Sequent - Edge
+title: Sequent - CQRS & event sourcing framework for Ruby
 ---
 
 Sequent is an opinionated CQRS and event sourcing framework (ES) written in Ruby. This site is intended
