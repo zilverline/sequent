@@ -5,8 +5,6 @@ toc_sticky: true
 classes: []
 ---
 
-## Guide assumptions
-
 This guide is designed for beginners who want to get started with a Sequent application from scratch. It does not assume that you have any prior experience with Sequent.
 
 Sequent uses design patterns from DDD (Domain-Driven Design) like CQRS and Event Sourcing. Some basic familiarity with these principles is expected but you don't need to be an expert. For more information on this we might refer to some DDD resources in the guide.
