@@ -28,12 +28,20 @@ markdown: kramdown
 # Jekyll theme: https://mmistakes.github.io/minimal-mistakes/docs/configuration/
 remote_theme: "mmistakes/minimal-mistakes"
 minimal_mistakes_skin: "mint" # "default", "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum" "sunrise"
+
 enable_copy_code_button: true
+
 # Enable site-wide search
 search: true
 lunr:
   search_within_pages: true
 search_full_content: true
+
+author:
+  links:
+    - label: "Source code"
+      icon: "fab fa-fw fa-github"
+      url: "https://github.com/zilverline/sequent"
 
 plugins:
   - jekyll-feed
@@ -78,7 +86,7 @@ defaults:
     values:
       layout: single
       classes: wide
-      author_profile: false
+      author_profile: true
       share: false
       sidebar:
         nav: "docs"
