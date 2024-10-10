@@ -16,7 +16,7 @@ You are already familiar with Ruby on Rails and the core [Concepts](concepts.htm
 For a seamless integration with the latest Rails, best is to adhere to the Rails naming conventions. In Rails everything under the `app` directory is autoloaded.
 To make use of this feature, best is to put your domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`.
 In this case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`.
-See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html) for more details.
+See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html){:target="_blank"} for more details.
 
 1) Add to your `Gemfile`
 
@@ -26,7 +26,7 @@ See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/a
 
 2) Run `bundle install`
 
-3) Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb) and put it in your `./db` directory.
+3) Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb){:target="_blank"} and put it in your `./db` directory.
 
 4) Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
     
@@ -165,7 +165,7 @@ config.middleware.use Sequent::Util::Web::ClearCache
 
 ### Where to put your domain classes
 
-Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk) for autoloading and reloading. To ensure your domain classes will also benefit from
+Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk){:target="_blank"} for autoloading and reloading. To ensure your domain classes will also benefit from
 this feature, put them under a subdirectory of the `app` folder and adhere to the Rails naming conventions.
 
 One caveat is that this leads to an explosion of small files containing singular `Event`s and `Command`s.
@@ -207,12 +207,12 @@ The "downside" here is that you need to introduce an extra layer of naming to be
 
 ### Rails Engines
 
-Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html) work basically the same as a normal Rails application.
+Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html){:target="_blank"} work basically the same as a normal Rails application.
 Some things to remember when working with Rails Engines:
 
 1. The Sequent config must be set in the main application `config/initializers`
 2. The main application is the maintainer of the `sequent_schema` and `view_schema`. 
    So copy over the migration sql files to the main application directory like you would when an Engine provides active record migrations.
 
-Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples) Github repository.
+Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples){:target="_blank"} Github repository.
 

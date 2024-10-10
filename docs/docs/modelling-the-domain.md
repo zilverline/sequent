@@ -331,7 +331,7 @@ One of the things we need to do, is to check the uniqueness of the Author's emai
 event store, we can not simply add a unique constraint to ensure uniqueness. A common solution to this problem is to
 create yet another Aggregate responsible for maintaining all usernames.
 We will name this Aggregate `Usernames`. Since it needs to ensure uniqueness, there can be only one instance of this.
-In order to achieve that, we create the Usernames class as a [Singleton](https://refactoring.guru/design-patterns/singleton).
+In order to achieve that, we create the Usernames class as a [Singleton](https://refactoring.guru/design-patterns/singleton){:target="_blank"}.
 
 Create `lib/usernames/usernames.rb` with:
 
