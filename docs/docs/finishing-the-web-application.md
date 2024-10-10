@@ -18,7 +18,7 @@ using the Validation module from Rails. Please check [validations](/docs/concept
 in our Reference Guide for all the details. For now we stick to the 'create author' form in our
 web application.
 
-When running the blog application, visiting the [home page](http://localhost:4567) and
+When running the blog application, visiting the [home page](http://localhost:4567){:target="_blank"} and
 directly clicking the 'Create author' button (with empty form values), the form blows up with an error:
 
 ```ruby
@@ -458,7 +458,7 @@ Update `db/tables/post_records.sql`:
  CREATE UNIQUE INDEX post_records_keys%SUFFIX% ON post_records%SUFFIX% USING btree (aggregate_id);
 ```
 
-Lastly update and run the migration as you did in Guide [3. Building a web application > 5. Update and run the migration](https://www.sequent.io/docs/building-a-web-application.html)
+Lastly update and run the migration as you did in Guide [3. Building a web application > 5. Update and run the migration](building-a-web-application.md)
 
 ### Extending Domain Logic
 

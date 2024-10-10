@@ -1,5 +1,5 @@
 ---
-title: Sequent - Edge
+title: Sequent - CQRS & event sourcing framework for Ruby
 ---
 
 Sequent is an opinionated CQRS and event sourcing framework (ES) written in Ruby. This site is intended
@@ -7,9 +7,8 @@ to help you learn and develop CQRS / ES applications in Ruby (using Sequent).
 Sequent **focusses** on the **domain logic** of your application. It is web framework agnostic.
 You can use it with Rails, Sinatra or whatever framework you like.
 
-**Important:** The entire documentation applies to the **master**
-branch
-{: .notice--danger}
+**Note:** This documentation applies to the **master** branch
+{: .notice--warning}
 
 ## Tutorials
 
@@ -38,7 +37,7 @@ the blog application and add form validation and let the Author's add Posts.
 
 ### 5. Rails & Sequent
 
-The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a [Rails application](https://rubyonrails.org/).
+The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a [Rails application](https://rubyonrails.org/){:target="_blank"}.
 
 ## Reference Guide
 
@@ -49,11 +48,11 @@ in-depth explanation of the several concepts (like `AggregateRoot`, `Event`, `Co
 
 There is a lot more information available on CQRS and event sourcing:
 
-- [Event sourcing](http://martinfowler.com/eaaDev/EventSourcing.html)
-- [Lars and Bob's presentation at GOTO Amsterdam](http://gotocon.com/dl/goto-amsterdam-2013/slides/BobForma_and_LarsVonk_EventSourcingInProductionSystems.pdf)
-- [Erik's blog series](http://blog.zilverline.com/2011/02/10/towards-an-immutable-domain-model-monads-part-5/)
-- [Simple CQRS example by Greg Young](https://github.com/gregoryyoung/m-r)
-- [Google](http://www.google.nl/search?ie=UTF-8&q=cqrs+event+sourcing)
+- [Event sourcing](https://martinfowler.com/eaaDev/EventSourcing.html){:target="_blank"}
+- [Lars and Bob's presentation at GOTO Amsterdam](https://gotocon.com/dl/goto-amsterdam-2013/slides/BobForma_and_LarsVonk_EventSourcingInProductionSystems.pdf){:target="_blank"}
+- [Erik's blog series](https://www.zilverline.com/blog/towards-an-immutable-domain-model-monads-part-5){:target="_blank"}
+- [Simple CQRS example by Greg Young](https://github.com/gregoryyoung/m-r){:target="_blank"}
+- [Google](http://www.google.nl/search?ie=UTF-8&q=cqrs+event+sourcing){:target="_blank"}
 
 ## License
 

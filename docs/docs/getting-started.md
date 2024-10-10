@@ -1,8 +1,9 @@
 ---
 title: Getting started with Sequent
+toc: true
+toc_sticky: true
+classes: []
 ---
-
-## Guide assumptions
 
 This guide is designed for beginners who want to get started with a Sequent application from scratch. It does not assume that you have any prior experience with Sequent.
 
@@ -19,9 +20,9 @@ Sequent is a CQRS and Event Sourcing framework for Ruby. It enables you to captu
 
 To read up on some of these concepts we recommend Martin Fowler's wiki:
 
-- [CQRS (Command Query Responsibility Segregation)](https://martinfowler.com/bliki/CQRS.html)
-- [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
-- [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html)
+- [CQRS (Command Query Responsibility Segregation)](https://martinfowler.com/bliki/CQRS.html){:target="_blank"}
+- [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html){:target="_blank"}
+- [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html){:target="_blank"}
 
 ## Creating a new Sequent project
 
@@ -39,10 +40,10 @@ Verify that you have a current version of Ruby installed:
 
 ```bash
 $ ruby -v
-ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-darwin20]
+ruby 3.3.5 (2024-09-03 revision ef084cc8f4) [arm64-darwin23]
 ```
 
-Sequent requires Ruby version 2.7.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
+Sequent requires Ruby version 2.7.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv){:target="_blank"}.
 
 #### Postgres
 
@@ -50,10 +51,10 @@ You will also need to have the PostgreSQL database server installed. Verify that
 
 ```bash
 $ pg_config --version
-PostgreSQL 11.2
+PostgreSQL 16.4
 ```
 
-Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org).
+Sequent works with PostgreSQL version 9.4 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://postgresql.org){:target="_blank"}.
 
 #### Sequent
 

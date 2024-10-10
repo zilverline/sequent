@@ -1,5 +1,5 @@
 coverage
-Gemfile.lock
+/Gemfile.lock
 /TAGS
 .idea
 pkg
