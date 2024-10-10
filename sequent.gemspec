@@ -30,8 +30,10 @@ Gem::Specification.new do |s|
   s.add_dependency 'activemodel', active_star_version
   s.add_dependency 'activerecord', active_star_version
   s.add_dependency 'bcrypt', '~> 3.1'
+  s.add_dependency 'csv', '~> 3.3'
   s.add_dependency 'i18n'
-  s.add_dependency 'oj', '~> 3'
+  s.add_dependency 'logger', '~> 1.6'
+  s.add_dependency 'oj', '~> 3.3'
   s.add_dependency 'parallel', '~> 1.20'
   s.add_dependency 'parser', '>= 2.6.5', '< 3.4'
   s.add_dependency 'pg', '~> 1.2'
