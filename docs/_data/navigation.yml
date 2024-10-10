@@ -4,60 +4,59 @@ main:
 
 docs:
   - title: Home
-    url: "/"
-    children:
-      - title: "Source code"
-        url: "https://github.com/zilverline/sequent"
-  - title: Introduction
+    url: /
+  - title: Handbook
     url: /docs/getting-started.html
     children:
-      - title: "1. Getting started"
+      - title: 1. Getting started
         url: /docs/getting-started.html
-      - title: "2. Modelling the domain"
+      - title: 2. Modelling the domain
         url: /docs/modelling-the-domain.html
-      - title: "3. Building a web application"
+      - title: 3. Building a web application
         url: /docs/building-a-web-application.html
-      - title: "4. Finishing the web application"
+      - title: 4. Finishing the web application
         url: /docs/finishing-the-web-application.html
-      - title: "5. Rails & Sequent"
+      - title: 5. Rails & Sequent
         url: /docs/rails-sequent.html
 
-  - title: Reference Guide
+  - title: Reference
     url: /docs/concepts.html
     children:
-      - title: "AggregateRoot"
+      - title: AggregateRoot
         url: /docs/concepts/aggregate-root.html
-      - title: "Event"
+      - title: Event
         url: /docs/concepts/event.html
-      - title: "Command"
+      - title: Command
         url: /docs/concepts/command.html
-      - title: "CommandHandler"
+      - title: CommandHandler
         url: /docs/concepts/command-handler.html
-      - title: "Projector"
+      - title: Projector
         url: /docs/concepts/projector.html
-      - title: "Workflow"
+      - title: Workflow
         url: /docs/concepts/workflow.html
-      - title: "AggregateRepository"
+      - title: AggregateRepository
         url: /docs/concepts/aggregate-repository.html
-      - title: "CommandService"
+      - title: CommandService
         url: /docs/concepts/command-service.html
-      - title: "ValueObject"
+      - title: ValueObject
         url: /docs/concepts/value-object.html
-      - title: "Types"
+      - title: Types
         url: /docs/concepts/types.html
-      - title: "Validations"
+      - title: Validations
         url: /docs/concepts/validations.html
-      - title: "Migrations"
+      - title: Migrations
         url: /docs/concepts/migrations.html
-      - title: "Snapshotting"
+      - title: Snapshotting
         url: /docs/concepts/snapshotting.html
-      - title: "EventStream"
+      - title: EventStream
         url: /docs/concepts/event_stream.html
-      - title: "EventStore"
+      - title: EventStore
         url: /docs/concepts/event_store.html
-      - title: "Configuration"
+      - title: Configuration
         url: /docs/concepts/configuration.html
-      - title: "Advanced topics"
+  - title: Other
+    children:
+      - title: Advanced topics
         url: /docs/concepts/advanced.html
-      - title: "GDPR"
+      - title: GDPR
         url: /docs/concepts/gdpr.html
