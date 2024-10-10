@@ -2,10 +2,10 @@
 title: Validations
 ---
 
-Sequent uses [ActiveModel::Validations](http://api.rubyonrails.org/classes/ActiveModel/Validations.html)
+Sequent uses [ActiveModel::Validations](http://api.rubyonrails.org/classes/ActiveModel/Validations.html){:target="_blank"}
 for validating things like [Commands](command.html) and [ValueObjects](value-object.html).
 
-For an in-depth explanation of all available ActiveModel validations, please check out the [Active Record Validations Guide](https://guides.rubyonrails.org/active_record_validations.html).
+For an in-depth explanation of all available ActiveModel validations, please check out the [Active Record Validations Guide](https://guides.rubyonrails.org/active_record_validations.html){:target="_blank"}.
 
 ## Command validations
 
@@ -43,7 +43,7 @@ end
 The [CommandService](command-service.html) validates all Commands that are executed by calling `valid?`. If a Command is not valid
 it raises a `Sequent::Core::CommandNotValid` error. The `Sequent::Core::CommandNotValid` has a reference to the Command which in
 turn, since it is an ActiveModel object, has a reference to the `ActiveModel::Errors`. You can use this error to, for instance,
-display the errors at their corresponding html form input fields. Unfortunately, at the time of writing, the [Rails Form Helpers](https://guides.rubyonrails.org/form_helpers.html) only support ActiveRecord objects and not ActiveModel objects. Therefore form binding should be done manually.
+display the errors at their corresponding html form input fields. Unfortunately, at the time of writing, the [Rails Form Helpers](https://guides.rubyonrails.org/form_helpers.html){:target="_blank"} only support ActiveRecord objects and not ActiveModel objects. Therefore form binding should be done manually.
 
 ```ruby
 post '/create' do
