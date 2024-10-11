@@ -4,175 +4,168 @@ title: Rails & Sequent
 
 This guide gives a step by step overview on how to add Sequent to an existing Rails application.
 
-## Prerequisites
+We assume you're already familiar with Ruby on Rails and the core [Concepts](concepts.html) of Sequent.
 
-- PostgreSQL database. Sequent only supports Postgres databases. There is no particular reason for this other than that we haven't had the need or time
-to support any other databases.
+### Prerequisites
+PostgreSQL database. Sequent only supports Postgres databases. There is no particular reason for this other than that 
+we haven't had the need or time to support any other databases.
 
-## Guide assumptions
+### Guide
 
-You are already familiar with Ruby on Rails and the core [Concepts](concepts.html) of Sequent.
+For a seamless integration with the latest Rails, it's best is to adhere to the Rails naming conventions. 
+In Rails everything under the `app` directory is autoloaded. To make use of this feature, it's best is to put your 
+domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`. In this
+case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`. See the 
+[Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html){:target="_blank"} 
+for more details.
 
-For a seamless integration with the latest Rails, best is to adhere to the Rails naming conventions. In Rails everything under the `app` directory is autoloaded.
-To make use of this feature, best is to put your domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`.
-In this case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`.
-See the [Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html){:target="_blank"} for more details.
-
-1) Add to your `Gemfile`
-
+1. Add to your `Gemfile`
    ```
-   gem 'sequent', git: 'https://github.com/zilverline/sequent'
+   gem 'sequent'
    ```
+2. Run `bundle install`
+3. Copy the `sequent_schema.rb` file from 
+  [sequent/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb){:target="_blank"} 
+  and put it in your `db` directory.
+4. Create `db/sequent_migrations.rb`. This will contain your `view_schema` migrations.
 
-2) Run `bundle install`
+```ruby
+VIEW_SCHEMA_VERSION = 1
 
-3) Copy the `sequent_schema.rb` file from [https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb](https://raw.githubusercontent.com/zilverline/sequent/master/db/sequent_schema.rb){:target="_blank"} and put it in your `./db` directory.
-
-4) Create `./db/sequent_migrations.rb`. This will contain your `view_schema` migrations. 
-    
- ```ruby
- VIEW_SCHEMA_VERSION = 1
- 
- class SequentMigrations < Sequent::Migrations::Projectors
-   def self.version
-     VIEW_SCHEMA_VERSION
-   end
- 
-   def self.versions
-     {
-       '1' => [
-         # List of migrations for version 1
-       ],
-     }
-   end
- end
- ```
-
-    For a complete overview on how Migrations work in Sequent, check out the [Migrations Guide](/docs/concepts/migrations.html)
-   
+class SequentMigrations < Sequent::Migrations::Projectors
+  def self.version
+    VIEW_SCHEMA_VERSION
+  end
   
-5) Add the following snippet to your `Rakefile`
+  def self.versions
+    {
+      '1' => [
+        # List of migrations for version 1
+      ],
+    }
+  end
+end
+```
+For a complete overview on how Migrations work in Sequent, check out the [Migrations Guide](/docs/concepts/migrations.html)
 
- ```ruby
- # Sequent requires a `SEQUENT_ENV` environment to be set
- # next to a `RAILS_ENV` 
- ENV['SEQUENT_ENV'] = ENV['RAILS_ENV'] ||= 'development'
- 
- require 'sequent/rake/migration_tasks'
- 
- Sequent::Rake::MigrationTasks.new.register_tasks!
- 
- # The dependency of sequent:init on :environment ensures the Rails app is loaded
- # when running the sequent migrations. This is needed otherwise
- # the sequent initializer - which is required to run these rake tasks -
- # doesn't run
- task 'sequent:init' => [:environment]
- task 'sequent:migrate:init' => [:sequent_db_connect]
- 
- task 'sequent_db_connect' do
-   Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
- end
+5. Add the following snippet to your `Rakefile`:
+{:start="5"}
+```ruby
+# Sequent requires a `SEQUENT_ENV` environment to be set
+# next to a `RAILS_ENV` 
+ENV['SEQUENT_ENV'] = ENV['RAILS_ENV'] ||= 'development'
 
- # Create custom rake task setting the SEQUENT_MIGRATION_SCHEMAS for
- # running the Rails migrations 
- task :migrate_public_schema do
-   ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
-   Rake::Task['db:migrate'].invoke
-   ENV['SEQUENT_MIGRATION_SCHEMAS'] = nil
- end
+require 'sequent/rake/migration_tasks'
 
- # Prevent rails db:migrate from being executed directly.
- Rake::Task['db:migrate'].enhance([:'sequent:db:dont_use_db_migrate_directly'])
- ```
+Sequent::Rake::MigrationTasks.new.register_tasks!
 
+# The dependency of sequent:init on :environment ensures the Rails app is loaded
+# when running the sequent migrations. This is needed otherwise
+# the sequent initializer - which is required to run these rake tasks -
+# doesn't run
+task 'sequent:init' => [:environment]
+task 'sequent:migrate:init' => [:sequent_db_connect]
 
- **You can't use rails db:migrate directly** anymore since  
- that will add all the tables of the `view_schema` and `sequent_schema`
- to the `schema.rb` file after running a Rails migration. To fix this
- the `rails db:migrate` must be wrapped in your own task setting the
- environment variable `SEQUENT_MIGRATION_SCHEMAS`.
- For safety reasons you can enchance and prepend the `rails db:migrate`
- with Sequents `sequent:db:dont_use_db_migrate_directly` Rake task
- so running it without `SEQUENT_MIGRATION_SCHEMAS` set will fail.
- {: .notice--warning}
+task 'sequent_db_connect' do
+ Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
+end
 
-6) Ensure your `database.yml` contains the schema_search_path: 
+# Create custom rake task setting the SEQUENT_MIGRATION_SCHEMAS for
+# running the Rails migrations 
+task :migrate_public_schema do
+ ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
+ Rake::Task['db:migrate'].invoke
+ ENV['SEQUENT_MIGRATION_SCHEMAS'] = nil
+end
 
- ```yaml
- default:
-   schema_search_path: <%= ENV['SEQUENT_MIGRATION_SCHEMAS'] || 'public, sequent_schema, view_schema' %>
- ```
+# Prevent rails db:migrate from being executed directly.
+Rake::Task['db:migrate'].enhance([:'sequent:db:dont_use_db_migrate_directly'])
+```
 
-7) Enable eager loading on all environments
+**You can't use rails db:migrate directly** anymore since that will add all the tables of the `view_schema` and 
+`sequent_schema` to the `schema.rb` file after running a Rails migration. To fix this the `rails db:migrate` 
+must be wrapped in your own task setting the environment variable `SEQUENT_MIGRATION_SCHEMAS`.
+For safety reasons you can enchance and prepend the `rails db:migrate` with Sequents 
+`sequent:db:dont_use_db_migrate_directly` Rake task so running it without `SEQUENT_MIGRATION_SCHEMAS` set will fail.
+{: .notice--warning}
 
-   Sequent internally relies on registries of classes of certain types. For instance it keeps track of all
-   `AggregateRoot` classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.
-   For this to work properly, all classes must be eager loaded otherwise code depending on this fact might
-   produce unpredictable results. Set the `config.eager_load` to `true` for all environments 
-   (in production the Rails default is already `true`).
+6. Ensure your `database.yml` contains the schema_search_path:
+{:start="6"}
+```yaml
+default:
+  schema_search_path: <%= ENV['SEQUENT_MIGRATION_SCHEMAS'] || 'public, sequent_schema, view_schema' %>
+```
 
-8) Add `./config/initializers/sequent.rb` containing at least:
+7. Enable eager loading on all environments  
+{:start="7"}
+Sequent internally relies on registries of classes of certain types. For instance it keeps track of all `AggregateRoot` 
+classes by adding them to a registry when `Sequent::Core::AggregateRoot` is extended.  
+For this to work properly, all classes must be eager loaded otherwise code depending on this fact might produce 
+unpredictable results. Set the `config.eager_load` to `true` for all environments (in production the Rails default is 
+already `true`).
 
- ```ruby
- require_relative '../../db/sequent_migrations'
+8. Add `./config/initializers/sequent.rb` containing at least:
+{:start="8"}
 
- Rails.application.reloader.to_prepare do
-   Sequent.configure do |config|
-     config.migrations_class_name = 'SequentMigrations'
-     config.enable_autoregistration = true
-     config.event_store_cache_event_types = !Rails.env.development?
+```ruby
+require_relative '../../db/sequent_migrations'
 
-     config.database_config_directory = 'config'
-   
-     # this is the location of your sql files for your view_schema
-     config.migration_sql_files_directory = 'db/sequent'
-   end
- end
- ```
+Rails.application.reloader.to_prepare do
+  Sequent.configure do |config|
+    config.migrations_class_name = 'SequentMigrations'
+    config.enable_autoregistration = true
+    config.event_store_cache_event_types = !Rails.env.development?
+    
+    config.database_config_directory = 'config'
+    
+    # this is the location of your sql files for your view_schema
+    config.migration_sql_files_directory = 'db/sequent'
+  end
+end
+```
 
 **You must** wrap the sequent initializer code in `Rails.application.reloader.to_prepare` because during
 initialization, the autoloading hasn't run yet.
 {: .notice--warning}
 
-9) Run the following commands to create the `sequent_schema` and `view_schema`  
+9. Run the following commands to create the `sequent_schema` and `view_schema`:
+{:start="9"}
+```bash
+bundle exec rake sequent:db:create_event_store
+bundle exec rake sequent:db:create_view_schema
 
- ```bash
- bundle exec rake sequent:db:create_event_store
- bundle exec rake sequent:db:create_view_schema
- 
- # only run this when you add or change projectors in SequentMigrations
- bundle exec rake sequent:migrate:online
- bundle exec rake sequent:migrate:offline    
- ```
+# only run this when you add or change projectors in SequentMigrations
+bundle exec rake sequent:migrate:online
+bundle exec rake sequent:migrate:offline    
+```
 
-10) Add the following to application.rb
-
-   This step is actually only necessary if you load Aggregates outside the scope
-   of the Unit Of Work which is automatically started and committed via the `execute_commands` call. 
-   If you for instance load Aggregates inside Controllers or or ActiveJob you have to clear Sequent's Unit Of Work (stored in the Thread.current) yourself.
-   For the web you can add the following Rack middleware:
-
+10. Add the following to `application.rb`  
+{:start="10"}
 ```ruby
 config.middleware.use Sequent::Util::Web::ClearCache
 ```
+This step is actually only necessary if you load Aggregates outside the scope of the Unit Of Work which is automatically
+started and committed via the `execute_commands` call.   
+If you for instance load Aggregates inside Controllers or or ActiveJob you have to clear Sequent's Unit Of Work (stored 
+in the Thread.current) yourself. For the web you can add the following Rack middleware:
 
-   Otherwise you will need to add a call to `Sequent.aggregate_repository.clear!` somewhere yourself.
+Otherwise you will need to add a call to `Sequent.aggregate_repository.clear!` somewhere yourself. See using the 
+[AggregateRepository outside the Unit Of Work](concepts/aggregate-repository.html#advanced-usage-outside-the-commandservice-transaction) for more details.
 
-   See using the [AggregateRepository outside the Unit Of Work](concepts/aggregate-repository.html#advanced-usage-outside-the-commandservice-transaction) for more details.
-
-11) Run `rails s`
-
+11. Run `rails server`
+{:start="11"}
 
 ### Where to put your domain classes
 
-Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk){:target="_blank"} for autoloading and reloading. To ensure your domain classes will also benefit from
-this feature, put them under a subdirectory of the `app` folder and adhere to the Rails naming conventions.
+Rails uses [Zeitwerk](https://github.com/fxn/zeitwerk){:target="_blank"} for autoloading and reloading. To ensure your 
+domain classes will also benefit from this feature, put them under a subdirectory of the `app` folder and adhere to the 
+Rails naming conventions.
 
-One caveat is that this leads to an explosion of small files containing singular `Event`s and `Command`s.
-The preference of the Sequent team is to group all `Event`s and `Command`s in a single file (e.g. `events|commands.rb`).
+One caveat is that this leads to an explosion of small files containing singular `Event`s and `Command`s. The preference
+of the Sequent team is to group all `Event`s and `Command`s in a single file (e.g. `events|commands.rb`).
 Luckily in Zeitwerk this is still possible. An example folder structure:
 
-```
+```bash
 app/
   controllers/
   models/
