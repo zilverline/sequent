@@ -3,8 +3,6 @@ main:
     url: https://www.zilverline.com/
 
 docs:
-  - title: Home
-    url: /
   - title: Introduction
     url: /docs/getting-started.html
     children:
@@ -16,47 +14,49 @@ docs:
         url: /docs/building-a-web-application.html
       - title: 4. Finishing the web application
         url: /docs/finishing-the-web-application.html
-  - title: Rails & Sequent
-    url: /docs/rails-sequent.html
 
-  - title: Reference
-    url: /docs/concepts.html
+  - title: Handbook
     children:
-      - title: AggregateRoot
-        url: /docs/concepts/aggregate-root.html
-      - title: Event
-        url: /docs/concepts/event.html
-      - title: Command
-        url: /docs/concepts/command.html
-      - title: CommandHandler
-        url: /docs/concepts/command-handler.html
-      - title: Projector
-        url: /docs/concepts/projector.html
-      - title: Workflow
-        url: /docs/concepts/workflow.html
-      - title: AggregateRepository
-        url: /docs/concepts/aggregate-repository.html
-      - title: CommandService
-        url: /docs/concepts/command-service.html
-      - title: ValueObject
-        url: /docs/concepts/value-object.html
-      - title: Types
-        url: /docs/concepts/types.html
+      - title: Rails & Sequent
+        url: /docs/rails-sequent.html
+      - title: Configuration
+        url: /docs/concepts/configuration.html
       - title: Validations
         url: /docs/concepts/validations.html
       - title: Migrations
         url: /docs/concepts/migrations.html
       - title: Snapshotting
         url: /docs/concepts/snapshotting.html
-      - title: EventStream
-        url: /docs/concepts/event_stream.html
-      - title: EventStore
-        url: /docs/concepts/event_store.html
-      - title: Configuration
-        url: /docs/concepts/configuration.html
-  - title: Other
-    children:
+      - title: Types
+        url: /docs/concepts/types.html
       - title: Advanced topics
         url: /docs/concepts/advanced.html
       - title: GDPR
         url: /docs/concepts/gdpr.html
+
+
+  - title: Reference
+    url: /docs/concepts.html
+    children:
+      - title: AggregateRepository
+        url: /docs/concepts/aggregate-repository.html
+      - title: AggregateRoot
+        url: /docs/concepts/aggregate-root.html
+      - title: Command
+        url: /docs/concepts/command.html
+      - title: CommandHandler
+        url: /docs/concepts/command-handler.html
+      - title: CommandService
+        url: /docs/concepts/command-service.html
+      - title: Event
+        url: /docs/concepts/event.html
+      - title: EventStream
+        url: /docs/concepts/event_stream.html
+      - title: EventStore
+        url: /docs/concepts/event_store.html
+      - title: Projector
+        url: /docs/concepts/projector.html
+      - title: ValueObject
+        url: /docs/concepts/value-object.html
+      - title: Workflow
+        url: /docs/concepts/workflow.html
