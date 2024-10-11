@@ -3,6 +3,7 @@ source 'https://rubygems.org'
 gem 'faraday', '1.8.0'
 gem 'webrick'
 gem 'ostruct'
+gem 'dotenv', groups: [:development, :test]
 
 group :jekyll_plugins do
   gem 'github-pages'
