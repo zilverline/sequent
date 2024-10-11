@@ -10,9 +10,9 @@ You can use it with Rails, Sinatra or whatever framework you like.
 **Note:** This documentation applies to the **{{site.github.source.branch}}** branch
 {: .notice--warning}
 
-## Tutorials
+## Introduction
 
-There are several tutorials available:
+There are several guides available:
 
 ### 1. Getting Started
 
@@ -35,9 +35,10 @@ web framework.
 In the [finishing the web-application guide](/docs/finishing-the-web-application.html) we continue with
 the blog application and add form validation and let the Author's add Posts.
 
-### 5. Rails & Sequent
+## Rails & Sequent
 
-The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a [Rails application](https://rubyonrails.org/){:target="_blank"}.
+The [Rails & Sequent](/docs/rails-sequent.html) guide shows how to use Sequent in a 
+[Rails application](https://rubyonrails.org/){:target="_blank"}.
 
 ## Reference Guide
 

@@ -5,7 +5,7 @@ main:
 docs:
   - title: Home
     url: /
-  - title: Handbook
+  - title: Introduction
     url: /docs/getting-started.html
     children:
       - title: 1. Getting started
@@ -16,8 +16,8 @@ docs:
         url: /docs/building-a-web-application.html
       - title: 4. Finishing the web application
         url: /docs/finishing-the-web-application.html
-      - title: 5. Rails & Sequent
-        url: /docs/rails-sequent.html
+  - title: Rails & Sequent
+    url: /docs/rails-sequent.html
 
   - title: Reference
     url: /docs/concepts.html
