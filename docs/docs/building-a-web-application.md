@@ -342,30 +342,6 @@ Ensure it's being required in `blog.rb`:
 require_relative 'app/projectors/author_projector'
 ```
 
-### Update Sequent configuration
-
-Add the new projector to our Sequent config.
-
-Update `config/initializers/sequent.rb` to:
-
-```ruby
-require './db/migrations'
-
-Sequent.configure do |config|
-  config.migrations_class_name = 'Migrations'
-
-  config.command_handlers = [
-    PostCommandHandler,
-    AuthorCommandHandler,
-  ].map(&:new)
-
-  config.event_handlers = [
-    PostProjector,
-    AuthorProjector
-  ].map(&:new)
-end
-```
-
 ### Update and run the migration
 
 To migrate the database, update the view_schema version and add the projectors that need to be rebuild.

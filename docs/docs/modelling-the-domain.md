@@ -301,18 +301,6 @@ class AuthorCommandHandler < Sequent::CommandHandler
 end
 ```
 
-Include the `AuthorCommandHandler` in `config/initializers/sequent.rb`
-```ruby
-Sequent.configure do |config|
-  # ...
-  config.command_handlers = [
-      PostCommandHandler.new,
-      AuthorCommandHandler.new
-  ]
-  # ...
-end
-```
-
 Require the new `Author` aggregate by adding the following to `blog.rb`:
 ```ruby
 require_relative 'lib/author'

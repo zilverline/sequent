@@ -43,6 +43,7 @@ end
 The `migration_class_name` is the name of the class used to define your Migrations. See
 the [Migrations](migrations.html) chapter for an in-depth explanation.
 
+### Autoregistration
 Sequent 6.0.2 introduced autoregistration of `command_handlers` and `event_handlers` via
 setting `enable_autoregistration` to `true`.
 Autoregistered classes will be appended to any already manually registered `command_handlers` and `event_handlers`. If
