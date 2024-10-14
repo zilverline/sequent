@@ -17,7 +17,8 @@ describe Sequent::Generator::Project do
   subject(:execute) { Sequent::Generator::Project.new(arg).execute }
 
   it 'creates a directory with the given name' do
-    expect { subject }.to change { File.directory?(path) }.from(false).to(true)
+    execute
+    expect(Pathname.new(path)).to be_directory
   end
 
   context 'with an absolute path' do
@@ -25,7 +26,8 @@ describe Sequent::Generator::Project do
     before { FileUtils.rmtree(path) }
 
     it 'creates a directory on the absolute path' do
-      expect { subject }.to change { File.directory?(path) }.from(false).to(true)
+      execute
+      expect(Pathname.new(path)).to be_directory
     end
   end
 
@@ -41,14 +43,14 @@ describe Sequent::Generator::Project do
 
   it 'copies the ruby-version to .ruby-version' do
     execute
-    expect(File.exist?('blog-with_special-symbols/.ruby-version')).to be_truthy
+    expect(Pathname.new('blog-with_special-symbols/.ruby-version')).to exist
   end
 
   it 'names the app' do
     execute
-    expect(File.exist?('blog-with_special-symbols/my_app.rb')).to be_falsey
-    expect(File.exist?('blog-with_special-symbols/blog_with_special_symbols.rb')).to be_truthy
-    expect(File.read('blog-with_special-symbols/blog_with_special_symbols.rb')).to_not include('module MyApp')
+    expect(Pathname('blog-with_special-symbols/my_app.rb')).not_to exist
+    expect(Pathname('blog-with_special-symbols/blog_with_special_symbols.rb')).to exist
+    expect(File.read('blog-with_special-symbols/blog_with_special_symbols.rb')).not_to include('module MyApp')
     expect(
       File.read('blog-with_special-symbols/blog_with_special_symbols.rb'),
     ).to include('module BlogWithSpecialSymbols')
@@ -56,19 +58,20 @@ describe Sequent::Generator::Project do
     expect(File.read('blog-with_special-symbols/Rakefile')).to include("require './blog_with_special_symbols'")
   end
 
-  xit 'has working example with specs' do
+  it 'has working example with specs' do
     execute
 
     Bundler.with_unbundled_env do
+      # Change default database configuration
+      Sequent.configuration.database_config_directory = File.join(path, 'db')
+      Database.write_database_yml_for_test(env: 'test', database_name: 'blog_with_special_symbols_test')
+
       system 'bash', '-cex', <<~SCRIPT
         cd blog-with_special-symbols
         export SEQUENT_ENV=test
 
-        if which rbenv; then
-          eval "$(rbenv init - bash)"
-          rbenv shell $(cat ./.ruby-version)
-          rbenv install --skip-existing
-        fi
+        ruby_version=$(ruby -v | awk '{print $2}' | grep -o '^[0-9.]*')
+        echo "$ruby_version" > .ruby-version
 
         gem install bundler
         bundle install
