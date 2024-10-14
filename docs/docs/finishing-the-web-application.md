@@ -70,7 +70,11 @@ Create the file `app/views/layout.erb` with:
   </ul>
 </nav>
 <main role="main" class="container">
-  <pre><%= flash.inspect %></pre>
+  <% ([flash[:notice]].flatten.compact).each do |info| %>
+    <div class="alert alert-info" role="alert">
+      <%= h info %>
+    </div>
+  <% end %>
   <%= yield %>
 </main></body></html>
 ```

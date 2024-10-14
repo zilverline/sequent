@@ -443,7 +443,7 @@ Create `app/views/authors/index.erb` with:
     <p>
       Back to <a href="/">index</a>
     </p>
-    <table>
+    <table class="table">
       <thead>
         <tr>
           <th>ID</th>
