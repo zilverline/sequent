@@ -1,6 +1,10 @@
 main:
   - title: '<img width="25" src="/images/zilverline-logo.svg" style="margin-bottom: 5px;" />'
     url: https://www.zilverline.com/
+    description: Powered by Zilverline
+  - title: '<i class="fab fa-fw fa-github fa-lg" aria-hidden="true"></i>'
+    url: https://github.com/zilverline/sequent
+    description: Source code
 
 docs:
   - title: Introduction

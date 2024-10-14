@@ -37,12 +37,6 @@ lunr:
   search_within_pages: true
 search_full_content: true
 
-author:
-  links:
-    - label: "Source code"
-      icon: "fab fa-fw fa-github"
-      url: "https://github.com/zilverline/sequent"
-
 plugins:
   - jekyll-feed
   - jemoji
@@ -86,7 +80,8 @@ defaults:
     values:
       layout: single
       classes: wide
-      author_profile: true
+      author_profile: false
       share: false
       sidebar:
-        nav: "docs"
+        # Main navigation menus defined in navigation.yml
+        - nav: "docs"
