@@ -54,10 +54,19 @@ BUNDLE_GEMFILE=gemfiles/ar_7_2.gemfile bundle update sequent --conservative
 
 ## Running the specs
 
-First create the database if you did not already do so:
+### Database setup
+* When using a local PostgreSQL database, create the user:
+  ```shell
+  createuser -D -s -R sequent
+  ```
+* If you're not using a local Postgres database, setup the database using docker:
+  ```shell
+  docker run --name sequent -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_USER=sequent -p 5432:5432 -d postgres:16
+  ```
 
-```sh
-createuser -D -s -R sequent
+### Create the database
+Have Sequent create the database:
+```shell
 SEQUENT_ENV=test bundle exec rake sequent:db:create
 ```
 
