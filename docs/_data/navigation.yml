@@ -1,5 +1,5 @@
 main:
-  - title: "<small>Powered by Zilverline</small>"
+  - title: '<img width="25" src="/images/zilverline-logo.svg" style="margin-bottom: 5px;" />'
     url: https://www.zilverline.com/
 
 docs:
