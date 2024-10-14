@@ -24,6 +24,22 @@ To read up on some of these concepts we recommend Martin Fowler's wiki:
 - [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html){:target="_blank"}
 - [Ubiquitous Language](https://martinfowler.com/bliki/UbiquitousLanguage.html){:target="_blank"}
 
+## Basic flow
+
+To illustrate the basic flow of a Sequent powered application, let's use the example of creating a User in a web application:
+
+1. Webapp binds form elements to a `CreateUser` [Command](concepts/command.html)
+2. Webapp passes the Command to the [CommandService](concepts/command-service.html)
+3. The CommandService [validates](concepts/validations.html) the Command
+4. When the Command is valid the CommandService calls the registered [CommandHandlers](concepts/command-handler.html)
+5. The CommandHandler creates the User as an [AggregateRoot](concepts/aggregate-root.html) and stores it in the EventStore using the [AggregateRepository](concepts/aggregate-repository.html)
+6. When the CommandHandler is finished, the CommandService queries all affected AggregateRoots for new [Events](concepts/event.html) and stores them in the EventStore
+7. All Events are propagated to registered [Projectors](concepts/projector.html)
+8. The Projectors update their Projections by storing records in the database.
+
+**Good to know:** Points 1,2,5,8 are the steps you as programmer need to implement. Sequent takes case of the rest.
+{: .notice--info}
+
 ## Creating a new Sequent project
 
 The best way to read this guide is to follow it step by step. All steps are essential to run this example application and no additional code or steps are needed.
