@@ -164,22 +164,12 @@ We can create a simple `Database` class that handles creating connections to the
 Create `app/database.rb`:
 
 ```ruby
-require 'yaml'
-require 'erb'
-require 'active_record'
 require 'sequent'
 
 class Database
   class << self
-    def database_config(env = ENV['SEQUENT_ENV'])
-      @config ||= YAML.load(ERB.new(File.read('db/database.yml')).result, aliases: true)[env]
-    end
-
     def establish_connection(env = ENV['SEQUENT_ENV'])
-      config = database_config(env)
-      yield(config) if block_given?
-      Sequent::ApplicationRecord.configurations = { env.to_s => config.stringify_keys }
-      Sequent::ApplicationRecord.establish_connection config
+      Sequent::Support::Database.connect!(env)
     end
   end
 end
