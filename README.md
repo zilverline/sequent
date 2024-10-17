@@ -16,7 +16,7 @@ Fork and send pull requests
 
 ## Documentation
 
-See the official site at https://www.sequent.io/
+See the official site at https://sequent.io/
 
 Want to help improve the documentation? Please let us know how we can improve by [creating an issue](https://github.com/zilverline/sequent/issues/new)
 
@@ -27,10 +27,14 @@ You can start the documentation locally via:
 ```
 cd docs
 bundle install
+cp .env.example .env
 bundle exec jekyll serve --livereload
 ```
 
-Open [localhost:4000](localhost:4000)
+Open [localhost:4000](http://localhost:4000)
+
+A GitHub personal access token is required if you want Jekyll to retrieve GitHub metadata information.
+[Create a new personal access token](https://github.com/settings/tokens/new) (no scope is required) and configure it in the .env file.
 
 ## Releasing
 

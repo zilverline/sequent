@@ -1,9 +1,8 @@
 source "https://rubygems.org"
-ruby "3.0.0"
+ruby file: ".ruby-version"
 
 gem 'rake'
-# let's use the latest and greatest
-gem 'sequent', git: 'https://github.com/zilverline/sequent'
+gem 'sequent'
 
 group :test do
   gem 'rspec'

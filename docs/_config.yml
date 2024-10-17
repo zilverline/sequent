@@ -15,7 +15,7 @@
 # in the templates via {{ site.myvariable }}.
 title: Sequent - CQRS & event sourcing framework for Ruby
 title_separator: "|"
-email: your-email@example.com
+email: info@zilverline.com
 description: >- # this means to ignore newlines until "baseurl:"
   CQRS & event sourcing framework for Ruby.
 baseurl: "" # the subpath of your site, e.g. /blog
@@ -25,12 +25,23 @@ url: "https://sequent.io" # the base hostname & protocol for your site, e.g. htt
 
 # Build settings
 markdown: kramdown
+# Jekyll theme: https://mmistakes.github.io/minimal-mistakes/docs/configuration/
 remote_theme: "mmistakes/minimal-mistakes"
 minimal_mistakes_skin: "mint" # "default", "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum" "sunrise"
+
+enable_copy_code_button: true
+
+# Enable site-wide search
+search: true
+lunr:
+  search_within_pages: true
+search_full_content: true
+
 plugins:
   - jekyll-feed
   - jemoji
   - jekyll-include-cache
+  - jekyll-sitemap
 
 # Exclude from processing.
 # The following items will not be processed, by default. Create a custom list
@@ -53,7 +64,7 @@ analytics:
 defaults:
   # _posts
   - scope:
-      path: ""
+      path: "posts"
       type: posts
     values:
       layout: single
@@ -64,11 +75,13 @@ defaults:
       related: false
   # _pages
   - scope:
-      path: ""
+      path: "" # an empty string here means all files in the project
       type: pages
     values:
       layout: single
+      classes: wide
       author_profile: false
       share: false
       sidebar:
-        nav: "docs"
+        # Main navigation menus defined in navigation.yml
+        - nav: "docs"
