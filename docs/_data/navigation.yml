@@ -18,8 +18,8 @@ docs:
         url: /docs/building-a-web-application.html
       - title: 4. Finishing the web application
         url: /docs/finishing-the-web-application.html
-        
-  - title: Guide
+
+  - title: Guides
     url: /docs/concepts.html
     children:
       - title: Rails & Sequent
