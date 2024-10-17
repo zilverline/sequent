@@ -19,7 +19,7 @@ using the Validation module from Rails. See [validations](/docs/concepts/validat
 in our Reference Guide for all the details. For this guide we stick to the 'create author' form in our
 web application.
 
-In [our blog application](http://localhost:4567){:target="_blank"}, on the home page, clicking the 'Create author'
+In [our blog application](http://localhost:4567), on the home page, clicking the 'Create author'
 button without entering any values in the form, will result in the error:
 
 ```
@@ -38,7 +38,7 @@ end
 ```
 
 Currently we only check whether the `name` and `email` attributes are present, but we could add any `validates` method
-from the Rails [ActiveModel::Validations](https://api.rubyonrails.org/classes/ActiveModel/Validations.html){:target="_blank"},
+from the Rails [ActiveModel::Validations](https://api.rubyonrails.org/classes/ActiveModel/Validations.html),
 since it is incorporated into Sequent.
 
 In order to provide proper feedback to the user, we need to handle this error in Sinatra and display the error messages
@@ -522,5 +522,5 @@ In this guide we learned about:
 3. Mapping errors to views using `rescue Sequent::Core::CommandNotValid`
 
 The full source code of the web application is available in the
-[sequent-examples repository](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application){:target="_blank"}.
+[sequent-examples repository](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application).
 

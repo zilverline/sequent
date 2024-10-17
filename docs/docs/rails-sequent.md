@@ -19,7 +19,7 @@ For a seamless integration with the latest Rails, it's best is to adhere to the 
 In Rails everything under the `app` directory is autoloaded. To make use of this feature, it's best is to put your 
 domain classes under an `app` subdirectory. For instance in `app/domain/bank_account/bank_account_aggregate.rb`. In this
 case Rails expects your domain class to be called `BankAccount::BankAccountAggregate`. See the 
-[Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html){:target="_blank"} 
+[Rails autoloading and reloading guide](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html) 
 for more details.
 
 ### Installation
@@ -125,7 +125,7 @@ Sequent's `sequent:db:dont_use_db_migrate_directly` task, so running it without 
 #### Sequent database schema
 
 Download the 
-[`sequent/db/sequent_schema.rb`](https://github.com/zilverline/sequent/blob/master/db/sequent_schema.rb){:target="_blank"} 
+[`sequent/db/sequent_schema.rb`](https://github.com/zilverline/sequent/blob/master/db/sequent_schema.rb) 
 file and put it in the `db` directory:
 ```shell
 curl -o db/sequent_schema.rb https://raw.githubusercontent.com/zilverline/sequent/refs/heads/master/db/sequent_schema.rb
@@ -205,7 +205,7 @@ Use Ctrl-C to stop
  
 Rails uses Zeitwerk for autoloading and reloading. To ensure your domain classes will also benefit from this feature, 
 put them under a subdirectory of the `app` folder and 
-[adhere to the Rails naming conventions](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html){:target="_blank"}.
+[adhere to the Rails naming conventions](https://guides.rubyonrails.org/autoloading_and_reloading_constants.html).
 
 One caveat is that this leads to an explosion of small files containing singular `Event` classes and `Command` classes. 
 The preference of the Sequent team is to group all `Event` classes and `Command` classes in a single file 
@@ -247,11 +247,11 @@ file.
 
 ## Rails Engines
 
-Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html){:target="_blank"} work basically the same as a 
+Sequent in [Rails Engines](https://guides.rubyonrails.org/engines.html) work basically the same as a 
 normal Rails application. Some things to remember when working with Rails Engines:
 
 1. The Sequent config must be set in the main application `config/initializers`.
 2. The main application is the maintainer of the `sequent_schema` and `view_schema`. Copy over the migration SQL files 
    to the main application directory like you would when an Engine provides ActiveRecord migrations.
 
-Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples){:target="_blank"} Github repository.
+Please checkout the Rails & Sequent example app in our [sequent-examples](https://github.com/zilverline/sequent-examples) Github repository.

@@ -4,7 +4,7 @@ title: GDPR
 
 GDPR introduces the "right to be forgotten". Like any other datastore, an event store also needs to comply
 to this regulation. Sequent does not provide this capability out of the box, but you can roll your own and choose
-from several strategies. See for a lengthy discussion: [https://github.com/zilverline/sequent/issues/222](https://github.com/zilverline/sequent/issues/222){:target="_blank"}.
+from several strategies. See for a lengthy discussion: [https://github.com/zilverline/sequent/issues/222](https://github.com/zilverline/sequent/issues/222).
 
 ## Tombstoning
 

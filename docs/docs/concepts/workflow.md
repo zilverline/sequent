@@ -23,7 +23,7 @@ end
 ```
 
 A Workflow responds to Events basically the same way as Projectors do. For instance, a Workflow
-that will schedule a background Job using [DelayedJob](https://github.com/collectiveidea/delayed_job){:target="_blank"}
+that will schedule a background Job using [DelayedJob](https://github.com/collectiveidea/delayed_job)
 can look like this:
 
 ```ruby

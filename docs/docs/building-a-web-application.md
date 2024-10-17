@@ -8,7 +8,7 @@ classes: []
 The app we generated in [Getting Started](/docs/getting-started.html) and expanded
 in [Modelling the Domain](/docs/modelling-the-domain.html) is now ready to be used by real Authors via the Web.
 Sequent is not a web framework and can be used with any web framework of your choice. For this guide we
-use [Sinatra](https://sinatrarb.com/){:target="_blank"}.
+use [Sinatra](https://sinatrarb.com/).
 
 ## Installation
 
@@ -23,7 +23,7 @@ gem 'rackup'
 ```
 
 And then run `bundle install`. We will set up Sinatra to run as
-a [modular application](https://github.com/sinatra/sinatra#serving-a-modular-application){:target="_blank"}.
+a [modular application](https://github.com/sinatra/sinatra#serving-a-modular-application).
 
 Create `app/web.rb`:
 
@@ -114,7 +114,7 @@ Create `app/views/index.erb` with:
 </html>
 ```
 
-When opening [our web application](http://localhost:4567){:target="_blank"}, we see a simple form that allows us 
+When opening [our web application](http://localhost:4567), we see a simple form that allows us 
 to submit values for creating a new Author.
 
 ![signup author form]({{ site.url }}{{ site.baseurl }}/assets/images/signup_author_form.png){: .align-center width="636"}
@@ -226,7 +226,7 @@ Restart your web application if it's running.
 
 ### Final test
 
-Now try filling in a name and e-mail address [in the application](http://localhost:4567){:target="_blank"}, 
+Now try filling in a name and e-mail address [in the application](http://localhost:4567), 
 and submit the form.
 
 Success! It works when you see
@@ -470,8 +470,8 @@ Create `app/views/authors/index.erb` with:
 Restart your web application if it's still running to make sure any changes to `blog.rb` or the Sequent config are 
 propagated.
 
-Open [your application](http://localhost:4567){:target="_blank"}, click on 
-[All authors](http://localhost:4567/authors){:target="_blank"} and you should see all author records:
+Open [your application](http://localhost:4567), click on 
+[All authors](http://localhost:4567/authors) and you should see all author records:
 
 ![author list]({{ site.url }}{{ site.baseurl }}/assets/images/author_list.png)
 
@@ -501,8 +501,8 @@ Create `app/views/authors/show.erb` with:
 </html>
 ```
 
-In [your application](http://localhost:4567){:target="_blank"}, click on 
-[All authors](http://localhost:4567/authors){:target="_blank"}. You should now be able to view the details of an author
+In [your application](http://localhost:4567), click on 
+[All authors](http://localhost:4567/authors). You should now be able to view the details of an author
 by clicking on the ID:
 
 ![author details]({{ site.url }}{{ site.baseurl }}/assets/images/author_details.png)
@@ -518,7 +518,7 @@ In this guide we learned:
 4. Display the database records
 
 The full source code of the web application is available in the 
-[sequent-examples repository](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application){:target="_blank"}.
+[sequent-examples repository](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application).
 
 We will continue with this web application in the 
 [Finishing the web application](finishing-the-web-application.html) guide.

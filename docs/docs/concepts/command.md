@@ -6,7 +6,7 @@ Commands form the API of your domain. Like [Events](event.html), they are simple
 Commands have descriptive names describing the intent of what you are trying to achieve, for example `CreateUser` or `SendInvoice`.
 Commands inherit from `Sequent::Command`. Additionally
 you can add [Validations](validations.html) to commands to ensure correctness. Sequent uses
-[ActiveModel::Validations](http://api.rubyonrails.org/classes/ActiveModel/Validations.html){:target="_blank"}
+[ActiveModel::Validations](http://api.rubyonrails.org/classes/ActiveModel/Validations.html)
 to enable validations.
 
 An example of a `CreateUser` Command, with basic validations:

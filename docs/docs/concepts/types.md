@@ -54,7 +54,7 @@ are parsed automatically when a Command is passed to the CommandService.
 Usage `attrs created_at: Date`
 
 Accepts all `Date` objects. To accommodate user input, valid
-[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html){:target="_blank"} date Strings are parsed automatically when
+[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) date Strings are parsed automatically when
 a Command is passed to the [CommandService](command-service.html).
 
 ## DateTime
@@ -64,7 +64,7 @@ a Command is passed to the [CommandService](command-service.html).
 Usage `attrs created_at: DateTime`
 
 Accepts all `DateTime` objects. To accommodate user input, valid
-[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html){:target="_blank"} datetime Strings are parsed automatically when
+[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) datetime Strings are parsed automatically when
 a Command is passed to the CommandService.
 
 ## Time
@@ -72,7 +72,7 @@ a Command is passed to the CommandService.
 Usage `attrs created_at: Time`
 
 Accepts all `Time` objects. To accommodate user input, valid
-[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html){:target="_blank"} datetime Strings are parsed automatically when
+[ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) datetime Strings are parsed automatically when
 a Command is passed to the CommandService.
 
 ## Boolean:
