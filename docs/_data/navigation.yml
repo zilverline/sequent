@@ -18,30 +18,14 @@ docs:
         url: /docs/building-a-web-application.html
       - title: 4. Finishing the web application
         url: /docs/finishing-the-web-application.html
-
-  - title: Handbook
+        
+  - title: Guide
+    url: /docs/concepts.html
     children:
       - title: Rails & Sequent
         url: /docs/rails-sequent.html
       - title: Configuration
         url: /docs/concepts/configuration.html
-      - title: Validations
-        url: /docs/concepts/validations.html
-      - title: Migrations
-        url: /docs/concepts/migrations.html
-      - title: Snapshotting
-        url: /docs/concepts/snapshotting.html
-      - title: Types
-        url: /docs/concepts/types.html
-      - title: Advanced topics
-        url: /docs/concepts/advanced.html
-      - title: GDPR
-        url: /docs/concepts/gdpr.html
-
-
-  - title: Reference
-    url: /docs/concepts.html
-    children:
       - title: AggregateRepository
         url: /docs/concepts/aggregate-repository.html
       - title: AggregateRoot
@@ -64,3 +48,15 @@ docs:
         url: /docs/concepts/value-object.html
       - title: Workflow
         url: /docs/concepts/workflow.html
+      - title: Validations
+        url: /docs/concepts/validations.html
+      - title: Migrations
+        url: /docs/concepts/migrations.html
+      - title: Snapshotting
+        url: /docs/concepts/snapshotting.html
+      - title: Types
+        url: /docs/concepts/types.html
+      - title: Advanced topics
+        url: /docs/concepts/advanced.html
+      - title: GDPR
+        url: /docs/concepts/gdpr.html
