@@ -4,7 +4,8 @@ source 'https://rubygems.org'
 ruby file: '.ruby-version'
 
 gem 'rake'
-gem 'sequent'
+gem 'sequent', '>= 8'
+gem 'csv'
 
 group :test do
   gem 'database_cleaner'
