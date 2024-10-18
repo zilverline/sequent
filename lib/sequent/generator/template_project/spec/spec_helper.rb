@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'bundler/setup'
 Bundler.setup
 
@@ -23,7 +25,7 @@ end
 
 RSpec.configure do |config|
   config.include Sequent::Test::CommandHandlerHelpers
-  config.include DomainTests, file_path: /spec\/lib/
+  config.include DomainTests, file_path: %r{/spec\/lib/}
 
   # Domain tests run with a clean sequent configuration and the in memory FakeEventStore
   config.around :each, :domain_tests do |example|

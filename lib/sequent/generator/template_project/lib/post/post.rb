@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Post < Sequent::AggregateRoot
   def initialize(command)
     super(command.aggregate_id)

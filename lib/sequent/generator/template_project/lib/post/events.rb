@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class PostAdded < Sequent::Event
 end
 
