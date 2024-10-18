@@ -176,8 +176,8 @@ module Sequent
       #
       # @raise ConcurrentMigrationError if migration is already running
       def migrate_online
-        ensure_valid_plan!
         migrate_metadata_tables
+        ensure_valid_plan!
 
         return if Sequent.new_version == current_version
 
@@ -282,6 +282,7 @@ module Sequent
             exec_sql([Versions.migration_sql].join("\n"))
           end
         end
+        Versions.reset_column_information
       end
 
       def ensure_version_correct!

@@ -16,7 +16,7 @@ Fork and send pull requests
 
 ## Documentation
 
-See the official site at https://www.sequent.io/
+See the official site at https://sequent.io/
 
 Want to help improve the documentation? Please let us know how we can improve by [creating an issue](https://github.com/zilverline/sequent/issues/new)
 
@@ -27,23 +27,46 @@ You can start the documentation locally via:
 ```
 cd docs
 bundle install
+cp .env.example .env
 bundle exec jekyll serve --livereload
 ```
 
-Open [localhost:4000](localhost:4000)
+Open [localhost:4000](http://localhost:4000)
+
+A GitHub personal access token is required if you want Jekyll to retrieve GitHub metadata information.
+[Create a new personal access token](https://github.com/settings/tokens/new) (no scope is required) and configure it in the .env file.
 
 ## Releasing
 
-Change the version in `lib/version.rb`. Commit this change.
+Ensure the version in `lib/version.rb` is the new version. If not change it and commit this change.
 
 Then run `rake release`. A git tag will be created and pushed, and the new version of the gem will be pushed to rubygems.
 
+Increase version to new working version, update the sequent version for all the `gemfiles`: 
+
+```
+BUNDLE_GEMFILE=gemfiles/ar_6_0.gemfile bundle update sequent --conservative
+BUNDLE_GEMFILE=gemfiles/ar_6_1.gemfile bundle update sequent --conservative
+BUNDLE_GEMFILE=gemfiles/ar_7_0.gemfile bundle update sequent --conservative
+BUNDLE_GEMFILE=gemfiles/ar_7_1.gemfile bundle update sequent --conservative
+BUNDLE_GEMFILE=gemfiles/ar_7_2.gemfile bundle update sequent --conservative
+```
+
 ## Running the specs
 
-First create the database if you did not already do so:
+### Database setup
+* When using a local PostgreSQL database, create the user:
+  ```shell
+  createuser -D -s -R sequent
+  ```
+* If you're not using a local Postgres database, setup the database using docker:
+  ```shell
+  docker run --name sequent -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_USER=sequent -p 5432:5432 -d postgres:16
+  ```
 
-```sh
-createuser -D -s -R sequent
+### Create the database
+Have Sequent create the database:
+```shell
 SEQUENT_ENV=test bundle exec rake sequent:db:create
 ```
 

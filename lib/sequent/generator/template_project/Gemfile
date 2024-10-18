@@ -4,8 +4,7 @@ source 'https://rubygems.org'
 ruby file: '.ruby-version'
 
 gem 'rake'
-# let's use the latest and greatest
-gem 'sequent', git: 'https://github.com/zilverline/sequent'
+gem 'sequent'
 
 group :test do
   gem 'database_cleaner'
