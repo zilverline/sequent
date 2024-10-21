@@ -6,7 +6,7 @@ module Sequent
   module Core
     EventStream = Data.define(:aggregate_type, :aggregate_id, :events_partition_key, :snapshot_outdated_at) do
       def initialize(aggregate_type:, aggregate_id:, events_partition_key: '', snapshot_outdated_at: nil)
-        super(aggregate_type:, aggregate_id:, events_partition_key:, snapshot_outdated_at:)
+        super
       end
     end
 

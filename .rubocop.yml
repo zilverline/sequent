@@ -10,6 +10,7 @@
 # See https://github.com/rubocop-hq/rubocop/blob/master/manual/configuration.md
 
 AllCops:
+  TargetRubyVersion: 3.2
   SuggestExtensions:
     rubocop-rake: false
     rubocop-rspec: false
@@ -65,8 +66,10 @@ Layout/LineLength:
   Max: 120
   AutoCorrect: true
 
+Gemspec/AddRuntimeDependency:
+  Enabled: true
 Gemspec/RequiredRubyVersion:
-  Enabled: false
+  Enabled: true
 
 ##
 # Metrics (all disabled; we have our own opinion on this)
@@ -142,8 +145,20 @@ Naming/MethodParameterName:
 ##
 # Lint
 ##
+Lint/DuplicateSetElement:
+  Enabled: true
+
+Lint/ItWithoutArgumentsInBlock:
+  Enabled: true
+
+Lint/LiteralAssignmentInCondition:
+  Enabled: true
+
 Lint/UriEscapeUnescape:
   Enabled: false # TODO enable
+
+Lint/UselessNumericOperation:
+  Enabled: true
 
 Lint/SuppressedException:
   AllowComments: true
@@ -239,7 +254,24 @@ Layout/BlockAlignment:
   Enabled: true
   EnforcedStyleAlignWith: start_of_block
 
-# TODO Ruby 3.0
+
+Style/MapIntoArray:
+  Enabled: true
+
+Style/RedundantInterpolationUnfreeze:
+  Enabled: true
+
+Style/SendWithLiteralMethodName:
+  Enabled: true
+
+Style/SingleLineDoEndBlock:
+  Enabled: true
+
+Style/SuperArguments:
+  Enabled: true
+
+Style/SuperWithArgsParentheses:
+  Enabled: true
 
 Style/HashTransformKeys:
   Enabled: false

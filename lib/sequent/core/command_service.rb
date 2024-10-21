@@ -118,7 +118,7 @@ module Sequent
       def initialize(command)
         @command = command
         msg = @command.respond_to?(:aggregate_id) ? " #{@command.aggregate_id}" : ''
-        super "Invalid command #{@command.class}#{msg}, errors: #{@command.validation_errors}"
+        super("Invalid command #{@command.class}#{msg}, errors: #{@command.validation_errors}")
       end
 
       def errors(prefix = nil)

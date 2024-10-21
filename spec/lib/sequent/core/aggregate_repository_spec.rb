@@ -388,7 +388,7 @@ describe Sequent::Core::AggregateRepository do
       attr_reader :pinged
 
       def initialize(id)
-        super(id)
+        super
         apply DummyCreated
       end
 
