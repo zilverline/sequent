@@ -26,7 +26,7 @@ module Sequent
 
       def copy_files
         FileUtils.copy_entry(File.expand_path('template_project', __dir__), path)
-        ['.ruby-version', 'db/sequent_schema.rb', 'db/sequent_schema.sql', 'db/sequent_pgsql.sql'].each do |file|
+        ['.ruby-version', 'db'].each do |file|
           FileUtils.copy_entry(File.expand_path("../../../#{file}", __dir__), "#{path}/#{file}")
         end
       end
