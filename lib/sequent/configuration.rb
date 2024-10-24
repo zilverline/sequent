@@ -21,6 +21,7 @@ module Sequent
     MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
 
     DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
+    DEFAULT_REPLAY_GROUP_TARGET_SIZE = 250_000
 
     DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
     DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS = Sequent::Core::Persistors::ActiveRecordPersistor
@@ -35,11 +36,10 @@ module Sequent
 
     attr_accessor :aggregate_repository,
                   :event_store,
-                  :event_store_cache_event_types,
                   :command_service,
                   :event_record_class,
+                  :snapshot_record_class,
                   :stream_record_class,
-                  :snapshot_event_class,
                   :transaction_provider,
                   :event_publisher,
                   :event_record_hooks_class,
@@ -56,6 +56,7 @@ module Sequent
                   :offline_replay_persistor_class,
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
+                  :replay_group_target_size,
                   :database_config_directory,
                   :database_schema_directory,
                   :event_store_schema_name,
@@ -91,12 +92,11 @@ module Sequent
       self.command_middleware = Sequent::Core::Middleware::Chain.new
 
       self.aggregate_repository = Sequent::Core::AggregateRepository.new
-      self.event_store_cache_event_types = true
       self.event_store = Sequent::Core::EventStore.new
       self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
+      self.snapshot_record_class = Sequent::Core::SnapshotRecord
       self.stream_record_class = Sequent::Core::StreamRecord
-      self.snapshot_event_class = Sequent::Core::SnapshotEvent
       self.transaction_provider = Sequent::Core::Transactions::ActiveRecordTransactionProvider.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
       self.event_publisher = Sequent::Core::EventPublisher.new
@@ -107,6 +107,7 @@ module Sequent
       self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
       self.migrations_class_name = MIGRATIONS_CLASS_NAME
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
+      self.replay_group_target_size = DEFAULT_REPLAY_GROUP_TARGET_SIZE
 
       self.event_record_hooks_class = DEFAULT_EVENT_RECORD_HOOKS_CLASS
 
@@ -129,7 +130,7 @@ module Sequent
     end
 
     def can_use_multiple_databases?
-      enable_multiple_database_support && ActiveRecord.version > Gem::Version.new('6.1.0')
+      enable_multiple_database_support
     end
 
     def versions_table_name=(table_name)
@@ -159,18 +160,20 @@ module Sequent
 
       self.class.instance.command_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::CommandHandler) do |command_handler_class|
-        Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
+        if Sequent.logger.debug?
+          Sequent.logger.debug("[Configuration] Autoregistering CommandHandler #{command_handler_class}")
+        end
         self.class.instance.command_handlers << command_handler_class.new
       end
 
       self.class.instance.event_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::Projector) do |projector_class|
-        Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}")
+        Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}") if Sequent.logger.debug?
         self.class.instance.event_handlers << projector_class.new
       end
 
       for_each_autoregisterable_descenant_of(Sequent::Workflow) do |workflow_class|
-        Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}")
+        Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}") if Sequent.logger.debug?
         self.class.instance.event_handlers << workflow_class.new
       end
 

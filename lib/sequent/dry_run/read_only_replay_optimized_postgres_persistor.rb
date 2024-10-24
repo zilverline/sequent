@@ -15,7 +15,7 @@ module Sequent
         # Running in dryrun mode, not committing anything.
         ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         elapsed = ending - @starting
-        count = @record_store.values.map(&:size).sum
+        count = @record_store.values.sum(&:size)
         Sequent.logger.info(
           "dryrun: processed #{count} records in #{elapsed.round(2)} s (#{(count / elapsed).round(2)} records/s)",
         )

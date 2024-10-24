@@ -19,7 +19,8 @@ module Sequent
           Sequent::Support::Database.establish_connection(db_config)
 
           event_store_schema = Sequent.configuration.event_store_schema_name
-          schema_exists = Sequent::Support::Database.schema_exists?(event_store_schema)
+          event_records_table = Sequent.configuration.event_record_class.table_name
+          schema_exists = Sequent::Support::Database.schema_exists?(event_store_schema, event_records_table)
 
           FAIL_IF_EXISTS.call(event_store_schema) if schema_exists && fail_if_exists
           return if schema_exists

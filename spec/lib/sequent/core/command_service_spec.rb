@@ -33,7 +33,7 @@ class TestCommandHandler < Sequent::CommandHandler
 
   def initialize(*args)
     reset
-    super(*args)
+    super
   end
 
   def reset

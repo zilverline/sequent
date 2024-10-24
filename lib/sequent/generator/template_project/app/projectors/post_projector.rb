@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative '../records/post_record'
 require_relative '../../lib/post/events'
 

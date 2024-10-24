@@ -26,7 +26,7 @@ class PersonAggregate < Sequent::Core::AggregateRoot
                                 is_a(Statusable)
 
   def initialize(id)
-    super(id)
+    super
     apply TestEvent, field: 'value'
   end
 

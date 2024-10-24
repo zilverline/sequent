@@ -13,26 +13,16 @@ class UserNames < Sequent::AggregateRoot
 end
 ```
 
+Whenever more events are stored for an aggregate than its snapshot
+threshold a record is stored in the `aggregates_that_need_snapshots`
+table. You can use the rake `sequent:snapshots:take_snapshots[limit]`
+task to snapshot up to `limit` highest priority aggregates.
 
-You then also need to update the existing [StreamRecords](event_store.html#stream_records) in the database to ensure they are also eligible for snapshotting.
-This can be done via `bundle exec rake sequent:snapshotting:set_snapshot_threshold[Usernames,100]`.
-
-After this, snapshots can be taken with a `Sequent::Core::SnapshotCommand` for example by a Rake task.
-
-```ruby
-namespace :snapshot do
-  task :take_all do
-    catch (:done) do
-      while true
-        Sequent.command_service.execute_commands Sequent::Core::SnapshotCommand.new(limit: 10)
-      end
-    end
-  end
-end
-```
+You can schedule this task to run in the background regularly as it
+will simply do nothing if there are no aggregates that need a new
+snapshot.
 
 **Important:** When you enable snapshotting you **must** delete all snapshots after each deploy. The AggregateRoot root state is dumped in the database. If there is a new version of an AggregateRoot class definition, the snapshotted state can not be loaded.
 {: .notice--danger}
 
 To delete all snapshots, you can execute `bundle exec rake sequent:snapshotting:delete_all`.
-

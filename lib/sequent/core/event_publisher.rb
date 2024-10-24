@@ -51,7 +51,7 @@ module Sequent
       def process_event(event)
         fail ArgumentError, 'event is required' if event.nil?
 
-        Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}")
+        Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
 
         configuration.event_handlers.each do |handler|
           handler.handle_message event

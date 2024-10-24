@@ -9,7 +9,7 @@ module Sequent
       ensure
         stop = Time.now
         seconds = stop - start
-        Sequent.logger.debug("#{msg} in #{seconds} seconds") if seconds > 1
+        Sequent.logger.debug("#{msg} in #{seconds} seconds") if seconds > 1 && Sequent.logger.debug?
       end
     end
   end

@@ -46,7 +46,7 @@ module Sequent
 
     module SerializesEvent
       def event
-        payload = Sequent::Core::Oj.strict_load(event_json)
+        payload = serialize_json? ? Sequent::Core::Oj.strict_load(event_json) : event_json
         Class.const_get(event_type).deserialize_from_json(payload)
       end
 
@@ -56,7 +56,7 @@ module Sequent
         self.organization_id = event.organization_id if event.respond_to?(:organization_id)
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = self.class.serialize_to_json(event)
+        self.event_json = serialize_json? ? self.class.serialize_to_json(event) : event.attributes
 
         Sequent.configuration.event_record_hooks_class.after_serialization(self, event)
       end
@@ -65,42 +65,62 @@ module Sequent
         def serialize_to_json(event)
           Sequent::Core::Oj.dump(event)
         end
+
+        def serialize_json?
+          return true unless respond_to? :columns_hash
+
+          json_column_type = columns_hash['event_json'].sql_type_metadata.type
+          %i[json jsonb].exclude? json_column_type
+        end
       end
 
       def self.included(host_class)
         host_class.extend(ClassMethods)
+      end
+
+      def serialize_json?
+        self.class.serialize_json?
       end
     end
 
     class EventRecord < Sequent::ApplicationRecord
       include SerializesEvent
 
+      self.primary_key = %i[aggregate_id sequence_number]
       self.table_name = 'event_records'
       self.ignored_columns = %w[xact_id]
 
-      belongs_to :stream_record
-      belongs_to :command_record
+      belongs_to :stream_record, foreign_key: :aggregate_id, primary_key: :aggregate_id
 
-      validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :command_record
+      belongs_to :parent_command, class_name: :CommandRecord, foreign_key: :command_record_id
+
+      if Gem.loaded_specs['activerecord'].version < Gem::Version.create('7.2')
+        has_many :child_commands,
+                 class_name: :CommandRecord,
+                 primary_key: %i[aggregate_id sequence_number],
+                 query_constraints: %i[event_aggregate_id event_sequence_number]
+      else
+        has_many :child_commands,
+                 class_name: :CommandRecord,
+                 primary_key: %i[aggregate_id sequence_number],
+                 foreign_key: %i[event_aggregate_id event_sequence_number]
+      end
+
+      validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :parent_command
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
 
-      def parent
-        command_record
+      def self.find_by_event(event)
+        find_by(aggregate_id: event.aggregate_id, sequence_number: event.sequence_number)
       end
 
-      def children
-        CommandRecord.where(event_aggregate_id: aggregate_id, event_sequence_number: sequence_number)
+      def origin_command
+        parent_command&.origin_command
       end
 
-      def origin
-        parent.present? ? find_origin(parent) : self
-      end
-
-      def find_origin(record)
-        return find_origin(record.parent) if record.parent.present?
-
-        record
-      end
+      # @deprecated
+      alias parent parent_command
+      alias children child_commands
+      alias origin origin_command
     end
   end
 end

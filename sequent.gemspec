@@ -4,7 +4,7 @@ require_relative 'lib/version'
 
 Gem::Specification.new do |s|
   s.platform = Gem::Platform::RUBY
-  s.required_ruby_version = '>= 3.0'
+  s.required_ruby_version = '>= 3.2'
   s.name = 'sequent'
   s.version = Sequent::VERSION
   s.summary = 'Event sourcing framework for Ruby'
@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
     'https://github.com/zilverline/sequent'
   s.license = 'MIT'
 
-  active_star_version = '>= 6.0'
+  active_star_version = '>= 7.1.3'
 
   rspec_version = '~> 3.10'
 
@@ -40,6 +40,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'postgresql_cursor', '~> 0.6'
   s.add_dependency 'thread_safe', '~> 0.3.6'
   s.add_dependency 'tzinfo', '>= 1.1'
+  s.add_development_dependency 'prop_check', '~> 1.0'
   s.add_development_dependency 'pry', '~> 0.13'
   s.add_development_dependency 'rake', '~> 13'
   s.add_development_dependency 'rspec', rspec_version

@@ -93,12 +93,11 @@ describe Sequent::Support::Database do
   end
 
   describe 'class methods' do
-    context 'with multiple database support',
-            skip: Gem.loaded_specs['activerecord'].version < Gem::Version.create('6.1.0') do
-              before { Sequent.configuration.enable_multiple_database_support = true }
-              include_examples 'class methods'
-              after { Sequent.configuration.enable_multiple_database_support = false }
-            end
+    context 'with multiple database support' do
+      before { Sequent.configuration.enable_multiple_database_support = true }
+      include_examples 'class methods'
+      after { Sequent.configuration.enable_multiple_database_support = false }
+    end
     context 'no multiple database support' do
       include_examples 'class methods'
     end
@@ -107,7 +106,7 @@ describe Sequent::Support::Database do
   shared_examples 'instance methods' do
     describe '#create_schema!' do
       before do
-        Sequent::ApplicationRecord.connection.execute('drop schema if exists eventstore')
+        Sequent::ApplicationRecord.connection.execute('DROP SCHEMA IF EXISTS eventstore CASCADE')
       end
       it 'creates the schema' do
         expect { database.create_schema!('eventstore') }.to change {
@@ -118,6 +117,13 @@ describe Sequent::Support::Database do
       it 'ignores existing schema' do
         database.create_schema!('eventstore')
         expect { database.create_schema!('eventstore') }.to_not raise_error
+      end
+
+      it 'schema does not exist when specified table is not present' do
+        database.create_schema!('eventstore')
+        expect(database.schema_exists?('eventstore', 'event_records')).to eq(false)
+        database.execute_sql('CREATE VIEW eventstore.event_records (id) AS SELECT 1')
+        expect(database.schema_exists?('eventstore', 'event_records')).to eq(true)
       end
     end
 
@@ -137,19 +143,18 @@ describe Sequent::Support::Database do
 
   describe 'instance methods' do
     subject(:database) { Sequent::Support::Database.new }
-    context 'with multiple database support',
-            skip: Gem.loaded_specs['activerecord'].version < Gem::Version.create('6.1.0') do
-              before do
-                Sequent.configuration.enable_multiple_database_support = true
-                Sequent::Support::Database.create!(db_config)
-                Sequent::Support::Database.establish_connection(db_config)
-              end
-              after { Sequent::Support::Database.drop!(db_config) }
-              after :all do
-                Sequent.configuration.enable_multiple_database_support = false
-              end
-              include_examples 'instance methods'
-            end
+    context 'with multiple database support' do
+      before do
+        Sequent.configuration.enable_multiple_database_support = true
+        Sequent::Support::Database.create!(db_config)
+        Sequent::Support::Database.establish_connection(db_config)
+      end
+      after { Sequent::Support::Database.drop!(db_config) }
+      after :all do
+        Sequent.configuration.enable_multiple_database_support = false
+      end
+      include_examples 'instance methods'
+    end
     context 'no multiple database support' do
       before do
         Sequent::Support::Database.create!(db_config)

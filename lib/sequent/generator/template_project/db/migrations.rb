@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sequent/migrations/projectors'
 
 VIEW_SCHEMA_VERSION = 1
@@ -9,9 +11,7 @@ class Migrations < Sequent::Migrations::Projectors
 
   def self.versions
     {
-      '1' => [
-        PostProjector
-      ]
+      '1' => [PostProjector],
     }
   end
 end
