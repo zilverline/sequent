@@ -19,7 +19,7 @@ you must vacuum (e.g. using VACUUM VERBOSE ANALYZE) the new tables to
 ensure good performance!
 
 To make use of partitioning you will have to adjust your aggregates by
-overriding the `events_partitio_key` method to indicate in which
+overriding the `events_partition_key` method to indicate in which
 partition the aggregate's events should be stored. For example, if you
 wish to store your events in yearly partitions you might do something
 like:
