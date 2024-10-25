@@ -4,15 +4,23 @@
 require_relative '../lib/sequent/generator'
 
 command = ARGV[0].to_s.strip
-abort('Please specify a command. i.e. `sequent new myapp`') if command.empty?
-abort('Please specify a command. i.e. `sequent new myapp`') if ARGV[1..-1].empty?
+args = (ARGV[1..-1] || []).map(&:to_s).map(&:strip)
 
-args = ARGV[1..-1].map(&:to_s).map(&:strip)
+if command.empty?
+  abort <<~EOS
+    Usage: #{$PROGRAM_NAME} command arguments...
 
-def new_project(args)
-  arguments = args.dup
-  name = arguments.shift
+    Please specify a command, for example `sequent new myapp`. Available commands:
+
+      new appname                 Generate a new project from the Sequent template
+                                  project
+      generate type arguments...  Generate a new aggregate, command, or event
+  EOS
+end
+
+def new_project(name = nil, *args)
   abort('Please specify a directory name. i.e. `sequent new myapp`') if name.empty?
+  abort("Unknown arguments '#{args.join(' ')}', aborting") unless args.empty?
 
   Sequent::Generator::Project.new(name).execute
   puts <<~NEXTSTEPS
@@ -43,69 +51,73 @@ def new_project(args)
     Happy coding!
 
   NEXTSTEPS
+rescue TargetAlreadyExists
+  abort("Target '#{name}' already exists, aborting")
 end
 
-def generate_aggregate(args)
-  arguments = args.dup
-  aggregate_name = arguments.shift
+def generate_aggregate(aggregate_name = nil, *args)
   abort('Please specify an aggregate name. i.e. `sequent g aggregate user`') unless args_valid?(aggregate_name)
+  abort("Unknown arguments '#{args.join(' ')}', aborting") unless args.empty?
 
   Sequent::Generator::Aggregate.new(aggregate_name).execute
   puts "#{aggregate_name} aggregate has been generated"
+rescue TargetAlreadyExists
+  abort("Target '#{aggregate_name}' already exists, aborting")
 end
 
-def generate_command(args)
-  arguments = args.dup
-  aggregate_name = arguments.shift
-  command_name = arguments.shift
-  attrs = arguments
-
+def generate_command(aggregate_name = nil, command_name = nil, *attrs)
   unless args_valid?(aggregate_name, command_name)
-    abort('Please specify an aggregate name and command name. i.e. `sequent g command user AddUser`')
+    abort('Please specify an aggregate name and command name. i.e. `sequent g command User AddUser`')
   end
   Sequent::Generator::Command.new(aggregate_name, command_name, attrs).execute
   puts "#{command_name} command has been added to #{aggregate_name}"
+rescue NoAggregateFound
+  abort("Aggregate '#{aggregate_name}' not found, aborting")
 end
 
-def generate_event(args)
-  arguments = args.dup
-  aggregate_name = arguments.shift
-  event_name = arguments.shift
-  attrs = arguments
-
-  abort('Please specify an aggregate name and event name. i.e. `sequent g event user AddUser`') unless args_valid?(
+def generate_event(aggregate_name = nil, event_name = nil, *attrs)
+  abort('Please specify an aggregate name and event name. i.e. `sequent g event User UserAdded`') unless args_valid?(
     aggregate_name, event_name
   )
   Sequent::Generator::Event.new(aggregate_name, event_name, attrs).execute
   puts "#{event_name} event has been added to #{aggregate_name}"
+rescue NoAggregateFound
+  abort("Aggregate '#{aggregate_name}' not found, aborting")
 end
 
-def generate(args)
-  arguments = args.dup
-  entity = arguments.shift
-  abort('Please specify a command. i.e. `sequent g aggregate user`') if entity.empty?
-
+def generate(entity = nil, *args)
   case entity
   when 'aggregate'
-    generate_aggregate(arguments)
+    generate_aggregate(*args)
   when 'command'
-    generate_command(arguments)
+    generate_command(*args)
   when 'event'
-    generate_event(arguments)
+    generate_event(*args)
   else
-    abort("Unknown argument #{entity} for `generate`. Try `sequent g aggregate user`")
+    abort <<~EOS
+      Unknown type for `generate`. Try `sequent g aggregate User`. Available options:
+
+        generate aggregate Name
+              Generates the aggregate `Name`
+
+        generate command Aggregate Command attributes...
+              Generates the command `Command` for aggregate `Aggregate`
+
+        generate event Aggregate Event attributes...
+              Generates the event `Event` for aggregate `Aggregate`
+    EOS
   end
 end
 
 def args_valid?(*args)
-  args.all?(&:present?)
+  args.none?(&:empty?)
 end
 
 case command
 when 'new'
-  new_project(args)
+  new_project(*args)
 when 'generate', 'g'
-  generate(args)
+  generate(*args)
 else
   abort("Unknown command #{command}. Try `sequent new myapp`")
 end

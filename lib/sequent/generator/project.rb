@@ -12,6 +12,8 @@ module Sequent
       end
 
       def execute
+        fail TargetAlreadyExists if File.exist?(path)
+
         make_directory
         copy_files
         rename_app_file
