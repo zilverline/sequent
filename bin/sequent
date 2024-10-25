@@ -15,6 +15,8 @@ if command.empty?
       new appname                 Generate a new project from the Sequent template
                                   project
       generate type arguments...  Generate a new aggregate, command, or event
+
+      migrate                     Migrate a Sequent 7.1 database to Sequent 8
   EOS
 end
 
@@ -109,6 +111,104 @@ def generate(entity = nil, *args)
   end
 end
 
+def confirm_or_abort
+  loop do
+    puts 'Enter `yes` to continue, `abort` to abort'
+
+    line = $stdin.readline
+    puts
+
+    abort('Aborted by user') if line.strip == 'abort'
+
+    break if %w[y yes].include? line.strip.downcase
+  end
+rescue EOFError
+  abort('Aborted by user')
+end
+
+def migrate(*args)
+  abort("Unknown arguments '#{args.join(' ')}', aborting") unless args.empty?
+
+  puts <<~EOS
+    The Sequent 8 database has been further optimized for disk usage and
+    performance. In addition it supports partitioning the tables for aggregates,
+    commands, and events, making it easier to manage the database (VACUUM,
+    CLUSTER) since these can work on the smaller partition tables.
+
+    To migrate you first need to decide if you want to define partitions. This
+    is mainly useful when your database tables are larger than 10 gigabytes or
+    so. By default Sequent 8 uses a single "default" partition.
+
+    To change this you can edit the `db/sequent_schema_partitions.sql` file to
+    define your own partition scheme for the `aggregates`, `commands`, and
+    `events` tables.
+
+    After editing, shut down your application and open a `psql` session to your
+    existing database, for example:
+
+    ```
+    $ psql -U sequent sequent_dev
+    ```
+
+    Then run the migration script. The script starts a transaction but DOES NOT
+    commit the results:
+
+    ```
+    psql> \\i db/sequent_8_migration.sql
+    ```
+
+    If all goes well you can now COMMIT or ROLLBACK the result. If you COMMIT,
+    you must perform a VACUUM ANALYZE to ensure PostgreSQL can efficiently query
+    the new tables:
+
+    ```
+    psql> COMMIT; VACUUM VERBOSE ANALYZE;
+    ```
+
+    Now you can deploy your Sequent 8 based application and start it again.
+
+  EOS
+
+  step = 0
+
+  puts "#{step += 1}. Please shut down your existing application."
+  confirm_or_abort
+
+  puts <<~EOS
+    #{step += 1}. Open a `psql` connection to the database you wish to migrate:
+
+    ```
+    psql -U myapp_user myapp_db
+    ```
+  EOS
+  confirm_or_abort
+
+  puts <<~EOS
+    #{step += 1}. Run the database migration. If you have a large database this
+    can take some time:
+
+    ```
+    psql> \\i db/sequent_8_migration.sql
+    ```
+  EOS
+  confirm_or_abort
+
+  puts <<~EOS
+    #{step += 1}. After checking everything went OK, COMMIT and optimize the
+    database:
+
+    ```
+    psql> COMMIT; VACUUM VERBOSE ANALYZE;
+    ```
+  EOS
+  confirm_or_abort
+
+  puts "#{step}. Deploy your Sequent 8 based application and start it."
+  confirm_or_abort
+
+  puts 'Congratulations! You are now running your application on Sequent 8!'
+end
+
 def args_valid?(*args)
   args.none?(&:empty?)
 end
@@ -118,6 +218,8 @@ when 'new'
   new_project(*args)
 when 'generate', 'g'
   generate(*args)
+when 'migrate'
+  migrate(*args)
 else
   abort("Unknown command #{command}. Try `sequent new myapp`")
 end
