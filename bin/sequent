@@ -129,19 +129,30 @@ end
 def migrate(*args)
   abort("Unknown arguments '#{args.join(' ')}', aborting") unless args.empty?
 
+  copy_schema, sequent_gem_dir =
+    begin
+      [true, Gem::Specification.find_by_name('sequent').gem_dir]
+    rescue Gem::MissingSpecError
+      [false, File.expand_path('..', __dir__)]
+    end
+
   puts <<~EOS
     The Sequent 8 database has been further optimized for disk usage and
     performance. In addition it supports partitioning the tables for aggregates,
     commands, and events, making it easier to manage the database (VACUUM,
     CLUSTER) since these can work on the smaller partition tables.
 
-    To migrate you first need to decide if you want to define partitions. This
-    is mainly useful when your database tables are larger than 10 gigabytes or
-    so. By default Sequent 8 uses a single "default" partition.
+    In the first step this script will copy the Sequent 8 database schema and
+    migration files to your project's `db/` directory. When this step is completed you
+    can customize these files to your liking and commit the changes.
 
-    To change this you can edit the `db/sequent_schema_partitions.sql` file to
-    define your own partition scheme for the `aggregates`, `commands`, and
-    `events` tables.
+    One decision you need to make is whether you want to define partitions. This is
+    mainly useful when your database tables are larger than 10 gigabytes or so. By
+    default Sequent 8 uses a single "default" partition.
+
+    The `db/sequent_schema_partitions.sql` file contains the database partitions for
+    the `aggregates`, `commands`, and `events` tables, you can customize your
+    partitions here.
 
     After editing, shut down your application and open a `psql` session to your
     existing database, for example:
@@ -170,6 +181,25 @@ def migrate(*args)
   EOS
 
   step = 0
+
+  if copy_schema
+    puts <<~EOS
+      #{step += 1}. First a copy of the Sequent 8 database schema and migration scripts are
+      added to your db/ directory.
+
+      WARNING: this may overwrite your existing scripts, please use your version control
+      system to commit or abort any of the changes!
+    EOS
+    confirm_or_abort
+
+    FileUtils.copy_entry("#{sequent_gem_dir}/db", 'db')
+
+    puts <<~EOS
+      WARNING: The schema files have been copied, please verify and adjust the contents
+      before committing and continuing.
+    EOS
+    confirm_or_abort
+  end
 
   puts "#{step += 1}. Please shut down your existing application."
   confirm_or_abort
