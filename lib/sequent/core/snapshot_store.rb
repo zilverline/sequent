@@ -21,22 +21,22 @@ module Sequent
           end,
         )
 
-        call_procedure('store_snapshots', [json])
+        call_procedure(connection, 'store_snapshots', [json])
       end
 
       def load_latest_snapshot(aggregate_id)
-        snapshot_hash = query_function('load_latest_snapshot', [aggregate_id]).first
+        snapshot_hash = query_function(connection, 'load_latest_snapshot', [aggregate_id]).first
         deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
       end
 
       # Deletes all snapshots for all aggregates
       def delete_all_snapshots
-        call_procedure('delete_all_snapshots', [Time.now])
+        call_procedure(connection, 'delete_all_snapshots', [Time.now])
       end
 
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
-        call_procedure('delete_snapshots_before', [aggregate_id, sequence_number, Time.now])
+        call_procedure(connection, 'delete_snapshots_before', [aggregate_id, sequence_number, Time.now])
       end
 
       # Marks an aggregate for snapshotting. Marked aggregates will be
@@ -83,15 +83,21 @@ module Sequent
       # Returns the ids of aggregates that need a new snapshot.
       #
       def aggregates_that_need_snapshots(last_aggregate_id, limit = 10)
-        query_function('aggregates_that_need_snapshots', [last_aggregate_id, limit], ['aggregate_id'])
+        query_function(
+          connection,
+          'aggregates_that_need_snapshots',
+          [last_aggregate_id, limit],
+          columns: ['aggregate_id'],
+        )
           .pluck('aggregate_id')
       end
 
       def select_aggregates_for_snapshotting(limit:, reschedule_snapshots_scheduled_before: nil)
         query_function(
+          connection,
           'select_aggregates_for_snapshotting',
           [limit, reschedule_snapshots_scheduled_before, Time.now],
-          ['aggregate_id'],
+          columns: ['aggregate_id'],
         ).pluck('aggregate_id')
       end
     end

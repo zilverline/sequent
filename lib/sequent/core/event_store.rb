@@ -86,7 +86,7 @@ module Sequent
       end
 
       def load_event(aggregate_id, sequence_number)
-        event_hash = query_function('load_event', [aggregate_id, sequence_number]).first
+        event_hash = query_function(connection, 'load_event', [aggregate_id, sequence_number]).first
         deserialize_event(event_hash) if event_hash
       end
 
@@ -180,7 +180,7 @@ module Sequent
       end
 
       def permanently_delete_event_streams(aggregate_ids)
-        call_procedure('permanently_delete_event_streams', [aggregate_ids.to_json])
+        call_procedure(connection, 'permanently_delete_event_streams', [aggregate_ids.to_json])
       end
 
       def permanently_delete_commands_without_events(aggregate_id: nil, organization_id: nil)
@@ -188,7 +188,7 @@ module Sequent
           fail ArgumentError, 'aggregate_id and/or organization_id must be specified'
         end
 
-        call_procedure('permanently_delete_commands_without_events', [aggregate_id, organization_id])
+        call_procedure(connection, 'permanently_delete_commands_without_events', [aggregate_id, organization_id])
       end
 
       private
@@ -198,7 +198,7 @@ module Sequent
       end
 
       def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
-        query_function('load_events', [aggregate_ids.to_json, use_snapshots, load_until])
+        query_function(connection, 'load_events', [aggregate_ids.to_json, use_snapshots, load_until])
       end
 
       def deserialize_event(event_hash)
@@ -243,6 +243,7 @@ module Sequent
           ]
         end
         call_procedure(
+          connection,
           'store_events',
           [
             Sequent::Core::Oj.dump(command_record),
