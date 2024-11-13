@@ -24,9 +24,7 @@ module Sequent
           @last_aggregate_id,
           command.limit,
         )
-        snapshots = aggregate_ids.map do |aggregate_id|
-          take_snapshot(aggregate_id)
-        end.compact
+        snapshots = aggregate_ids.filter_map { |aggregate_id| take_snapshot(aggregate_id) }
         Sequent.configuration.event_store.store_snapshots(snapshots)
 
         @last_aggregate_id = aggregate_ids.last
