@@ -7,8 +7,8 @@ title: Upgrade Guide
 Sequent 8 remodels the PostgreSQL event store to allow partitioning of
 the aggregates, commands, and events tables. Furthermore it contains
 various storage optimizations. To migrate your older Sequent database
-updating Sequent in your Gemfile, running `bundle update --source
 you can use the `bundle exec sequent migrate` command. Make sure to run this after
+updating Sequent in your Gemfile, running `bundle update --conservative
 sequent`, and from the root directory of your project.
 
 This command will help you perform the database upgrade by providing
