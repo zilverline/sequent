@@ -1,8 +1,9 @@
 -- This script migrates a pre-sequent 8 database to the sequent 8 schema while preserving the data.
 -- It runs in a single transaction and when completed you can COMMIT or ROLLBACK the results.
 --
--- Adjust this script to your needs (number of table partitions, etc). See comments marked with ###
--- for configuration sections.
+-- To adjust the partitioning setup you can modify `./sequent_schema_partitions.sql`. By default
+-- only a single partition is present for each partitioned table, which works well for smaller
+-- (e.g. less than 10 Gigabytes) databases.
 --
 -- Ensure you test this on a copy of your production system to verify everything works and to
 -- get an indication of the required downtime for your system.
