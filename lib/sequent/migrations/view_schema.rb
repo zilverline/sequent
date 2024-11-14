@@ -8,7 +8,7 @@ require_relative '../support/database'
 require_relative '../sequent'
 require_relative '../util/timer'
 require_relative '../util/printer'
-require_relative './projectors'
+require_relative 'projectors'
 require_relative 'planner'
 require_relative 'executor'
 require_relative 'sql'
@@ -205,17 +205,15 @@ module Sequent
           Versions.end_online!(Sequent.new_version)
         end
         Sequent.logger.info("Done migrate_online for version #{Sequent.new_version}")
-      rescue ConcurrentMigration
-        # Do not rollback the migration when this is a concurrent migration as the other one is running
-        raise
-      rescue InvalidMigrationDefinition
-        # Do not rollback the migration when since there is nothing to rollback
+      rescue ConcurrentMigration, InvalidMigrationDefinition
+        # ConcurrentMigration: Do not rollback the migration when this is a concurrent migration
+        #                      as the other one is running
+        # InvalidMigrationDefinition: Do not rollback the migration when since there is nothing to rollback
         raise
       rescue Exception => e # rubocop:disable Lint/RescueException
         rollback_migration
         raise e
       end
-
       ##
       # Last part of a view schema migration
       #

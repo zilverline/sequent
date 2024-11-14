@@ -56,7 +56,7 @@ module Sequent
             current_size = 0
           else
             taken = target_group_size - current_size
-            upper_bound = partition.lower_bound + UUID_COUNT * taken / partition.original_size
+            upper_bound = partition.lower_bound + (UUID_COUNT * taken / partition.original_size)
 
             result << (current_start..GroupEndpoint.new(partition.key, number_to_uuid(upper_bound - 1)))
 
@@ -79,7 +79,7 @@ module Sequent
       end
 
       def self.uuid_to_number(uuid)
-        Integer(uuid.gsub(/-/, ''), 16)
+        Integer(uuid.gsub('-', ''), 16)
       end
 
       UUID_COUNT = 2**128

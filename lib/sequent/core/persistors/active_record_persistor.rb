@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require_relative './persistor'
+require_relative 'persistor'
 
 module Sequent
   module Core

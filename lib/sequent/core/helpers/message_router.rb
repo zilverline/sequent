@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative './attr_matchers/attr_matchers'
-require_relative './message_matchers/message_matchers'
+require_relative 'attr_matchers/attr_matchers'
+require_relative 'message_matchers/message_matchers'
 
 module Sequent
   module Core
