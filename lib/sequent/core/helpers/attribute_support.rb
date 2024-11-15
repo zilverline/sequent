@@ -63,12 +63,13 @@ module Sequent
                 Sequent::Core::Helpers::DefaultValidators.for(type).add_validations_for(self, attribute)
               end
 
-              next unless type.instance_of?(Sequent::Core::Helpers::ArrayWithType) ||
-                          (included_modules.include?(ActiveModel::Validations) &&
-                              type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport))
+              is_array = type.instance_of?(Sequent::Core::Helpers::ArrayWithType)
+              needs_validation = !is_array && included_modules.include?(ActiveModel::Validations) &&
+                                 type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
 
-              associations << attribute
+              associations << attribute if is_array || needs_validation
             end
+
             if included_modules.include?(ActiveModel::Validations) && associations.present?
               validates_with Sequent::Core::Helpers::AssociationValidator, associations: associations
             end
