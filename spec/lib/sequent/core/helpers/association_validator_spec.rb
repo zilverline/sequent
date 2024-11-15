@@ -7,12 +7,12 @@ describe Sequent::Core::Helpers::AssociationValidator do
   let(:subject) { Sequent::Core::Helpers::AssociationValidator.new(options) }
 
   it 'fails when providing no associations' do
-    expect { subject }.to raise_error /Must provide ':associations' to validate/
+    expect { subject }.to raise_error(/Must provide ':associations' to validate/)
   end
 
   it 'fails when provind an empty list of associations' do
     options[:associations] = []
-    expect { subject }.to raise_error /Must provide ':associations' to validate/
+    expect { subject }.to raise_error(/Must provide ':associations' to validate/)
   end
 
   context 'validating an array with simple types' do

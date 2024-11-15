@@ -9,7 +9,7 @@ require 'rspec/collection_matchers'
 require 'timecop'
 require_relative '../lib/sequent'
 require_relative '../lib/sequent/generator'
-require_relative './lib/sequent/fixtures/fixtures'
+require_relative 'lib/sequent/fixtures/fixtures'
 require './lib/sequent/test/database_helpers'
 require 'simplecov'
 SimpleCov.start if ENV['COVERAGE']

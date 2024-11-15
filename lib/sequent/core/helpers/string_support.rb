@@ -15,7 +15,7 @@ module Sequent
             value = instance_variable_get(name.to_s)
             s += "#{name}=[#{value}], "
           end
-          '{' + s.chomp(', ') + '}'
+          "{#{s.chomp(', ')}}"
         end
       end
     end

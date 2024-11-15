@@ -63,13 +63,13 @@ module Sequent
                 Sequent::Core::Helpers::DefaultValidators.for(type).add_validations_for(self, attribute)
               end
 
-              if type.instance_of?(Sequent::Core::Helpers::ArrayWithType)
-                associations << attribute
-              elsif included_modules.include?(ActiveModel::Validations) &&
-                    type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
-                associations << attribute
-              end
+              is_array = type.instance_of?(Sequent::Core::Helpers::ArrayWithType)
+              needs_validation = !is_array && included_modules.include?(ActiveModel::Validations) &&
+                                 type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
+
+              associations << attribute if is_array || needs_validation
             end
+
             if included_modules.include?(ActiveModel::Validations) && associations.present?
               validates_with Sequent::Core::Helpers::AssociationValidator, associations: associations
             end
@@ -168,7 +168,7 @@ EOS
 
         def attributes
           hash = HashWithIndifferentAccess.new
-          self.class.types.each do |name, _|
+          self.class.types.each_key do |name|
             value = instance_variable_get("@#{name}")
             hash[name] = if value.respond_to?(:attributes)
                            value.attributes
@@ -181,7 +181,7 @@ EOS
 
         def as_json(opts = {})
           hash = HashWithIndifferentAccess.new
-          self.class.types.each do |name, _|
+          self.class.types.each_key do |name|
             value = instance_variable_get("@#{name}")
             hash[name] = if value.respond_to?(:as_json)
                            value.as_json(opts)

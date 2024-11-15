@@ -79,9 +79,7 @@ module Sequent
         def value_to_string(val)
           if val.is_a?(Sequent::Core::ValueObject)
             val.as_params
-          elsif val.is_a? DateTime
-            val.iso8601
-          elsif val.is_a? Date
+          elsif val.is_a?(DateTime) || val.is_a?(Date)
             val.iso8601
           elsif val.is_a? Time
             val.iso8601(Sequent.configuration.time_precision)

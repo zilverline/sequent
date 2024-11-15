@@ -13,7 +13,7 @@ module Sequent
         end
 
         def deserialize_from_json(value)
-          value.nil? ? nil : value.map { |item| item_type.deserialize_from_json(item) }
+          value&.map { |item| item_type.deserialize_from_json(item) }
         end
 
         def to_s
