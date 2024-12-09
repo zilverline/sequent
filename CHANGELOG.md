@@ -1,4 +1,4 @@
-# Changelog 8.0.x (changes since 7.0.1)
+# Changelog 8.0.0 (changes since 7.2.0)
 
 - Sequent now requires at least Ruby 3.2, ActiveRecord 7.1, and
   PostgreSQL 14.

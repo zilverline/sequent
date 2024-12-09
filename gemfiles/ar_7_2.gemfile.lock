@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    sequent (8.0.0.pre.dev.1)
+    sequent (8.0.0)
       activemodel (>= 7.1.3)
       activerecord (>= 7.1.3)
       bcrypt (~> 3.1)
@@ -71,7 +71,7 @@ GEM
     postgresql_cursor (0.6.9)
       activerecord (>= 6.0)
     prop_check (1.0.0)
-    pry (0.14.2)
+    pry (0.15.0)
       coderay (~> 1.1)
       method_source (~> 1.0)
     racc (1.8.1)
