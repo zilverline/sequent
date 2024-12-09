@@ -30,7 +30,7 @@ Create `app/web.rb`:
 ```ruby
 require 'sinatra/base'
 require 'sinatra/flash' # for displaying flash messages
-require 'sinatra/reloader' # for hot reloading changes we make
+require 'sinatra/reloader' # for hot reloading changes
 require_relative '../blog'
 
 class Web < Sinatra::Base

@@ -47,6 +47,11 @@
 - The `id` column of `events` has been removed and the primary
   key are now the `aggregate_id` and `sequence_number` columns.
 
+# Changelog 7.2.0 (changes since 7.1.1)
+
+- Many documentation improvements.
+- Other small bug fixes.
+
 # Changelog 7.1.1 (changes since 7.1.0)
 
 Small bugfix for metadata tables migrations. See https://github.com/zilverline/sequent/issues/418. Thanks evsasse.
