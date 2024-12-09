@@ -1,4 +1,7 @@
-# Changelog 7.x (changes since 7.1.1)
+# Changelog 7.2.0 (changes since 7.1.1)
+
+- Many documentation improvements.
+- Other small bug fixes.
 
 # Changelog 7.1.1 (changes since 7.1.0)
 
@@ -25,7 +28,7 @@ COMMIT;
 ALTER TABLE SCHEMA_NAME.event_records ALTER COLUMN xact_id SET DEFAULT pg_current_xact_id()::text::bigint;
 ```
 Next to this migration make sure you copy over the new `sequent_schema.rb` into your project so when you regenerate the database from scratch
-in for instance your development environment you have the correct version. 
+in for instance your development environment you have the correct version.
 
 **Other notable changes**:
 - The `MessageDispatcher` class has been removed.
