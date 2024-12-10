@@ -9,6 +9,6 @@ describe Sequent::Core::Projector do
     end
     expect do
       Sequent.configuration.event_handlers << TestProjector1.new
-    end.to raise_error /A Projector must manage at least one table/
+    end.to raise_error(/A Projector must manage at least one table/)
   end
 end

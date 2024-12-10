@@ -6,6 +6,10 @@ require 'postgresql_cursor'
 
 describe Sequent::Core::EventStore do
   class MyEvent < Sequent::Core::Event
+    attrs data: String
+  end
+
+  class MyAggregate < Sequent::Core::AggregateRoot
   end
 
   let(:event_store) { Sequent.configuration.event_store }
@@ -40,64 +44,216 @@ describe Sequent::Core::EventStore do
   end
 
   context 'snapshotting' do
-    it 'can store events' do
+    before do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_threshold: 13,
             ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id,
+                sequence_number: 1,
+                created_at: Time.parse('2024-02-29T01:10:12Z'),
+                data: "with ' unsafe SQL characters;\n",
+              ),
+            ],
           ],
         ],
       )
-
-      stream, events = event_store.load_events aggregate_id
-
-      expect(stream.snapshot_threshold).to eq(13)
-      expect(stream.aggregate_type).to eq('MyAggregate')
-      expect(stream.aggregate_id).to eq(aggregate_id)
-      expect(events.first.aggregate_id).to eq(aggregate_id)
-      expect(events.first.sequence_number).to eq(1)
     end
 
-    it 'can find streams that need snapshotting' do
+    let(:aggregate) do
+      stream, events = event_store.load_events(aggregate_id)
+      Sequent::Core::AggregateRoot.load_from_history(stream, events)
+    end
+
+    let(:snapshot) do
+      snapshot = aggregate.take_snapshot
+      snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+      snapshot
+    end
+
+    it 'can mark aggregates for snapshotting when storing new events' do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_threshold: 1,
+              snapshot_outdated_at: Time.now,
             ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id,
+                sequence_number: 2,
+                created_at: Time.parse('2024-02-30T01:10:12Z'),
+                data: "another event\n",
+              ),
+            ],
+          ],
+        ],
+      )
+      expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+
+      event_store.store_snapshots([snapshot])
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+    end
+
+    it 'limits the number of concurrent aggregates scheduled for snapshotting' do
+      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.hour.ago)
+
+      aggregate_id_2 = Sequent.new_uuid
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id_2),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id_2,
+              snapshot_outdated_at: 2.minutes.ago,
+            ),
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id_2,
+                sequence_number: 1,
+                created_at: Time.parse('2024-02-30T01:10:12Z'),
+                data: "another event\n",
+              ),
+            ],
           ],
         ],
       )
 
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id_2)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.minute.ago)
+
+      expect(event_store.select_aggregates_for_snapshotting(limit: 10, reschedule_snapshots_scheduled_before: Time.now))
+        .to include(aggregate_id, aggregate_id_2)
+    end
+
+    it 'can no longer find the aggregates that are cleared for snapshotting' do
+      event_store.store_snapshots([snapshot])
+
+      event_store.clear_aggregate_for_snapshotting(aggregate_id)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+
+      event_store.mark_aggregate_for_snapshotting(aggregate_id)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+    end
+
+    it 'can no longer find aggregates what are clear for snapshotting based on latest event timestamp' do
+      event_store.store_snapshots([snapshot])
+
+      event_store.clear_aggregates_for_snapshotting_with_last_event_before(Time.now)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+    end
+
+    it 'can store and delete snapshots' do
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot)
+
+      event_store.delete_snapshots_before(aggregate_id, snapshot.sequence_number + 1)
+
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+    end
+
+    it 'can delete all snapshots' do
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+      event_store.delete_all_snapshots
+
+      expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
+      expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
     end
   end
 
   describe '#commit_events' do
+    before do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+              snapshot_outdated_at: Time.now,
+            ),
+            [
+              MyEvent.new(
+                aggregate_id: aggregate_id,
+                sequence_number: 1,
+                created_at: Time.parse('2024-02-29T01:10:12Z'),
+                data: "with ' unsafe SQL characters;\n",
+              ),
+            ],
+          ],
+        ],
+      )
+    end
+
+    it 'can store events' do
+      stream, events = event_store.load_events aggregate_id
+
+      expect(stream.aggregate_type).to eq('MyAggregate')
+      expect(stream.aggregate_id).to eq(aggregate_id)
+      expect(events.first.aggregate_id).to eq(aggregate_id)
+      expect(events.first.sequence_number).to eq(1)
+      expect(events.first.data).to eq("with ' unsafe SQL characters;\n")
+    end
+
+    it 'stores the event as JSON object' do
+      # Test to ensure stored data is not accidentally doubly-encoded,
+      # so query database directly instead of using `load_event`.
+      row = ActiveRecord::Base.connection.exec_query(
+        "SELECT event_json, event_json->>'data' AS data FROM event_records \
+          WHERE aggregate_id = $1 and sequence_number = $2",
+        'query_event',
+        [aggregate_id, 1],
+      ).first
+
+      expect(row['data']).to eq("with ' unsafe SQL characters;\n")
+      json = Sequent::Core::Oj.strict_load(row['event_json'])
+      expect(json['aggregate_id']).to eq(aggregate_id)
+      expect(json['sequence_number']).to eq(1)
+    end
+
     it 'fails with OptimisticLockingError when RecordNotUnique' do
       expect do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id:),
           [
             [
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
-                aggregate_id: aggregate_id,
-                snapshot_threshold: 13,
+                aggregate_id:,
               ),
               [
-                MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
-                MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1),
+                MyEvent.new(aggregate_id:, sequence_number: 2),
+                MyEvent.new(aggregate_id:, sequence_number: 2),
               ],
             ],
           ],
@@ -108,48 +264,101 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe '#events_exists?' do
-    it 'gets true for an existing aggregate' do
+  describe '#permanently_delete_events' do
+    before do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id:),
         [
           [
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
-              aggregate_id: aggregate_id,
-              snapshot_threshold: 13,
+              aggregate_id:,
             ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            [MyEvent.new(aggregate_id:, sequence_number: 1)],
           ],
         ],
       )
-      expect(event_store.events_exists?(aggregate_id)).to eq(true)
     end
 
-    it 'gets false for an non-existing aggregate' do
-      expect(event_store.events_exists?(aggregate_id)).to eq(false)
+    context 'should save deleted and updated events' do
+      it 'saves updated events into separate table' do
+        ActiveRecord::Base.connection.exec_update(
+          "UPDATE events SET event_json = '{}' WHERE aggregate_id = $1",
+          'update event',
+          [aggregate_id],
+        )
+
+        saved_events = ActiveRecord::Base.connection.exec_query(
+          'SELECT * FROM saved_event_records WHERE aggregate_id = $1',
+          'saved_events',
+          [aggregate_id],
+        ).to_a
+
+        expect(saved_events.size).to eq(1)
+        expect(saved_events[0]['operation']).to eq('U')
+        expect(saved_events[0]['event_type']).to eq('MyEvent')
+        expect(saved_events[0]['sequence_number']).to eq(1)
+        expect(saved_events[0]['event_json']).to eq('{"data": null}')
+      end
+      it 'saves deleted events into separate table' do
+        event_store.permanently_delete_event_stream(aggregate_id)
+
+        saved_events = ActiveRecord::Base.connection.exec_query(
+          'SELECT * FROM saved_event_records WHERE aggregate_id = $1',
+          'saved_events',
+          [aggregate_id],
+        ).to_a
+
+        expect(saved_events.size).to eq(1)
+        expect(saved_events[0]['operation']).to eq('D')
+        expect(saved_events[0]['event_type']).to eq('MyEvent')
+        expect(saved_events[0]['sequence_number']).to eq(1)
+        expect(saved_events[0]['event_json']).to eq('{"data": null}')
+      end
+    end
+
+    context '#events_exists?' do
+      it 'gets true for an existing aggregate' do
+        expect(event_store.events_exists?(aggregate_id)).to eq(true)
+      end
+
+      it 'gets false for an non-existing aggregate' do
+        expect(event_store.events_exists?(Sequent.new_uuid)).to eq(false)
+      end
+
+      it 'gets false after deletion' do
+        event_store.permanently_delete_event_stream(aggregate_id)
+        expect(event_store.events_exists?(aggregate_id)).to eq(false)
+      end
     end
   end
 
   describe '#stream_exists?' do
-    it 'gets true for an existing aggregate' do
+    before do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
-              snapshot_threshold: 13,
             ),
             [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
           ],
         ],
       )
+    end
+
+    it 'gets true for an existing aggregate' do
       expect(event_store.stream_exists?(aggregate_id)).to eq(true)
     end
 
     it 'gets false for an non-existing aggregate' do
+      expect(event_store.stream_exists?(Sequent.new_uuid)).to eq(false)
+    end
+
+    it 'gets false after deletion' do
+      event_store.permanently_delete_event_stream(aggregate_id)
       expect(event_store.stream_exists?(aggregate_id)).to eq(false)
     end
   end
@@ -163,7 +372,7 @@ describe Sequent::Core::EventStore do
 
     it 'returns the stream and events for existing aggregates' do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
@@ -174,43 +383,78 @@ describe Sequent::Core::EventStore do
       stream, events = event_store.load_events(aggregate_id)
       expect(stream).to be
       expect(events).to be
+
+      expect(event_store.load_event(aggregate_id, events.first.sequence_number)).to eq(events.first)
     end
 
-    context 'and event type caching disabled' do
-      around do |example|
-        current = Sequent.configuration.event_store_cache_event_types
-
-        Sequent.configuration.event_store_cache_event_types = false
-
-        example.run
-      ensure
-        Sequent.configuration.event_store_cache_event_types = current
-      end
-      let(:event_store) { Sequent::Core::EventStore.new }
-
-      it 'returns the stream and events for existing aggregates' do
-        TestEventForCaching = Class.new(Sequent::Core::Event)
-
+    context 'changing the partition_key and loading concurrently' do
+      before do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
-              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
-              [TestEventForCaching.new(aggregate_id: aggregate_id, sequence_number: 1)],
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+                events_partition_key: 'Y24',
+              ),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
             ],
           ],
         )
-        stream, events = event_store.load_events(aggregate_id)
-        expect(stream).to be
-        expect(events.first).to be_kind_of(TestEventForCaching)
+      end
+      let(:thread_stopper) do
+        Class.new do
+          def initialize
+            @stop = false
+          end
+          def stopped?
+            @stop
+          end
+          def stop
+            @stop = true
+          end
+        end
+      end
 
-        # redefine TestEventForCaching class (ie. simulate Rails auto-loading)
-        OldTestEventForCaching = TestEventForCaching
-        TestEventForCaching = Class.new(Sequent::Core::Event)
+      it 'will still allow to load the events' do
+        stopper = thread_stopper.new
 
-        stream, events = event_store.load_events(aggregate_id)
-        expect(stream).to be
-        expect(events.first).to be_kind_of(TestEventForCaching)
+        reader_thread = Thread.new do
+          events = []
+          ActiveRecord::Base.connection_pool.with_connection do
+            until stopper.stopped?
+              ActiveRecord::Base.transaction do
+                events << event_store.load_events(aggregate_id)&.first
+              end
+              sleep(0.001)
+            end
+          end
+          events
+        end
+        updater_thread = Thread.new do
+          1000.times do |_i|
+            ActiveRecord::Base.connection_pool.with_connection do |c|
+              c.exec_update(
+                'UPDATE aggregates SET events_partition_key = $1 WHERE aggregate_id = $2',
+                'aggregates',
+                [('aa'..'zz').to_a.sample, aggregate_id],
+              )
+              sleep(0.0005)
+            end
+          end
+        end
+        updater_thread.join
+        stopper.stop
+        # wait for t1 to stop and collect its return value
+        events = reader_thread.value
+        # check that our test pool has some meaningful size
+        expect(events.length).to be > 100
+
+        misses = events.select(&:nil?).length
+        expect(misses).to eq(0), <<~EOS
+          Expected the events can always be loaded when the partition key is changed. But there are #{misses} misses.
+        EOS
       end
     end
   end
@@ -221,7 +465,7 @@ describe Sequent::Core::EventStore do
 
     before :each do
       event_store.commit_events(
-        Sequent::Core::CommandRecord.new,
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
             Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id_1),
@@ -247,12 +491,12 @@ describe Sequent::Core::EventStore do
     let(:aggregate_id_1) { Sequent.new_uuid }
     let(:frozen_time) { Time.parse('2022-02-08 14:15:00 +0200') }
     let(:event_stream) { instance_of(Sequent::Core::EventStream) }
-    let(:event_1) { MyEvent.new(id: 3, aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time) }
+    let(:event_1) { MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, created_at: frozen_time) }
     let(:event_2) do
-      MyEvent.new(id: 2, aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 5.minutes)
+      MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 2, created_at: frozen_time + 5.minutes)
     end
     let(:event_3) do
-      MyEvent.new(id: 1, aggregate_id: aggregate_id_1, sequence_number: 3, created_at: frozen_time + 10.minutes)
+      MyEvent.new(aggregate_id: aggregate_id_1, sequence_number: 3, created_at: frozen_time + 10.minutes)
     end
     let(:snapshot_event) do
       Sequent::Core::SnapshotEvent.new(
@@ -265,7 +509,7 @@ describe Sequent::Core::EventStore do
     context 'with a snapshot event' do
       before :each do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(
@@ -275,12 +519,12 @@ describe Sequent::Core::EventStore do
               [
                 event_1,
                 event_2,
-                snapshot_event,
                 event_3,
               ],
             ],
           ],
         )
+        event_store.store_snapshots([snapshot_event])
       end
 
       context 'returning events except snapshot events in order of sequence_number' do
@@ -358,13 +602,12 @@ describe Sequent::Core::EventStore do
       it 'calls an event handler that handles the event' do
         my_event = MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
                 aggregate_id: aggregate_id,
-                snapshot_threshold: 13,
               ),
               [my_event],
             ],
@@ -378,13 +621,12 @@ describe Sequent::Core::EventStore do
           Sequent.configuration.disable_event_handlers = true
           my_event = MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)
           event_store.commit_events(
-            Sequent::Core::CommandRecord.new,
+            Sequent::Core::Command.new(aggregate_id: aggregate_id),
             [
               [
                 Sequent::Core::EventStream.new(
                   aggregate_type: 'MyAggregate',
                   aggregate_id: aggregate_id,
-                  snapshot_threshold: 13,
                 ),
                 [my_event],
               ],
@@ -400,13 +642,12 @@ describe Sequent::Core::EventStore do
       let(:my_event) { MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1) }
       subject(:publish_error) do
         event_store.commit_events(
-          Sequent::Core::CommandRecord.new,
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
             [
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
                 aggregate_id: aggregate_id,
-                snapshot_threshold: 13,
               ),
               [my_event],
             ],
@@ -434,46 +675,32 @@ describe Sequent::Core::EventStore do
   end
 
   describe '#replay_events_from_cursor' do
-    let(:stream_record) do
-      Sequent::Core::StreamRecord.create!(
-        aggregate_type: 'Sequent::Core::AggregateRoot',
-        aggregate_id: aggregate_id,
-        created_at: DateTime.now,
-      )
+    let(:events) do
+      5.times.map { |n| Sequent::Core::Event.new(aggregate_id:, sequence_number: n + 1) }
     end
-    let(:command_record) do
-      Sequent::Core::CommandRecord.create!(
-        command_type: 'Sequent::Core::Command',
-        command_json: '{}',
-        aggregate_id: stream_record.aggregate_id,
+
+    before do
+      ActiveRecord::Base.connection.exec_update('TRUNCATE TABLE aggregates CASCADE')
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'Sequent::Core::AggregateRoot',
+              aggregate_id:,
+              events_partition_key: 'Y24',
+            ),
+            events,
+          ],
+        ],
       )
     end
 
     let(:get_events) do
       -> do
-        event_records = Sequent.configuration.event_record_class.table_name
-        stream_records = Sequent.configuration.stream_record_class.table_name
-        snapshot_event_type = Sequent.configuration.snapshot_event_class
         Sequent.configuration.event_record_class
           .select('event_type, event_json')
-          .joins("INNER JOIN #{stream_records} ON #{event_records}.stream_record_id = #{stream_records}.id")
-          .where('event_type <> ?', snapshot_event_type)
-          .order!("#{stream_records}.id, #{event_records}.sequence_number")
-      end
-    end
-
-    before do
-      Sequent::Core::EventRecord.delete_all
-      5.times do |n|
-        Sequent::Core::EventRecord.create!(
-          aggregate_id: stream_record.aggregate_id,
-          sequence_number: n + 1,
-          event_type: 'Sequent::Core::Event',
-          event_json: '{}',
-          created_at: DateTime.now,
-          command_record_id: command_record.id,
-          stream_record_id: stream_record.id,
-        )
+          .order(:aggregate_id, :sequence_number)
       end
     end
 
@@ -506,6 +733,34 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe '#delete_commands_without_events' do
+    before do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id: aggregate_id),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id: aggregate_id,
+            ),
+            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+          ],
+        ],
+      )
+    end
+
+    it 'does not delete commands with associated events' do
+      event_store.permanently_delete_commands_without_events(aggregate_id: aggregate_id)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id: aggregate_id)).to be_truthy
+    end
+
+    it 'deletes commands without associated events' do
+      event_store.permanently_delete_event_stream(aggregate_id)
+      event_store.permanently_delete_commands_without_events(aggregate_id: aggregate_id)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id: aggregate_id)).to be_falsy
+    end
+  end
+
   class ReplayCounter < Sequent::Core::Projector
     attr_reader :replay_count
 
@@ -517,6 +772,34 @@ describe Sequent::Core::EventStore do
 
     on Sequent::Core::Event do |_|
       @replay_count += 1
+    end
+  end
+
+  describe '#permanently_delete_commands_without_events' do
+    before do
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id:,
+            ),
+            [MyEvent.new(aggregate_id:, sequence_number: 1)],
+          ],
+        ],
+      )
+    end
+
+    it 'does not delete commands with associated events' do
+      event_store.permanently_delete_commands_without_events(aggregate_id:)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id:)).to be_truthy
+    end
+
+    it 'deletes commands without associated events' do
+      event_store.permanently_delete_event_stream(aggregate_id)
+      event_store.permanently_delete_commands_without_events(aggregate_id:)
+      expect(Sequent::Core::CommandRecord.exists?(aggregate_id:)).to be_falsy
     end
   end
 end

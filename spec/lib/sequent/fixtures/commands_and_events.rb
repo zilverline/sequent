@@ -25,7 +25,7 @@ module Sequent
 
     AggregateClass = Class.new(Sequent::Core::AggregateRoot) do
       def initialize(id)
-        super(id)
+        super
 
         apply Event1
       end

@@ -5,7 +5,7 @@ toc_sticky: true
 classes: []
 ---
 
-The app we generated in [Getting Started](/docs/getting-started.html) comes with an example `Post` aggregate. In this guide we will take a 
+The app we generated in [Getting Started](/docs/getting-started.html) comes with an example `Post` aggregate. In this guide we will take a
 quick look at Sequent's directory structure, go over some of the concepts used in Sequent by expanding on `Post`, and
 create our very own `Author` aggregate.
 
@@ -13,7 +13,7 @@ create our very own `Author` aggregate.
 
 ### Directory structure
 
-Let's have a look at the general directory structure of a generated Sequent project. If something doesn't make sense 
+Let's have a look at the general directory structure of a generated Sequent project. If something doesn't make sense
 right away, bear with us because we will walk through these folders one by one in the rest of this article.
 
 ```bash
@@ -39,7 +39,7 @@ post.rb                    # Requires the entire aggregate root
 
 ### Commands
 
-Changes to state start by executing a command. Commands are quite simple classes containing some attributes and 
+Changes to state start by executing a command. Commands are quite simple classes containing some attributes and
 attribute validations. Looking at `lib/post/commands.rb`, we have one command:
 
 ```ruby
@@ -54,7 +54,7 @@ _Learn all about commands in the [Command](/docs/concepts/command.html) Referenc
 
 ### Handling commands
 
-The `PostCommandHandler` in `lib/post/post_command_handler.rb` subscribes to `Post` commands and calls the domain (i.e. 
+The `PostCommandHandler` in `lib/post/post_command_handler.rb` subscribes to `Post` commands and calls the domain (i.e.
 the `Post` aggregate root). We can see this happening for `AddPost`:
 
 ```ruby
@@ -65,10 +65,10 @@ class PostCommandHandler < Sequent::CommandHandler
 end
 ```
 
-Because we are adding a new aggregate, `add_aggregate` is called with `Post.new(command)` as its argument. The actual 
+Because we are adding a new aggregate, `add_aggregate` is called with `Post.new(command)` as its argument. The actual
 business logic of what `Post` looks like is contained in the aggregate root, which we'll look at in the next paragraph.
 
-You are free to define your own signature of the constructor. In the example we chose to pass the command as argument, 
+You are free to define your own signature of the constructor. In the example we chose to pass the command as argument,
 but nothing prevents you to define it using the separate attributes.
 
 _Learn all about command handlers in the [CommandHandler](/docs/concepts/command-handler.html) Reference Guide._
@@ -76,10 +76,10 @@ _Learn all about command handlers in the [CommandHandler](/docs/concepts/command
 
 ### Aggregate Root
 
-In `lib/post/post.rb` we find the aggregate root. This class encapsulates your business logic. Events are applied to 
-instances of `Post` to give it its current state. We can see here that creation of a new `Post` will apply multiple 
-events. Besides `PostAdded` we're also applying events to change the author, title and content. You might be tempted to 
-group all those fields in one event, which can be a good idea if those fields always change together. We're using 
+In `lib/post/post.rb` we find the aggregate root. This class encapsulates your business logic. Events are applied to
+instances of `Post` to give it its current state. We can see here that creation of a new `Post` will apply multiple
+events. Besides `PostAdded` we're also applying events to change the author, title and content. You might be tempted to
+group all those fields in one event, which can be a good idea if those fields always change together. We're using
 multiple events to emphasise that a single command does not always correlate to a single event.
 
 ```ruby
@@ -167,7 +167,7 @@ its `aggregate_id`. We could set a `publish` flag, but the event already communi
 
 ### Handling publish Post command
 
-We add our own `on` block below the `AddPost` block in `lib/post/post_command_handler.rb` to handle the `PublishPost` 
+We add our own `on` block below the `AddPost` block in `lib/post/post_command_handler.rb` to handle the `PublishPost`
 command:
 
 ```ruby
@@ -190,6 +190,7 @@ class PostAlreadyPublishedError < StandardError; end
 
 def publish(publication_date)
   fail PostAlreadyPublishedError if @publication_date.present?
+
   apply PostPublished, publication_date: publication_date
 end
 ```
@@ -198,7 +199,7 @@ In Sequent you execute / enforce your business rules in these methods **before**
 
 ### Post published event
 
-In `lib/post/post.rb` we just applied the `PostPublished` event. We need to define this event in `lib/post/events.rb`, 
+In `lib/post/post.rb` we just applied the `PostPublished` event. We need to define this event in `lib/post/events.rb`,
 add the following:
 
 ```ruby
@@ -217,14 +218,14 @@ on PostPublished do |event|
 end
 ```
 
-With this latest change, the test case in `post_command_handler_spec.rb` will succeed. The domain is now able to handle 
+With this latest change, the test case in `post_command_handler_spec.rb` will succeed. The domain is now able to handle
 post publishing.
 
 
 ## Adding an Author
 
-In this guide, we will 'upgrade' `Author` to its own Aggregate Root. This means we need to add new files defining the 
-`Author` Aggregate Root, and make some changes to the `Post` commands and events, i.e. using the author `aggregate_id` 
+In this guide, we will 'upgrade' `Author` to its own Aggregate Root. This means we need to add new files defining the
+`Author` Aggregate Root, and make some changes to the `Post` commands and events, i.e. using the author `aggregate_id`
 instead of an author String.
 
 ### Test setup
@@ -351,13 +352,13 @@ require_relative 'usernames/usernames'
 ```
 
 We can now obtain the `Usernames` Aggregate by invoking `Usernames.instance`. Next thing we want to do is create the
-`AuthorCommandHandler` and add an Author. 
+`AuthorCommandHandler` and add an Author.
 
 ### Author command handler
-When we run the tests in `spec/lib/author/author_command_handler_spec.rb`, all are marked as `Pending: Not yet 
-implemented`. Before we can go any further, we need to think about what kind of Events we are interested in. 
-What do we want to know in this case? When registering our very first `Author`, it will not only create the Author, 
-but also create our `Usernames` Aggregate to ensure uniqueness of the usernames. 
+When we run the tests in `spec/lib/author/author_command_handler_spec.rb`, all are marked as `Pending: Not yet
+implemented`. Before we can go any further, we need to think about what kind of Events we are interested in.
+What do we want to know in this case? When registering our very first `Author`, it will not only create the Author,
+but also create our `Usernames` Aggregate to ensure uniqueness of the usernames.
 
 The test will read something like:
 ```
@@ -367,7 +368,7 @@ And the username is checked for uniqueness and added to the Usernames
 And the Author is created with the given name and email
 ```
 
-By leveraging Sequent's test DSL we can modify the test we have created for this in 
+By leveraging Sequent's test DSL we can modify the test we have created for this in
 `spec/lib/author/author_command_handler_spec.rb` as follows:
 
 ```ruby
@@ -375,22 +376,22 @@ context AddAuthor do
   let(:user_aggregate_id) { Sequent.new_uuid }
   let(:email) { 'ben@sequent.io' }
 
-  it "creates a user when valid input" do
-    when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: "Ben", email: email)
+  it 'creates a user when valid input' do
+    when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: 'Ben', email: email)
     then_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
                 UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2),
                 AuthorCreated.new(aggregate_id: user_aggregate_id, sequence_number: 1),
                 AuthorNameSet,
                 AuthorEmailSet.new(aggregate_id: user_aggregate_id, email: email, sequence_number: 3)
   end
-  it "fails if the username already exists"
-  it "ignores case in usernames"
+  it 'fails if the username already exists'
+  it 'ignores case in usernames'
 end
 ```
 
-In Sequent (or other event sourcing libraries) you test your code by checking the applied events, and which order they 
-were run in. In this case we modelled the `AuthorNameSet` and `AuthorEmailSet` as separate events, since they probably 
-don't change together. 
+In Sequent (or other event sourcing libraries) you test your code by checking the applied events, and which order they
+were run in. In this case we modelled the `AuthorNameSet` and `AuthorEmailSet` as separate events, since they probably
+don't change together.
 
 In more comprehensive cases we can imagine triggering other events, e.g. when the email changes, a confirmation is sent.
 You should take these considerations into account when modelling your domain and defining your Events.
@@ -403,11 +404,9 @@ Create `lib/usernames/events.rb` with:
 
 ```ruby
 class UsernamesCreated < Sequent::Event
-
 end
 
 class UsernameAdded < Sequent::Event
-
 end
 ```
 
@@ -417,8 +416,8 @@ require_relative 'usernames/events'
 require_relative 'usernames/usernames'
 ```
 
-As you can see the events have no attributes yet. This is not necessary to make this test pass. Sequent only looks at 
-the defined attributes and sets those as values on the event, in the event store. Therefore all attributes you want to 
+As you can see the events have no attributes yet. This is not necessary to make this test pass. Sequent only looks at
+the defined attributes and sets those as values on the event, in the event store. Therefore all attributes you want to
 include on an event, need to be explicitly declared.
 
 #### Update Usernames aggregate root
@@ -429,7 +428,7 @@ class Usernames < Sequent::AggregateRoot
   class UsernameAlreadyRegistered < StandardError; end
 
   # We can generate and hardcode the UUID since there is only one instance
-  ID = "85507d60-8645-4a8a-bdb8-3a9c86a0c635"
+  ID = '85507d60-8645-4a8a-bdb8-3a9c86a0c635'
 
   def self.instance(id = ID)
     Sequent.aggregate_repository.load_aggregate(id)
@@ -455,7 +454,6 @@ end
 Create `lib/author/events.rb` with:
 ```ruby
 class AuthorCreated < Sequent::Event
-
 end
 
 class AuthorNameSet < Sequent::Event
@@ -533,7 +531,7 @@ RuntimeError:
   Cannot find aggregate type associated with creation event {UsernamesCreated: @aggregate_id=[85507d60-8645-4a8a-bdb8-3a9c86a0c635], @sequence_number=[1], @created_at=[2024-10-09 15:56:54 +0200]}, did you include an event handler in your aggregate for this event?
 ```
 
-Sequent requires us to define an event handler in the Aggregate for at least the creation event, otherwise Sequent is 
+Sequent requires us to define an event handler in the Aggregate for at least the creation event, otherwise Sequent is
 not able to find an Aggregate in the repository.
 
 So let's change our aggregates to satisfy this demand.
@@ -561,7 +559,7 @@ class Author < Sequent::AggregateRoot
 end
 ```
 
-Running the test case again results in the following error: 
+Running the test case again results in the following error:
 ```text
 expected Usernames::UsernameAlreadyRegistered but nothing was raised
 ```
@@ -573,7 +571,7 @@ Change the `Usernames` aggregate as follows:
 ```ruby
 class Usernames < Sequent::AggregateRoot
   ...
-  
+
   def add(username)
     fail UsernameAlreadyRegistered if @usernames.include?(username)
 
@@ -598,7 +596,7 @@ class UsernameAdded < Sequent::Event
 end
 ```
 
-The event handlers `UsernamesCreated` and `UsernameAdded` will keep track of the current usernames in a `Set`. 
+The event handlers `UsernamesCreated` and `UsernameAdded` will keep track of the current usernames in a `Set`.
 Whenever a new name is being added, we first check if the name does not yet exist. If it does not exist, a new event is
 applied. The test case now passes successfully.
 
@@ -628,13 +626,13 @@ We change our `Usernames` aggregate to satisfy this requirement as follows in `l
 ```ruby
 class Usernames < Sequent::AggregateRoot
   ...
-  
+
   def add(username)
     fail UsernameAlreadyRegistered if @usernames.include?(username.downcase)
 
     apply UsernameAdded, username: username
   end
-  
+
   ...
 
   on UsernameAdded do |event|
@@ -645,7 +643,7 @@ end
 
 ### Adding a Post using the new Author Aggregate Root
 
-The last thing we need to do to successfully add a post, is refactor out `Author` name, and instead use the `Author` 
+The last thing we need to do to successfully add a post, is refactor out `Author` name, and instead use the `Author`
 `aggregate_id`. This requires a few changes.
 
 1. Change the passed command values and event attributes in test of `PostCommandHandler` in `spec/lib/post/post_command_handler_spec.rb`:
@@ -707,7 +705,7 @@ In this guide we:
 3. Added a new Aggregate `Author` and `Usernames` and showed how Aggregates can depend on each other.
 4. Explored how to add tests in Sequent in order to test the domain.
 
-In this guide we mainly focussed on the domain. In the [next guide](/docs/building-a-web-application.html) we will take 
-it a step further and see how can actually build a web application that our Authors can use. We will learn how to 
-initialize and set up Sequent with Sinatra, learn about [Projectors](/docs/concepts/projector.html) and see how Sequent 
+In this guide we mainly focussed on the domain. In the [next guide](/docs/building-a-web-application.html) we will take
+it a step further and see how can actually build a web application that our Authors can use. We will learn how to
+initialize and set up Sequent with Sinatra, learn about [Projectors](/docs/concepts/projector.html) and see how Sequent
 deals with migrations.

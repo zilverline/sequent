@@ -13,7 +13,7 @@ module Sequent
           return false if other.nil?
           return false if self.class != other.class
 
-          self.class.types.each do |name, _|
+          self.class.types.each_key do |name|
             self_value = send(name)
             other_value = other.send(name)
             if self_value.class == DateTime && other_value.class == DateTime
@@ -28,8 +28,8 @@ module Sequent
 
         def hash
           hash = 17
-          self.class.types.each do |name, _|
-            hash = hash * 31 + send(name).hash
+          self.class.types.each_key do |name|
+            hash = (hash * 31) + send(name).hash
           end
           hash
         end

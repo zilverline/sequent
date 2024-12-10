@@ -39,7 +39,7 @@ module Sequent
           if value.blank? && !(value.is_a?(TrueClass) || value.is_a?(FalseClass))
             nil
           else
-            (value.is_a?(TrueClass) || value == 'true')
+            value.is_a?(TrueClass) || value == 'true'
           end
         end
 

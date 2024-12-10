@@ -9,7 +9,7 @@ module Sequent
     # This migration does not insert anything into the database, mainly usefull
     # for performance testing migrations.
     class ViewSchema < Migrations::ViewSchema
-      def migrate_dryrun(regex:, group_exponent: 3, limit: nil, offset: nil)
+      def migrate_dryrun(regex:)
         persistor = DryRun::ReadOnlyReplayOptimizedPostgresPersistor.new
 
         projectors = Sequent::Core::Migratable.all.select { |p| p.replay_persistor.nil? && p.name.match(regex || /.*/) }
@@ -17,8 +17,7 @@ module Sequent
           Sequent.logger.info "Dry run using the following projectors: #{projectors.map(&:name).join(', ')}"
 
           starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          groups = groups(group_exponent: group_exponent, limit: limit, offset: offset)
-          replay!(persistor, projectors: projectors, groups: groups)
+          replay!(persistor, projectors:)
           ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
           Sequent.logger.info("Done migrate_dryrun for version #{Sequent.new_version} in #{ending - starting} s")

@@ -35,7 +35,7 @@ module Sequent
             value = record.instance_variable_get("@#{association}")
             if value && incorrect_type?(value, record, association)
               record.errors.add(association, "is not of type #{describe_type(record.class.types[association])}")
-            elsif value&.is_a?(Array)
+            elsif value.is_a?(Array)
               item_type = record.class.types.fetch(association).item_type
               record.errors.add(association, 'is invalid') unless validate_all(value, item_type).all?
             elsif value&.invalid?
@@ -47,7 +47,7 @@ module Sequent
         private
 
         def incorrect_type?(value, record, association)
-          return unless record.class.respond_to?(:types)
+          return false unless record.class.respond_to?(:types)
 
           type = record.class.types[association]
           if type.respond_to?(:candidate?)

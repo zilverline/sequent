@@ -9,7 +9,7 @@ require 'rspec/collection_matchers'
 require 'timecop'
 require_relative '../lib/sequent'
 require_relative '../lib/sequent/generator'
-require_relative './lib/sequent/fixtures/fixtures'
+require_relative 'lib/sequent/fixtures/fixtures'
 require './lib/sequent/test/database_helpers'
 require 'simplecov'
 SimpleCov.start if ENV['COVERAGE']
@@ -22,8 +22,9 @@ Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['SEQUENT_E
 
 RSpec.configure do |c|
   c.before do
+    Timecop.return
     Database.establish_connection
-    Sequent::ApplicationRecord.connection.execute('TRUNCATE command_records, stream_records CASCADE')
+    Sequent::ApplicationRecord.connection.execute('TRUNCATE commands, aggregates, saved_event_records CASCADE')
     Sequent::Configuration.reset
     Sequent.configuration.database_config_directory = 'tmp'
   end
@@ -32,15 +33,16 @@ RSpec.configure do |c|
     Sequent::ApplicationRecord.connection.execute(sql)
   end
 
-  def insert_events(aggregate_type, events)
-    Sequent.configuration.event_store.commit_events(
-      Sequent::Core::CommandRecord.new,
+  def insert_events(aggregate_type, events, events_partition_key: '')
+    streams_with_events = events.group_by(&:aggregate_id).map do |aggregate_id, aggregate_events|
       [
-        [
-          Sequent::Core::EventStream.new(aggregate_type: aggregate_type, aggregate_id: events.first.aggregate_id),
-          events,
-        ],
-      ],
+        Sequent::Core::EventStream.new(aggregate_type:, aggregate_id:, events_partition_key:),
+        aggregate_events,
+      ]
+    end
+    Sequent.configuration.event_store.commit_events(
+      Sequent::Core::Command.new(events.first.attributes),
+      streams_with_events,
     )
   end
 end

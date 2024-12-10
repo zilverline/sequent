@@ -12,8 +12,7 @@ module Sequent
       module ClassMethods
         ##
         # Enable snapshots for this aggregate. The aggregate instance
-        # must define the *load_from_snapshot* and *save_to_snapshot*
-        # methods.
+        # must define the *take_snapshot* methods.
         #
         def enable_snapshots(default_threshold: 20)
           @snapshot_default_threshold = default_threshold
@@ -41,7 +40,8 @@ module Sequent
       include SnapshotConfiguration
       extend ActiveSupport::DescendantsTracker
 
-      attr_reader :id, :uncommitted_events, :sequence_number, :event_stream
+      attr_reader :id, :uncommitted_events, :sequence_number
+      attr_accessor :latest_snapshot_sequence_number
 
       def self.load_from_history(stream, events)
         first, *rest = events
@@ -49,6 +49,7 @@ module Sequent
           # rubocop:disable Security/MarshalLoad
           aggregate_root = Marshal.load(Base64.decode64(first.data))
           # rubocop:enable Security/MarshalLoad
+          aggregate_root.latest_snapshot_sequence_number = first.sequence_number
           rest.each { |x| aggregate_root.apply_event(x) }
         else
           aggregate_root = allocate # allocate without calling new
@@ -61,9 +62,6 @@ module Sequent
         @id = id
         @uncommitted_events = []
         @sequence_number = 1
-        @event_stream = EventStream.new aggregate_type: self.class.name,
-                                        aggregate_id: id,
-                                        snapshot_threshold: self.class.snapshot_default_threshold
       end
 
       def load_from_history(stream, events)
@@ -100,13 +98,38 @@ module Sequent
         "#{self.class.name}: #{@id}"
       end
 
+      def event_stream
+        EventStream.new(
+          aggregate_type: self.class.name,
+          aggregate_id: id,
+          events_partition_key: events_partition_key,
+          snapshot_outdated_at: snapshot_outdated? ? Time.now : nil,
+        )
+      end
+
+      # Provide the partitioning key for storing events. This value
+      # must be a string and will be used by PostgreSQL to store the
+      # events in the right partition.
+      #
+      # The value may change over the lifetime of the aggregate, old
+      # events will be moved to the correct partition after a
+      # change. This can be an expensive database operation.
+      def events_partition_key
+        nil
+      end
+
       def clear_events
         @uncommitted_events = []
       end
 
-      def take_snapshot!
-        snapshot = build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
-        @uncommitted_events << snapshot
+      def snapshot_outdated?
+        snapshot_threshold = self.class.snapshot_default_threshold
+        events_since_latest_snapshot = @sequence_number - (latest_snapshot_sequence_number || 1)
+        snapshot_threshold.present? && events_since_latest_snapshot >= snapshot_threshold
+      end
+
+      def take_snapshot
+        build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
       end
 
       def apply_event(event)

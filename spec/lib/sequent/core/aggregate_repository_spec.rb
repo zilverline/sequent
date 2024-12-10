@@ -6,27 +6,25 @@ require 'securerandom'
 
 describe Sequent::Core::AggregateRepository do
   context 'Aggregate repository unit tests' do
-    class DummyAggregate2 < Sequent::Core::AggregateRoot
-      attr_reader :loaded_events
-      attr_writer :uncommitted_events
-
-      def load_from_history(stream, events)
-        @id = stream&.aggregate_id
-        @event_stream = stream
-        @loaded_events = events
-        @uncommitted_events = []
-      end
-    end
-
     class DummyAggregate < Sequent::Core::AggregateRoot
       attr_reader :loaded_events
       attr_writer :uncommitted_events
 
       def load_from_history(stream, events)
-        @id = stream&.aggregate_id
+        super
         @event_stream = stream
         @loaded_events = events
-        @uncommitted_events = []
+      end
+    end
+
+    class DummyAggregate2 < Sequent::Core::AggregateRoot
+      attr_reader :loaded_events
+      attr_writer :uncommitted_events
+
+      def load_from_history(stream, events)
+        super
+        @event_stream = stream
+        @loaded_events = events
       end
     end
 
@@ -41,6 +39,9 @@ describe Sequent::Core::AggregateRepository do
     let(:event_store) { double }
     let(:repository) { Sequent.configuration.aggregate_repository }
     let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
+    let(:events) do
+      [Sequent::Core::Event.new(aggregate_id: aggregate.id, sequence_number: 1)]
+    end
 
     it 'should track added aggregates by id' do
       allow(event_store).to receive(:load_events_for_aggregates).with([]).and_return([]).once
@@ -54,7 +55,7 @@ describe Sequent::Core::AggregateRepository do
         [
           [
             aggregate.event_stream,
-            [:events],
+            events,
           ],
         ],
       )
@@ -62,7 +63,7 @@ describe Sequent::Core::AggregateRepository do
       loaded = repository.load_aggregate(:id, DummyAggregate)
 
       expect(loaded.event_stream).to eq(aggregate.event_stream)
-      expect(loaded.loaded_events).to eq([:events])
+      expect(loaded.loaded_events).to eq(events)
     end
 
     it 'should not require expected aggregate class' do
@@ -70,7 +71,7 @@ describe Sequent::Core::AggregateRepository do
         [
           [
             aggregate.event_stream,
-            [:events],
+            events,
           ],
         ],
       )
@@ -83,7 +84,7 @@ describe Sequent::Core::AggregateRepository do
         [
           [
             aggregate.event_stream,
-            [:events],
+            events,
           ],
         ],
       )
@@ -96,7 +97,7 @@ describe Sequent::Core::AggregateRepository do
         [
           [
             aggregate.event_stream,
-            [:events],
+            events,
           ],
         ],
       )
@@ -134,7 +135,7 @@ describe Sequent::Core::AggregateRepository do
       allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return(
         [
           [
-            aggregate.event_stream, [:events]
+            aggregate.event_stream, events
           ],
         ],
       ).once
@@ -150,8 +151,8 @@ describe Sequent::Core::AggregateRepository do
 
       repository.add_aggregate aggregate
       expect { repository.load_aggregate(aggregate.id, String) }.to raise_error { |error|
-                                                                      expect(error).to be_a TypeError
-                                                                    }
+        expect(error).to be_a TypeError
+      }
     end
 
     it 'should prevent different aggregates with the same id from being added' do
@@ -233,13 +234,15 @@ describe Sequent::Core::AggregateRepository do
       end
 
       context 'with aggregates in the event store' do
-        let(:aggregate_stream_with_events) { [aggregate.event_stream, [:events]] }
+        let(:aggregate_stream_with_events) { [aggregate.event_stream, events] }
 
         let(:aggregate_2) { DummyAggregate.new(Sequent.new_uuid) }
-        let(:aggregate_2_stream_with_events) { [aggregate_2.event_stream, [:events_2]] }
+        let(:events_2) { [Sequent::Core::Event.new(aggregate_id: aggregate_2.id, sequence_number: 1)] }
+        let(:aggregate_2_stream_with_events) { [aggregate_2.event_stream, events_2] }
 
         let(:aggregate_3) { DummyAggregate2.new(Sequent.new_uuid) }
-        let(:aggregate_3_stream_with_events) { [aggregate_3.event_stream, [:events_3]] }
+        let(:events_3) { [Sequent::Core::Event.new(aggregate_id: aggregate_3.id, sequence_number: 1)] }
+        let(:aggregate_3_stream_with_events) { [aggregate_3.event_stream, events_3] }
 
         it 'returns all the aggregates found' do
           allow(event_store)
@@ -254,10 +257,10 @@ describe Sequent::Core::AggregateRepository do
           expect(aggregates).to have(2).items
 
           expect(aggregates[0].event_stream).to eq aggregate.event_stream
-          expect(aggregates[0].loaded_events).to eq([:events])
+          expect(aggregates[0].loaded_events).to eq(events)
 
           expect(aggregates[1].event_stream).to eq aggregate_2.event_stream
-          expect(aggregates[1].loaded_events).to eq([:events_2])
+          expect(aggregates[1].loaded_events).to eq(events_2)
         end
 
         it 'raises error even if only one aggregate cannot be found' do
@@ -330,11 +333,11 @@ describe Sequent::Core::AggregateRepository do
           expect(aggregates).to have(2).items
 
           expect(aggregates[0].event_stream).to eq aggregate.event_stream
-          expect(aggregates[0].loaded_events).to eq([:events])
+          expect(aggregates[0].loaded_events).to eq(events)
 
           expect(aggregates[1].class).to eq DummyAggregate2
           expect(aggregates[1].event_stream).to eq aggregate_3.event_stream
-          expect(aggregates[1].loaded_events).to eq([:events_3])
+          expect(aggregates[1].loaded_events).to eq(events_3)
         end
 
         context 'loaded in the identity map' do
@@ -385,7 +388,7 @@ describe Sequent::Core::AggregateRepository do
       attr_reader :pinged
 
       def initialize(id)
-        super(id)
+        super
         apply DummyCreated
       end
 
@@ -448,7 +451,8 @@ describe Sequent::Core::AggregateRepository do
 
         Sequent.aggregate_repository.add_aggregate(dummy_aggregate)
         Sequent.aggregate_repository.commit(DummyCommand.new)
-        dummy_aggregate.take_snapshot!
+        snapshot = dummy_aggregate.take_snapshot
+        Sequent.configuration.event_store.store_snapshots([snapshot])
 
         Timecop.travel(30.minutes)
         dummy_aggregate.ping
@@ -467,7 +471,8 @@ describe Sequent::Core::AggregateRepository do
         dummy_aggregate.ping
         Sequent.aggregate_repository.add_aggregate(dummy_aggregate)
         Sequent.aggregate_repository.commit(DummyCommand.new)
-        dummy_aggregate.take_snapshot!
+        snapshot = dummy_aggregate.take_snapshot
+        Sequent.configuration.event_store.store_snapshots([snapshot])
         dummy_aggregate.ping
         Sequent.aggregate_repository.commit(DummyCommand.new)
         Sequent.aggregate_repository.clear

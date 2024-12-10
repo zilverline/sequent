@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-require 'set'
 require 'active_record'
 require 'csv'
-require_relative './persistor'
+require_relative 'persistor'
 
 module Sequent
   module Core
@@ -177,7 +176,7 @@ module Sequent
           end
 
           indices.each do |record_class, indexed_columns|
-            columns = indexed_columns.flatten(1).map(&:to_sym).to_set + default_indexed_columns
+            columns = indexed_columns.flatten(1).to_set(&:to_sym) + default_indexed_columns
             @record_index[record_class] = Index.new(columns & record_class.column_names.map(&:to_sym))
           end
 
@@ -358,7 +357,7 @@ module Sequent
 
         def clear
           @record_store.clear
-          @record_index.values.each(&:clear)
+          @record_index.each_value(&:clear)
         end
 
         private

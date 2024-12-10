@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'helpers/message_handler'
-require_relative './persistors/active_record_persistor'
+require_relative 'persistors/active_record_persistor'
 
 module Sequent
   module Core

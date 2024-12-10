@@ -84,17 +84,18 @@ describe Sequent::Core::AggregateRoot do
   context 'snapshotting' do
     before { subject.generate_event }
 
-    it 'adds an uncommitted snapshot event' do
-      expect do
-        subject.take_snapshot!
-      end.to change { subject.uncommitted_events.count }.by(1)
+    it 'returns a snapshot event' do
+      snapshot = subject.take_snapshot
+      expect(snapshot.aggregate_id).to be(subject.id)
+      expect(snapshot.sequence_number).to eq(2)
+      expect(snapshot.data).to be_present
     end
 
     it 'restores state from the snapshot' do
-      subject.take_snapshot!
-      snapshot_event = subject.uncommitted_events.last
+      snapshot_event = subject.take_snapshot
       restored = TestAggregateRoot.load_from_history :stream, [snapshot_event]
       expect(restored.event_count).to eq 1
+      expect(restored.latest_snapshot_sequence_number).to eq(2)
     end
   end
 
