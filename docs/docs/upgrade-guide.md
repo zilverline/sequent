@@ -4,22 +4,26 @@ title: Upgrade Guide
 
 ## Upgrade to Sequent 8.x from older versions
 
-Sequent 8 remodels the PostgreSQL event store to allow partitioning of
-the aggregates, commands, and events tables. Furthermore it contains
-various storage optimizations. To migrate your older Sequent database
-you can use the `bundle exec sequent migrate` command. Make sure to run this after
-updating Sequent in your Gemfile, running `bundle update --conservative
-sequent`, and from the root directory of your project.
+**IMPORTANT**: Ensure you are on the latest released 7.x version first.
 
-This command will help you perform the database upgrade by providing
-you with a default schema and database upgrade script that you can
+Sequent 8 remodels the PostgreSQL event store to allow partitioning of
+the aggregates, commands, and events tables. Furthermore, it contains
+various storage optimizations. To migrate your older Sequent database
+we advise you to **run the migration first on a copy of your production
+database!** This will give you a good indication on how long the 
+migration will take so you can schedule downtime appropriately.
+Next to that it will ensure all data in your event store is compatible 
+with Sequent 8. Normally this won't be a problem
+unless you somehow have corrupted data in your event store.
+
+To run the upgrade:
+1. Update Sequent to version 8 in your Gemfile
+2. Run the `bundle exec sequent migrate` command from your project directory.
+
+This command will help you perform the database upgrade step by step 
+by providing you with a default schema and database upgrade script that you can
 customize to match your desired partitioning setup, although the
 default configuration will work for many cases as well.
-
-**IMPORTANT**: Ensure you test your migration on a copy of your database first! This will give you
-a good indication on how long the migration will take so you can schedule downtime appropriately. 
-Next to that it will ensure all data in your event store is compatible with Sequent 8. Normally this won't be a problem
-unless you somehow have corrupted data in your event store.
 
 **IMPORTANT**: If the migration succeeds and you COMMIT the results
 you must vacuum (e.g. using VACUUM VERBOSE ANALYZE) the new tables to
