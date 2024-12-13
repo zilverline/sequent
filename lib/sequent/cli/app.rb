@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../generator'
-require_relative 'sequent8_migration'
+require_relative 'sequent_8_migration'
 module Sequent
   module Cli
     class App
