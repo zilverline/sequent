@@ -3,8 +3,8 @@
 
 require 'gli'
 require 'tty-prompt'
-require './lib/version'
-require './lib/sequent/cli/app'
+require_relative '../lib/version'
+require_relative '../lib/sequent/cli/app'
 
 exit_code = Sequent::Cli::App.run(ARGV)
 exit(exit_code)
