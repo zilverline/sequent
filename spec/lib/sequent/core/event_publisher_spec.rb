@@ -50,7 +50,7 @@ describe Sequent::Core::EventPublisher do
 
     def initialize(*args)
       @sequence_numbers = []
-      super(*args)
+      super
     end
 
     attr_reader :sequence_numbers

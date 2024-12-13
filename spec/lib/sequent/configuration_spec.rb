@@ -68,7 +68,7 @@ describe Sequent::Configuration do
             config.enable_autoregistration = true
             config.command_handlers = [command_handler_class.new]
           end
-        end.to raise_error /is registered 2 times. A CommandHandler can only be registered once/
+        end.to raise_error(/is registered 2 times. A CommandHandler can only be registered once/)
       end
     end
 
@@ -82,7 +82,7 @@ describe Sequent::Configuration do
             config.enable_autoregistration = true
             config.event_handlers = [event_handler_class.new]
           end
-        end.to raise_error /is registered 2 times. An EventHandler can only be registered once/
+        end.to raise_error(/is registered 2 times. An EventHandler can only be registered once/)
       end
     end
   end

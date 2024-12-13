@@ -22,32 +22,32 @@ From a `Sequent::Core::CommandRecord`
 command_record = Sequent::Core::CommandRecord.find(1)
 
 # The EventRecord that 'caused' this Command
-command_record.parent
+command_record.parent_event
 
 # Returns the top level Sequent::Core::CommandRecord that 'caused'
 # this CommandRecord.
-command_record.origin
+command_record.origin_command
 
 # Returns the EventRecords caused by this command
-command_record.children
+command_record.child_events
 ```
 
 From a `Sequent::Core::EventRecord`
 ```ruby
-event_record = Sequent::Core::EventRecord.find(1)
+event_record = Sequent::Core::EventRecord.first
 
 # Returns the Sequent::Core::CommandRecord that 'caused' this Event
-event_record.parent
+event_record.parent_command
 
 # Returns the top level Sequent::Core::CommandRecord that 'caused'
 # this Event. This traverses all the way up.
 # When coming from Sequent < 3.2 this can also
 # be an EventRecord.
-event_record.origin
+event_record.origin_command
 
 # Returns the Sequent::Core::CommandRecord's that were execute because
 # of this event
-event_record.children
+event_record.child_commands
 ```
 
 ## Upcasting
@@ -98,7 +98,7 @@ end
 
 After upcasting update all other references to the renamed attribute in `AggregateRoot`s or any other Ruby object.
 Upcasting does not apply to `Command`s as they are never deserialized, at least not by Sequent. So in a `Command` it
-is safe to rename the attribute (and update references to that attribute). 
+is safe to rename the attribute (and update references to that attribute).
 
 ## What-if scenarios
 

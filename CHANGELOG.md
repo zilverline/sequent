@@ -1,3 +1,52 @@
+# Changelog 8.0.0 (changes since 7.2.0)
+
+- Sequent now requires at least Ruby 3.2, ActiveRecord 7.1, and
+  PostgreSQL 14.
+- The internal database schema has been re-organized to support table
+  partitioning so the events of related aggregates can be stored
+  together. Partitioning is optional. You can override the
+  `AggregateRoot#events_partition_key` method to return the partition
+  key of an aggregate that will be used by PostgreSQL to store the
+  events in the correct partition.
+- Storage logic of Sequent is now done by PostgreSQL stored
+  procedures. This reduces the number of round-trips necessary between
+  the Ruby process and the PostgreSQL server and optimizes storage
+  requirements.
+- `AggregateRoot#take_snapshot!` has been replaced with
+  `AggregateRoot#take_snapshot` which returns the snapshot instead of
+  adding it to the uncommitted events. Snapshots can be stored using
+  `EventStore#store_snapshots` method.
+- The `stream_records`, `event_records`, and `command_records`
+  relations are no longer tables but views on the underlying
+  `aggregates`, `events`, and `commands` tables. These views take care
+  of joining related tables using the correct partitioning key and
+  type ids. The views are mainly for backwards compatibility with the
+  `*Record` Ruby classes and can only be used for querying. For
+  updates the `EventStore` (and higher-level `AggregateRepository`)
+  classes should be used. New APIs have been added so there is no
+  longer a need to use ActiveRecord methods directly to manage the
+  event store.
+- Events, commands, and snapshot are now serialized directly to a
+  `JSON` or `JSONB` column. The `TEXT` column type is no longer
+  supported. JSON size is minimized by extracting various repetitive
+  fields (such as `aggregate_id`) into database columns.
+- Snapshots are now stored into a separate `snapshot_records` table
+  instead of being mixed in with events in the `events` table.  This
+  also makes it possible to store snapshots without an associated
+  command record. Aggregates that need snapshots are tracked in a
+  separate `aggregates_that_need_snapshots` so that snapshots can be
+  created more quickly by a background snapshotting process.
+- The `parent`, `origin` and `children` methods of `CommandRecord` and
+  `EventRecord` have been replaced by more specific methods
+  (`origin_command`, `parent_event`, etc) and will always return a
+  record of the appropriate type.
+- Events that are updated or deleted (a rare occurrence) are archived
+  into the `saved_event_records` table.
+- The `id` column of `aggregates` has been removed and the primary
+  key is now the `aggregate_id` column.
+- The `id` column of `events` has been removed and the primary
+  key are now the `aggregate_id` and `sequence_number` columns.
+
 # Changelog 7.2.0 (changes since 7.1.1)
 
 - Many documentation improvements.

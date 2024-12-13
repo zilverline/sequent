@@ -27,101 +27,102 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
   context '#get_record!' do
     it 'fails when no object is found' do
-      expect { persistor.get_record!(record_class, {id: 1}) }.to raise_error(/record #{record_class} not found}*/)
+      expect { persistor.get_record!(record_class, {aggregate_id: 1}) }
+        .to raise_error(/record #{record_class} not found}*/)
     end
   end
 
   context '#update_record' do
     it 'fails when no object is found' do
       expect do
-        persistor.update_record(record_class, mock_event, {id: 1})
+        persistor.update_record(record_class, mock_event, {aggregate_id: 1})
       end.to raise_error(/record #{record_class} not found}*/)
     end
   end
 
   context '#get_record' do
     it 'returns nil when no object is found' do
-      expect(persistor.get_record(record_class, {id: 1})).to be_nil
+      expect(persistor.get_record(record_class, {aggregate_id: 1})).to be_nil
     end
   end
 
   context '#find_records' do
     it 'returns empty array when no objects are found' do
-      expect(persistor.find_records(record_class, {id: 1})).to be_empty
+      expect(persistor.find_records(record_class, {aggregate_id: 1})).to be_empty
     end
   end
 
   context '#delete_all_records' do
     it 'does not fail when there is nothing to delete' do
-      persistor.delete_all_records(record_class, {id: 1})
+      persistor.delete_all_records(record_class, {aggregate_id: 1})
     end
   end
 
   context '#delete_record' do
     it 'does not fail when there is nothing to delete' do
-      persistor.delete_record(record_class, record_class.new(id: 1))
+      persistor.delete_record(record_class, record_class.new(aggregate_id: 1))
     end
   end
 
   context '#update_all_records' do
     it 'does not fail when there is nothing to update' do
-      persistor.update_all_records(record_class, {id: 1}, {sequence_number: 2})
+      persistor.update_all_records(record_class, {aggregate_id: 1}, {sequence_number: 2})
     end
   end
 
   it 'can save multiple objects at once' do
-    persistor.create_records(Sequent::Core::EventRecord, [{id: 1}, {id: 2}])
-    object = persistor.get_record!(record_class, {id: 1})
-    expect(object.id).to eq 1
-    object = persistor.get_record!(record_class, {id: 2})
-    expect(object.id).to eq 2
+    persistor.create_records(Sequent::Core::EventRecord, [{aggregate_id: 1}, {aggregate_id: 2}])
+    object = persistor.get_record!(record_class, {aggregate_id: 1})
+    expect(object.aggregate_id).to eq 1
+    object = persistor.get_record!(record_class, {aggregate_id: 2})
+    expect(object.aggregate_id).to eq 2
 
-    objects = persistor.find_records(record_class, {id: [1, 2]})
+    objects = persistor.find_records(record_class, {aggregate_id: [1, 2]})
     expect(objects).to have(2).items
   end
 
   context 'with an object' do
     before :each do
-      persistor.create_record(Sequent::Core::EventRecord, {id: 1})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1})
     end
 
     context '#get_record!' do
       it 'returns the object' do
-        object = persistor.get_record!(record_class, {id: 1})
-        expect(object.id).to eq 1
+        object = persistor.get_record!(record_class, {aggregate_id: 1})
+        expect(object.aggregate_id).to eq 1
       end
     end
 
     context '#get_record' do
       it 'returns the object' do
-        object = persistor.get_record(record_class, {id: 1})
-        expect(object.id).to eq 1
+        object = persistor.get_record(record_class, {aggregate_id: 1})
+        expect(object.aggregate_id).to eq 1
       end
     end
 
     context '#find_records' do
       it 'returns the object' do
-        objects = persistor.find_records(record_class, {id: 1})
+        objects = persistor.find_records(record_class, {aggregate_id: 1})
         expect(objects).to have(1).item
-        expect(objects.first.id).to eq 1
+        expect(objects.first.aggregate_id).to eq 1
       end
     end
 
     context '#delete_all_records' do
       it 'deletes the object' do
-        persistor.delete_all_records(record_class, {id: 1})
+        persistor.delete_all_records(record_class, {aggregate_id: 1})
 
-        objects = persistor.find_records(record_class, {id: 1})
+        objects = persistor.find_records(record_class, {aggregate_id: 1})
         expect(objects).to be_empty
       end
     end
 
     context '#delete_record' do
       it 'deletes the object' do
-        objects = persistor.find_records(record_class, {id: 1})
+        objects = persistor.find_records(record_class, {aggregate_id: 1})
         persistor.delete_record(record_class, objects.first)
 
-        expect(persistor.find_records(record_class, {id: 1})).to be_empty
+        expect(persistor.find_records(record_class, {aggregate_id: 1})).to be_empty
       end
 
       it 'ignores records that are not present' do
@@ -131,11 +132,11 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
     context '#update_all_records' do
       it 'updates the records' do
-        persistor.update_all_records(record_class, {id: 1}, {sequence_number: 3})
+        persistor.update_all_records(record_class, {aggregate_id: 1}, {sequence_number: 3})
 
-        objects = persistor.find_records(record_class, {id: 1})
+        objects = persistor.find_records(record_class, {aggregate_id: 1})
         expect(objects).to have(1).item
-        expect(objects.first.id).to eq 1
+        expect(objects.first.aggregate_id).to eq 1
         expect(objects.first.sequence_number).to eq 3
       end
     end
@@ -143,8 +144,8 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
   context 'value normalization' do
     before :each do
-      persistor.create_record(record_class, {id: 1, event_type: :SymbolEvent})
-      persistor.create_record(record_class, {id: 2, event_type: 'StringEvent'})
+      persistor.create_record(record_class, {aggregate_id: 1, event_type: :SymbolEvent})
+      persistor.create_record(record_class, {aggregate_id: 2, event_type: 'StringEvent'})
     end
 
     context 'when using an index' do
@@ -270,9 +271,9 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   context 'with some records' do
     let(:aggregate_id) { Sequent.new_uuid }
     before :each do
-      persistor.create_record(Sequent::Core::EventRecord, {id: 1, command_record_id: 2})
-      persistor.create_record(Sequent::Core::EventRecord, {id: 1, sequence_number: 2})
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, id: 2, command_record_id: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, command_record_id: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, sequence_number: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, command_record_id: 2})
     end
 
     let(:persistor) do
@@ -288,7 +289,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       let(:records) { persistor.find_records(record_class, where_clause) }
 
       context 'finding multiple records' do
-        let(:where_clause) { {id: 1} }
+        let(:where_clause) { {aggregate_id: 1} }
 
         it 'returns the correct number records' do
           expect(records).to have(2).items
@@ -296,7 +297,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       context 'finding array valued where-clause' do
-        let(:where_clause) { {id: [1, 2]} }
+        let(:where_clause) { {aggregate_id: [1, aggregate_id]} }
 
         it 'returns the correct number records' do
           expect(records).to have(3).items
@@ -304,41 +305,41 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       context 'with an indexed where clause' do
-        let(:where_clause) { {id: 1, command_record_id: 2} }
+        let(:where_clause) { {aggregate_id: 1, command_record_id: 2} }
         it 'returns the correct number records' do
           expect(records).to have(1).item
         end
 
         it 'returns the correct record' do
-          expect(records.first.id).to eq 1
+          expect(records.first.aggregate_id).to eq 1
           expect(records.first.command_record_id).to eq 2
           expect(records.first.sequence_number).to be_nil
         end
       end
 
       context 'stringified indexed where clause' do
-        let(:where_clause) { {'id' => 1, 'command_record_id' => 2} }
+        let(:where_clause) { {'aggregate_id' => 1, 'command_record_id' => 2} }
 
         it 'returns the correct number records' do
           expect(records).to have(1).item
         end
 
         it 'returns the correct record' do
-          expect(records.first.id).to eq 1
+          expect(records.first.aggregate_id).to eq 1
           expect(records.first.command_record_id).to eq 2
           expect(records.first.sequence_number).to be_nil
         end
       end
 
       context 'arbitrary order in indexed where clause' do
-        let(:where_clause) { {'command_record_id' => 2, 'id' => 1} }
+        let(:where_clause) { {'command_record_id' => 2, 'aggregate_id' => 1} }
 
         it 'returns the correct number records' do
           expect(records).to have(1).item
         end
 
         it 'returns the correct record' do
-          expect(records.first.id).to eq 1
+          expect(records.first.aggregate_id).to eq 1
           expect(records.first.command_record_id).to eq 2
           expect(records.first.sequence_number).to be_nil
         end
@@ -359,29 +360,29 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
     context '#delete_all_records' do
       it 'deletes the object based on single column' do
-        expect(persistor.find_records(record_class, {id: 1})).to have(2).items
+        expect(persistor.find_records(record_class, {aggregate_id: 1})).to have(2).items
 
-        persistor.delete_all_records(record_class, {id: 1})
+        persistor.delete_all_records(record_class, {aggregate_id: 1})
 
-        expect(persistor.find_records(record_class, {id: 1})).to be_empty
+        expect(persistor.find_records(record_class, {aggregate_id: 1})).to be_empty
       end
 
       it 'deletes the object based on multiple columns with index' do
-        expect(persistor.find_records(record_class, {id: 1, command_record_id: 2})).to have(1).item
+        expect(persistor.find_records(record_class, {aggregate_id: 1, command_record_id: 2})).to have(1).item
 
-        persistor.delete_all_records(record_class, {id: 1, command_record_id: 2})
+        persistor.delete_all_records(record_class, {aggregate_id: 1, command_record_id: 2})
 
-        expect(persistor.find_records(record_class, {id: 1, command_record_id: 2})).to be_empty
-        expect(persistor.find_records(record_class, {id: 1, sequence_number: 2})).to have(1).item
+        expect(persistor.find_records(record_class, {aggregate_id: 1, command_record_id: 2})).to be_empty
+        expect(persistor.find_records(record_class, {aggregate_id: 1, sequence_number: 2})).to have(1).item
       end
     end
 
     context '#update_all_records' do
       it 'only updates the records adhering to the where clause' do
-        persistor.update_all_records(record_class, {id: 1, sequence_number: 2}, {command_record_id: 10})
+        persistor.update_all_records(record_class, {aggregate_id: 1, sequence_number: 2}, {command_record_id: 10})
 
-        object = persistor.get_record!(record_class, {id: 1, sequence_number: 2})
-        expect(object.id).to eq 1
+        object = persistor.get_record!(record_class, {aggregate_id: 1, sequence_number: 2})
+        expect(object.aggregate_id).to eq 1
         expect(object.command_record_id).to eq 10
       end
 
@@ -390,45 +391,45 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           persistor.update_all_records(record_class, where_clause, {sequence_number: 99})
         end
         context 'in indexed order' do
-          let(:where_clause) { {id: 1, sequence_number: 2} }
+          let(:where_clause) { {aggregate_id: 1, sequence_number: 2} }
           it 'can update an indexed column' do
-            expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
+            expect(persistor.get_record(record_class, {aggregate_id: 1, sequence_number: 2})).to be_nil
 
-            object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
-            expect(object.id).to eq 1
+            object = persistor.get_record!(record_class, {aggregate_id: 1, sequence_number: 99})
+            expect(object.aggregate_id).to eq 1
             expect(object.sequence_number).to eq 99
           end
         end
 
         context 'in reversed indexed order' do
-          let(:where_clause) { {sequence_number: 2, 'id' => 1} }
+          let(:where_clause) { {sequence_number: 2, 'aggregate_id' => 1} }
           it 'can update an indexed column' do
-            expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
+            expect(persistor.get_record(record_class, {aggregate_id: 1, sequence_number: 2})).to be_nil
 
-            object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
-            expect(object.id).to eq 1
+            object = persistor.get_record!(record_class, {aggregate_id: 1, sequence_number: 99})
+            expect(object.aggregate_id).to eq 1
             expect(object.sequence_number).to eq 99
           end
         end
       end
 
       it 'can update an indexed column' do
-        persistor.update_all_records(record_class, {id: 1, sequence_number: 2}, {sequence_number: 99})
+        persistor.update_all_records(record_class, {aggregate_id: 1, sequence_number: 2}, {sequence_number: 99})
 
-        expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
+        expect(persistor.get_record(record_class, {aggregate_id: 1, sequence_number: 2})).to be_nil
 
-        object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
-        expect(object.id).to eq 1
+        object = persistor.get_record!(record_class, {aggregate_id: 1, sequence_number: 99})
+        expect(object.aggregate_id).to eq 1
         expect(object.sequence_number).to eq 99
       end
 
       it 'can update an indexed column with reversed where' do
-        persistor.update_all_records(record_class, {sequence_number: 2, id: 1}, {sequence_number: 99})
+        persistor.update_all_records(record_class, {sequence_number: 2, aggregate_id: 1}, {sequence_number: 99})
 
-        expect(persistor.get_record(record_class, {id: 1, sequence_number: 2})).to be_nil
+        expect(persistor.get_record(record_class, {aggregate_id: 1, sequence_number: 2})).to be_nil
 
-        object = persistor.get_record!(record_class, {id: 1, sequence_number: 99})
-        expect(object.id).to eq 1
+        object = persistor.get_record!(record_class, {aggregate_id: 1, sequence_number: 99})
+        expect(object.aggregate_id).to eq 1
         expect(object.sequence_number).to eq 99
       end
     end
@@ -462,7 +463,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
         50,
         {
-          Sequent::Core::EventRecord => [%i[id command_record_id], %i[id sequence_number]],
+          Sequent::Core::EventRecord => [%i[aggregate_id command_record_id], %i[aggregate_id sequence_number]],
         },
       )
     end
@@ -472,7 +473,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       aggregate_ids.each_with_index do |aggregate_id, i|
         persistor.create_record(
           Sequent::Core::EventRecord,
-          {id: i, aggregate_id: aggregate_id, command_record_id: i * 7},
+          {aggregate_id: aggregate_id, command_record_id: i * 7},
         )
       end
     end
@@ -492,7 +493,12 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       elapsed = measure_elapsed_time do
         ITERATIONS.times do
           (0...COUNT).each do |i|
-            expect(persistor.get_record(Sequent::Core::EventRecord, {id: i, command_record_id: i * 7})).to be_present
+            expect(
+              persistor.get_record(
+                Sequent::Core::EventRecord,
+                {aggregate_id: aggregate_ids[i], command_record_id: i * 7},
+              ),
+            ).to be_present
           end
         end
       end
