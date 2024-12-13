@@ -125,6 +125,11 @@ module Sequent
               end
             end
 
+            desc 'Aborts if a migration is pending'
+            task abort_if_pending_migrations: [:create_and_migrate_sequent_view_schema] do
+              abort if Sequent.new_version != Sequent::Migrations::Versions.current_version
+            end
+
             desc <<-EOS
               Shows the current status of the migrations
             EOS
