@@ -1,3 +1,7 @@
+# Changelog 8.0.1 (changes since 8.0.0)
+
+- Fix Sequent CLI
+
 # Changelog 8.0.0 (changes since 7.2.0)
 
 - Sequent now requires at least Ruby 3.2, ActiveRecord 7.1, and
