@@ -1,3 +1,7 @@
+ALTER TABLE aggregate_types ALTER COLUMN id DROP IDENTITY IF EXISTS;
+ALTER TABLE command_types ALTER COLUMN id DROP IDENTITY IF EXISTS;
+ALTER TABLE event_types ALTER COLUMN id DROP IDENTITY IF EXISTS;
+
 DROP TYPE IF EXISTS aggregate_event_type CASCADE;
 CREATE TYPE aggregate_event_type AS (
   aggregate_type text,
