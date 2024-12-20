@@ -99,14 +99,13 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION store_command(_command jsonb) RETURNS bigint
+CREATE OR REPLACE PROCEDURE update_types(_command jsonb, _aggregates_with_events jsonb)
 LANGUAGE plpgsql AS $$
 DECLARE
-  _id commands.id%TYPE;
-  _command_json jsonb = _command->'command_json';
+  _type TEXT;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here To avoid
+    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
     -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
     LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
     INSERT INTO command_types (id, type)
@@ -114,6 +113,46 @@ BEGIN
         ON CONFLICT (type) DO NOTHING;
   END IF;
 
+  FOR _type IN (
+    SELECT DISTINCT row->0->>'aggregate_type' AS type
+      FROM jsonb_array_elements(_aggregates_with_events) AS row
+    EXCEPT
+    SELECT type FROM aggregate_types
+    ORDER BY 1
+  ) LOOP
+    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
+    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
+    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
+    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
+    INSERT INTO aggregate_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM aggregate_types), _type)
+        ON CONFLICT (type) DO NOTHING;
+  END LOOP;
+
+  FOR _type IN (
+    SELECT DISTINCT events->>'event_type' AS type
+      FROM jsonb_array_elements(_aggregates_with_events) AS row
+           CROSS JOIN LATERAL jsonb_array_elements(row->1) AS events
+    EXCEPT
+    SELECT type FROM event_types
+    ORDER BY 1
+  ) LOOP
+    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
+    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
+    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
+    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
+    LOCK TABLE event_types IN ACCESS EXCLUSIVE MODE;
+    INSERT INTO event_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM event_types), _type)
+        ON CONFLICT (type) DO NOTHING;
+  END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION store_command(_command jsonb) RETURNS bigint
+LANGUAGE plpgsql AS $$
+DECLARE
+  _id commands.id%TYPE;
+  _command_json jsonb = _command->'command_json';
+BEGIN
   INSERT INTO commands (
     created_at, user_id, aggregate_id, command_type_id, command_json,
     event_aggregate_id, event_sequence_number
@@ -142,38 +181,10 @@ DECLARE
   _events_partition_key aggregates.events_partition_key%TYPE;
   _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
   _unique_keys jsonb;
-  _type TEXT;
 BEGIN
+  CALL update_types(_command, _aggregates_with_events);
+
   _command_id = store_command(_command);
-
-  FOR _type IN (
-    SELECT DISTINCT row->0->>'aggregate_type' AS type
-      FROM jsonb_array_elements(_aggregates_with_events) AS row
-    EXCEPT
-    SELECT type FROM aggregate_types
-    ORDER BY 1
-  ) LOOP
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here To avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO aggregate_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM aggregate_types), _type)
-        ON CONFLICT (type) DO NOTHING;
-  END LOOP;
-
-  FOR _type IN (
-    SELECT DISTINCT events->>'event_type' AS type
-      FROM jsonb_array_elements(_aggregates_with_events) AS row
-           CROSS JOIN LATERAL jsonb_array_elements(row->1) AS events
-    EXCEPT
-    SELECT type FROM event_types
-    ORDER BY 1
-  ) LOOP
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here To avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE event_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO event_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM event_types), _type)
-        ON CONFLICT (type) DO NOTHING;
-  END LOOP;
 
   FOR _aggregate IN SELECT row->0 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
