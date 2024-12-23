@@ -4,6 +4,8 @@
 
 # Changelog 8.0.0 (changes since 7.2.0)
 
+- Check the [upgrade guide](https://sequent.io/docs/upgrade-guide.html)
+  for upgrading an existing application using Sequent < 8.
 - Sequent now requires at least Ruby 3.2, ActiveRecord 7.1, and
   PostgreSQL 14.
 - The internal database schema has been re-organized to support table
