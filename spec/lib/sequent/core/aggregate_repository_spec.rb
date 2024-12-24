@@ -481,5 +481,36 @@ describe Sequent::Core::AggregateRepository do
         expect(aggregate.first.pinged).to eq(2)
       end
     end
+
+    context 'with unique keys' do
+      class DummyWithUniqueKeysCreated < Sequent::Core::Event
+        attrs unique_keys: Object
+      end
+
+      class DummyAggregateWithUniqueKeys < Sequent::Core::AggregateRoot
+        def initialize(id, unique_keys)
+          super(id)
+          apply DummyWithUniqueKeysCreated, unique_keys:
+        end
+
+        def unique_keys
+          @unique_keys || {}
+        end
+
+        on DummyWithUniqueKeysCreated do |event|
+          @unique_keys = event.unique_keys
+        end
+      end
+
+      it 'enforces key uniqueness with the same scope' do
+        dummy1 = DummyAggregateWithUniqueKeys.new(Sequent.new_uuid, {email: 'test@example.com'})
+        dummy2 = DummyAggregateWithUniqueKeys.new(Sequent.new_uuid, {email: 'test@example.com'})
+        Sequent.aggregate_repository.add_aggregate(dummy1)
+        Sequent.aggregate_repository.add_aggregate(dummy2)
+
+        expect { Sequent.aggregate_repository.commit(DummyCommand.new) }
+          .to raise_error Sequent::Core::EventStore::AggregateKeyNotUniqueError
+      end
+    end
   end
 end

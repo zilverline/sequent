@@ -18,6 +18,9 @@ module Sequent
       class OptimisticLockingError < RuntimeError
       end
 
+      class AggregateKeyNotUniqueError < RuntimeError
+      end
+
       class DeserializeEventError < RuntimeError
         attr_reader :event_hash
 
@@ -250,8 +253,12 @@ module Sequent
             Sequent::Core::Oj.dump(events),
           ],
         )
-      rescue ActiveRecord::RecordNotUnique
-        raise OptimisticLockingError
+      rescue ActiveRecord::RecordNotUnique => e
+        if e.message =~ /duplicate aggregate key value/
+          raise AggregateKeyNotUniqueError
+        else
+          raise OptimisticLockingError
+        end
       end
 
       def convert_timestamp(timestamp)
