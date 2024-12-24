@@ -98,12 +98,17 @@ module Sequent
         "#{self.class.name}: #{@id}"
       end
 
+      def unique_keys
+        {}
+      end
+
       def event_stream
         EventStream.new(
           aggregate_type: self.class.name,
           aggregate_id: id,
           events_partition_key: events_partition_key,
           snapshot_outdated_at: snapshot_outdated? ? Time.now : nil,
+          unique_keys:,
         )
       end
 
