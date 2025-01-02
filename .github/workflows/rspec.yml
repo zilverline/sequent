@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - v7.x
   pull_request:
     branches:
       - '**'
@@ -88,7 +89,7 @@ jobs:
       - name: Run integration tests simple
         run: |
           cd integration-specs/simple
-          bundle exec rspec    
+          bundle exec rspec
 
   integration_rails:
     env:
@@ -123,4 +124,3 @@ jobs:
           bundle exec rake sequent:db:create_event_store
           bundle exec rake sequent:db:create_view_schema
           bundle exec rspec spec
-      
