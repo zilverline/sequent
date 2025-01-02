@@ -3,11 +3,9 @@ name: rspec
 on:
   push:
     branches:
-      - master
       - v7.x
-  pull_request:
-    branches:
-      - '**'
+  pull_request_target:
+    branches: [v7.x]
 
 env:
   SEQUENT_ENV: test
