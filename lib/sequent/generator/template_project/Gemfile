@@ -2,7 +2,7 @@ source "https://rubygems.org"
 ruby file: ".ruby-version"
 
 gem 'rake'
-gem 'sequent'
+gem 'sequent', '~> 7.2'
 
 group :test do
   gem 'rspec'
