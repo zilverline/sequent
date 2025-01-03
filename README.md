@@ -42,7 +42,7 @@ Ensure the version in `lib/version.rb` is the new version. If not change it and 
 
 Then run `rake release`. A git tag will be created and pushed, and the new version of the gem will be pushed to rubygems.
 
-Increase version to new working version, update the sequent version for all the `gemfiles`: 
+Increase version to new working version, update the sequent version for all the `gemfiles`:
 
 ```
 BUNDLE_GEMFILE=gemfiles/ar_6_0.gemfile bundle update sequent --conservative
@@ -50,6 +50,7 @@ BUNDLE_GEMFILE=gemfiles/ar_6_1.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_7_0.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_7_1.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_7_2.gemfile bundle update sequent --conservative
+BUNDLE_GEMFILE=gemfiles/ar_8_0.gemfile bundle update sequent --conservative
 ```
 
 ## Running the specs
