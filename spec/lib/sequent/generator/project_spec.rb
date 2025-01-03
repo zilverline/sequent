@@ -58,10 +58,20 @@ describe Sequent::Generator::Project do
     expect(File.read('blog-with_special-symbols/Rakefile')).to include("require './blog_with_special_symbols'")
   end
 
-  # Ignore for now until we find a way to correctly test the template project
-  # against the locally checked out sequent code.
-  xit 'has working example with specs' do
+  it 'has working example with specs' do
     execute
+
+    contents = File.read('blog-with_special-symbols/Gemfile')
+    File.write(
+      'blog-with_special-symbols/Gemfile',
+      contents.lines.map do |line|
+        if line =~ /sequent/
+          "gem 'sequent', path: '../../..'\n"
+        else
+          line
+        end
+      end.join,
+    )
 
     Bundler.with_unbundled_env do
       # Change default database configuration
@@ -71,6 +81,7 @@ describe Sequent::Generator::Project do
       system 'bash', '-cex', <<~SCRIPT
         cd blog-with_special-symbols
         export SEQUENT_ENV=test
+        export BUNDLE_GEMFILE=./Gemfile
 
         ruby_version=$(ruby -v | awk '{print $2}' | grep -o '^[0-9.]*')
         echo "$ruby_version" > .ruby-version
