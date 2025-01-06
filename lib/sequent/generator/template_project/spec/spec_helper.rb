@@ -10,8 +10,6 @@ require 'database_cleaner'
 
 require_relative '../my_app'
 
-Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: 'test')
-
 module DomainTests
   def self.included(base)
     base.metadata[:domain_tests] = true
@@ -21,6 +19,14 @@ end
 RSpec.configure do |config|
   config.include Sequent::Test::CommandHandlerHelpers
   config.include DomainTests, file_path: %r{/spec\/lib/}
+
+  config.before :suite do
+    Sequent::Support::Database.connect!('test')
+    Sequent::Support::Database.drop_schema!(Sequent.configuration.view_schema_name)
+    Sequent::Support::Database.drop_schema!(Sequent.configuration.event_store_schema_name)
+
+    Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: 'test')
+  end
 
   # Domain tests run with a clean sequent configuration and the in memory FakeEventStore
   config.around :each, :domain_tests do |example|
