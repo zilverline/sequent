@@ -22,6 +22,10 @@ module Sequent
         attrs keys: array(String)
       end
 
+      class MoveUniqueKeysCommand < Sequent::Core::Command
+        attrs to_aggregate_id: String, keys: array(String)
+      end
+
       class UniqueKeysEvent < Sequent::Core::Event
         attrs keys: array(String)
       end
@@ -33,7 +37,15 @@ module Sequent
         end
 
         def unique_keys
-          @keys.to_h { |key| [key, key] }
+          @keys.to_h { |key| [key, key] }.symbolize_keys
+        end
+
+        def add_keys(keys)
+          apply UniqueKeysEvent, keys: @keys.union(keys)
+        end
+
+        def remove_keys(keys)
+          apply UniqueKeysEvent, keys: @keys - keys
         end
 
         on UniqueKeysEvent do |event|
@@ -45,14 +57,23 @@ module Sequent
         on UniqueKeysCommand do |command|
           repository.add_aggregate UniqueKeysAggregate.new(command)
         end
+
+        on MoveUniqueKeysCommand do |command|
+          do_with_aggregate(command, UniqueKeysAggregate, command.aggregate_id) do |from|
+            do_with_aggregate(command, UniqueKeysAggregate, command.to_aggregate_id) do |to|
+              from.remove_keys(command.keys)
+              to.add_keys(command.keys)
+            end
+          end
+        end
       end
 
       it 'allows an aggregate with multiple unique keys' do
         when_command UniqueKeysCommand.new(aggregate_id:, keys: %w[a b])
-        expect(Sequent.configuration.event_store.unique_keys).to eq(
+        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id).unique_keys).to eq(
           {
-            %w[a a] => aggregate_id,
-            %w[b b] => aggregate_id,
+            a: 'a',
+            b: 'b',
           },
         )
       end
@@ -60,10 +81,31 @@ module Sequent
       it 'allows an aggregate with multiple unique keys to change a key' do
         given_events UniqueKeysEvent.new(aggregate_id:, sequence_number: 1, keys: %w[a b])
         when_command UniqueKeysCommand.new(aggregate_id:, keys: %w[a c])
-        expect(Sequent.configuration.event_store.unique_keys).to eq(
+        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id).unique_keys).to eq(
           {
-            %w[a a] => aggregate_id,
-            %w[c c] => aggregate_id,
+            a: 'a',
+            c: 'c',
+          },
+        )
+      end
+
+      it 'allows moving a unique key from one aggregate to another' do
+        given_events UniqueKeysEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, keys: %w[a b]),
+                     UniqueKeysEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1, keys: %w[c])
+        when_command MoveUniqueKeysCommand.new(
+          aggregate_id: aggregate_id_1,
+          to_aggregate_id: aggregate_id_2,
+          keys: %w[b],
+        )
+        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id_1).unique_keys).to eq(
+          {
+            a: 'a',
+          },
+        )
+        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id_2).unique_keys).to eq(
+          {
+            b: 'b',
+            c: 'c',
           },
         )
       end

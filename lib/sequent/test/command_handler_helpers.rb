@@ -41,8 +41,6 @@ module Sequent
       class FakeEventStore
         extend Forwardable
 
-        attr_reader :unique_keys
-
         def initialize
           @event_streams = {}
           @all_events = {}
