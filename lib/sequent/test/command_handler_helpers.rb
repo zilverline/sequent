@@ -45,6 +45,7 @@ module Sequent
           @event_streams = {}
           @all_events = {}
           @stored_events = []
+          @unique_keys = {}
         end
 
         def load_events(aggregate_id)
@@ -76,6 +77,11 @@ module Sequent
             @all_events[event_stream.aggregate_id] ||= []
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
+            event_stream.unique_keys.each do |scope, key|
+              fail Sequent::Core::AggregateKeyNotUniqueError if @unique_keys.include?([scope, key])
+
+              @unique_keys[[scope, key]] = event_stream.aggregate_id
+            end
           end
           publish_events(streams_with_events.flat_map { |_, events| events })
         end
@@ -99,26 +105,19 @@ module Sequent
 
         private
 
-        def to_event_streams(events)
+        def to_event_streams(uncommitted_events)
           # Specs use a simple list of given events.
           # We need a mapping from StreamRecord to the associated events for the event store.
-          streams_by_aggregate_id = {}
-          events.map do |event|
-            event_stream = streams_by_aggregate_id.fetch(event.aggregate_id) do |aggregate_id|
-              streams_by_aggregate_id[aggregate_id] =
-                find_event_stream(aggregate_id) ||
-                begin
-                  aggregate_type = aggregate_type_for_event(event)
-                  unless aggregate_type
-                    fail <<~EOS
-                      Cannot find aggregate type associated with creation event #{event}, did you include an event handler in your aggregate for this event?
-                    EOS
-                  end
-
-                  Sequent::Core::EventStream.new(aggregate_type: aggregate_type.name, aggregate_id: aggregate_id)
-                end
+          uncommitted_events.group_by(&:aggregate_id).values.map do |events|
+            aggregate_type = aggregate_type_for_event(events[0])
+            unless aggregate_type
+              fail <<~EOS
+                Cannot find aggregate type associated with creation event #{events[0]}, did you include an event handler in your aggregate for this event?
+              EOS
             end
-            [event_stream, [event]]
+
+            aggregate = aggregate_type.load_from_history(nil, events)
+            [aggregate.event_stream, events]
           end
         end
 

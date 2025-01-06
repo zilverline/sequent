@@ -235,7 +235,6 @@ Create `spec/lib/author/author_command_handler_spec.rb` with:
 ```ruby
 require_relative '../../spec_helper'
 require_relative '../../../lib/author'
-require_relative '../../../lib/usernames'
 
 describe AuthorCommandHandler do
   before :each do
@@ -262,29 +261,32 @@ We will stick to Sequent's suggested directory structure, so we will end up with
 blog.rb
 lib/           # Contains your domain logic
   author.rb    # Requires all author/*.rb
-  usernames.rb # Requires all usernames/*.rb
   author/      # Contains the author related domain classes
     author.rb
     events.rb
     commands.rb
     author_command_handler.rb
-  usernames/   # Contains the usernames related domain classes
-    usernames.rb
-    events.rb
 ```
 
 #### Author aggregate root
 
-Create `lib/author/author.rb` with:
+Create the basic code by running `sequent generate aggregate author`. Now `lib/author/author.rb` has:
 
 ```ruby
 class Author < Sequent::AggregateRoot
+  def initialize(command)
+    super(command.aggregate_id)
+    apply AuthorAdded
+  end
+
+  on AuthorAdded do
+  end
 end
 ```
 
 #### Author command
 
-Let's create the command to add an `Author`. Create `lib/author/commands.rb` with:
+Let's update the `AddAuthor` with some useful attributes. Update `lib/author/commands.rb` to:
 
 ```ruby
 class AddAuthor < Sequent::Command
@@ -295,10 +297,14 @@ end
 
 #### Author command handler
 
-Create `lib/author/author_command_handler.rb` and add the new `AuthorCommandHandler` class:
+The `lib/author/author_command_handler.rb` is already generated to instantiate and save the author
+on the `AddAuthor` command:
 
 ```ruby
 class AuthorCommandHandler < Sequent::CommandHandler
+  on AddAuthor do |command|
+    repository.add_aggregate Author.new(command)
+  end
 end
 ```
 
@@ -307,65 +313,17 @@ Require the new `Author` aggregate by adding the following to `blog.rb`:
 require_relative 'lib/author'
 ```
 
-Create `lib/author.rb` to require the files in `lib/author`:
-```ruby
-require_relative 'author/commands'
-require_relative 'author/author'
-require_relative 'author/author_command_handler'
-```
-
-### Usernames aggregate root
-
-One of the things we need to do, is to check the uniqueness of the Author's email. Since we only store the events in the
-event store, we can not simply add a unique constraint to ensure uniqueness. A common solution to this problem is to
-create yet another Aggregate responsible for maintaining all usernames.
-We will name this Aggregate `Usernames`. Since it needs to ensure uniqueness, there can be only one instance of this.
-In order to achieve that, we create the Usernames class as a [Singleton](https://refactoring.guru/design-patterns/singleton).
-
-Create `lib/usernames/usernames.rb` with:
-
-```ruby
-class Usernames < Sequent::AggregateRoot
-  class UsernameAlreadyRegistered < StandardError; end
-
-  # We can generate and hardcode the UUID since there is only one instance
-  ID = "85507d60-8645-4a8a-bdb8-3a9c86a0c635"
-
-  def self.instance(id = ID)
-    Sequent.aggregate_repository.load_aggregate(id)
-  rescue Sequent::Core::AggregateRepository::AggregateNotFound
-    usernames = Usernames.new(id)
-    Sequent.aggregate_repository.add_aggregate(usernames)
-    usernames
-  end
-end
-```
-
-Require the new `Usernames` aggregates by adding the following to `blog.rb`:
-```ruby
-require_relative 'lib/usernames'
-```
-
-Create `lib/usernames.rb` to require the files in `lib/usernames`:
-```ruby
-require_relative 'usernames/usernames'
-```
-
-We can now obtain the `Usernames` Aggregate by invoking `Usernames.instance`. Next thing we want to do is create the
-`AuthorCommandHandler` and add an Author.
-
 ### Author command handler
+
 When we run the tests in `spec/lib/author/author_command_handler_spec.rb`, all are marked as `Pending: Not yet
-implemented`. Before we can go any further, we need to think about what kind of Events we are interested in.
-What do we want to know in this case? When registering our very first `Author`, it will not only create the Author,
-but also create our `Usernames` Aggregate to ensure uniqueness of the usernames.
+implemented`. Before we can go any further, we need to think about what kind of Events we are interested in.  What
+do we want to know in this case? When registering our very first `Author`, it create the Author, and it's unique
+keys will ensure uniqueness of the usernames.
 
 The test will read something like:
 ```
 When i add an Author for the first time
-Then the Usernames registry is created
-And the username is checked for uniqueness and added to the Usernames
-And the Author is created with the given name and email
+Then the Author is created with the given name and email
 ```
 
 By leveraging Sequent's test DSL we can modify the test we have created for this in
@@ -378,11 +336,9 @@ context AddAuthor do
 
   it 'creates a user when valid input' do
     when_command AddAuthor.new(aggregate_id: user_aggregate_id, name: 'Ben', email: email)
-    then_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
-                UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2),
-                AuthorCreated.new(aggregate_id: user_aggregate_id, sequence_number: 1),
-                AuthorNameSet,
-                AuthorEmailSet.new(aggregate_id: user_aggregate_id, email: email, sequence_number: 3)
+    then_events AuthorAdded.new(aggregate_id: user_aggregate_id, sequence_number: 1, name: 'Ben', email: email),
+                AuthorNameSet.new(aggregate_id: user_aggregate_id, sequence_number: 2, name: 'Ben'),
+                AuthorEmailSet.new(aggregate_id: user_aggregate_id, email: 'ben@sequent.io', sequence_number: 3)
   end
   it 'fails if the username already exists'
   it 'ignores case in usernames'
@@ -398,62 +354,11 @@ You should take these considerations into account when modelling your domain and
 
 Let's create the necessary code to make the test pass.
 
-#### Usernames events
-
-Create `lib/usernames/events.rb` with:
-
-```ruby
-class UsernamesCreated < Sequent::Event
-end
-
-class UsernameAdded < Sequent::Event
-end
-```
-
-and require the file by updating `lib/usernames.rb` to:
-```ruby
-require_relative 'usernames/events'
-require_relative 'usernames/usernames'
-```
-
-As you can see the events have no attributes yet. This is not necessary to make this test pass. Sequent only looks at
-the defined attributes and sets those as values on the event, in the event store. Therefore all attributes you want to
-include on an event, need to be explicitly declared.
-
-#### Update Usernames aggregate root
-Update `lib/usernames/usernames.rb` to:
-
-```ruby
-class Usernames < Sequent::AggregateRoot
-  class UsernameAlreadyRegistered < StandardError; end
-
-  # We can generate and hardcode the UUID since there is only one instance
-  ID = '85507d60-8645-4a8a-bdb8-3a9c86a0c635'
-
-  def self.instance(id = ID)
-    Sequent.aggregate_repository.load_aggregate(id)
-  rescue Sequent::Core::AggregateRepository::AggregateNotFound
-    usernames = Usernames.new(id)
-    Sequent.aggregate_repository.add_aggregate(usernames)
-    usernames
-  end
-
-  def initialize(id)
-    super(id)
-    apply UsernamesCreated
-  end
-
-  def add(username)
-    apply UsernameAdded, username: username
-  end
-end
-```
-
 #### Author events
 
 Create `lib/author/events.rb` with:
 ```ruby
-class AuthorCreated < Sequent::Event
+class AuthorAdded < Sequent::Event
 end
 
 class AuthorNameSet < Sequent::Event
@@ -465,35 +370,27 @@ class AuthorEmailSet < Sequent::Event
 end
 ```
 
-and require the file by adding to `lib/author.rb`:
-```ruby
-require_relative 'author/events'
-```
-
 #### Update Author aggregate root
 
 Update `lib/author/author.rb` to:
+
 ```ruby
 class Author < Sequent::AggregateRoot
   def initialize(command)
     super(command.aggregate_id)
-    apply AuthorCreated
+    apply AuthorAdded
     apply AuthorNameSet, name: command.name
     apply AuthorEmailSet, email: command.email
   end
 end
 ```
 
-#### Update Author command handler
+Also add an `AuthorEmailSet` event handler to store the email:
 
-Update `lib/author/author_command_handler.rb` to:
 ```ruby
-class AuthorCommandHandler < Sequent::CommandHandler
-  on AddAuthor do |command|
-    Usernames.instance.add(command.email)
-    repository.add_aggregate(Author.new(command))
+  on AuthorEmailSet do |event|
+    @email = event.email
   end
-end
 ```
 
 The [Author command handler test](#author-command-handler) will now pass.
@@ -511,16 +408,17 @@ Then it should fail
 Replace the matching test case in `spec/lib/author/author_command_handler_spec.rb` to:
 
 ```ruby
-it "fails if the username already exists" do
-  given_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
-               UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2)
+it 'fails if the username already exists' do
+  given_events AuthorAdded.new(aggregate_id: user_aggregate_id, sequence_number: 1),
+               AuthorNameSet.new(aggregate_id: user_aggregate_id, sequence_number: 2, name: 'Ben'),
+               AuthorEmailSet.new(aggregate_id: user_aggregate_id, sequence_number: 3, email: 'ben@sequent.io')
   expect {
     when_command AddAuthor.new(
-      aggregate_id: Sequent.new_uuid,
-      name: 'kim',
-      email: 'ben@sequent.io'
-    )
-  }.to raise_error Usernames::UsernameAlreadyRegistered
+                   aggregate_id: Sequent.new_uuid,
+                   name: 'kim',
+                   email: 'ben@sequent.io'
+                 )
+  }.to raise_error Sequent::Core::AggregateKeyNotUniqueError
 end
 ```
 
@@ -528,24 +426,13 @@ When we run this spec we get the following error message:
 
 ```text
 RuntimeError:
-  Cannot find aggregate type associated with creation event {UsernamesCreated: @aggregate_id=[85507d60-8645-4a8a-bdb8-3a9c86a0c635], @sequence_number=[1], @created_at=[2024-10-09 15:56:54 +0200]}, did you include an event handler in your aggregate for this event?
+  Cannot find aggregate type associated with creation event {AuthorAdded: ...}, did you include an event handler in your aggregate for this event?
 ```
 
 Sequent requires us to define an event handler in the Aggregate for at least the creation event, otherwise Sequent is
 not able to find an Aggregate in the repository.
 
-So let's change our aggregates to satisfy this demand.
-
-Add to `Usernames` in `lib/usernames/usernames.rb`:
-```ruby
-class Usernames < Sequent::AggregateRoot
-  ...
-
-  on UsernamesCreated do
-
-  end
-end
-```
+So let's change our aggregate to satisfy this demand.
 
 Add to `Author` in `lib/author/author.rb`
 
@@ -554,91 +441,58 @@ class Author < Sequent::AggregateRoot
   ...
 
   on AuthorCreated do
-
   end
 end
 ```
 
 Running the test case again results in the following error:
+
 ```text
-expected Usernames::UsernameAlreadyRegistered but nothing was raised
+expected Sequent::Core::AggregateKeyNotUniqueError but nothing was raised
 ```
 
-This is as expected, since we didn't implement anything. Let's start by enforcing uniqueness.
-
-Change the `Usernames` aggregate as follows:
+This is as expected, since we haven't told Sequent about this unique constraint yet. So to enforce uniqueness of
+the author's username define it as a unique key on the `Author` aggregate by adding the following method after
+`initialize`:
 
 ```ruby
-class Usernames < Sequent::AggregateRoot
-  ...
-
-  def add(username)
-    fail UsernameAlreadyRegistered if @usernames.include?(username)
-
-    apply UsernameAdded, username: username
+  def unique_keys
+    {
+      author_email: {email: @email},
+    }
   end
-
-  on UsernamesCreated do
-    @usernames = Set.new
-  end
-
-  on UsernameAdded do |event|
-    @usernames << event.username
-  end
-end
 ```
 
-The `UsernameAdded` event in `lib/usernames/events.rb` needs to contain the username attribute to make the test pass:
-
-```ruby
-class UsernameAdded < Sequent::Event
-  attrs username: String
-end
-```
-
-The event handlers `UsernamesCreated` and `UsernameAdded` will keep track of the current usernames in a `Set`.
-Whenever a new name is being added, we first check if the name does not yet exist. If it does not exist, a new event is
-applied. The test case now passes successfully.
+The test case now passes successfully.
 
 
 ### Author email case insensitive
 
-Let's finish up by implementing our last test to check that string case is ignored when registering an Author.
-
 Replace the matching test case in `spec/lib/author/author_command_handler_spec.rb` to:
 
 ```ruby
-it "ignores case in usernames" do
-  given_events UsernamesCreated.new(aggregate_id: Usernames::ID, sequence_number: 1),
-               UsernameAdded.new(aggregate_id: Usernames::ID, username: email, sequence_number: 2)
+it 'ignores case in usernames' do
+  given_events AuthorAdded.new(aggregate_id: user_aggregate_id, sequence_number: 1),
+               AuthorNameSet.new(aggregate_id: user_aggregate_id, sequence_number: 2, name: 'Ben'),
+               AuthorEmailSet.new(aggregate_id: user_aggregate_id, sequence_number: 3, email: 'ben@sequent.io')
   expect {
     when_command AddAuthor.new(
-      aggregate_id: Sequent.new_uuid,
-      name: 'kim',
-      email: 'BeN@SeQuEnT.io'
-    )
-  }.to raise_error Usernames::UsernameAlreadyRegistered
+                   aggregate_id: Sequent.new_uuid,
+                   name: 'kim',
+                   email: 'BeN@SeQuEnT.io'
+                 )
+  }.to raise_error Sequent::Core::AggregateKeyNotUniqueError
 end
 ```
 
-We change our `Usernames` aggregate to satisfy this requirement as follows in `lib/usernames/usernames.rb`:
+We change our unique keys implementation to normalize the email address:
 
 ```ruby
-class Usernames < Sequent::AggregateRoot
-  ...
-
-  def add(username)
-    fail UsernameAlreadyRegistered if @usernames.include?(username.downcase)
-
-    apply UsernameAdded, username: username
+  def unique_keys
+    {
+      author_email: {email: @email.downcase},
+    }
   end
-
-  ...
-
-  on UsernameAdded do |event|
-    @usernames << event.username.downcase
-  end
-end
 ```
 
 ### Adding a Post using the new Author Aggregate Root
@@ -702,7 +556,7 @@ In this guide we:
 
 1. Explored the generated `Post` AggregateRoot.
 2. Added new functionality to publish a `Post`.
-3. Added a new Aggregate `Author` and `Usernames` and showed how Aggregates can depend on each other.
+3. Added a new Aggregate `Author` and showed how Aggregates can depend on each other.
 4. Explored how to add tests in Sequent in order to test the domain.
 
 In this guide we mainly focussed on the domain. In the [next guide](/docs/building-a-web-application.html) we will take
