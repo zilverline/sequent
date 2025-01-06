@@ -160,6 +160,15 @@ BEGIN
    ORDER BY 1
       ON CONFLICT DO NOTHING;
 
+  FOR _aggregate IN SELECT row->0 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
+    _aggregate_id = _aggregate->>'aggregate_id';
+    _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
+
+    DELETE FROM aggregate_unique_keys AS target
+     WHERE target.aggregate_id = _aggregate_id
+       AND NOT (_unique_keys ? target.scope);
+  END LOOP;
+
   FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row
                              ORDER BY row->0->'aggregate_id', row->1->0->'event_json'->'sequence_number'
   LOOP
@@ -180,10 +189,6 @@ BEGIN
     ) ON CONFLICT (aggregate_id)
       DO UPDATE SET events_partition_key = EXCLUDED.events_partition_key
               WHERE aggregates.events_partition_key IS DISTINCT FROM EXCLUDED.events_partition_key;
-
-    DELETE FROM aggregate_unique_keys AS target
-     WHERE target.aggregate_id = _aggregate_id
-       AND NOT (_unique_keys ? target.scope);
 
     BEGIN
       INSERT INTO aggregate_unique_keys AS target (aggregate_id, scope, key)

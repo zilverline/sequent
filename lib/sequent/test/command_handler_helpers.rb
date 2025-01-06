@@ -41,6 +41,8 @@ module Sequent
       class FakeEventStore
         extend Forwardable
 
+        attr_reader :unique_keys
+
         def initialize
           @event_streams = {}
           @all_events = {}
@@ -71,17 +73,23 @@ module Sequent
         end
 
         def commit_events(_, streams_with_events)
+          keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
+            streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
+          end
+          @unique_keys = keys.merge(
+            *streams_with_events.map do |stream, _|
+              stream.unique_keys.to_h { |scope, key| [[scope, key], stream.aggregate_id] }
+            end,
+          ) do |_key, id_1, id_2|
+            fail Sequent::Core::AggregateKeyNotUniqueError if id_1 != id_2
+          end
+
           streams_with_events.each do |event_stream, events|
             serialized = serialize_events(events)
             @event_streams[event_stream.aggregate_id] = event_stream
             @all_events[event_stream.aggregate_id] ||= []
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
-            event_stream.unique_keys.each do |scope, key|
-              fail Sequent::Core::AggregateKeyNotUniqueError if @unique_keys.include?([scope, key])
-
-              @unique_keys[[scope, key]] = event_stream.aggregate_id
-            end
           end
           publish_events(streams_with_events.flat_map { |_, events| events })
         end
