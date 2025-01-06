@@ -9,6 +9,9 @@ require_relative 'snapshot_store'
 
 module Sequent
   module Core
+    class AggregateKeyNotUniqueError < RuntimeError
+    end
+
     class EventStore
       include Helpers::PgsqlHelpers
       include SnapshotStore
@@ -16,9 +19,6 @@ module Sequent
       extend Forwardable
 
       class OptimisticLockingError < RuntimeError
-      end
-
-      class AggregateKeyNotUniqueError < RuntimeError
       end
 
       class DeserializeEventError < RuntimeError

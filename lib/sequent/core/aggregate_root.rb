@@ -98,6 +98,26 @@ module Sequent
         "#{self.class.name}: #{@id}"
       end
 
+      # Some aggregates represent a unique external entity (e.g. a
+      # user's email address or login name) and this uniqueness needs
+      # to be enforced. For each unique key the returned object should
+      # have an entry where the key of the entry describes the scope
+      # of the constraint (e.g. `user_email` or `login_name`) and the
+      # value represents the unique value. Values can be any JSON
+      # value (string, object, array, etc). Note that uniqueness is
+      # enforced across all aggregate types if the same scope is used.
+      #
+      # An `AggregateKeyNotUniqueError` is raised if a unique
+      # constrained is violated when committing the events to the
+      # database.
+      #
+      # Sample return value:
+      #
+      # ```
+      # {
+      #   user_email: { email: 'bob@example.com' }
+      # }
+      # ```
       def unique_keys
         {}
       end

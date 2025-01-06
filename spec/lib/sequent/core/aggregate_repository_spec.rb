@@ -509,7 +509,7 @@ describe Sequent::Core::AggregateRepository do
         Sequent.aggregate_repository.add_aggregate(dummy2)
 
         expect { Sequent.aggregate_repository.commit(DummyCommand.new) }
-          .to raise_error Sequent::Core::EventStore::AggregateKeyNotUniqueError
+          .to raise_error Sequent::Core::AggregateKeyNotUniqueError
       end
     end
   end
