@@ -39,8 +39,6 @@ module Sequent
     # end
     module CommandHandlerHelpers
       class FakeEventStore
-        extend Forwardable
-
         def initialize
           @event_streams = {}
           @all_events = {}
@@ -64,10 +62,6 @@ module Sequent
 
         def find_event_stream(aggregate_id)
           @event_streams[aggregate_id]
-        end
-
-        def stored_events
-          deserialize_events(@stored_events)
         end
 
         def commit_events(_, streams_with_events)
@@ -96,11 +90,6 @@ module Sequent
           Sequent.configuration.event_publisher.publish_events(events)
         end
 
-        def given_events(events)
-          commit_events(nil, to_event_streams(events))
-          @stored_events = []
-        end
-
         def stream_exists?(aggregate_id)
           @event_streams.key?(aggregate_id)
         end
@@ -109,30 +98,15 @@ module Sequent
           @event_streams[aggregate_id].present?
         end
 
+        def position_mark
+          @stored_events.length
+        end
+
+        def load_events_since_marked_position(mark)
+          [deserialize_events(@stored_events[mark..]), position_mark]
+        end
+
         private
-
-        def to_event_streams(uncommitted_events)
-          # Specs use a simple list of given events.
-          # We need a mapping from StreamRecord to the associated events for the event store.
-          uncommitted_events.group_by(&:aggregate_id).values.map do |events|
-            aggregate_type = aggregate_type_for_event(events[0])
-            unless aggregate_type
-              fail <<~EOS
-                Cannot find aggregate type associated with creation event #{events[0]}, did you include an event handler in your aggregate for this event?
-              EOS
-            end
-
-            aggregate = aggregate_type.load_from_history(nil, events)
-            [aggregate.event_stream, events]
-          end
-        end
-
-        def aggregate_type_for_event(event)
-          @event_to_aggregate_type ||= ThreadSafe::Cache.new
-          @event_to_aggregate_type.fetch_or_store(event.class) do |klass|
-            Sequent::Core::AggregateRoot.descendants.find { |x| x.message_mapping.key?(klass) }
-          end
-        end
 
         def serialize_events(events)
           events.map { |event| [event.class.name, Sequent::Core::Oj.dump(event)] }
@@ -146,7 +120,11 @@ module Sequent
       end
 
       def given_events(*events)
-        Sequent.configuration.event_store.given_events(events.flatten(1))
+        Sequent.configuration.event_store.commit_events(
+          Sequent::Core::BaseCommand.new,
+          to_event_streams(events.flatten(1)),
+        )
+        @helpers_given_events_position_mark = Sequent.configuration.event_store.position_mark
       end
 
       def when_command(command)
@@ -154,13 +132,13 @@ module Sequent
       end
 
       def then_events(*expected_events)
-        expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
-        expect(Sequent.configuration.event_store.stored_events.map(&:class)).to eq(expected_classes)
+        stored_events, @helpers_given_events_position_mark =
+          Sequent.configuration.event_store.load_events_since_marked_position(@helpers_given_events_position_mark)
 
-        Sequent
-          .configuration
-          .event_store
-          .stored_events
+        expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
+        expect(stored_events.map(&:class)).to eq(expected_classes)
+
+        stored_events
           .zip(expected_events.flatten(1))
           .each_with_index do |(actual, expected), index|
             next if expected.instance_of?(Class)
@@ -179,6 +157,31 @@ module Sequent
 
       def then_no_events
         then_events
+      end
+
+      private
+
+      def to_event_streams(uncommitted_events)
+        # Specs use a simple list of given events.
+        # We need a mapping from StreamRecord to the associated events for the event store.
+        uncommitted_events.group_by(&:aggregate_id).values.map do |events|
+          aggregate_type = aggregate_type_for_event(events[0])
+          unless aggregate_type
+            fail <<~EOS
+              Cannot find aggregate type associated with creation event #{events[0]}, did you include an event handler in your aggregate for this event?
+            EOS
+          end
+
+          aggregate = aggregate_type.load_from_history(nil, events)
+          [aggregate.event_stream, events]
+        end
+      end
+
+      def aggregate_type_for_event(event)
+        @helpers_event_to_aggregate_type ||= ThreadSafe::Cache.new
+        @helpers_event_to_aggregate_type.fetch_or_store(event.class) do |klass|
+          Sequent::Core::AggregateRoot.descendants.find { |x| x.message_mapping.key?(klass) }
+        end
       end
     end
   end

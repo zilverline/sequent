@@ -178,6 +178,29 @@ module Sequent
         record&.event_stream
       end
 
+      def position_mark
+        connection.exec_query('SELECT pg_current_snapshot()::text AS mark')[0]['mark']
+      end
+
+      def load_events_since_marked_position(mark)
+        events = connection.execute(
+          Sequent.configuration.event_record_class
+            .where(<<~SQL, {mark:})
+              xact_id >= pg_snapshot_xmin(CAST(:mark AS pg_snapshot))::text::bigint
+                AND NOT pg_visible_in_snapshot(xact_id::text::xid8, CAST(:mark AS pg_snapshot))
+            SQL
+            .select('*, pg_current_snapshot()::text AS mark')
+            .to_sql,
+        ).to_a
+
+        return [[], mark] if events.empty?
+
+        [
+          events.map { |hash| deserialize_event(hash) },
+          events[0]['mark'],
+        ]
+      end
+
       def permanently_delete_event_stream(aggregate_id)
         permanently_delete_event_streams([aggregate_id])
       end

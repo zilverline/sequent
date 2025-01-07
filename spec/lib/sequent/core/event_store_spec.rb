@@ -262,6 +262,37 @@ describe Sequent::Core::EventStore do
         expect(error.cause).to be_a(ActiveRecord::RecordNotUnique)
       }
     end
+
+    it 'can query events stored since a marked position' do
+      event = MyEvent.new(
+        aggregate_id:,
+        sequence_number: 2,
+        created_at: Time.parse('2024-02-29T02:10:12Z'),
+        data: "another event\n",
+      )
+      mark = event_store.position_mark
+
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [
+            Sequent::Core::EventStream.new(
+              aggregate_type: 'MyAggregate',
+              aggregate_id:,
+              snapshot_outdated_at: Time.now,
+            ),
+            [event],
+          ],
+        ],
+      )
+
+      events, updated_mark = event_store.load_events_since_marked_position(mark)
+
+      expect(updated_mark).to_not eq(mark)
+      expect(events).to eq([event])
+
+      expect(event_store.load_events_since_marked_position(updated_mark)[0]).to be_empty
+    end
   end
 
   describe '#permanently_delete_events' do
