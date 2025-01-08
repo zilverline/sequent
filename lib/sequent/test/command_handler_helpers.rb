@@ -164,16 +164,18 @@ module Sequent
       def to_event_streams(uncommitted_events)
         # Specs use a simple list of given events.
         # We need a mapping from StreamRecord to the associated events for the event store.
-        uncommitted_events.group_by(&:aggregate_id).values.map do |events|
-          aggregate_type = aggregate_type_for_event(events[0])
+        uncommitted_events.group_by(&:aggregate_id).map do |aggregate_id, new_events|
+          _, existing_events = Sequent.configuration.event_store.load_events(aggregate_id) || [nil, []]
+          all_events = existing_events + new_events
+          aggregate_type = aggregate_type_for_event(all_events[0])
           unless aggregate_type
             fail <<~EOS
-              Cannot find aggregate type associated with creation event #{events[0]}, did you include an event handler in your aggregate for this event?
+              Cannot find aggregate type associated with creation event #{all_events[0]}, did you include an event handler in your aggregate for this event?
             EOS
           end
 
-          aggregate = aggregate_type.load_from_history(nil, events)
-          [aggregate.event_stream, events]
+          aggregate = aggregate_type.load_from_history(nil, all_events)
+          [aggregate.event_stream, new_events]
         end
       end
 
