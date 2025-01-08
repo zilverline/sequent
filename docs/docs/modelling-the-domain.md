@@ -458,7 +458,7 @@ following declarations to the `Author`:
 
 ```ruby
 attr_reader :email
-unique_key :email, scope: :author_email
+unique_key :author_email, :email
 ```
 
 The test case now passes successfully.
@@ -483,14 +483,11 @@ it 'ignores case in usernames' do
 end
 ```
 
-Instead of the declarative unique we now define it by removing the
-`unique_key` declaration and overriding the `unique_keys` method
-instead:
+Now we need to pass a block to the unique key declaration so that the
+email is normalized before being checked for uniqueness:
 
 ```ruby
-def unique_keys
-  super.merge(author_email: {email: @email.downcase})
-end
+unique_key :user_email, email: -> { email&.downcase }
 ```
 
 ### Adding a Post using the new Author Aggregate Root

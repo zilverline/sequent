@@ -12,9 +12,9 @@ module Sequent
 
           attr_reader :name, :country, :email
 
-          unique_key :name, :country, scope: :country_of_residence
-          unique_key :email, scope: :user_email
-          unique_key :name_hash, scope: :user_name_hash
+          unique_key :country_of_residence, :name, :country
+          unique_key :user_email, email: -> { email&.downcase }
+          unique_key :user_name_hash, name_hash: -> { name&.hash }
 
           def initialize(name:, country:, email:)
             @name = name

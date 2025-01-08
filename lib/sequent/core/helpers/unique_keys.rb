@@ -19,12 +19,19 @@ module Sequent
         module ClassMethods
           attr_reader :unique_key_definitions
 
-          # Defines a unique key for your aggregate. Example usage:
+          # Defines a unique key for your aggregate. The first
+          # parameter is the scope of the unique constraints, followed
+          # by a list of attributes or keywords with blocks to produce
+          # the value that needs to be unique.
+          #
+          # `nil` valued keys are ignored when enforcing uniqueness.
+          #
+          # Example usage:
           #
           # ```
-          # unique_key :email, scope: :user_email
+          # unique_key :user_email, email: ->{ self.email&.downcase }
           # ```
-          def unique_key(*attributes, scope:)
+          def unique_key(scope, *attributes, **kwargs)
             fail ArgumentError, "'#{scope}' is not a symbol" unless scope.is_a?(Symbol)
             fail ArgumentError, 'attributes must be symbols' unless attributes.all? { |attr| attr.is_a?(Symbol) }
 
@@ -32,7 +39,15 @@ module Sequent
 
             fail ArgumentError, "duplicate scope '#{scope}'" if @unique_key_definitions.include?(scope)
 
-            @unique_key_definitions[scope] = attributes
+            @unique_key_definitions[scope] = attributes.to_h do |attr|
+              [attr, -> { send(attr) }]
+            end.merge(
+              kwargs.transform_values do |attr|
+                attr.is_a?(Symbol) ? -> { send(attr) } : attr
+              end,
+            ) do |key|
+              fail ArgumentError, "duplicate attribute '#{key}'"
+            end
           end
         end
 
@@ -52,7 +67,7 @@ module Sequent
 
           self.class.unique_key_definitions
             &.transform_values do |attributes|
-              attributes.to_h { |attr| [attr, send(attr)] }.compact
+              attributes.transform_values { |block| instance_exec(&block) }.compact
             end
             &.delete_if { |_, value| value.empty? }
         end
