@@ -200,7 +200,7 @@ BEGIN
     EXCEPTION
       WHEN unique_violation THEN
         RAISE unique_violation
-        USING MESSAGE = 'duplicate aggregate key value for aggregate ' || _aggregate_id || ' (' || SQLERRM || ')';
+        USING MESSAGE = 'duplicate unique key value for aggregate ' || (_aggregate->>'aggregate_type') || ' ' || _aggregate_id || ' (' || SQLERRM || ')';
     END;
 
     INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)

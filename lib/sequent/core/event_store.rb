@@ -277,8 +277,8 @@ module Sequent
           ],
         )
       rescue ActiveRecord::RecordNotUnique => e
-        if e.message =~ /duplicate aggregate key value/
-          raise AggregateKeyNotUniqueError
+        if e.message =~ /duplicate unique key value for aggregate/
+          raise AggregateKeyNotUniqueError, e.message
         else
           raise OptimisticLockingError
         end
