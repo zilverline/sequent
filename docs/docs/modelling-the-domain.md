@@ -451,16 +451,14 @@ Running the test case again results in the following error:
 expected Sequent::Core::AggregateKeyNotUniqueError but nothing was raised
 ```
 
-This is as expected, since we haven't told Sequent about this unique constraint yet. So to enforce uniqueness of
-the author's username define it as a unique key on the `Author` aggregate by adding the following method after
-`initialize`:
+This is as expected, since we haven't told Sequent about this unique
+constraint yet. So to enforce uniqueness of the author's username
+define it as a unique key on the `Author` aggregate by adding the
+following declarations to the `Author`:
 
 ```ruby
-  def unique_keys
-    {
-      author_email: {email: @email},
-    }
-  end
+attr_reader :email
+unique_key :email, scope: :author_email
 ```
 
 The test case now passes successfully.
@@ -485,14 +483,14 @@ it 'ignores case in usernames' do
 end
 ```
 
-We change our unique keys implementation to normalize the email address:
+Instead of the declarative unique we now define it by removing the
+`unique_key` declaration and overriding the `unique_keys` method
+instead:
 
 ```ruby
-  def unique_keys
-    {
-      author_email: {email: @email.downcase},
-    }
-  end
+def unique_keys
+  super.merge(author_email: {email: @email.downcase})
+end
 ```
 
 ### Adding a Post using the new Author Aggregate Root
