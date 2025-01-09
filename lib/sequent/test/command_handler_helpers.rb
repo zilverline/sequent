@@ -2,6 +2,7 @@
 
 require 'thread_safe'
 require 'sequent/core/event_store'
+require 'rspec'
 
 module Sequent
   module Test
@@ -14,7 +15,22 @@ module Sequent
     # when_command PayInvoiceCommand.new(args)
     # then_events InvoicePaidEvent.new(args)
     #
-    # Example for Rspec config
+    # Given events are applied against the Aggregate so need to represent a correct
+    # sequence of events.
+    #
+    # When a command is executed all generated events are captured and can be
+    # retrieved using `stored_events` or tested using `then_events`.
+    #
+    # The `then_events` expects one class, expected event, or RSpec
+    # matcher for each generated event, in the same order.  Example
+    # for Rspec config. When a class is passed, only the type of the
+    # generated event is tested. When an expected event is passed only
+    # the *payload* is compared using the `have_same_payload_as`
+    # matcher defined by this module (`aggregate_id`,
+    # `sequence_number`, and `created_at` are *not* compared). When an
+    # RSpec matcher is passed the actual event is matched against this
+    # matcher, so you can use `eq` or `have_attributes` to do more
+    # specific matching.
     #
     # RSpec.configure do |config|
     #   config.include Sequent::Test::CommandHandlerHelpers
@@ -119,6 +135,20 @@ module Sequent
         end
       end
 
+      RSpec::Matchers.define :have_same_payload_as do |expected|
+        match do |actual|
+          actual_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
+          expected_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
+          values_match? expected_hash, actual_hash
+        end
+
+        description do
+          expected.to_s
+        end
+
+        diffable
+      end
+
       def given_events(*events)
         Sequent.configuration.event_store.commit_events(
           Sequent::Core::BaseCommand.new,
@@ -132,24 +162,15 @@ module Sequent
       end
 
       def then_events(*expected_events)
-        expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
-        expect(stored_events.map(&:class)).to eq(expected_classes)
-
-        stored_events
-          .zip(expected_events.flatten(1))
-          .each_with_index do |(actual, expected), index|
-            next if expected.instance_of?(Class)
-
-            actual_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
-            expected_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
-            next unless expected
-
-            # rubocop:disable Layout/LineLength
-            expect(actual_hash)
-              .to eq(expected_hash),
-                  "#{index + 1}th Event of type #{actual.class} not equal\nexpected: #{expected_hash.inspect}\n     got: #{actual_hash.inspect}"
-            # rubocop:enable Layout/LineLength
+        matchers = expected_events.flatten(1).map do |expected|
+          if expected.is_a?(Sequent::Core::Event)
+            have_same_payload_as(expected)
+          else
+            expected
           end
+        end
+
+        expect(stored_events).to match(matchers)
       end
 
       def then_no_events
