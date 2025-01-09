@@ -124,17 +124,14 @@ module Sequent
           Sequent::Core::BaseCommand.new,
           to_event_streams(events.flatten(1)),
         )
-        @helpers_given_events_position_mark = Sequent.configuration.event_store.position_mark
       end
 
       def when_command(command)
+        @helpers_events_position_mark = Sequent.configuration.event_store.position_mark
         Sequent.configuration.command_service.execute_commands command
       end
 
       def then_events(*expected_events)
-        stored_events, @helpers_given_events_position_mark =
-          Sequent.configuration.event_store.load_events_since_marked_position(@helpers_given_events_position_mark)
-
         expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
         expect(stored_events.map(&:class)).to eq(expected_classes)
 
@@ -157,6 +154,10 @@ module Sequent
 
       def then_no_events
         then_events
+      end
+
+      def stored_events
+        Sequent.configuration.event_store.load_events_since_marked_position(@helpers_events_position_mark)[0]
       end
 
       private
