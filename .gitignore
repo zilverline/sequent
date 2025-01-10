@@ -5,3 +5,5 @@ coverage
 pkg
 tmp/*
 .vscode
+integration-specs/rails-app/Gemfile.lock
+integration-specs/simple/Gemfile.lock
