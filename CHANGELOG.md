@@ -1,3 +1,8 @@
+# Changelog 8.0.2 (changes since 8.0.1)
+
+- Add support for ActiveRecord 8. Thanks evsasse.
+- Improvements for internal testing of Sequent.
+
 # Changelog 8.0.1 (changes since 8.0.0)
 
 - Fix Sequent CLI
