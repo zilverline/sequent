@@ -4,6 +4,9 @@
   transaction is committed, reducing the need for having aggregates to
   ensure uniqueness or relying on projectors. See
   lib/sequent/core/helpers/unique_keys.rb for details.
+
+  This feature requires a new database, you can find an example
+  migration at `db/migrate/20250108162754_aggregate_unique_keys.rb`.
 - `CommandHandlerHelpers` has been updated to:
   - Load aggregates using the `given_events` so that unique keys can
     be tested. This may require changing your test to correctly set up
