@@ -83,16 +83,21 @@ module Sequent
 
         disconnect!
 
-        if ActiveRecord::VERSION::MAJOR < 6
-          ActiveRecord::Base.configurations[env.to_s] =
-            ActiveSupport::HashWithIndifferentAccess.new(db_config).stringify_keys
-        end
-
         establish_connection(db_config, {schema_search_path: search_path})
         yield
       ensure
         disconnect!
         establish_connection(db_config)
+      end
+
+      def self.with_search_path(search_path)
+        old_search_path = ActiveRecord::Base.connection.select_value("SELECT current_setting('search_path')")
+        begin
+          ActiveRecord::Base.connection.exec_update("SET search_path TO #{search_path}", 'with_search_path')
+          yield
+        ensure
+          ActiveRecord::Base.connection.exec_update("SET search_path TO #{old_search_path}", 'with_search_path')
+        end
       end
 
       def self.schema_exists?(schema, event_records_table = nil)
