@@ -2,6 +2,7 @@
 
 require 'thread_safe'
 require 'sequent/core/event_store'
+require 'rspec'
 
 module Sequent
   module Test
@@ -14,7 +15,22 @@ module Sequent
     # when_command PayInvoiceCommand.new(args)
     # then_events InvoicePaidEvent.new(args)
     #
-    # Example for Rspec config
+    # Given events are applied against the Aggregate so need to represent a correct
+    # sequence of events.
+    #
+    # When a command is executed all generated events are captured and can be
+    # retrieved using `stored_events` or tested using `then_events`.
+    #
+    # The `then_events` expects one class, expected event, or RSpec
+    # matcher for each generated event, in the same order.  Example
+    # for Rspec config. When a class is passed, only the type of the
+    # generated event is tested. When an expected event is passed only
+    # the *payload* is compared using the `have_same_payload_as`
+    # matcher defined by this module (`aggregate_id`,
+    # `sequence_number`, and `created_at` are *not* compared). When an
+    # RSpec matcher is passed the actual event is matched against this
+    # matcher, so you can use `eq` or `have_attributes` to do more
+    # specific matching.
     #
     # RSpec.configure do |config|
     #   config.include Sequent::Test::CommandHandlerHelpers
@@ -39,12 +55,11 @@ module Sequent
     # end
     module CommandHandlerHelpers
       class FakeEventStore
-        extend Forwardable
-
         def initialize
           @event_streams = {}
           @all_events = {}
           @stored_events = []
+          @unique_keys = {}
         end
 
         def load_events(aggregate_id)
@@ -65,11 +80,18 @@ module Sequent
           @event_streams[aggregate_id]
         end
 
-        def stored_events
-          deserialize_events(@stored_events)
-        end
-
         def commit_events(_, streams_with_events)
+          keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
+            streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
+          end
+          @unique_keys = keys.merge(
+            *streams_with_events.map do |stream, _|
+              stream.unique_keys.to_h { |scope, key| [[scope, key], stream.aggregate_id] }
+            end,
+          ) do |_key, id_1, id_2|
+            fail Sequent::Core::AggregateKeyNotUniqueError if id_1 != id_2
+          end
+
           streams_with_events.each do |event_stream, events|
             serialized = serialize_events(events)
             @event_streams[event_stream.aggregate_id] = event_stream
@@ -84,11 +106,6 @@ module Sequent
           Sequent.configuration.event_publisher.publish_events(events)
         end
 
-        def given_events(events)
-          commit_events(nil, to_event_streams(events))
-          @stored_events = []
-        end
-
         def stream_exists?(aggregate_id)
           @event_streams.key?(aggregate_id)
         end
@@ -97,37 +114,15 @@ module Sequent
           @event_streams[aggregate_id].present?
         end
 
+        def position_mark
+          @stored_events.length
+        end
+
+        def load_events_since_marked_position(mark)
+          [deserialize_events(@stored_events[mark..]), position_mark]
+        end
+
         private
-
-        def to_event_streams(events)
-          # Specs use a simple list of given events.
-          # We need a mapping from StreamRecord to the associated events for the event store.
-          streams_by_aggregate_id = {}
-          events.map do |event|
-            event_stream = streams_by_aggregate_id.fetch(event.aggregate_id) do |aggregate_id|
-              streams_by_aggregate_id[aggregate_id] =
-                find_event_stream(aggregate_id) ||
-                begin
-                  aggregate_type = aggregate_type_for_event(event)
-                  unless aggregate_type
-                    fail <<~EOS
-                      Cannot find aggregate type associated with creation event #{event}, did you include an event handler in your aggregate for this event?
-                    EOS
-                  end
-
-                  Sequent::Core::EventStream.new(aggregate_type: aggregate_type.name, aggregate_id: aggregate_id)
-                end
-            end
-            [event_stream, [event]]
-          end
-        end
-
-        def aggregate_type_for_event(event)
-          @event_to_aggregate_type ||= ThreadSafe::Cache.new
-          @event_to_aggregate_type.fetch_or_store(event.class) do |klass|
-            Sequent::Core::AggregateRoot.descendants.find { |x| x.message_mapping.key?(klass) }
-          end
-        end
 
         def serialize_events(events)
           events.map { |event| [event.class.name, Sequent::Core::Oj.dump(event)] }
@@ -140,40 +135,77 @@ module Sequent
         end
       end
 
+      RSpec::Matchers.define :have_same_payload_as do |expected|
+        match do |actual|
+          actual_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
+          expected_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
+          values_match? expected_hash, actual_hash
+        end
+
+        description do
+          expected.to_s
+        end
+
+        diffable
+      end
+
       def given_events(*events)
-        Sequent.configuration.event_store.given_events(events.flatten(1))
+        Sequent.configuration.event_store.commit_events(
+          Sequent::Core::BaseCommand.new,
+          to_event_streams(events.flatten(1)),
+        )
       end
 
       def when_command(command)
+        @helpers_events_position_mark = Sequent.configuration.event_store.position_mark
         Sequent.configuration.command_service.execute_commands command
       end
 
       def then_events(*expected_events)
-        expected_classes = expected_events.flatten(1).map { |event| event.instance_of?(Class) ? event : event.class }
-        expect(Sequent.configuration.event_store.stored_events.map(&:class)).to eq(expected_classes)
-
-        Sequent
-          .configuration
-          .event_store
-          .stored_events
-          .zip(expected_events.flatten(1))
-          .each_with_index do |(actual, expected), index|
-            next if expected.instance_of?(Class)
-
-            actual_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
-            expected_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
-            next unless expected
-
-            # rubocop:disable Layout/LineLength
-            expect(actual_hash)
-              .to eq(expected_hash),
-                  "#{index + 1}th Event of type #{actual.class} not equal\nexpected: #{expected_hash.inspect}\n     got: #{actual_hash.inspect}"
-            # rubocop:enable Layout/LineLength
+        matchers = expected_events.flatten(1).map do |expected|
+          if expected.is_a?(Sequent::Core::Event)
+            have_same_payload_as(expected)
+          else
+            expected
           end
+        end
+
+        expect(stored_events).to match(matchers)
       end
 
       def then_no_events
         then_events
+      end
+
+      def stored_events
+        Sequent.configuration.event_store.load_events_since_marked_position(@helpers_events_position_mark)[0]
+      end
+
+      private
+
+      def to_event_streams(uncommitted_events)
+        # Specs use a simple list of given events.
+        # We need a mapping from StreamRecord to the associated events for the event store.
+        uncommitted_events.group_by(&:aggregate_id).map do |aggregate_id, new_events|
+          _, existing_events = Sequent.configuration.event_store.load_events(aggregate_id) || [nil, []]
+          all_events = existing_events + new_events
+          aggregate_type = aggregate_type_for_event(all_events[0])
+          unless aggregate_type
+            fail <<~EOS
+              Cannot find aggregate type associated with creation event #{all_events[0]}, did you include an event handler in your aggregate for this event?
+            EOS
+          end
+
+          aggregate = aggregate_type.load_from_history(nil, all_events)
+          [aggregate.event_stream, new_events]
+        end
+      end
+
+      def aggregate_type_for_event(event)
+        @helpers_event_to_aggregate_type ||= ThreadSafe::Cache.new
+        @helpers_event_to_aggregate_type.fetch_or_store(event.class) do |klass|
+          Sequent::Core::AggregateRoot.descendants.find { |x| x.message_mapping.key?(klass) }
+        end
       end
     end
   end

@@ -3,6 +3,7 @@
 require 'base64'
 require_relative 'helpers/message_handler'
 require_relative 'helpers/autoset_attributes'
+require_relative 'helpers/unique_keys'
 require_relative 'stream_record'
 require_relative 'aggregate_roots'
 
@@ -37,6 +38,7 @@ module Sequent
     class AggregateRoot
       include Helpers::MessageHandler
       include Helpers::AutosetAttributes
+      include Helpers::UniqueKeys
       include SnapshotConfiguration
       extend ActiveSupport::DescendantsTracker
 
@@ -104,6 +106,7 @@ module Sequent
           aggregate_id: id,
           events_partition_key: events_partition_key,
           snapshot_outdated_at: snapshot_outdated? ? Time.now : nil,
+          unique_keys:,
         )
       end
 

@@ -1,3 +1,27 @@
+# Changelog 8.1.0 (changes since 8.0.2)
+
+- Support specifying unique keys for aggregates that are checked when
+  transaction is committed, reducing the need for having aggregates to
+  ensure uniqueness or relying on projectors. See
+  lib/sequent/core/helpers/unique_keys.rb for details.
+
+  This feature requires a new database, you can find an example
+  migration at `db/migrate/20250108162754_aggregate_unique_keys.rb`.
+- `CommandHandlerHelpers` has been updated to:
+  - Load aggregates using the `given_events` so that unique keys can
+    be tested. This may require changing your test to correctly set up
+    the given events.
+  - Run your test using the real or fake event store.
+  - Use RSpec matchers in `then_events`.
+  - `then_events` now only checks the events since the last
+    `when_command` call occurred.
+- You can now retrieve the current position of the event store using
+  `EventStore#position_mark` and load all the events since this
+  position using `EventStore#load_events_since_marked_position`. This
+  is used by `CommandHandlerHelpers` but in the future might have
+  other uses (such as tailing the event store as events are being
+  committed).
+
 # Changelog 8.0.2 (changes since 8.0.1)
 
 - Add support for ActiveRecord 8. Thanks evsasse.

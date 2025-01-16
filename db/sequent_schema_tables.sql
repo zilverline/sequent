@@ -25,6 +25,12 @@ CREATE TABLE aggregates (
     created_at timestamp with time zone NOT NULL DEFAULT NOW()
 ) PARTITION BY RANGE (aggregate_id);
 
+CREATE TABLE aggregate_unique_keys (
+    aggregate_id uuid NOT NULL,
+    scope text NOT NULL,
+    key jsonb NOT NULL
+);
+
 CREATE TABLE events (
   aggregate_id uuid NOT NULL,
   partition_key text NOT NULL DEFAULT '',

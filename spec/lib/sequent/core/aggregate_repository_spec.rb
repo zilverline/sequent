@@ -481,5 +481,75 @@ describe Sequent::Core::AggregateRepository do
         expect(aggregate.first.pinged).to eq(2)
       end
     end
+
+    context 'with unique keys' do
+      let(:user_id_1) { Sequent.new_uuid }
+      let(:user_id_2) { Sequent.new_uuid }
+
+      let(:user_1) { DummyAggregateWithUniqueKeys.new(user_id_1, ssn: '123', email: 'alice@example.com') }
+      let(:user_2) { DummyAggregateWithoutEmail.new(user_id_2, ssn: '123') }
+
+      class DummyWithUniqueKeysCreated < Sequent::Core::Event
+        attrs ssn: String, email: String
+      end
+
+      class DummyAggregateWithUniqueKeys < Sequent::Core::AggregateRoot
+        unique_key :user_email, email: -> { @email }
+        unique_key :user_ssn, :ssn
+
+        attr_reader :ssn
+
+        def initialize(id, ssn:, email:)
+          super(id)
+          apply DummyWithUniqueKeysCreated, ssn:, email:
+        end
+
+        on DummyWithUniqueKeysCreated do |event|
+          @email = event.email
+          @ssn = event.ssn
+        end
+      end
+
+      class DummyWithoutEmailCreated < Sequent::Core::Event
+        attrs ssn: String
+      end
+
+      class DummyAggregateWithoutEmail < Sequent::Core::AggregateRoot
+        # Scopes are enforced across different aggregate types
+        unique_key :user_ssn, :ssn
+
+        attr_reader :ssn
+
+        def initialize(id, ssn:)
+          super(id)
+          apply DummyWithoutEmailCreated, ssn:
+        end
+
+        on DummyWithoutEmailCreated do |event|
+          @ssn = event.ssn
+        end
+      end
+
+      it 'enforces key uniquness when adding a new aggregate' do
+        Sequent.aggregate_repository.add_aggregate(user_1)
+        Sequent.aggregate_repository.commit(DummyCommand.new)
+
+        Sequent.aggregate_repository.add_aggregate(user_2)
+
+        expect { Sequent.aggregate_repository.commit(DummyCommand.new) }.to raise_error(
+          an_instance_of(Sequent::Core::AggregateKeyNotUniqueError)
+            .and(having_attributes(message: /#{user_id_2}/))
+            .and(having_attributes(message: /DummyAggregateWithoutEmail/)),
+        )
+      end
+
+      it 'enforces key uniqueness with the same key scope across different aggregate types' do
+        Sequent.aggregate_repository.add_aggregate(user_1)
+        Sequent.aggregate_repository.add_aggregate(user_2)
+
+        expect { Sequent.aggregate_repository.commit(DummyCommand.new) }
+          .to raise_error Sequent::Core::AggregateKeyNotUniqueError
+      end
+    end
   end
 end

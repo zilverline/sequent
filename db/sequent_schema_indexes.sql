@@ -14,6 +14,11 @@ CREATE INDEX events_event_type_id_idx ON events (event_type_id);
 ALTER TABLE aggregates
   ADD FOREIGN KEY (aggregate_type_id) REFERENCES aggregate_types (id) ON UPDATE CASCADE;
 
+ALTER TABLE aggregate_unique_keys
+  ADD PRIMARY KEY (aggregate_id, scope),
+  ADD UNIQUE (scope, key),
+  ADD FOREIGN KEY (aggregate_id) REFERENCES aggregates (aggregate_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
 ALTER TABLE events
   ADD FOREIGN KEY (partition_key, aggregate_id) REFERENCES aggregates (events_partition_key, aggregate_id)
           ON UPDATE CASCADE ON DELETE RESTRICT;
