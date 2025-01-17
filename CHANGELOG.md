@@ -21,6 +21,15 @@
   is used by `CommandHandlerHelpers` but in the future might have
   other uses (such as tailing the event store as events are being
   committed).
+- Use `max(id) + 1` query to assign type ids to avoid exhausing the
+  SMALLINT range. Sequences are not rolled back when a transaction is
+  aborted so type ids may become exhausted. This is mainly a problem
+  in development when running tests, but could occur in production if
+  a transaction that adds a new type is buggy and gets rolled back
+  multiple times.
+
+  Re-apply the `sequent_pgsql.sql` file to your Sequent schema to
+  apply this fix.
 
 # Changelog 8.0.2 (changes since 8.0.1)
 
