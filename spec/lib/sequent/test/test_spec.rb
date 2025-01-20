@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'sequent/test/workflow_helpers'
 
 RSpec.configure do |config|
   config.include Sequent::Test::CommandHandlerHelpers
