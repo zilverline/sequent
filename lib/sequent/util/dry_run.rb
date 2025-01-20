@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../test/command_handler_helpers'
-
 module Sequent
   module Util
     ##
