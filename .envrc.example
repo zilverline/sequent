@@ -1,0 +1,5 @@
+# Use Nix to setup development dependencies, github hooks, and services with `devenv`.
+# See `flake.nix` for the setup.
+watch_file flake.nix
+watch_file flake.lock
+use flake . --no-pure-eval

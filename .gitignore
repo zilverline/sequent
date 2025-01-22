@@ -7,3 +7,6 @@ tmp/*
 .vscode
 integration-specs/rails-app/Gemfile.lock
 integration-specs/simple/Gemfile.lock
+.envrc
+.devenv
+/.pre-commit-config.yaml
