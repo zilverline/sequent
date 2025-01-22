@@ -56,6 +56,13 @@
                     package = pkgs.ruby;
                   };
 
+                  processes.jekyll.exec = ''
+                    cd docs
+                    bundle
+                    bundle exec jekyll serve --livereload
+                  '';
+
+
                   services.postgres = {
                     enable = true;
                     listen_addresses = "127.0.0.1";

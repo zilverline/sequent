@@ -12,7 +12,10 @@ New to Sequent? [Getting Started](http://www.sequent.io/docs/getting-started.htm
 
 ## Contributing
 
-Fork and send pull requests
+Fork and send pull requests. You can setup a working development environment manually (see below) or by using https://devenv.sh with Nix. You can also
+use https://direnv.net/ do setup your environment automatically, see `.envrc.example` for the minimal configuration.
+
+Then just run `devenv up` to start Postgres and Jekyll. Run `devenv test` to (re-)create the databases and run the specs.
 
 ## Documentation
 
