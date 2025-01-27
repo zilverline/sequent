@@ -7,6 +7,7 @@ require 'rake/tasklib'
 require 'sequent/support'
 require 'sequent/migrations/view_schema'
 require 'sequent/migrations/sequent_schema'
+require_relative 'migration_files'
 
 module Sequent
   module Rake
@@ -15,6 +16,15 @@ module Sequent
 
       def register_tasks!
         namespace :sequent do
+          desc <<~EOS
+            Copy (new) Sequent database migration files to your projects migrations directory
+          EOS
+          namespace :install do
+            task :migrations do
+              MigrationFiles.new.copy('./db/migrate')
+            end
+          end
+
           desc <<~EOS
             Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
@@ -44,8 +54,15 @@ module Sequent
 
               db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.create!(db_config)
+            end
 
-              Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
+            desc 'Apply Sequent event store migrations (NOT view schema projection migrations)'
+            task migrate: [:create] do
+              ensure_sequent_env_set!
+              db_config = Sequent::Support::Database.read_config(@env)
+              Sequent::Support::Database.establish_connection(db_config)
+              ActiveRecord::MigrationContext.new('db/migrate').migrate
+              ::Rake::Task['db:schema'].invoke
             end
 
             desc 'Drops the database for the current env'
@@ -67,12 +84,6 @@ module Sequent
               ensure_sequent_env_set!
 
               Sequent::Migrations::ViewSchema.create_view_schema_if_not_exists(env: @env)
-            end
-
-            desc 'Creates the event_store schema for the current env'
-            task create_event_store: ['sequent:init'] do
-              ensure_sequent_env_set!
-              Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
             end
 
             desc 'Utility tasks that can be used to guard against unsafe usage of rails db:migrate directly'
