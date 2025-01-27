@@ -112,6 +112,6 @@ jobs:
       - name: Run integration tests rails-app
         run: |
           cd integration-specs/rails-app
-          bundle exec rake sequent:db:create_event_store
-          bundle exec rake sequent:db:create_view_schema
+          bundle exec rake sequent:install:migrations
+          bundle exec rake db:create db:migrate
           bundle exec rspec spec
