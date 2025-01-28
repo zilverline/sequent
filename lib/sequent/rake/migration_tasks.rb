@@ -13,6 +13,17 @@ module Sequent
   module Rake
     class MigrationTasks < ::Rake::TaskLib
       include ::Rake::DSL
+      include ActiveRecord::Tasks
+
+      def db_config
+        DatabaseTasks.db_dir = Sequent.configuration.database_schema_directory unless defined?(Rails)
+        Sequent::Support::Database.read_database_config(@env)
+      end
+
+      def connection
+        ensure_sequent_env_set!
+        Sequent::Support::Database.establish_connection(db_config)
+      end
 
       def register_tasks!
         namespace :sequent do
@@ -51,18 +62,36 @@ module Sequent
             desc 'Creates the database and initializes the event_store schema for the current env'
             task create: ['sequent:init'] do
               ensure_sequent_env_set!
-
-              db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.create!(db_config)
             end
 
             desc 'Apply Sequent event store migrations (NOT view schema projection migrations)'
             task migrate: [:create] do
               ensure_sequent_env_set!
-              db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.establish_connection(db_config)
               ActiveRecord::MigrationContext.new('db/migrate').migrate
-              ::Rake::Task['db:schema'].invoke
+              ::Rake::Task['sequent:db:schema:dump'].invoke
+            end
+
+            namespace :schema do
+              desc "Creates the database schema file 'db/structure.sql'"
+              task :dump do
+                connection
+                old_dump_schemas = ActiveRecord.dump_schemas
+                begin
+                  ActiveRecord.dump_schemas = nil
+                  DatabaseTasks.structure_dump_flags = "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+                  DatabaseTasks.dump_schema(db_config, :sql)
+                ensure
+                  ActiveRecord.dump_schemas = old_dump_schemas
+                end
+              end
+
+              desc "Loads the database schema file 'db/structure.sql'"
+              task :load do
+                connection
+                DatabaseTasks.load_schema(db_config, :sql)
+              end
             end
 
             desc 'Drops the database for the current env'
