@@ -27,10 +27,10 @@ module Sequent
 
       def register_tasks!
         namespace :sequent do
-          desc <<~EOS
-            Copy (new) Sequent database migration files to your projects migrations directory
-          EOS
           namespace :install do
+            desc <<~EOS
+              Copy (new) Sequent database migration files to your projects migrations directory
+            EOS
             task :migrations do
               MigrationFiles.new.copy('./db/migrate')
             end
