@@ -10,3 +10,5 @@ integration-specs/simple/Gemfile.lock
 .envrc
 .devenv
 /.pre-commit-config.yaml
+/integration-specs/rails-app/db/migrate/
+/integration-specs/rails-app/db/structure.sql
