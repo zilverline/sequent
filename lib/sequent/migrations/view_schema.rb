@@ -383,7 +383,7 @@ module Sequent
       end
 
       def in_view_schema(&block)
-        Sequent::Support::Database.with_schema_search_path(view_schema, db_config, &block)
+        Sequent::Support::Database.with_search_path(view_schema, &block)
       end
 
       def drop_old_tables(new_version)

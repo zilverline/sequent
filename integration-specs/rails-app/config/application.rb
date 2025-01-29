@@ -22,5 +22,16 @@ module RailsApp
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    #####################################################################
+    # SEQUENT
+    #####################################################################
+    config.active_record.schema_format = :sql
+    config.active_record.dump_schemas = nil
+    ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags =
+      "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+    #####################################################################
+    # END SEQUENT
+    #####################################################################
   end
 end

@@ -25,7 +25,7 @@ for more details.
 ### Installation
 
 Add to your `Gemfile`
-```
+```ruby
 gem 'sequent'
 ```
 and run `bundle install`
@@ -42,7 +42,6 @@ Rails.application.reloader.to_prepare do
   Sequent.configure do |config|
     config.migrations_class_name = 'SequentMigrations'
     config.enable_autoregistration = true
-    config.event_store_cache_event_types = !Rails.env.development?
 
     config.database_config_directory = 'config'
 
@@ -99,37 +98,45 @@ task 'sequent:migrate:init' => [:sequent_db_connect]
 task 'sequent_db_connect' do
  Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
 end
-
-# Create custom rake task setting the SEQUENT_MIGRATION_SCHEMAS for
-# running the Rails migrations
-task :migrate_public_schema do
- ENV['SEQUENT_MIGRATION_SCHEMAS'] = 'public'
- Rake::Task['db:migrate'].invoke
- ENV['SEQUENT_MIGRATION_SCHEMAS'] = nil
-end
-
-# Prevent rails db:migrate from being executed directly.
-Rake::Task['db:migrate'].enhance([:'sequent:db:dont_use_db_migrate_directly'])
 ```
 
-**Rails `db:migrate`**
-At the last line in the `Rakefile` we deny using the Rails's `db:migrate` task directly. You can't use this task
-directly anymore since that will add all the tables of the `view_schema` and `sequent_schema` to the `schema.rb` file
-after running a Rails migration. Instead, the `rails db:migrate` must be wrapped in your own task where you set the
-environment variable `SEQUENT_MIGRATION_SCHEMAS`. For safety reasons we've "enhanced" the `rails db:migrate` task with
-Sequent's `sequent:db:dont_use_db_migrate_directly` task, so running it without `SEQUENT_MIGRATION_SCHEMAS` set will fail.
-{: .notice--warning}
+#### Database schema format
+
+Because Sequent uses advanced PostgreSQL features like stored procedures the regular Ruby schema format is insufficient
+to dump the schema using `bundle exec rake db:schema:dump`. Add the following configuration to your
+`config/application.rb` to enable dumping and loading the schema using `db/structure.sql`:
+
+```ruby
+# Use SQL for the schema dump format (`db/structure.sql`)
+config.active_record.schema_format = :sql
+# Dump all schemas, except for the Sequent view schema since it
+# is managed by Sequent migrations.
+config.active_record.dump_schemas = nil
+ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags =
+  "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+```
 
 ### Database setup
 
-#### Sequent database schema
+#### Database configuration
 
-Download the
-[`sequent/db/sequent_schema.rb`](https://github.com/zilverline/sequent/blob/master/db/sequent_schema.rb)
-file and put it in the `db` directory:
-```shell
-curl -o db/sequent_schema.rb https://raw.githubusercontent.com/zilverline/sequent/refs/heads/master/db/sequent_schema.rb
+Ensure your `database.yml` contains the correct adapter and `schema_search_path`:
+```yaml
+default: &default
+   adapter: postgresql
+   host: localhost
+   port: 5432
+   username: <%= ENV["POSTGRES_USER"] %>
+   password: <%= ENV["POSTGRES_PASSWORD"] %>
+   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+   timeout: 5000
+   schema_search_path: <%= ENV.fetch("SEQUENT_MIGRATION_SCHEMAS") { "public, view_schema, sequent_schema" } %>
 ```
+
+#### Sequent event store database schema
+
+Run `bundle exec rake sequent:install:migrations` to copy the Sequent schema migrations to your `db/migrate`
+directory. Run `bundle exec rake db:migrate` to create the Sequent schema, tables, indexes, and stored procedures.
 
 #### View schema migrations
 
@@ -154,25 +161,9 @@ end
 ```
 For a complete overview on how Migrations work in Sequent, check out the [Migrations Guide](/docs/concepts/migrations.html)
 
-#### Database configuration
-
-Ensure your `database.yml` contains the correct adapter and schema_search_path:
-```yaml
-default: &default
-   adapter: postgresql
-   host: localhost
-   port: 5432
-   username: <%= ENV["POSTGRES_USER"] %>
-   password: <%= ENV["POSTGRES_PASSWORD"] %>
-   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-   timeout: 5000
-   schema_search_path: <%= ENV.fetch("SEQUENT_MIGRATION_SCHEMAS") { "public, sequent_schema, view_schema" } %>
-```
-
-#### Create the database
-Run the following commands to create the `sequent_schema` and `view_schema`:
+#### Create the view schema
+Run the following commands to create the `view_schema`:
 ```bash
-bundle exec rake sequent:db:create_event_store
 bundle exec rake sequent:db:create_view_schema
 
 # only run this when you add or change projectors in SequentMigrations
