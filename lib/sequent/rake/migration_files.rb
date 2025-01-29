@@ -3,7 +3,7 @@
 module Sequent
   module Rake
     class MigrationFiles
-      MIGRATION_DIRECTORY = File.join(__dir__, '../../../db/migrate')
+      MIGRATION_DIRECTORY = File.realpath(File.join(__dir__, '../../../db/migrate'))
 
       def copy(to)
         FileUtils.mkdir_p(to)
@@ -15,13 +15,18 @@ module Sequent
           .reject { |dir| dir.start_with?('.') }
           .sort
           .each_with_index do |file, index|
-            _timestamp, *file_parts = file.split('_')
-            next if current_entries.include?(file_parts.join('_'))
-
-            file_name = [(now.to_i + index).to_s, *file_parts].join('_')
             full_file_name = File.join(MIGRATION_DIRECTORY, file)
-            destination_file_name = File.join(to, file_name)
-            FileUtils.copy(full_file_name, destination_file_name)
+
+            if File.directory?(full_file_name)
+              copy_directory(file, MIGRATION_DIRECTORY, to)
+            else
+              _timestamp, *file_parts = file.split('_')
+              next if current_entries.include?(file_parts.join('_'))
+
+              file_name = [(now.to_i + index).to_s, *file_parts].join('_')
+              destination_file_name = File.join(to, file_name)
+              FileUtils.cp(full_file_name, destination_file_name, preserve: true, verbose: true)
+            end
           end
       end
 
@@ -34,6 +39,29 @@ module Sequent
           .map do |f|
             _timestamp, *file_parts = f.split('_')
             file_parts.join('_')
+          end
+      end
+
+      def copy_directory(directory_name, from, to)
+        source = File.join(from, directory_name)
+        dest = File.join(to, directory_name)
+        FileUtils.mkdir_p(dest)
+
+        existing = Dir.entries(dest)
+
+        Dir
+          .entries(source)
+          .reject { |file| file.start_with?('.') }
+          .sort
+          .each do |file|
+            full_file_name = File.join(source, file)
+            if File.directory?(full_file_name)
+              copy_directory(file, source, dest)
+            else
+              next if existing.include?(file)
+
+              FileUtils.cp(File.join(source, file), File.join(dest, file), preserve: true, verbose: true)
+            end
           end
       end
     end
