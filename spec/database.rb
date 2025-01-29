@@ -29,8 +29,8 @@ module Database
               username: 'sequent',
               password: 'sequent',
               database: database_name,
-              schema_search_path: "#{Sequent.configuration.view_schema_name}," \
-                                  "#{Sequent.configuration.event_store_schema_name},public",
+              schema_search_path: "public,#{Sequent.configuration.view_schema_name}," \
+                                  "#{Sequent.configuration.event_store_schema_name}",
               advisory_locks: false,
             },
           },
