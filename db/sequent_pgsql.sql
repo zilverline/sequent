@@ -1,7 +1,3 @@
-ALTER TABLE aggregate_types ALTER COLUMN id DROP IDENTITY IF EXISTS;
-ALTER TABLE command_types ALTER COLUMN id DROP IDENTITY IF EXISTS;
-ALTER TABLE event_types ALTER COLUMN id DROP IDENTITY IF EXISTS;
-
 DROP TYPE IF EXISTS aggregate_event_type CASCADE;
 CREATE TYPE aggregate_event_type AS (
   aggregate_type text,
@@ -99,60 +95,19 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE PROCEDURE update_types(_command jsonb, _aggregates_with_events jsonb)
-LANGUAGE plpgsql AS $$
-DECLARE
-  _type TEXT;
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO command_types (id, type)
-    VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM command_types), _command->>'command_type')
-        ON CONFLICT (type) DO NOTHING;
-  END IF;
-
-  FOR _type IN (
-    SELECT DISTINCT row->0->>'aggregate_type' AS type
-      FROM jsonb_array_elements(_aggregates_with_events) AS row
-    EXCEPT
-    SELECT type FROM aggregate_types
-    ORDER BY 1
-  ) LOOP
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
-    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO aggregate_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM aggregate_types), _type)
-        ON CONFLICT (type) DO NOTHING;
-  END LOOP;
-
-  FOR _type IN (
-    SELECT DISTINCT events->>'event_type' AS type
-      FROM jsonb_array_elements(_aggregates_with_events) AS row
-           CROSS JOIN LATERAL jsonb_array_elements(row->1) AS events
-    EXCEPT
-    SELECT type FROM event_types
-    ORDER BY 1
-  ) LOOP
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
-    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
-    LOCK TABLE event_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO event_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM event_types), _type)
-        ON CONFLICT (type) DO NOTHING;
-  END LOOP;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION store_command(_command jsonb) RETURNS bigint
 LANGUAGE plpgsql AS $$
 DECLARE
   _id commands.id%TYPE;
   _command_json jsonb = _command->'command_json';
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
+    -- Only try inserting if it doesn't exist to avoid exhausting the id sequence
+    INSERT INTO command_types (type)
+    VALUES (_command->>'command_type')
+     ON CONFLICT DO NOTHING;
+  END IF;
+
   INSERT INTO commands (
     created_at, user_id, aggregate_id, command_type_id, command_json,
     event_aggregate_id, event_sequence_number
@@ -182,9 +137,28 @@ DECLARE
   _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
   _unique_keys jsonb;
 BEGIN
-  CALL update_types(_command, _aggregates_with_events);
-
   _command_id = store_command(_command);
+
+  WITH types AS (
+    SELECT DISTINCT row->0->>'aggregate_type' AS type
+      FROM jsonb_array_elements(_aggregates_with_events) AS row
+  )
+  INSERT INTO aggregate_types (type)
+  SELECT type FROM types
+   WHERE type NOT IN (SELECT type FROM aggregate_types)
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
+
+  WITH types AS (
+    SELECT DISTINCT events->>'event_type' AS type
+      FROM jsonb_array_elements(_aggregates_with_events) AS row
+           CROSS JOIN LATERAL jsonb_array_elements(row->1) AS events
+  )
+  INSERT INTO event_types (type)
+  SELECT type FROM types
+   WHERE type NOT IN (SELECT type FROM event_types)
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
 
   FOR _aggregate IN SELECT row->0 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
