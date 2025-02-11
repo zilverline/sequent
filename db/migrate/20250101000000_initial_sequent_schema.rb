@@ -173,11 +173,13 @@ class InitialSequentSchema < ActiveRecord::Migration[7.2]
       execute_sql_file 'permanently_delete_event_streams', version: 1
       execute_sql_file 'save_events_trigger', version: 1
       execute_sql_file 'select_aggregates_for_snapshotting', version: 1
+      execute_sql_file 'store_aggregates', version: 1
       execute_sql_file 'store_command', version: 1
       execute_sql_file 'store_events', version: 1
       execute_sql_file 'store_snapshots', version: 1
       execute_sql_file 'stream_records', version: 1
       execute_sql_file 'update_types', version: 1
+      execute_sql_file 'update_unique_keys', version: 1
     end
   end
 
