@@ -12,7 +12,7 @@ BEGIN
     (_command_json->>'user_id')::uuid,
     (_command_json->>'aggregate_id')::uuid,
     (SELECT id FROM command_types WHERE type = _command->>'command_type'),
-    (_command->'command_json') - '{command_type,created_at,organization_id,user_id,aggregate_id,event_aggregate_id,event_sequence_number}'::text[],
+    (_command->'command_json') - '{command_type,created_at,user_id,aggregate_id,event_aggregate_id,event_sequence_number}'::text[],
     (_command_json->>'event_aggregate_id')::uuid,
     NULLIF(_command_json->'event_sequence_number', 'null'::jsonb)::integer
   ) RETURNING id INTO STRICT _id;
