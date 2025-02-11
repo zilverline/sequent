@@ -1,3 +1,14 @@
+# Changelog 8.2.x
+
+- The sequent gem now uses ActiveRecord migrations to handle the
+  `sequent_schema`. The `view_schema` is still handled by sequent
+  itself. You can install the sequent migrations in your project by
+  running `rake sequent:migrations:install` which will copy the
+  necessary files to your `db/migrate` directory.
+
+  After upgrading Sequent you can run this task again to install any
+  updates for the schema.
+
 # Changelog 8.1.1
 
 - Revert type id assignment changes as it introduces potential
