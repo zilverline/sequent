@@ -366,6 +366,52 @@ $$;
 
 
 --
+-- Name: store_aggregates(jsonb); Type: PROCEDURE; Schema: sequent_schema; Owner: -
+--
+
+CREATE PROCEDURE sequent_schema.store_aggregates(IN _aggregates_with_events jsonb)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  _aggregate jsonb;
+  _events jsonb;
+  _aggregate_id aggregates.aggregate_id%TYPE;
+  _events_partition_key aggregates.events_partition_key%TYPE;
+  _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
+BEGIN
+  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
+    _aggregate_id = _aggregate->>'aggregate_id';
+
+    _events_partition_key = COALESCE(
+      _aggregate->>'events_partition_key',
+      (SELECT events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id),
+      ''
+    );
+
+    INSERT INTO aggregates (aggregate_id, created_at, aggregate_type_id, events_partition_key)
+    VALUES (
+      _aggregate_id,
+      (_events->0->>'created_at')::timestamptz,
+      (SELECT id FROM aggregate_types WHERE type = _aggregate->>'aggregate_type'),
+      _events_partition_key
+    ) ON CONFLICT (aggregate_id)
+      DO UPDATE SET events_partition_key = EXCLUDED.events_partition_key
+              WHERE aggregates.events_partition_key IS DISTINCT FROM EXCLUDED.events_partition_key;
+
+    _snapshot_outdated_at = _aggregate->>'snapshot_outdated_at';
+    IF _snapshot_outdated_at IS NOT NULL THEN
+      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
+      VALUES (_aggregate_id, _snapshot_outdated_at)
+          ON CONFLICT (aggregate_id) DO UPDATE
+         SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
+       WHERE row.snapshot_outdated_at IS DISTINCT FROM EXCLUDED.snapshot_outdated_at;
+    END IF;
+  END LOOP;
+END;
+$$;
+
+
+--
 -- Name: store_command(jsonb); Type: FUNCTION; Schema: sequent_schema; Owner: -
 --
 
@@ -384,7 +430,7 @@ BEGIN
     (_command_json->>'user_id')::uuid,
     (_command_json->>'aggregate_id')::uuid,
     (SELECT id FROM command_types WHERE type = _command->>'command_type'),
-    (_command->'command_json') - '{command_type,created_at,organization_id,user_id,aggregate_id,event_aggregate_id,event_sequence_number}'::text[],
+    (_command->'command_json') - '{command_type,created_at,user_id,aggregate_id,event_aggregate_id,event_sequence_number}'::text[],
     (_command_json->>'event_aggregate_id')::uuid,
     NULLIF(_command_json->'event_sequence_number', 'null'::jsonb)::integer
   ) RETURNING id INTO STRICT _id;
@@ -402,61 +448,26 @@ CREATE PROCEDURE sequent_schema.store_events(IN _command jsonb, IN _aggregates_w
     AS $$
 DECLARE
   _command_id commands.id%TYPE;
+  _aggregates jsonb;
   _aggregate jsonb;
   _events jsonb;
   _aggregate_id aggregates.aggregate_id%TYPE;
-  _aggregate_row aggregates%ROWTYPE;
-  _provided_events_partition_key aggregates.events_partition_key%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
-  _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
-  _unique_keys jsonb;
 BEGIN
   CALL update_types(_command, _aggregates_with_events);
 
   _command_id = store_command(_command);
 
-  FOR _aggregate IN SELECT row->0 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
-    _aggregate_id = _aggregate->>'aggregate_id';
-    _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
+  CALL store_aggregates(_aggregates_with_events);
 
-    DELETE FROM aggregate_unique_keys AS target
-     WHERE target.aggregate_id = _aggregate_id
-       AND NOT (_unique_keys ? target.scope);
-  END LOOP;
+  _aggregates = (SELECT jsonb_agg(row->0) FROM jsonb_array_elements(_aggregates_with_events) AS row);
+  CALL update_unique_keys(_aggregates);
 
   FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row
                              ORDER BY row->0->'aggregate_id', row->1->0->'event_json'->'sequence_number'
   LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
-    _provided_events_partition_key = _aggregate->>'events_partition_key';
-    _snapshot_outdated_at = _aggregate->>'snapshot_outdated_at';
-    _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
-
-    SELECT * INTO _aggregate_row FROM aggregates WHERE aggregate_id = _aggregate_id;
-    _events_partition_key = COALESCE(_provided_events_partition_key, _aggregate_row.events_partition_key, '');
-
-    INSERT INTO aggregates (aggregate_id, created_at, aggregate_type_id, events_partition_key)
-    VALUES (
-      _aggregate_id,
-      (_events->0->>'created_at')::timestamptz,
-      (SELECT id FROM aggregate_types WHERE type = _aggregate->>'aggregate_type'),
-      _events_partition_key
-    ) ON CONFLICT (aggregate_id)
-      DO UPDATE SET events_partition_key = EXCLUDED.events_partition_key
-              WHERE aggregates.events_partition_key IS DISTINCT FROM EXCLUDED.events_partition_key;
-
-    BEGIN
-      INSERT INTO aggregate_unique_keys AS target (aggregate_id, scope, key)
-      SELECT _aggregate_id, key, value
-        FROM jsonb_each(_unique_keys) AS x
-          ON CONFLICT (aggregate_id, scope) DO UPDATE
-         SET key = EXCLUDED.key
-       WHERE target.key <> EXCLUDED.key;
-    EXCEPTION
-      WHEN unique_violation THEN
-        RAISE unique_violation
-        USING MESSAGE = 'duplicate unique key value for aggregate ' || (_aggregate->>'aggregate_type') || ' ' || _aggregate_id || ' (' || SQLERRM || ')';
-    END;
+    SELECT events_partition_key INTO STRICT _events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id;
 
     INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
     SELECT _events_partition_key,
@@ -467,14 +478,6 @@ BEGIN
            (SELECT id FROM event_types WHERE type = event->>'event_type'),
            (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
       FROM jsonb_array_elements(_events) AS event;
-
-    IF _snapshot_outdated_at IS NOT NULL THEN
-      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
-      VALUES (_aggregate_id, _snapshot_outdated_at)
-          ON CONFLICT (aggregate_id) DO UPDATE
-         SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
-       WHERE row.snapshot_outdated_at IS DISTINCT FROM EXCLUDED.snapshot_outdated_at;
-    END IF;
   END LOOP;
 END;
 $$;
@@ -524,49 +527,74 @@ $$;
 CREATE PROCEDURE sequent_schema.update_types(IN _command jsonb, IN _aggregates_with_events jsonb)
     LANGUAGE plpgsql
     AS $$
-DECLARE
-  _type TEXT;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO command_types (id, type)
-    VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM command_types), _command->>'command_type')
-        ON CONFLICT (type) DO NOTHING;
+    -- Only try inserting if it doesn't exist to avoid exhausting the id sequence
+    INSERT INTO command_types (type)
+    VALUES (_command->>'command_type')
+     ON CONFLICT DO NOTHING;
   END IF;
 
-  FOR _type IN (
+  WITH types AS (
     SELECT DISTINCT row->0->>'aggregate_type' AS type
       FROM jsonb_array_elements(_aggregates_with_events) AS row
-    EXCEPT
-    SELECT type FROM aggregate_types
-    ORDER BY 1
-  ) LOOP
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
-    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO aggregate_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM aggregate_types), _type)
-        ON CONFLICT (type) DO NOTHING;
-  END LOOP;
+  )
+  INSERT INTO aggregate_types (type)
+  SELECT type FROM types
+   WHERE type NOT IN (SELECT type FROM aggregate_types)
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
 
-  FOR _type IN (
+  WITH types AS (
     SELECT DISTINCT events->>'event_type' AS type
       FROM jsonb_array_elements(_aggregates_with_events) AS row
            CROSS JOIN LATERAL jsonb_array_elements(row->1) AS events
-    EXCEPT
-    SELECT type FROM event_types
-    ORDER BY 1
-  ) LOOP
-    -- Only when new types are added is this path executed, which should be rare. We do not use a sequence here to avoid
-    -- wasting ids (which are limited for this table) on rollback, we lock the table and select the minimum next id.
-    LOCK TABLE command_types IN ACCESS EXCLUSIVE MODE;
-    LOCK TABLE aggregate_types IN ACCESS EXCLUSIVE MODE;
-    LOCK TABLE event_types IN ACCESS EXCLUSIVE MODE;
-    INSERT INTO event_types (id, type) VALUES ((SELECT COALESCE(MAX(id) + 1, 1) FROM event_types), _type)
-        ON CONFLICT (type) DO NOTHING;
+  )
+  INSERT INTO event_types (type)
+  SELECT type FROM types
+   WHERE type NOT IN (SELECT type FROM event_types)
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
+END;
+$$;
+
+
+--
+-- Name: update_unique_keys(jsonb); Type: PROCEDURE; Schema: sequent_schema; Owner: -
+--
+
+CREATE PROCEDURE sequent_schema.update_unique_keys(IN _stream_records jsonb)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  _aggregate jsonb;
+  _aggregate_id aggregates.aggregate_id%TYPE;
+  _unique_keys jsonb;
+BEGIN
+  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate LOOP
+    _aggregate_id = _aggregate->>'aggregate_id';
+    _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
+
+    DELETE FROM aggregate_unique_keys AS target
+     WHERE target.aggregate_id = _aggregate_id
+       AND NOT (_unique_keys ? target.scope);
   END LOOP;
+
+  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate LOOP
+    _aggregate_id = _aggregate->>'aggregate_id';
+    _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
+
+    INSERT INTO aggregate_unique_keys AS target (aggregate_id, scope, key)
+    SELECT _aggregate_id, key, value
+      FROM jsonb_each(_unique_keys) AS x
+        ON CONFLICT (aggregate_id, scope) DO UPDATE
+       SET key = EXCLUDED.key
+     WHERE target.key <> EXCLUDED.key;
+  END LOOP;
+EXCEPTION
+  WHEN unique_violation THEN
+    RAISE unique_violation
+    USING MESSAGE = 'duplicate unique key value for aggregate ' || (_aggregate->>'aggregate_type') || ' ' || _aggregate_id || ' (' || SQLERRM || ')';
 END;
 $$;
 
@@ -601,6 +629,20 @@ CREATE TABLE public.schema_migrations (
 CREATE TABLE sequent_schema.aggregate_types (
     id smallint NOT NULL,
     type text NOT NULL
+);
+
+
+--
+-- Name: aggregate_types_id_seq; Type: SEQUENCE; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE sequent_schema.aggregate_types ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME sequent_schema.aggregate_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
 );
 
 
@@ -711,6 +753,20 @@ CREATE VIEW sequent_schema.command_records AS
 
 
 --
+-- Name: command_types_id_seq; Type: SEQUENCE; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE sequent_schema.command_types ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME sequent_schema.command_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: commands_default; Type: TABLE; Schema: sequent_schema; Owner: -
 --
 
@@ -766,6 +822,20 @@ CREATE VIEW sequent_schema.event_records AS
    FROM ((sequent_schema.events event
      JOIN sequent_schema.aggregates aggregate ON (((aggregate.aggregate_id = event.aggregate_id) AND (aggregate.events_partition_key = event.partition_key))))
      JOIN sequent_schema.event_types type ON ((event.event_type_id = type.id)));
+
+
+--
+-- Name: event_types_id_seq; Type: SEQUENCE; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE sequent_schema.event_types ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME sequent_schema.event_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
 
 
 --
