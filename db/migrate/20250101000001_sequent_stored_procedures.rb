@@ -39,8 +39,8 @@ class SequentStoredProcedures < ActiveRecord::Migration[7.2]
     suppress_messages do
       execute File.read(
         File.join(
-          Sequent.configuration.database_schema_directory,
-          format('migrate/sequent/%s_v%02d.sql', filename, version),
+          File.dirname(__FILE__),
+          format('sequent/%s_v%02d.sql', filename, version),
         ),
       )
     end
