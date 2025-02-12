@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE store_events(_command jsonb, _aggregates_with_events jsonb)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
   _command_id commands.id%TYPE;
   _aggregates jsonb;

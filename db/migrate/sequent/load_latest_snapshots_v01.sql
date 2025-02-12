@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION load_latest_snapshot(_aggregate_id uuid) RETURNS aggregate_event_type
-LANGUAGE SQL AS $$
+LANGUAGE SQL SET search_path FROM CURRENT AS $$
   SELECT (SELECT type FROM aggregate_types WHERE id = a.aggregate_type_id),
          a.aggregate_id,
          a.events_partition_key,

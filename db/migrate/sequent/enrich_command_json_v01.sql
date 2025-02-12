@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION enrich_command_json(command commands) RETURNS jsonb
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION enrich_command_json(command commands) RETURNS jsonb RETURNS NULL ON NULL INPUT
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   RETURN jsonb_build_object(
       'command_type', (SELECT type FROM command_types WHERE command_types.id = command.command_type_id),

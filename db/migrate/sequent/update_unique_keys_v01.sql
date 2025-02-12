@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE update_unique_keys(_stream_records jsonb)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
   _aggregate jsonb;
   _aggregate_id aggregates.aggregate_id%TYPE;

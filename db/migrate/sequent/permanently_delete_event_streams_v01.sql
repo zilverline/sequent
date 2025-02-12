@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE permanently_delete_event_streams(_aggregate_ids jsonb)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   DELETE FROM events
    USING jsonb_array_elements_text(_aggregate_ids) AS ids (id)

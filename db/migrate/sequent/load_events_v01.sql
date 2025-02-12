@@ -3,7 +3,7 @@ CREATE OR REPLACE FUNCTION load_events(
   _use_snapshots boolean DEFAULT TRUE,
   _until timestamptz DEFAULT NULL
 ) RETURNS SETOF aggregate_event_type
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
   _aggregate_id aggregates.aggregate_id%TYPE;
 BEGIN

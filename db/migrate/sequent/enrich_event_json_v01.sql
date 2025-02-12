@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION enrich_event_json(event events) RETURNS jsonb
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION enrich_event_json(event events) RETURNS jsonb RETURNS NULL ON NULL INPUT
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   RETURN jsonb_build_object(
       'aggregate_id', event.aggregate_id,

@@ -1,4 +1,5 @@
-CREATE OR REPLACE FUNCTION save_events_on_delete_trigger() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION save_events_on_delete_trigger() RETURNS TRIGGER
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   INSERT INTO saved_event_records (operation, timestamp, "user", aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_id, xact_id)
   SELECT 'D',
@@ -15,9 +16,10 @@ BEGIN
     FROM old_table o;
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE OR REPLACE FUNCTION save_events_on_update_trigger() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION save_events_on_update_trigger() RETURNS TRIGGER
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   INSERT INTO saved_event_records (operation, timestamp, "user", aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_id, xact_id)
   SELECT 'U',
@@ -39,7 +41,7 @@ BEGIN
       OR o.event_json <> n.event_json;
   RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE TRIGGER save_events_on_delete_trigger
     AFTER DELETE ON events

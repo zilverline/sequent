@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION store_command(_command jsonb) RETURNS bigint
-LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION store_command(_command jsonb) RETURNS bigint RETURNS NULL ON NULL INPUT
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
   _id commands.id%TYPE;
   _command_json jsonb = _command->'command_json';

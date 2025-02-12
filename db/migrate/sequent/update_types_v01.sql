@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE update_types(_command jsonb, _aggregates_with_events jsonb)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
     -- Only try inserting if it doesn't exist to avoid exhausting the id sequence

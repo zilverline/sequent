@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE store_snapshots(_snapshots jsonb)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
   _aggregate_id uuid;
   _snapshot jsonb;

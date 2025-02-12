@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE permanently_delete_commands_without_events(_aggregate_id uuid, _organization_id uuid)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   IF _aggregate_id IS NULL AND _organization_id IS NULL THEN
     RAISE EXCEPTION 'aggregate_id or organization_id must be specified to delete commands';

@@ -35,6 +35,7 @@ CREATE TYPE sequent_schema.aggregate_event_type AS (
 
 CREATE FUNCTION sequent_schema.aggregates_that_need_snapshots(_last_aggregate_id uuid, _limit integer) RETURNS TABLE(aggregate_id uuid)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN QUERY SELECT a.aggregate_id
@@ -53,6 +54,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.delete_all_snapshots(IN _now timestamp with time zone DEFAULT now())
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   UPDATE aggregates_that_need_snapshots
@@ -69,6 +71,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.delete_snapshots_before(IN _aggregate_id uuid, IN _sequence_number integer, IN _now timestamp with time zone DEFAULT now())
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   DELETE FROM snapshot_records
@@ -108,7 +111,8 @@ PARTITION BY RANGE (id);
 --
 
 CREATE FUNCTION sequent_schema.enrich_command_json(command sequent_schema.commands) RETURNS jsonb
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STRICT
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN jsonb_build_object(
@@ -146,7 +150,8 @@ PARTITION BY RANGE (partition_key);
 --
 
 CREATE FUNCTION sequent_schema.enrich_event_json(event sequent_schema.events) RETURNS jsonb
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STRICT
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN jsonb_build_object(
@@ -164,7 +169,8 @@ $$;
 --
 
 CREATE FUNCTION sequent_schema.load_event(_aggregate_id uuid, _sequence_number integer) RETURNS SETOF sequent_schema.aggregate_event_type
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STRICT
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN QUERY SELECT aggregate_types.type,
@@ -188,6 +194,7 @@ $$;
 
 CREATE FUNCTION sequent_schema.load_events(_aggregate_ids jsonb, _use_snapshots boolean DEFAULT true, _until timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS SETOF sequent_schema.aggregate_event_type
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _aggregate_id aggregates.aggregate_id%TYPE;
@@ -231,6 +238,7 @@ $$;
 
 CREATE FUNCTION sequent_schema.load_latest_snapshot(_aggregate_id uuid) RETURNS sequent_schema.aggregate_event_type
     LANGUAGE sql
+    SET search_path TO 'sequent_schema'
     AS $$
   SELECT (SELECT type FROM aggregate_types WHERE id = a.aggregate_type_id),
          a.aggregate_id,
@@ -250,6 +258,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.permanently_delete_commands_without_events(IN _aggregate_id uuid, IN _organization_id uuid)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   IF _aggregate_id IS NULL AND _organization_id IS NULL THEN
@@ -269,6 +278,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.permanently_delete_event_streams(IN _aggregate_ids jsonb)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   DELETE FROM events
@@ -289,6 +299,7 @@ $$;
 
 CREATE FUNCTION sequent_schema.save_events_on_delete_trigger() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   INSERT INTO saved_event_records (operation, timestamp, "user", aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_id, xact_id)
@@ -315,6 +326,7 @@ $$;
 
 CREATE FUNCTION sequent_schema.save_events_on_update_trigger() RETURNS trigger
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   INSERT INTO saved_event_records (operation, timestamp, "user", aggregate_id, partition_key, sequence_number, created_at, event_type, event_json, command_id, xact_id)
@@ -346,6 +358,7 @@ $$;
 
 CREATE FUNCTION sequent_schema.select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT now()) RETURNS TABLE(aggregate_id uuid)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
@@ -371,6 +384,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.store_aggregates(IN _aggregates_with_events jsonb)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _aggregate jsonb;
@@ -416,7 +430,8 @@ $$;
 --
 
 CREATE FUNCTION sequent_schema.store_command(_command jsonb) RETURNS bigint
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STRICT
+    SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _id commands.id%TYPE;
@@ -445,6 +460,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.store_events(IN _command jsonb, IN _aggregates_with_events jsonb)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _command_id commands.id%TYPE;
@@ -489,6 +505,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.store_snapshots(IN _snapshots jsonb)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _aggregate_id uuid;
@@ -526,6 +543,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.update_types(IN _command jsonb, IN _aggregates_with_events jsonb)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM command_types t WHERE t.type = _command->>'command_type') THEN
@@ -565,6 +583,7 @@ $$;
 
 CREATE PROCEDURE sequent_schema.update_unique_keys(IN _stream_records jsonb)
     LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _aggregate jsonb;

@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE delete_snapshots_before(_aggregate_id uuid, _sequence_number integer, _now timestamp with time zone DEFAULT NOW())
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   DELETE FROM snapshot_records
    WHERE aggregate_id = _aggregate_id

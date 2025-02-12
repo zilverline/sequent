@@ -1,8 +1,8 @@
 CREATE OR REPLACE FUNCTION load_event(
   _aggregate_id uuid,
   _sequence_number integer
-) RETURNS SETOF aggregate_event_type
-LANGUAGE plpgsql AS $$
+) RETURNS SETOF aggregate_event_type RETURNS NULL ON NULL INPUT
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   RETURN QUERY SELECT aggregate_types.type,
          a.aggregate_id,

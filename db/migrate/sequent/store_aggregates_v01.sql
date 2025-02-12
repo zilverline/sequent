@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE store_aggregates(_aggregates_with_events jsonb)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
   _aggregate jsonb;
   _events jsonb;

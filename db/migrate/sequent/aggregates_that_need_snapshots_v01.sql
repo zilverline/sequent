@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION aggregates_that_need_snapshots(_last_aggregate_id uuid, _limit integer)
   RETURNS TABLE (aggregate_id uuid)
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   RETURN QUERY SELECT a.aggregate_id
     FROM aggregates_that_need_snapshots a
