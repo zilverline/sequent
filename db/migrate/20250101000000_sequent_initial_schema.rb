@@ -2,8 +2,8 @@
 
 class SequentInitialSchema < ActiveRecord::Migration[7.2]
   def up
-    create_schema Sequent.configuration.event_store_schema_name
-    create_schema Sequent.configuration.view_schema_name
+    create_schema Sequent.configuration.event_store_schema_name, if_not_exists: true
+    create_schema Sequent.configuration.view_schema_name, if_not_exists: true
 
     Sequent::Support::Database.with_search_path(Sequent.configuration.event_store_schema_name) do
       say 'Creating Sequent tables', true
