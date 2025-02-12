@@ -11,6 +11,8 @@ module Sequent
     # take in a database configuration). Instance methods assume that a database
     # connection yet is established.
     class Database
+      include ActiveRecord::Tasks
+
       attr_reader :db_config
 
       def self.connect!(env)
@@ -18,43 +20,34 @@ module Sequent
         establish_connection(db_config)
       end
 
-      def self.read_config(env)
+      def self.read_database_config(env)
         fail ArgumentError, 'env is mandatory' unless env
 
+        DatabaseTasks.db_dir = Sequent.configuration.database_schema_directory unless defined?(Rails)
         database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
         config = YAML.safe_load(ERB.new(File.read(database_yml)).result, aliases: true)[env]
-        ActiveRecord::Base.configurations.resolve(config).configuration_hash.with_indifferent_access
+        ActiveRecord::Base.configurations.resolve(config)
+      end
+
+      def self.read_config(env)
+        read_database_config(env).configuration_hash.with_indifferent_access
       end
 
       def self.create!(db_config)
-        establish_connection(db_config, {database: 'postgres'})
-        ActiveRecord::Base.connection.create_database(get_db_config_attribute(db_config, :database))
+        DatabaseTasks.create(db_config)
       end
 
       def self.drop!(db_config)
-        establish_connection(db_config, {database: 'postgres'})
-        ActiveRecord::Base.connection.drop_database(get_db_config_attribute(db_config, :database))
+        DatabaseTasks.drop(db_config)
       end
 
-      def self.get_db_config_attribute(db_config, attribute)
+      def self.establish_connection(db_config)
         if Sequent.configuration.can_use_multiple_databases?
-          db_config[Sequent.configuration.primary_database_key][attribute]
-        else
-          db_config[attribute]
-        end
-      end
-
-      def self.establish_connection(db_config, db_config_overrides = {})
-        if Sequent.configuration.can_use_multiple_databases?
-          db_config = db_config.deep_merge(
-            Sequent.configuration.primary_database_key => db_config_overrides,
-          ).stringify_keys
           ActiveRecord::Base.configurations = db_config.stringify_keys
           ActiveRecord::Base.connects_to database: {
             Sequent.configuration.primary_database_role => Sequent.configuration.primary_database_key,
           }
         else
-          db_config = db_config.merge(db_config_overrides)
           ActiveRecord::Base.establish_connection(db_config)
         end
       end
@@ -76,18 +69,6 @@ module Sequent
 
       def self.drop_schema!(schema_name)
         execute_sql "DROP SCHEMA if exists #{schema_name} cascade"
-      end
-
-      def self.with_schema_search_path(search_path, db_config, env = ENV['SEQUENT_ENV'])
-        fail ArgumentError, 'env is required' unless env
-
-        disconnect!
-
-        establish_connection(db_config, {schema_search_path: search_path})
-        yield
-      ensure
-        disconnect!
-        establish_connection(db_config)
       end
 
       def self.with_search_path(search_path)

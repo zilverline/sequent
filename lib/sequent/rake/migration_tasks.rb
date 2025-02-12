@@ -7,14 +7,35 @@ require 'rake/tasklib'
 require 'sequent/support'
 require 'sequent/migrations/view_schema'
 require 'sequent/migrations/sequent_schema'
+require_relative 'migration_files'
 
 module Sequent
   module Rake
     class MigrationTasks < ::Rake::TaskLib
       include ::Rake::DSL
+      include ActiveRecord::Tasks
+
+      def db_config
+        DatabaseTasks.db_dir = Sequent.configuration.database_schema_directory unless defined?(Rails)
+        Sequent::Support::Database.read_database_config(@env)
+      end
+
+      def connection
+        ensure_sequent_env_set!
+        Sequent::Support::Database.establish_connection(db_config)
+      end
 
       def register_tasks!
         namespace :sequent do
+          namespace :install do
+            desc <<~EOS
+              Copy (new) Sequent database migration files to your projects migrations directory
+            EOS
+            task :migrations do
+              MigrationFiles.new.copy('./db/migrate')
+            end
+          end
+
           desc <<~EOS
             Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
@@ -41,11 +62,36 @@ module Sequent
             desc 'Creates the database and initializes the event_store schema for the current env'
             task create: ['sequent:init'] do
               ensure_sequent_env_set!
-
-              db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.create!(db_config)
+            end
 
-              Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
+            desc 'Apply Sequent event store migrations (NOT view schema projection migrations)'
+            task migrate: [:create] do
+              ensure_sequent_env_set!
+              Sequent::Support::Database.establish_connection(db_config)
+              ActiveRecord::MigrationContext.new('db/migrate').migrate
+              ::Rake::Task['sequent:db:schema:dump'].invoke
+            end
+
+            namespace :schema do
+              desc "Creates the database schema file 'db/structure.sql'"
+              task :dump do
+                connection
+                old_dump_schemas = ActiveRecord.dump_schemas
+                begin
+                  ActiveRecord.dump_schemas = nil
+                  DatabaseTasks.structure_dump_flags = "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+                  DatabaseTasks.dump_schema(db_config, :sql)
+                ensure
+                  ActiveRecord.dump_schemas = old_dump_schemas
+                end
+              end
+
+              desc "Loads the database schema file 'db/structure.sql'"
+              task :load do
+                connection
+                DatabaseTasks.load_schema(db_config, :sql)
+              end
             end
 
             desc 'Drops the database for the current env'
@@ -67,12 +113,6 @@ module Sequent
               ensure_sequent_env_set!
 
               Sequent::Migrations::ViewSchema.create_view_schema_if_not_exists(env: @env)
-            end
-
-            desc 'Creates the event_store schema for the current env'
-            task create_event_store: ['sequent:init'] do
-              ensure_sequent_env_set!
-              Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: @env, fail_if_exists: true)
             end
 
             desc 'Utility tasks that can be used to guard against unsafe usage of rails db:migrate directly'
