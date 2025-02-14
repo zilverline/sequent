@@ -12,8 +12,7 @@ describe Sequent::Core::SerializesCommand do
                   :command_type,
                   :command_json,
                   :event_aggregate_id,
-                  :event_sequence_number,
-                  :organization_id
+                  :event_sequence_number
 
     def serialize_json?
       true

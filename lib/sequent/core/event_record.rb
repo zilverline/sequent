@@ -53,7 +53,6 @@ module Sequent
       def event=(event)
         self.aggregate_id = event.aggregate_id
         self.sequence_number = event.sequence_number
-        self.organization_id = event.organization_id if event.respond_to?(:organization_id)
         self.event_type = event.class.name
         self.created_at = event.created_at
         self.event_json = serialize_json? ? self.class.serialize_to_json(event) : event.attributes

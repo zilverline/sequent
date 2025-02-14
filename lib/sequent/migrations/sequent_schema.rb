@@ -14,8 +14,7 @@ module Sequent
         def create_sequent_schema_if_not_exists(env:, fail_if_exists: true)
           fail ArgumentError, 'env is required' if env.blank?
 
-          db_config = Sequent::Support::Database.read_config(env)
-
+          db_config = Sequent::Support::Database.read_database_config(env)
           Sequent::Support::Database.establish_connection(db_config)
 
           event_store_schema = Sequent.configuration.event_store_schema_name
@@ -25,15 +24,7 @@ module Sequent
           FAIL_IF_EXISTS.call(event_store_schema) if schema_exists && fail_if_exists
           return if schema_exists
 
-          sequent_schema = File.join(Sequent.configuration.database_schema_directory, "#{event_store_schema}.rb")
-          unless File.exist?(sequent_schema)
-            fail "File '#{sequent_schema}' does not exist. Check your Sequent configuration."
-          end
-
-          Sequent::Support::Database.create_schema(event_store_schema)
-          Sequent::Support::Database.with_schema_search_path(event_store_schema, db_config, env) do
-            load(sequent_schema)
-          end
+          ActiveRecord::Tasks::DatabaseTasks.load_schema(db_config, :sql)
         end
       end
     end
