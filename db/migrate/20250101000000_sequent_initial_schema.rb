@@ -29,7 +29,6 @@ class SequentInitialSchema < ActiveRecord::Migration[7.2]
               aggregate_id uuid NOT NULL PRIMARY KEY,
               events_partition_key text NOT NULL DEFAULT '',
               aggregate_type_id SMALLINT NOT NULL,
-              snapshot_threshold integer,
               created_at timestamp with time zone NOT NULL DEFAULT NOW(),
               UNIQUE (events_partition_key, aggregate_id),
               FOREIGN KEY (aggregate_type_id) REFERENCES aggregate_types (id) ON UPDATE CASCADE

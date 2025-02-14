@@ -684,7 +684,6 @@ CREATE TABLE sequent_schema.aggregates (
     aggregate_id uuid NOT NULL,
     events_partition_key text DEFAULT ''::text NOT NULL,
     aggregate_type_id smallint NOT NULL,
-    snapshot_threshold integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 )
 PARTITION BY RANGE (aggregate_id);
@@ -698,7 +697,6 @@ CREATE TABLE sequent_schema.aggregates_default (
     aggregate_id uuid NOT NULL,
     events_partition_key text DEFAULT ''::text NOT NULL,
     aggregate_type_id smallint NOT NULL,
-    snapshot_threshold integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
