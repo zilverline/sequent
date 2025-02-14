@@ -253,20 +253,20 @@ $$;
 
 
 --
--- Name: permanently_delete_commands_without_events(uuid, uuid); Type: PROCEDURE; Schema: sequent_schema; Owner: -
+-- Name: permanently_delete_commands_without_events(uuid); Type: PROCEDURE; Schema: sequent_schema; Owner: -
 --
 
-CREATE PROCEDURE sequent_schema.permanently_delete_commands_without_events(IN _aggregate_id uuid, IN _organization_id uuid)
+CREATE PROCEDURE sequent_schema.permanently_delete_commands_without_events(IN _aggregate_id uuid)
     LANGUAGE plpgsql
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
-  IF _aggregate_id IS NULL AND _organization_id IS NULL THEN
-    RAISE EXCEPTION 'aggregate_id or organization_id must be specified to delete commands';
+  IF _aggregate_id IS NULL THEN
+    RAISE EXCEPTION 'aggregate_id must be specified to delete commands';
   END IF;
 
   DELETE FROM commands
-   WHERE (_aggregate_id IS NULL OR aggregate_id = _aggregate_id)
+   WHERE aggregate_id = _aggregate_id
      AND NOT EXISTS (SELECT 1 FROM events WHERE command_id = commands.id);
 END;
 $$;

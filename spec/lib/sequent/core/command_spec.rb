@@ -8,7 +8,7 @@ describe Sequent::Core::BaseCommand do
   end
 
   context Sequent::Core::Command do
-    it 'can be constructed with an aggregate_id and organization_id' do
+    it 'can be constructed with an aggregate_id' do
       command = Sequent::Core::Command.new(aggregate_id: 'abc')
       expect(command.aggregate_id).to eq 'abc'
     end

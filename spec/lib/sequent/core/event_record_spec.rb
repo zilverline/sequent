@@ -39,33 +39,6 @@ describe Sequent::Core::EventRecord do
         expect(record.event).to eq(event)
       end
 
-      it 'conditionally assigns organization_id' do
-        stub_const('EventWithOrganizationId', Class.new(Sequent::Core::Event))
-
-        record = EventRecordWithOrganizationId.new
-
-        event = ExampleEvent.new(
-          aggregate_id: 'aggregate-id',
-          sequence_number: 1,
-        )
-
-        record.event = event
-        expect(record.organization_id).to be_nil
-
-        EventWithOrganizationId.class_eval do
-          attrs organization_id: String
-        end
-
-        event = EventWithOrganizationId.new(
-          aggregate_id: 'aggregate-id',
-          sequence_number: 1,
-          organization_id: 'organization-id',
-        )
-
-        record.event = event
-        expect(record.organization_id).to eq('organization-id')
-      end
-
       it "invokes 'after_serialization' hook" do
         event_record_hooks = spy(:event_record_hooks)
         Sequent.configuration.event_record_hooks_class = event_record_hooks

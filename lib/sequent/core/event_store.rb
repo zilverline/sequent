@@ -209,12 +209,10 @@ module Sequent
         call_procedure(connection, 'permanently_delete_event_streams', [aggregate_ids.to_json])
       end
 
-      def permanently_delete_commands_without_events(aggregate_id: nil, organization_id: nil)
-        unless aggregate_id || organization_id
-          fail ArgumentError, 'aggregate_id and/or organization_id must be specified'
-        end
+      def permanently_delete_commands_without_events(aggregate_id:)
+        fail ArgumentError, 'aggregate_id must be specified' unless aggregate_id
 
-        call_procedure(connection, 'permanently_delete_commands_without_events', [aggregate_id, organization_id])
+        call_procedure(connection, 'permanently_delete_commands_without_events', [aggregate_id])
       end
 
       private

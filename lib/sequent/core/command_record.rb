@@ -20,7 +20,6 @@ module Sequent
 
         # optional attributes (here for historic reasons)
         # this should be moved to a configurable CommandSerializer
-        self.organization_id = command.organization_id if serialize_attribute?(command, :organization_id)
         self.event_aggregate_id = command.event_aggregate_id if serialize_attribute?(command, :event_aggregate_id)
         self.event_sequence_number = command.event_sequence_number if serialize_attribute?(
           command,
