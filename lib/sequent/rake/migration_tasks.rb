@@ -36,6 +36,25 @@ module Sequent
             end
           end
 
+          namespace :register do
+            desc <<~EOS
+              Register all aggregate root, command, and event types in the database type tables
+
+              NOTE make sure to load all Ruby classes before running this task!
+            EOS
+            task types: %i[sequent:init] do
+              ensure_sequent_env_set!
+
+              connection
+
+              Sequent.configuration.event_store.register_types(
+                aggregate_root_classes: all_subclasses(Sequent::Core::AggregateRoot),
+                command_classes: all_subclasses(Sequent::Core::Command),
+                event_classes: all_subclasses(Sequent::Core::Event),
+              )
+            end
+          end
+
           desc <<~EOS
             Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
@@ -373,6 +392,10 @@ module Sequent
         @env ||= ENV['SEQUENT_ENV'] || fail('SEQUENT_ENV not set')
       end
       # rubocop:enable Naming/MemoizedInstanceVariableName
+
+      def all_subclasses(parent)
+        ObjectSpace.each_object(Class).select { |klass| klass < parent }
+      end
     end
   end
 end
