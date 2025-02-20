@@ -23,7 +23,6 @@ RSpec.configure do |config|
   config.before :suite do
     Sequent::Support::Database.connect!('test')
     Sequent::Support::Database.drop_schema!(Sequent.configuration.view_schema_name)
-    Sequent::Support::Database.drop_schema!(Sequent.configuration.event_store_schema_name)
 
     Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: 'test')
   end

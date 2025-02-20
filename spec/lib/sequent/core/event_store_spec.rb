@@ -764,34 +764,6 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe '#delete_commands_without_events' do
-    before do
-      event_store.commit_events(
-        Sequent::Core::Command.new(aggregate_id: aggregate_id),
-        [
-          [
-            Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
-              aggregate_id: aggregate_id,
-            ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
-          ],
-        ],
-      )
-    end
-
-    it 'does not delete commands with associated events' do
-      event_store.permanently_delete_commands_without_events(aggregate_id: aggregate_id)
-      expect(Sequent::Core::CommandRecord.exists?(aggregate_id: aggregate_id)).to be_truthy
-    end
-
-    it 'deletes commands without associated events' do
-      event_store.permanently_delete_event_stream(aggregate_id)
-      event_store.permanently_delete_commands_without_events(aggregate_id: aggregate_id)
-      expect(Sequent::Core::CommandRecord.exists?(aggregate_id: aggregate_id)).to be_falsy
-    end
-  end
-
   class ReplayCounter < Sequent::Core::Projector
     attr_reader :replay_count
 
