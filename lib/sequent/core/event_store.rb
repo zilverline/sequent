@@ -201,6 +201,20 @@ module Sequent
         ]
       end
 
+      def register_types(aggregate_root_classes: [], command_classes: [], event_classes: [])
+        call_procedure(
+          connection,
+          'register_types',
+          [
+            {
+              aggregate_root_types: aggregate_root_classes.map(&:name),
+              command_types: command_classes.map(&:name),
+              event_types: event_classes.map(&:name),
+            }.to_json,
+          ],
+        )
+      end
+
       def permanently_delete_event_stream(aggregate_id)
         permanently_delete_event_streams([aggregate_id])
       end
