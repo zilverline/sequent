@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'active_record'
+require_relative '../application_record'
 
 module Sequent
   module Core
