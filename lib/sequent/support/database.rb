@@ -42,14 +42,10 @@ module Sequent
       end
 
       def self.establish_connection(db_config)
-        if Sequent.configuration.can_use_multiple_databases?
-          ActiveRecord::Base.configurations = db_config.stringify_keys
-          ActiveRecord::Base.connects_to database: {
-            Sequent.configuration.primary_database_role => Sequent.configuration.primary_database_key,
-          }
-        else
-          ActiveRecord::Base.establish_connection(db_config)
-        end
+        db_config = db_config.try(:configuration_hash) || db_config
+        ActiveRecord::Base.establish_connection(
+          db_config.with_indifferent_access.fetch(Sequent.configuration.primary_database_key, db_config),
+        )
       end
 
       def self.disconnect!
