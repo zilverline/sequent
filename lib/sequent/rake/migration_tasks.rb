@@ -48,7 +48,7 @@ module Sequent
               connection
 
               Sequent.configuration.event_store.register_types(
-                aggregate_root_classes: all_subclasses(Sequent::Core::AggregateRoot),
+                aggregate_root_classes: Sequent::Core::AggregateRoot.descendants,
                 command_classes: all_subclasses(Sequent::Core::Command),
                 event_classes: all_subclasses(Sequent::Core::Event),
               )
