@@ -201,6 +201,18 @@ module Sequent
         ]
       end
 
+      def update_unique_keys(event_streams)
+        fail ArgumentError, 'array of stream records expected' unless event_streams.all? { |x| x.is_a?(EventStream) }
+
+        call_procedure(connection, 'update_unique_keys', [event_streams.to_json])
+      rescue ActiveRecord::RecordNotUnique => e
+        if e.message =~ /duplicate unique key value for aggregate/
+          raise AggregateKeyNotUniqueError, e.message
+        else
+          raise OptimisticLockingError
+        end
+      end
+
       def permanently_delete_event_stream(aggregate_id)
         permanently_delete_event_streams([aggregate_id])
       end

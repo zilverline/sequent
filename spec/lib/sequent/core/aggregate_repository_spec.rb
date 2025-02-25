@@ -525,6 +525,11 @@ describe Sequent::Core::AggregateRepository do
           apply DummyWithoutEmailCreated, ssn:
         end
 
+        # Just for testing, so no need to use an event to change the state
+        def change_ssn(ssn)
+          @ssn = ssn
+        end
+
         on DummyWithoutEmailCreated do |event|
           @ssn = event.ssn
         end
@@ -549,6 +554,24 @@ describe Sequent::Core::AggregateRepository do
 
         expect { Sequent.aggregate_repository.commit(DummyCommand.new) }
           .to raise_error Sequent::Core::AggregateKeyNotUniqueError
+      end
+
+      it 'can update unique keys without having to store events' do
+        user_a = DummyAggregateWithoutEmail.new(user_id_1, ssn: '456')
+        user_b = DummyAggregateWithoutEmail.new(user_id_2, ssn: '123')
+        Sequent.aggregate_repository.add_aggregate(user_a)
+        Sequent.aggregate_repository.add_aggregate(user_b)
+        Sequent.aggregate_repository.commit(DummyCommand.new)
+
+        user_b.change_ssn(user_a.ssn)
+
+        expect do
+          Sequent.configuration.event_store.update_unique_keys([user_b.event_stream])
+        end.to raise_error(
+          an_instance_of(Sequent::Core::AggregateKeyNotUniqueError)
+            .and(having_attributes(message: /#{user_id_2}/))
+            .and(having_attributes(message: /DummyAggregateWithoutEmail/)),
+        )
       end
     end
   end
