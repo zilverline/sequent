@@ -254,10 +254,10 @@ module Sequent
               Use this after adding new unique key constraints to an aggregate to ensure every aggregate's unique keys
               are present in the database.
             EOS
-            task :unique_keys, %i[aggregate_root_type group_size] => ['sequent:init', :init] do |_task, args|
+            task :unique_keys, %i[aggregate_type group_size] => ['sequent:init', :init] do |_task, args|
               count = 0
               Sequent.configuration.event_store.event_streams_enumerator(
-                aggregate_root_type: args[:aggregate_root_type],
+                aggregate_type: args[:aggregate_type],
                 group_size: args[:group_size] || 100,
               ).each do |aggregate_ids|
                 Sequent.configuration.transaction_provider.transactional do

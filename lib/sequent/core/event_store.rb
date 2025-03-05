@@ -203,7 +203,7 @@ module Sequent
 
       # Returns an enumerator that yields aggregate ids in blocks of `group_size` arrays. Optionally the
       # aggregate root type can be specified (as a string) to only yield aggregate ids of the indicated type.
-      def event_streams_enumerator(aggregate_root_type: nil, group_size: 100)
+      def event_streams_enumerator(aggregate_type: nil, group_size: 100)
         Enumerator.new do |yielder|
           last_events_partition_key = ''
           last_aggregate_id = nil
@@ -218,7 +218,7 @@ module Sequent
                 LIMIT $2',
               'aggregates_to_update',
               [
-                aggregate_root_type,
+                aggregate_type,
                 group_size,
                 last_events_partition_key,
                 last_aggregate_id,

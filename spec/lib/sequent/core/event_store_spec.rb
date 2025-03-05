@@ -433,7 +433,7 @@ describe Sequent::Core::EventStore do
         end
 
         it 'finds all event streams of a specific type' do
-          subject = event_store.event_streams_enumerator(aggregate_root_type: 'MyAggregate0', group_size:)
+          subject = event_store.event_streams_enumerator(aggregate_type: 'MyAggregate0', group_size:)
           aggregate_ids = subject.next
           expect(aggregate_ids).to eq(ordered_aggregate_ids[0...10])
           expect { subject.next }.to raise_error(StopIteration)
@@ -453,7 +453,7 @@ describe Sequent::Core::EventStore do
         end
 
         it 'finds all event streams of a specific type' do
-          subject = event_store.event_streams_enumerator(aggregate_root_type: 'MyAggregate1', group_size:)
+          subject = event_store.event_streams_enumerator(aggregate_type: 'MyAggregate1', group_size:)
           aggregate_ids = subject.next
           expect(aggregate_ids).to eq(ordered_aggregate_ids[10..])
           expect { subject.next }.to raise_error(StopIteration)
