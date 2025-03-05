@@ -36,6 +36,10 @@ module Sequent
                  :load_events,
                  :stream_exists?,
                  :events_exists?,
+                 :event_streams_enumerator,
+                 :find_event_stream,
+                 :position_mark,
+                 :load_events_since_marked_position,
                  to: :event_store
 
         def initialize(result, event_store)
@@ -49,6 +53,10 @@ module Sequent
 
           new_events = streams_with_events.flat_map { |_, events| events }
           @result.published_command_with_events(command, new_events)
+        end
+
+        def update_unique_keys(event_streams)
+          # no-op
         end
       end
 
