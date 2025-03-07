@@ -122,6 +122,15 @@ module Sequent
           [deserialize_events(@stored_events[mark..]), position_mark]
         end
 
+        def event_streams_enumerator(aggregate_type: nil, group_size: 100)
+          @event_streams
+            .values
+            .select { |es| aggregate_type.nil? || es.aggregate_type == aggregate_type }
+            .sort_by { |es| [es.events_partition_key, es.aggregate_id] }
+            .map(&:aggregate_id)
+            .each_slice(group_size)
+        end
+
         private
 
         def serialize_events(events)

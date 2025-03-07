@@ -66,6 +66,8 @@ module Sequent
     end
 
     shared_examples 'aggregates with unique keys' do
+      let(:event_store) { Sequent.configuration.event_store }
+
       before :each do
         Sequent.configuration.command_handlers = [UniqueKeysCommandHandler.new]
       end
@@ -76,7 +78,7 @@ module Sequent
 
       it 'allows an aggregate with multiple unique keys' do
         when_command UniqueKeysCommand.new(aggregate_id:, keys: %w[a b])
-        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id).unique_keys).to eq(
+        expect(event_store.find_event_stream(aggregate_id).unique_keys).to eq(
           {
             a: 'a',
             b: 'b',
@@ -87,7 +89,7 @@ module Sequent
       it 'allows an aggregate with multiple unique keys to change a key' do
         given_events UniqueKeysEvent.new(aggregate_id:, sequence_number: 1, keys: %w[a b])
         when_command UniqueKeysCommand.new(aggregate_id:, keys: %w[a c])
-        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id).unique_keys).to eq(
+        expect(event_store.find_event_stream(aggregate_id).unique_keys).to eq(
           {
             a: 'a',
             c: 'c',
@@ -103,12 +105,12 @@ module Sequent
           to_aggregate_id: aggregate_id_2,
           keys: %w[b],
         )
-        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id_1).unique_keys).to eq(
+        expect(event_store.find_event_stream(aggregate_id_1).unique_keys).to eq(
           {
             a: 'a',
           },
         )
-        expect(Sequent.configuration.event_store.find_event_stream(aggregate_id_2).unique_keys).to eq(
+        expect(event_store.find_event_stream(aggregate_id_2).unique_keys).to eq(
           {
             b: 'b',
             c: 'c',
@@ -121,6 +123,15 @@ module Sequent
         expect do
           when_command UniqueKeysCommand.new(aggregate_id: aggregate_id_2, keys: %w[a])
         end.to raise_error Sequent::Core::AggregateKeyNotUniqueError
+      end
+
+      # Test located here so it tests both the real event store and the fake event store in one go.
+      it 'can enumerate event streams' do
+        given_events UniqueKeysEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, keys: %w[a b]),
+                     UniqueKeysEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1, keys: %w[c])
+
+        aggregate_ids = event_store.event_streams_enumerator.to_a.flatten
+        expect(aggregate_ids).to contain_exactly(aggregate_id_1, aggregate_id_2)
       end
     end
 

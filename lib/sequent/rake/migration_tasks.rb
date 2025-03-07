@@ -247,6 +247,28 @@ module Sequent
 
               view_schema.migrate_dryrun(regex: args[:regex])
             end
+
+            desc <<~EOS
+              Loads all aggregates of the specified type (if any) and updates the aggregate's unique keys in the database.
+
+              Use this after adding new unique key constraints to an aggregate to ensure every aggregate's unique keys
+              are present in the database.
+            EOS
+            task :unique_keys, %i[aggregate_type group_size] => ['sequent:init', :init] do |_task, args|
+              count = 0
+              Sequent.configuration.event_store.event_streams_enumerator(
+                aggregate_type: args[:aggregate_type],
+                group_size: args[:group_size] || 100,
+              ).each do |aggregate_ids|
+                Sequent.configuration.transaction_provider.transactional do
+                  aggregates = Sequent.configuration.aggregate_repository.load_aggregates(aggregate_ids)
+                  Sequent.configuration.event_store.update_unique_keys(aggregates.map(&:event_stream))
+                  count += aggregates.size
+                  printf("\rUpdated unique keys for #{count} aggregates.")
+                end
+              end
+              puts("\nDone.")
+            end
           end
 
           namespace :snapshots do

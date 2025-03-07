@@ -364,33 +364,101 @@ describe Sequent::Core::EventStore do
     end
   end
 
-  describe '#stream_exists?' do
-    before do
-      event_store.commit_events(
-        Sequent::Core::Command.new(aggregate_id: aggregate_id),
-        [
+  describe 'event_streams' do
+    context '#stream_exists?' do
+      before do
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
           [
-            Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
-              aggregate_id: aggregate_id,
-            ),
-            [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: aggregate_id,
+              ),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1)],
+            ],
           ],
-        ],
-      )
+        )
+      end
+
+      it 'gets true for an existing aggregate' do
+        expect(event_store.stream_exists?(aggregate_id)).to eq(true)
+      end
+
+      it 'gets false for an non-existing aggregate' do
+        expect(event_store.stream_exists?(Sequent.new_uuid)).to eq(false)
+      end
+
+      it 'gets false after deletion' do
+        event_store.permanently_delete_event_stream(aggregate_id)
+        expect(event_store.stream_exists?(aggregate_id)).to eq(false)
+      end
     end
 
-    it 'gets true for an existing aggregate' do
-      expect(event_store.stream_exists?(aggregate_id)).to eq(true)
-    end
+    context '#event_streams_enumerator' do
+      let(:event_streams) do
+        Array.new(20) do |i|
+          Sequent::Core::EventStream.new(
+            aggregate_type: "MyAggregate#{i / 10}",
+            aggregate_id: Sequent.new_uuid,
+            events_partition_key: (i / 5).to_s,
+          )
+        end
+      end
+      let(:ordered_aggregate_ids) do
+        event_streams
+          .sort_by { |s| [s.events_partition_key, s.aggregate_id] }
+          .map(&:aggregate_id)
+      end
 
-    it 'gets false for an non-existing aggregate' do
-      expect(event_store.stream_exists?(Sequent.new_uuid)).to eq(false)
-    end
+      let(:group_size) { 100 }
 
-    it 'gets false after deletion' do
-      event_store.permanently_delete_event_stream(aggregate_id)
-      expect(event_store.stream_exists?(aggregate_id)).to eq(false)
+      before do
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id:),
+          event_streams.map do |s|
+            [s, [MyEvent.new(aggregate_id: s.aggregate_id, sequence_number: 1)]]
+          end,
+        )
+      end
+
+      context 'fewer aggregates than group size' do
+        let(:group_size) { 100 }
+
+        it 'finds all event streams at once' do
+          subject = event_store.event_streams_enumerator(group_size:)
+          aggregate_ids = subject.next
+          expect(aggregate_ids).to eq(ordered_aggregate_ids)
+          expect { subject.next }.to raise_error(StopIteration)
+        end
+
+        it 'finds all event streams of a specific type' do
+          subject = event_store.event_streams_enumerator(aggregate_type: 'MyAggregate0', group_size:)
+          aggregate_ids = subject.next
+          expect(aggregate_ids).to eq(ordered_aggregate_ids[0...10])
+          expect { subject.next }.to raise_error(StopIteration)
+        end
+      end
+
+      context 'more aggregates than group size' do
+        let(:group_size) { 15 }
+
+        it 'finds all event streams' do
+          subject = event_store.event_streams_enumerator(group_size:)
+          aggregate_ids = subject.next
+          expect(aggregate_ids).to eq(ordered_aggregate_ids[0...group_size])
+          aggregate_ids = subject.next
+          expect(aggregate_ids).to eq(ordered_aggregate_ids[group_size..])
+          expect { subject.next }.to raise_error(StopIteration)
+        end
+
+        it 'finds all event streams of a specific type' do
+          subject = event_store.event_streams_enumerator(aggregate_type: 'MyAggregate1', group_size:)
+          aggregate_ids = subject.next
+          expect(aggregate_ids).to eq(ordered_aggregate_ids[10..])
+          expect { subject.next }.to raise_error(StopIteration)
+        end
+      end
     end
   end
 
