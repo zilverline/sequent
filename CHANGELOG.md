@@ -1,4 +1,4 @@
-# Changelog 8.2.x
+# Changelog 8.2.0
 
 - The sequent gem now uses ActiveRecord migrations to handle the
   `sequent_schema`. The `view_schema` is still handled by sequent
@@ -8,6 +8,11 @@
 
   After upgrading Sequent you can run this task again to install any
   updates for the schema.
+
+- There is a new rake task `sequent:migrate:unique_keys` which allows
+  you to migrate aggregates when you change an aggregate's unique
+  keys. The task loads each aggregate (optionally filtered by the
+  type) from history, and updates the associated unique keys.
 
 # Changelog 8.1.1
 
