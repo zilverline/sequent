@@ -570,7 +570,9 @@ describe Sequent::Core::AggregateRepository do
         end.to raise_error(
           an_instance_of(Sequent::Core::AggregateKeyNotUniqueError)
             .and(having_attributes(message: /#{user_id_2}/))
-            .and(having_attributes(message: /DummyAggregateWithoutEmail/)),
+            .and(having_attributes(message: /DummyAggregateWithoutEmail/))
+            .and(having_attributes(aggregate_type: 'DummyAggregateWithoutEmail'))
+            .and(having_attributes(aggregate_id: user_id_2)),
         )
       end
     end

@@ -476,9 +476,6 @@ BEGIN
 
   CALL store_aggregates(_aggregates_with_events);
 
-  _aggregates = (SELECT jsonb_agg(row->0) FROM jsonb_array_elements(_aggregates_with_events) AS row);
-  CALL update_unique_keys(_aggregates);
-
   FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row
                              ORDER BY row->0->'aggregate_id', row->1->0->'event_json'->'sequence_number'
   LOOP
@@ -495,6 +492,9 @@ BEGIN
            (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
       FROM jsonb_array_elements(_events) AS event;
   END LOOP;
+
+  _aggregates = (SELECT jsonb_agg(row->0) FROM jsonb_array_elements(_aggregates_with_events) AS row);
+  CALL update_unique_keys(_aggregates);
 END;
 $$;
 
@@ -1352,6 +1352,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public, view_schema, sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250312105100'),
 ('20250101000001'),
 ('20250101000000');
 

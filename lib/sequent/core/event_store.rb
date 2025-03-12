@@ -10,6 +10,25 @@ require_relative 'snapshot_store'
 module Sequent
   module Core
     class AggregateKeyNotUniqueError < RuntimeError
+      attr_reader :aggregate_type, :aggregate_id
+
+      def self.unique_key_error_message?(message)
+        message =~ /duplicate unique key value for aggregate/
+      end
+
+      def initialize(message)
+        super
+
+        match = message.match(
+          # rubocop:disable Layout/LineLength
+          /aggregate (\p{Upper}\p{Alnum}*(?:::\p{Upper}\p{Alnum}*)*) (\p{XDigit}{8}-\p{XDigit}{4}-\p{XDigit}{4}-\p{XDigit}{4}-\p{XDigit}{12})/,
+          # rubocop:enable Layout/LineLength
+        )
+        if match
+          @aggregate_type = match[1]
+          @aggregate_id = match[2]
+        end
+      end
     end
 
     class EventStore
@@ -205,28 +224,24 @@ module Sequent
       # aggregate root type can be specified (as a string) to only yield aggregate ids of the indicated type.
       def event_streams_enumerator(aggregate_type: nil, group_size: 100)
         Enumerator.new do |yielder|
-          last_events_partition_key = ''
           last_aggregate_id = nil
           loop do
             aggregate_rows = ActiveRecord::Base.connection.exec_query(
-              'SELECT events_partition_key, aggregate_id
-                FROM aggregates
+              'SELECT aggregate_id
+                 FROM aggregates
                 WHERE ($1::text IS NULL OR aggregate_type_id = (SELECT id FROM aggregate_types WHERE type = $1))
-                AND ((events_partition_key >= $3 AND $4::uuid IS NULL)
-                     OR (events_partition_key, aggregate_id) > ($3, $4))
-                ORDER BY 1, 2
+                  AND ($3::uuid IS NULL OR aggregate_id > $3)
+                ORDER BY 1
                 LIMIT $2',
               'aggregates_to_update',
               [
                 aggregate_type,
                 group_size,
-                last_events_partition_key,
                 last_aggregate_id,
               ],
             ).to_a
             break if aggregate_rows.empty?
 
-            last_events_partition_key = aggregate_rows.last['events_partition_key']
             last_aggregate_id = aggregate_rows.last['aggregate_id']
 
             yielder << aggregate_rows.map { |x| x['aggregate_id'] }
@@ -239,7 +254,7 @@ module Sequent
 
         call_procedure(connection, 'update_unique_keys', [event_streams.to_json])
       rescue ActiveRecord::RecordNotUnique => e
-        if e.message =~ /duplicate unique key value for aggregate/
+        if AggregateKeyNotUniqueError.unique_key_error_message?(e.message)
           raise AggregateKeyNotUniqueError, e.message
         else
           raise OptimisticLockingError
@@ -320,7 +335,7 @@ module Sequent
           ],
         )
       rescue ActiveRecord::RecordNotUnique => e
-        if e.message =~ /duplicate unique key value for aggregate/
+        if AggregateKeyNotUniqueError.unique_key_error_message?(e.message)
           raise AggregateKeyNotUniqueError, e.message
         else
           raise OptimisticLockingError

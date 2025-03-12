@@ -407,8 +407,8 @@ describe Sequent::Core::EventStore do
       end
       let(:ordered_aggregate_ids) do
         event_streams
-          .sort_by { |s| [s.events_partition_key, s.aggregate_id] }
           .map(&:aggregate_id)
+          .sort
       end
 
       let(:group_size) { 100 }
@@ -435,7 +435,12 @@ describe Sequent::Core::EventStore do
         it 'finds all event streams of a specific type' do
           subject = event_store.event_streams_enumerator(aggregate_type: 'MyAggregate0', group_size:)
           aggregate_ids = subject.next
-          expect(aggregate_ids).to eq(ordered_aggregate_ids[0...10])
+          expect(aggregate_ids).to eq(
+            event_streams
+              .select { |s| s.aggregate_type == 'MyAggregate0' }
+              .map(&:aggregate_id)
+              .sort,
+          )
           expect { subject.next }.to raise_error(StopIteration)
         end
       end
@@ -455,7 +460,12 @@ describe Sequent::Core::EventStore do
         it 'finds all event streams of a specific type' do
           subject = event_store.event_streams_enumerator(aggregate_type: 'MyAggregate1', group_size:)
           aggregate_ids = subject.next
-          expect(aggregate_ids).to eq(ordered_aggregate_ids[10..])
+          expect(aggregate_ids).to eq(
+            event_streams
+              .select { |s| s.aggregate_type == 'MyAggregate1' }
+              .map(&:aggregate_id)
+              .sort,
+          )
           expect { subject.next }.to raise_error(StopIteration)
         end
       end
