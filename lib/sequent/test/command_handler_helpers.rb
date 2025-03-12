@@ -89,7 +89,11 @@ module Sequent
               stream.unique_keys.to_h { |scope, key| [[scope, key], stream.aggregate_id] }
             end,
           ) do |_key, id_1, id_2|
-            fail Sequent::Core::AggregateKeyNotUniqueError if id_1 != id_2
+            if id_1 != id_2
+              stream, = streams_with_events.find { |s| s[0].aggregate_id == id_2 }
+              fail Sequent::Core::AggregateKeyNotUniqueError,
+                   "duplicate unique key value for aggregate #{stream.aggregate_type} #{stream.aggregate_id}"
+            end
           end
 
           streams_with_events.each do |event_stream, events|
