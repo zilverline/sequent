@@ -45,20 +45,7 @@ module Sequent
         end
 
         def create_records(record_class, array_of_value_hashes)
-          table = record_class.arel_table
-
-          query = array_of_value_hashes.map do |values|
-            insert_manager = new_insert_manager
-            insert_manager.into(table)
-            insert_manager.insert(
-              values.map do |key, value|
-                convert_to_values(key, table, value)
-              end,
-            )
-            insert_manager.to_sql
-          end.join(';')
-
-          execute_sql(query)
+          record_class.insert_all!(array_of_value_hashes, returning: false)
         end
 
         def create_or_update_record(record_class, values, created_at = Time.now)
@@ -129,14 +116,6 @@ module Sequent
 
         def new_record(record_class, values)
           record_class.unscoped.new(values)
-        end
-
-        def new_insert_manager
-          Arel::InsertManager.new
-        end
-
-        def convert_to_values(key, table, value)
-          [table[key], table.type_cast_for_database(key, value)]
         end
       end
     end
