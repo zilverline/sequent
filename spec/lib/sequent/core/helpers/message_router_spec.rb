@@ -9,7 +9,12 @@ describe Sequent::Core::Helpers::MessageRouter do
   let(:other_handler) { double('other handler') }
 
   describe '#match_message' do
-    subject { message_router.match_message(message) }
+    subject do
+      handlers = message_router.match_message(message)
+      # `match_message` must be consistent with `matches_message?`
+      expect(handlers.present?).to eq(message_router.matches_message?(message))
+      handlers
+    end
 
     class MyMessage < Sequent::Event; end
 
