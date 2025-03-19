@@ -24,11 +24,9 @@ module Sequent
 
           matchers.each do |matcher|
             if matcher.is_a?(MessageMatchers::InstanceOf)
-              @instanceof_routes[matcher.expected_class] ||= Set.new
-              @instanceof_routes[matcher.expected_class] << handler
+              (@instanceof_routes[matcher.expected_class] ||= Set.new) << handler
             else
-              @routes[matcher] ||= Set.new
-              @routes[matcher] << handler
+              (@routes[matcher] ||= Set.new) << handler
             end
           end
         end
