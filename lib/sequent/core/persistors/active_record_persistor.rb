@@ -45,7 +45,7 @@ module Sequent
         end
 
         def create_records(record_class, array_of_value_hashes)
-          record_class.insert_all!(array_of_value_hashes, returning: false)
+          record_class.unscoped.insert_all!(array_of_value_hashes, returning: false)
         end
 
         def create_or_update_record(record_class, values, created_at = Time.now)
