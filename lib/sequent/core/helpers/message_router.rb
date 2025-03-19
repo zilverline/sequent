@@ -20,11 +20,13 @@ module Sequent
         # or a falsey value otherwise.
         #
         def register_matchers(*matchers, handler)
+          fail ArgumentError, 'handler is required' if handler.nil?
+
           matchers.each do |matcher|
             if matcher.is_a?(MessageMatchers::InstanceOf)
-              @instanceof_routes[matcher.expected_class] << handler
+              (@instanceof_routes[matcher.expected_class] ||= Set.new) << handler
             else
-              @routes[matcher] << handler
+              (@routes[matcher] ||= Set.new) << handler
             end
           end
         end
@@ -34,7 +36,7 @@ module Sequent
         #
         def match_message(message)
           result = Set.new
-          result.merge(@instanceof_routes[message.class])
+          result.merge(@instanceof_routes[message.class]) if @instanceof_routes.include?(message.class)
           @routes.each do |matcher, handlers|
             result.merge(handlers) if matcher.matches_message?(message)
           end
@@ -45,15 +47,16 @@ module Sequent
         # Returns true when there is at least one handler for the given message, or false otherwise.
         #
         def matches_message?(message)
-          match_message(message).any?
+          @instanceof_routes.include?(message.class) ||
+            @routes.keys.any? { |matcher| matcher.matches_message?(message) }
         end
 
         ##
         # Removes all routes from the router.
         #
         def clear_routes
-          @instanceof_routes = Hash.new { |h, k| h[k] = Set.new }
-          @routes = Hash.new { |h, k| h[k] = Set.new }
+          @instanceof_routes = {}
+          @routes = {}
         end
       end
     end
