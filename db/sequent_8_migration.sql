@@ -51,11 +51,11 @@ SELECT DISTINCT command_type
 ANALYZE aggregate_types, event_types, command_types;
 
 INSERT INTO aggregates (aggregate_id, aggregate_type_id, snapshot_threshold, created_at)
-SELECT aggregate_id, (SELECT t.id FROM aggregate_types t WHERE aggregate_type = t.type), snapshot_threshold, created_at AT TIME ZONE 'Europe/Amsterdam'
+SELECT aggregate_id::uuid, (SELECT t.id FROM aggregate_types t WHERE aggregate_type = t.type), snapshot_threshold, created_at AT TIME ZONE 'Europe/Amsterdam'
   FROM stream_records;
 
 WITH e AS MATERIALIZED (
-  SELECT aggregate_id,
+  SELECT aggregate_id::uuid,
          sequence_number,
          command_record_id,
          t.id AS event_type_id,
@@ -94,7 +94,7 @@ SELECT id,
   FROM command;
 
 INSERT INTO aggregates_that_need_snapshots (aggregate_id, snapshot_sequence_number_high_water_mark, snapshot_outdated_at)
-SELECT aggregate_id, MAX(sequence_number), NOW()
+SELECT aggregate_id::uuid, MAX(sequence_number), NOW()
   FROM event_records
  WHERE event_type = 'Sequent::Core::SnapshotEvent'
  GROUP BY 1
@@ -115,6 +115,6 @@ ALTER TABLE stream_records RENAME TO old_stream_records;
 SELECT clock_timestamp() AS migration_completed_at,
        clock_timestamp() - :'migration_started_at'::timestamptz AS migration_duration \gset
 
-\echo Migration complated in :migration_duration (started at :migration_started_at, completed at :migration_completed_at)
+\echo Migration completed in :migration_duration (started at :migration_started_at, completed at :migration_completed_at)
 
 \echo execute ROLLBACK to abort, COMMIT to commit followed by VACUUM VERBOSE ANALYZE to ensure good performance
