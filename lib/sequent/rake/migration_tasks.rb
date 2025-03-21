@@ -196,9 +196,9 @@ module Sequent
 
                 current_snapshot_xmin_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
                 pending_events = Sequent.configuration.event_record_class
-                  .where(event_type: event_types)
-                  .where('xact_id >= ?', current_snapshot_xmin_xact_id)
-                  .count
+                                        .where(event_type: event_types)
+                                        .where('xact_id >= ?', current_snapshot_xmin_xact_id)
+                                        .count
                 print <<~EOS
                   Online migration from #{latest_done_version.version} to #{latest_version.version} is finished.
                   #{current_snapshot_xmin_xact_id - latest_version.xmin_xact_id} transactions behind current state (#{pending_events} pending events).
@@ -223,10 +223,15 @@ module Sequent
             desc <<~EOS
               Rolls back the new versions migration.
             EOS
-            task rollback_new_version: ['sequent:init', :init] do
+            task rollback_online: ['sequent:init', :init] do
               ensure_sequent_env_set!
               fail "No migration to rollback" if Sequent::Migrations::Versions.running.blank?
-              fail "Rollback mismatch. Tried to rollback #{Sequent.new_version} but #{Sequent::Migrations::Versions.version_currently_migrating} is currently running" if Sequent::Migrations::Versions.version_currently_migrating != Sequent.new_version
+              if Sequent::Migrations::Versions.version_currently_migrating != Sequent.new_version
+                fail "Rollback mismatch. Tried to rollback #{Sequent.new_version} but #{Sequent::Migrations::Versions.version_currently_migrating} is currently running"
+              end
+              if Sequent::Migrations::Versions.find_by!(version: Sequent.new_version).status != Sequent::Migrations::Versions::MIGRATE_ONLINE_RUNNING
+                fail "Can only rollback online migrations"
+              end
 
               db_config = Sequent::Support::Database.read_config(@env)
               view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
@@ -350,6 +355,7 @@ module Sequent
       def ensure_sequent_env_set!
         @env ||= ENV['SEQUENT_ENV'] || fail('SEQUENT_ENV not set')
       end
+
       # rubocop:enable Naming/MemoizedInstanceVariableName
     end
   end
