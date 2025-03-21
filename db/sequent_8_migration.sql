@@ -23,7 +23,10 @@ SET max_parallel_maintenance_workers = 8;
 
 BEGIN;
 
+-- If you are using AWS RDS, or other managed databases, it may not allow you to set `temp_tablespaces`,
+-- Consider running the line below separately on a session to check if it is allowed. Or commenting it.
 SET temp_tablespaces = 'pg_default';
+
 SET search_path TO sequent_schema;
 
 ALTER SEQUENCE command_records_id_seq OWNED BY NONE;
