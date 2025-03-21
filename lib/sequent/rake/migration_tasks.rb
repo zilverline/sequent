@@ -355,7 +355,6 @@ module Sequent
       def ensure_sequent_env_set!
         @env ||= ENV['SEQUENT_ENV'] || fail('SEQUENT_ENV not set')
       end
-
       # rubocop:enable Naming/MemoizedInstanceVariableName
     end
   end
