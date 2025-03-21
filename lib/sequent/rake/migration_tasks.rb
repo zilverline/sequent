@@ -221,6 +221,20 @@ module Sequent
             end
 
             desc <<~EOS
+              Rolls back the new versions migration.
+            EOS
+            task rollback_new_version: ['sequent:init', :init] do
+              ensure_sequent_env_set!
+              fail "No migration to rollback" if Sequent::Migrations::Versions.running.blank?
+              fail "Rollback mismatch. Tried to rollback #{Sequent.new_version} but #{Sequent::Migrations::Versions.version_currently_migrating} is currently running" if Sequent::Migrations::Versions.version_currently_migrating != Sequent.new_version
+
+              db_config = Sequent::Support::Database.read_config(@env)
+              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
+
+              view_schema.rollback_migration
+            end
+
+            desc <<~EOS
               Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.
             EOS
             task offline: ['sequent:init', :init] do

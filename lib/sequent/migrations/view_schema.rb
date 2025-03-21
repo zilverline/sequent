@@ -268,6 +268,15 @@ module Sequent
         raise e
       end
 
+      def rollback_migration
+        disconnect!
+        establish_connection
+        drop_old_tables(Sequent.new_version)
+
+        executor.reset_table_names(plan)
+        Versions.rollback!(Sequent.new_version)
+      end
+
       private
 
       def ensure_valid_plan!
@@ -371,15 +380,6 @@ module Sequent
 
         # Also commit all specific declared replay persistors on projectors.
         Sequent.configuration.event_handlers.select { |e| e.class.replay_persistor }.each(&:commit)
-      end
-
-      def rollback_migration
-        disconnect!
-        establish_connection
-        drop_old_tables(Sequent.new_version)
-
-        executor.reset_table_names(plan)
-        Versions.rollback!(Sequent.new_version)
       end
 
       def in_view_schema(&block)
