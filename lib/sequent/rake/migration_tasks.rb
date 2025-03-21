@@ -196,9 +196,9 @@ module Sequent
 
                 current_snapshot_xmin_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
                 pending_events = Sequent.configuration.event_record_class
-                                        .where(event_type: event_types)
-                                        .where('xact_id >= ?', current_snapshot_xmin_xact_id)
-                                        .count
+                  .where(event_type: event_types)
+                  .where('xact_id >= ?', current_snapshot_xmin_xact_id)
+                  .count
                 print <<~EOS
                   Online migration from #{latest_done_version.version} to #{latest_version.version} is finished.
                   #{current_snapshot_xmin_xact_id - latest_version.xmin_xact_id} transactions behind current state (#{pending_events} pending events).
@@ -221,7 +221,7 @@ module Sequent
             end
 
             desc <<~EOS
-              Rolls back the new versions migration.
+              Rolls back the new versions online migration.
             EOS
             task rollback_online: ['sequent:init', :init] do
               ensure_sequent_env_set!
