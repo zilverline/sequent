@@ -53,6 +53,22 @@ describe Sequent::Support::Database do
       end
     end
 
+    describe '.with_search_path' do
+      before { Sequent::Support::Database.create!(db_config) }
+
+      it 'changes the search path' do
+        Sequent::Support::Database.with_search_path('foo') do
+          expect(ActiveRecord::Base.connection.select_value("SELECT current_setting('search_path')")).to eq('foo')
+        end
+      end
+
+      it 'restores the search path' do
+        Sequent::Support::Database.with_search_path('foo') {}
+        expect(ActiveRecord::Base.connection.select_value("SELECT current_setting('search_path')"))
+          .to eq('view_schema, sequent_schema, public')
+      end
+    end
+
     describe '.with_schema_search_path' do
       before { Sequent::Support::Database.create!(db_config) }
       after do

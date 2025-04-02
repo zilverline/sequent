@@ -1,0 +1,10 @@
+# Use Nix to setup development dependencies, github hooks, and services with `devenv`.
+# See `flake.nix` for the setup.
+watch_file flake.nix
+watch_file flake.lock
+use flake . --no-pure-eval
+
+# OPTIONAL: cConfigure with your personal access token to GitHub for
+# additional data when looking at the local documentation server.  See
+# https://github.com/jekyll/github-metadata/blob/main/docs/authentication.md
+#JEKYLL_GITHUB_TOKEN=
