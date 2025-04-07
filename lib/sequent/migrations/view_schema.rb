@@ -214,6 +214,7 @@ module Sequent
         rollback_migration
         raise e
       end
+
       ##
       # Last part of a view schema migration
       #
@@ -237,7 +238,13 @@ module Sequent
         return if Sequent.new_version == current_version
 
         ensure_version_correct!
-        in_view_schema { Versions.start_offline!(Sequent.new_version) }
+        in_view_schema do
+          Versions.start_offline!(
+            Sequent.new_version,
+            target_projectors: plan.projectors.map(&:name),
+            target_records: plan.alter_tables.map(&:record_class_name),
+          )
+        end
         Sequent.logger.info("Start migrate_offline for version #{Sequent.new_version}")
 
         executor.set_table_names_to_new_version(plan)

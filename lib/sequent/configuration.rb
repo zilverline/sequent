@@ -65,7 +65,8 @@ module Sequent
                   :primary_database_role,
                   :primary_database_key,
                   :time_precision,
-                  :enable_autoregistration
+                  :enable_autoregistration,
+                  :enable_offline_migration_read_only_mode
 
     attr_reader :migrations_class_name,
                 :versions_table_name
@@ -127,6 +128,7 @@ module Sequent
       self.time_precision = DEFAULT_TIME_PRECISION
 
       self.enable_autoregistration = false
+      self.enable_offline_migration_read_only_mode = false
     end
 
     def can_use_multiple_databases?

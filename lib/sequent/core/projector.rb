@@ -35,6 +35,8 @@ module Sequent
         end
       end
 
+      class ReadOnlyModeEnabled < RuntimeError; end
+
       def self.projectors
         Sequent.configuration.event_handlers.select { |x| x.is_a? Migratable }.map(&:class)
       end
@@ -53,6 +55,32 @@ module Sequent
 
       def managed_tables
         self.class.managed_tables
+      end
+
+      def dispatch_message(message, handlers)
+        assert_not_readonly! if Sequent.configuration.enable_offline_migration_read_only_mode
+        super
+      end
+
+      def assert_not_readonly!
+        fail ReadOnlyModeEnabled if targets_migrating_projectors? || targets_migrating_tables?
+      end
+
+      def targets_migrating_projectors?
+        running_offline_migration.presence && running_offline_migration.target_projectors.include?(self.class.name)
+      end
+
+      def targets_migrating_tables?
+        running_offline_migration.presence && running_offline_migration.target_records.intersect?(
+          managed_tables.map(&:name),
+        )
+      end
+
+      def running_offline_migration
+        @running_offline_migration ||= Sequent::Migrations::Versions
+          .later_versions
+          .migrate_offline_running_or_done
+          .latest
       end
     end
 

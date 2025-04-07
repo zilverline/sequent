@@ -10,7 +10,9 @@ module Sequent
 
       def self.migration_sql
         <<~SQL.chomp
-          CREATE TABLE IF NOT EXISTS #{table_name} (version integer NOT NULL, CONSTRAINT version_pk PRIMARY KEY(version));
+          CREATE TABLE IF NOT EXISTS #{table_name} (version integer NOT NULL, target_projectors text[] DEFAULT '{}'::text[], target_records text[] DEFAULT '{}'::text[], CONSTRAINT version_pk PRIMARY KEY(version));
+          ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS target_projectors text[] DEFAULT '{}'::text[];
+          ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS target_records text[] DEFAULT '{}'::text[];
           ALTER TABLE #{table_name} drop constraint if exists only_one_running;
           ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT NULL CONSTRAINT only_one_running CHECK (status in (1,2,3));
           ALTER TABLE #{table_name} ADD COLUMN IF NOT EXISTS xmin_xact_id BIGINT;
@@ -24,6 +26,10 @@ module Sequent
             -> {
               where(status: [MIGRATE_ONLINE_RUNNING, MIGRATE_ONLINE_FINISHED, MIGRATE_OFFLINE_RUNNING])
             }
+
+      scope :later_versions, -> { where('version > ?', Sequent.new_version) }
+      scope :migrate_offline_running, -> { where(status: MIGRATE_OFFLINE_RUNNING) }
+      scope :migrate_offline_running_or_done, -> { migrate_offline_running.or(done) }
 
       def self.current_version
         done.latest_version || 0
@@ -55,7 +61,7 @@ module Sequent
         running.where(version: new_version).delete_all
       end
 
-      def self.start_offline!(new_version)
+      def self.start_offline!(new_version, target_projectors: [], target_records: [])
         current_migration = find_by(version: new_version)
         fail MigrationNotStarted if current_migration.blank?
 
@@ -64,7 +70,7 @@ module Sequent
           fail MigrationDone if current_migration.status.nil?
           fail ConcurrentMigration if current_migration.status != MIGRATE_ONLINE_FINISHED
 
-          current_migration.update(status: MIGRATE_OFFLINE_RUNNING)
+          current_migration.update(status: MIGRATE_OFFLINE_RUNNING, target_projectors:, target_records:)
         end
       rescue ActiveRecord::LockWaitTimeout
         raise ConcurrentMigration
