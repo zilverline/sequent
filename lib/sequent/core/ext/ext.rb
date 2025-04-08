@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'bigdecimal'
+require 'date'
+
 class Symbol
   def self.deserialize_from_json(value)
     value.blank? ? nil : value.try(:to_sym)
