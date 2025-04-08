@@ -1,10 +1,17 @@
 # frozen_string_literal: true
 
+require_relative 'core/random_uuid_generator'
+require_relative 'core/base_command_handler'
+require_relative 'core/command'
 require_relative 'core/event_store'
+require_relative 'core/event_publisher'
+require_relative 'core/aggregate_snapshotter'
 require_relative 'core/command_service'
 require_relative 'core/transactions/no_transactions'
 require_relative 'core/aggregate_repository'
+require_relative 'core/middleware/chain'
 require_relative 'core/persistors/active_record_persistor'
+require_relative 'core/transactions/active_record_transaction_provider'
 require 'logger'
 
 module Sequent
