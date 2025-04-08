@@ -439,6 +439,14 @@ describe Sequent::Migrations::ViewSchema do
         expect(Sequent::Migrations::Versions.done.maximum(:version)).to eq new_version
       end
 
+      it 'sets the affected resources' do
+        migrator.migrate_offline
+
+        expect(Sequent::Migrations::Versions.done.latest.target_projectors)
+          .to eq([AccountProjector.name, MessageProjector.name])
+        expect(Sequent::Migrations::Versions.done.latest.target_records).to eq []
+      end
+
       it 'ensures the "normal" table_names are set' do
         migrator.migrate_offline
 
