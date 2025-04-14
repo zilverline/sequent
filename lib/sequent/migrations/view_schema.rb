@@ -241,8 +241,8 @@ module Sequent
         in_view_schema do
           Versions.start_offline!(
             Sequent.new_version,
-            target_projectors: plan.projectors.map(&:name),
-            target_records: plan.alter_tables.map(&:record_class_name),
+            target_projectors: plan.projectors.map(&:name).sort,
+            target_records: plan.alter_tables.map(&:record_class_name).sort,
           )
         end
         Sequent.logger.info("Start migrate_offline for version #{Sequent.new_version}")
