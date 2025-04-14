@@ -30,6 +30,10 @@ module Sequent
         @record_class.table_name
       end
 
+      def record_class_name
+        @record_class.name
+      end
+
       def copy(with_version)
         self.class.create(record_class, with_version)
       end
