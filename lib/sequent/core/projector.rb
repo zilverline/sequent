@@ -87,6 +87,16 @@ module Sequent
       include Helpers::MessageHandler
       include Migratable
       extend ActiveSupport::DescendantsTracker
+      class NotManagedByThisProjector < RuntimeError
+        def initialize(record_class)
+          super
+          @record_class = record_class
+        end
+
+        def message
+          "#{@record_class} is not managed by this projector #{self.class.name}. Please check your configuration."
+        end
+      end
 
       class << self
         attr_accessor :abstract_class, :skip_autoregister
@@ -101,24 +111,73 @@ module Sequent
         nil
       end
 
-      def_delegators :@persistor,
-                     :update_record,
-                     :create_record,
-                     :create_records,
-                     :create_or_update_record,
-                     :get_record!,
-                     :get_record,
-                     :delete_all_records,
-                     :update_all_records,
-                     :do_with_records,
-                     :do_with_record,
-                     :delete_record,
-                     :find_records,
-                     :last_record,
-                     :execute_sql,
-                     :commit
+      def_delegators :@persistor, :execute_sql, :commit
+
+      def update_record(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.update_record(record_class, *rest)
+      end
+
+      def create_record(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.create_record(record_class, *rest)
+      end
+
+      def create_records(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.create_records(record_class, *rest)
+      end
+
+      def get_record!(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.get_record!(record_class, *rest)
+      end
+
+      def get_record(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.get_record(record_class, *rest)
+      end
+
+      def delete_all_records(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.delete_all_records(record_class, *rest)
+      end
+
+      def update_all_records(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.update_all_records(record_class, *rest)
+      end
+
+      def do_with_records(record_class, *rest, &block)
+        ensure_record_class_supported!(record_class)
+        @persistor.do_with_records(record_class, *rest, &block)
+      end
+
+      def do_with_record(record_class, *rest, &block)
+        ensure_record_class_supported!(record_class)
+        @persistor.do_with_record(record_class, *rest, &block)
+      end
+
+      def delete_record(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.delete_record(record_class, *rest)
+      end
+
+      def find_records(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.find_records(record_class, *rest)
+      end
+
+      def last_record(record_class, *rest)
+        ensure_record_class_supported!(record_class)
+        @persistor.last_record(record_class, *rest)
+      end
 
       private
+
+      def ensure_record_class_supported!(record_class)
+        fail NotManagedByThisProjector, record_class unless managed_tables.include?(record_class)
+      end
 
       def ensure_valid!
         return if self.class.manages_no_tables?
