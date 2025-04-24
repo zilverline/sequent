@@ -4,12 +4,11 @@ module Sequent
   module Util
     module Printer
       def recursively_print(e)
-        logger.error "#{e}\n\n#{e.backtrace.join("\n")}"
+        logger.error "#{e.class.name}: #{e.message}\n\n#{e.backtrace.join("\n")}"
 
-        while e.cause
+        if e.cause
           logger.error '+++++++++++++++ CAUSE +++++++++++++++'
-          logger.error "#{e.cause}\n\n#{e.cause.backtrace.join("\n")}"
-          e = e.cause
+          recursively_print(e.cause)
         end
       end
     end
