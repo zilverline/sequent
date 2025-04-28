@@ -113,19 +113,24 @@ module Sequent
 
       def_delegators :@persistor, :execute_sql, :commit
 
-      def update_record(record_class, *rest)
+      def update_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.update_record(record_class, *rest)
+        @persistor.update_record(record_class, *rest, &block)
       end
 
-      def create_record(record_class, *rest)
+      def create_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.create_record(record_class, *rest)
+        @persistor.create_record(record_class, *rest, &block)
       end
 
       def create_records(record_class, *rest)
         ensure_record_class_supported!(record_class)
         @persistor.create_records(record_class, *rest)
+      end
+
+      def create_or_update_record(record_class, *rest, &block)
+        ensure_record_class_supported!(record_class)
+        @persistor.create_or_update_record(record_class, *rest, &block)
       end
 
       def get_record!(record_class, *rest)
