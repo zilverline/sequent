@@ -352,7 +352,12 @@ describe Sequent::Migrations::ViewSchema do
 
   context '#migrate_offline' do
     let(:new_version) { SpecMigrations.version }
-
+    let(:configure_sequent) do
+      Sequent.configure do |config|
+        config.migration_sql_files_directory = 'spec/fixtures/db/1'
+        config.migrations_class_name = 'SpecMigrations'
+      end
+    end
     before :each do
       Sequent::Migrations::SequentSchema.create_sequent_schema_if_not_exists(env: 'test')
 
@@ -361,10 +366,7 @@ describe Sequent::Migrations::ViewSchema do
       MessageRecord.table_name = 'message_records'
       MessageRecord.reset_column_information
 
-      Sequent.configure do |config|
-        config.migration_sql_files_directory = 'spec/fixtures/db/1'
-        config.migrations_class_name = 'SpecMigrations'
-      end
+      configure_sequent
     end
 
     context 'same version' do
@@ -452,6 +454,49 @@ describe Sequent::Migrations::ViewSchema do
 
         expect(AccountRecord.table_name).to eq 'account_records'
         expect(MessageRecord.table_name).to eq 'message_records'
+      end
+    end
+
+    context 'single table inheritance' do
+      let(:configure_sequent) do
+        SpecMigrations.copy_and_add('1', [FooProjector])
+        Sequent.configure do |config|
+          config.migration_sql_files_directory = 'spec/fixtures/db/1'
+          config.migrations_class_name = 'SpecMigrations'
+          config.online_replay_persistor_class = Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor
+        end
+      end
+      let(:next_migration) { Sequent::Migrations::ViewSchema.new(**opts) }
+
+      before :each do
+        migrator.create_view_schema_if_not_exists
+        Sequent::Migrations::Versions.create!(version: 0)
+
+        insert_events('Message', [MessageCreated.new(aggregate_id: Sequent.new_uuid, sequence_number: 1)])
+        wait_for_persisted_events_to_become_visible_for_online_migration[]
+        migrator.migrate_online
+        migrator.migrate_offline
+
+        # call table_name on the subclass to mimic a more complex Plan
+        expect(FooRecord.table_name).to eq BaseFooRecord.table_name
+
+        SpecMigrations.copy_and_add('2', [FooProjector])
+        SpecMigrations.version = 2
+        Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'
+
+        next_migration.migrate_online
+      end
+
+      it 'works' do
+        insert_events(
+          'Message',
+          [MessageWithAddedColumnCreated.new(aggregate_id: Sequent.new_uuid, sequence_number: 1)],
+        )
+
+        wait_for_persisted_events_to_become_visible_for_online_migration[]
+        next_migration.migrate_offline
+
+        expect(FooRecord.count).to eq(2)
       end
     end
 

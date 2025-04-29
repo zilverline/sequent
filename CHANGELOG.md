@@ -1,3 +1,9 @@
+# Changelog 8.2.1
+
+- Bug: Fix resetting column information and table_name when using Single Table Inheritance.
+- Improvement: Fail fast when passing a non managed_table to the Persistor
+- Improvement: Log current event when replaying fails
+
 # Changelog 8.2.0
 
 - The sequent gem now uses ActiveRecord migrations to handle the
