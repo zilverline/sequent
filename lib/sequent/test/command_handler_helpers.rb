@@ -62,6 +62,8 @@ module Sequent
           @unique_keys = {}
         end
 
+        def register_types!; end
+
         def load_events(aggregate_id)
           load_events_for_aggregates([aggregate_id])[0]
         end

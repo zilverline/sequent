@@ -8,7 +8,7 @@ Rails.application.reloader.to_prepare do
   Sequent.configure do |config|
     config.enable_autoregistration = true
 
-    config.migrations_class_name = 'SequentMigrations'
+    config.migrations_class = SequentMigrations
 
     config.database_config_directory = 'config'
 

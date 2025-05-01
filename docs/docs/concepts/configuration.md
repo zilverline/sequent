@@ -20,8 +20,6 @@ As a bare minimum you need:
 require './db/migrations'
 
 Sequent.configure do |config|
-  config.migrations_class_name = 'Migrations'
-
   # sequent >= 6.0.2
   config.enable_autoregistration = true
 
@@ -40,8 +38,8 @@ Sequent.configure do |config|
 end
 ```
 
-The `migration_class_name` is the name of the class used to define your Migrations. See
-the [Migrations](migrations.html) chapter for an in-depth explanation.
+The `migrations_class` is the class used to define your Migrations. See the [Migrations](migrations.html) chapter for an
+in-depth explanation.
 
 ### Autoregistration
 Sequent 6.0.2 introduced autoregistration of `command_handlers` and `event_handlers` via
@@ -116,7 +114,7 @@ For the latest configuration possibilities please check the `Sequent::Configurat
 
 | Option                                  | Meaning                                                                                                                       | Default Value                                                      |
 |-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| migrations_class_name                   | **Required**. The name of the [class](#minimum-configuration) containing the migrations.                                      | `'Migrations'`                                                     |
+| migrations_class                        | The [class](#minimum-configuration) containing the migrations                                                                 | `'Migrations'`                                                     |
 | command_handlers                        | The list of [CommandHandlers](command-handler.html)                                                                           | `[]`                                                               |
 | event_handlers                          | The list of [Projectors](projector.html) and [Workflows](workflow.html)                                                       | `[]`                                                               |
 | aggregate_repository                    | The [AggregateRepository](aggregate-repository.html)                                                                          | `Sequent::Core::AggregateRepository.new`                           |

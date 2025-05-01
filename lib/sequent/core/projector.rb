@@ -111,6 +111,28 @@ module Sequent
         nil
       end
 
+      def dispatch_message(...)
+        super if is_active?
+      end
+
+      def is_active?
+        return true unless Sequent.migrations_class
+
+        projector_state = Projectors.projector_states[self.class.name]
+        return false if projector_state.nil?
+
+        expected_view_schema_version = Sequent.new_version
+        return true if projector_state.active_version == expected_view_schema_version
+
+        # Replaying the current version, so run this projector (it will write to a temporary table).
+        return true if projector_state.replaying_version == expected_view_schema_version
+
+        # Activating the current version, so run this projector
+        return true if projector_state.activating_version == expected_view_schema_version
+
+        fail NewerProjectorIsActiveError, "newer version for projector #{self.class.name} code is #{projector_state}"
+      end
+
       def_delegators :@persistor, :execute_sql, :commit
 
       def update_record(record_class, *rest, &block)
@@ -199,19 +221,6 @@ module Sequent
     # Utility class containing all subclasses of Projector.
     #
     class Projectors
-      class << self
-        def projectors
-          Sequent::Projector.descendants
-        end
-
-        def all
-          projectors
-        end
-
-        def find(projector_name)
-          projectors.find { |c| c.name == projector_name }
-        end
-      end
     end
   end
 end

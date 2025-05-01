@@ -60,8 +60,10 @@ describe Sequent::Core::EventPublisher do
     end
   end
 
+  before { Sequent::Configuration.reset }
+  after { Sequent::Configuration.reset }
+
   it 'handles events in the proper order' do
-    Sequent::Configuration.reset
     test_event_handler = TestEventHandler.new
     Sequent.configuration.event_handlers << TestWorkflow.new
     Sequent.configuration.event_handlers << test_event_handler
@@ -70,5 +72,34 @@ describe Sequent::Core::EventPublisher do
     Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
 
     expect(test_event_handler.sequence_numbers).to eq [1, 2]
+  end
+
+  context 'event store database deploy' do
+    class UnknownProjector < Sequent::Core::Projector
+      manages_no_tables
+    end
+
+    before do
+      Sequent::Core::ProjectorState.delete_all
+      Sequent.configuration.event_handlers << TestEventHandler.new
+      Sequent.configuration.command_handlers << TestCommandHandler.new
+      Sequent.configuration.migrations_class = SpecMigrations
+    end
+
+    it 'fails when unknown projectors are active' do
+      Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector], 1)
+
+      expect do
+        Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+      end.to raise_error Sequent::Core::UnknownActiveProjectorError
+    end
+
+    it 'fails when newer version of the projector is activating' do
+      Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler], Sequent.new_version + 1)
+
+      expect do
+        Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+      end.to raise_error Sequent::Core::NewerProjectorIsActiveError
+    end
   end
 end

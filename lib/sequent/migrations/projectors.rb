@@ -15,6 +15,19 @@ module Sequent
       def self.migrations_between(old, new)
         Planner.new(versions).plan(old, new)
       end
+
+      def self.activate_current_configuration!
+        current_version = Versions.current_version
+        if version < current_version
+          fail ArgumentError,
+               "new version [#{version}] must be greater or equal to current version [#{current_version}]"
+        end
+
+        Sequent::Core::Projectors.register_active_projectors!(
+          Sequent::Core::Migratable.projectors,
+          version,
+        )
+      end
     end
   end
 end

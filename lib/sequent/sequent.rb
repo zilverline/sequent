@@ -37,17 +37,27 @@ module Sequent
     Configuration.instance
   end
 
+  def self.activate_current_configuration!
+    configuration.event_store.register_types!
+    migration_class&.activate_current_configuration!
+  end
+
   # Short hand for Sequent.configuration.command_service
   def self.command_service
     configuration.command_service
   end
 
   def self.new_version
-    migration_class.version
+    migrations_class.version
   end
 
   def self.migration_class
-    Class.const_get(configuration.migrations_class_name)
+    warn '[DEPRECATED] Use `migrations_class` instead'
+    migrations_class
+  end
+
+  def self.migrations_class
+    configuration.migrations_class
   end
 
   # Short hand for Sequent.configuration.logger

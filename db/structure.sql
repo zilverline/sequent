@@ -994,6 +994,23 @@ CREATE TABLE sequent_schema.partition_key_changes (
 
 
 --
+-- Name: projector_states; Type: TABLE; Schema: sequent_schema; Owner: -
+--
+
+CREATE TABLE sequent_schema.projector_states (
+    name text NOT NULL,
+    active_version integer,
+    activating_version integer,
+    replaying_version integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT activating_newer_than_active CHECK ((activating_version > active_version)),
+    CONSTRAINT replaying_conflicts_with_activating CHECK (((replaying_version IS NULL) OR (activating_version IS NULL))),
+    CONSTRAINT replaying_newer_then_active CHECK ((replaying_version > active_version))
+);
+
+
+--
 -- Name: saved_event_records; Type: TABLE; Schema: sequent_schema; Owner: -
 --
 
@@ -1219,6 +1236,14 @@ ALTER TABLE ONLY sequent_schema.events_default
 
 ALTER TABLE ONLY sequent_schema.partition_key_changes
     ADD CONSTRAINT partition_key_changes_pkey PRIMARY KEY (aggregate_id);
+
+
+--
+-- Name: projector_states projector_states_pkey; Type: CONSTRAINT; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE ONLY sequent_schema.projector_states
+    ADD CONSTRAINT projector_states_pkey PRIMARY KEY (name);
 
 
 --
@@ -1495,6 +1520,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20250509133000'),
 ('20250509120000'),
 ('20250501120000'),
+('20250430125000'),
 ('20250312105100'),
 ('20250101000001'),
 ('20250101000000');

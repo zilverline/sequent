@@ -28,7 +28,7 @@ module Sequent
     #
     # To maintain your migrations you need to:
     # 1. Create a class that extends `Sequent::Migrations::Projectors`
-    #    and specify in `Sequent.configuration.migrations_class_name`
+    #    and specify in `Sequent.configuration.migrations_class`
     # 2. Define per version which migrations you want to execute
     #    See the definition of `Sequent::Migrations::Projectors.versions` and `Sequent::Migrations::Projectors.version`
     # 3. Specify in Sequent where your sql files reside (Sequent.configuration.migration_sql_files_directory)
@@ -109,7 +109,7 @@ module Sequent
       # the entire view schema without replaying the events
       def create_view_tables
         create_view_schema_if_not_exists
-        return if Sequent.migration_class == Sequent::Migrations::Projectors
+        return if Sequent.migrations_class.nil?
         return if Sequent.new_version == current_version
 
         in_view_schema do
@@ -151,7 +151,7 @@ module Sequent
       end
 
       def plan
-        @plan ||= Planner.new(Sequent.migration_class.versions).plan(current_version, Sequent.new_version)
+        @plan ||= Planner.new(Sequent.migrations_class.versions).plan(current_version, Sequent.new_version)
       end
 
       def executor
@@ -184,6 +184,8 @@ module Sequent
         ensure_version_correct!
 
         Sequent.logger.info("Start migrate_online for version #{Sequent.new_version}")
+
+        Sequent::Core::Projectors.register_replaying_projectors!(plan.projectors, Sequent.new_version)
 
         in_view_schema do
           Versions.start_online!(Sequent.new_version)
@@ -238,16 +240,22 @@ module Sequent
         return if Sequent.new_version == current_version
 
         ensure_version_correct!
-        in_view_schema do
-          Versions.start_offline!(
-            Sequent.new_version,
-            target_projectors: plan.projectors.map(&:name).sort,
-            target_records: plan.alter_tables.map(&:record_class_name).sort,
-          )
-        end
-        Sequent.logger.info("Start migrate_offline for version #{Sequent.new_version}")
 
-        executor.set_table_names_to_new_version(plan)
+        ActiveRecord::Base.transaction do
+          # Mark updated projectors as activating, so that old code can no longer apply events using the older version.
+          Sequent::Core::Projectors.register_activating_projectors!(affected_projectors, Sequent.new_version)
+
+          in_view_schema do
+            Versions.start_offline!(
+              Sequent.new_version,
+              target_projectors: plan.projectors.map(&:name).sort,
+              target_records: plan.alter_tables.map(&:record_class_name).sort,
+            )
+          end
+          Sequent.logger.info("Start migrate_offline for version #{Sequent.new_version}")
+
+          executor.set_table_names_to_new_version(plan)
+        end
 
         # 1 replay events not yet replayed
         if plan.projectors.any?
@@ -257,8 +265,13 @@ module Sequent
           )
         end
 
-        in_view_schema do
-          Sequent::ApplicationRecord.transaction do
+        ActiveRecord::Base.transaction do
+          # Update all configurade projectors as active with the new version, old code can now longer apply any events
+          # using any still implemented projector. Projectors that are no longer present in this version of the code
+          # will remain activate at the older version level.
+          Sequent.activate_current_configuration!
+
+          in_view_schema do
             # 2.1, 2.2
             executor.execute_offline(plan, current_version)
             # 2.3 Create migration record
@@ -279,6 +292,13 @@ module Sequent
 
       def ensure_valid_plan!
         plan
+      end
+
+      def affected_projectors
+        [
+          *plan.projectors,
+          *plan.alter_tables.flat_map { |m| Sequent::Core::Projectors.find_by_managed_table(m.record_class) },
+        ].compact.uniq
       end
 
       def migrate_metadata_tables
@@ -419,7 +439,6 @@ module Sequent
         replay_projectors = projectors.map do |projector_class|
           projector_class.new(projector_class.replay_persistor || replay_persistor)
         end
-        config.transaction_provider = Sequent::Core::Transactions::NoTransactions.new
         config.event_handlers = replay_projectors
 
         Sequent::Configuration.restore(config)
