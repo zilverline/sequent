@@ -25,10 +25,6 @@ jobs:
             gemfile: 'ar_8_0'
           - ruby-version: '3.3'
             gemfile: 'ar_7_2'
-          - ruby-version: '3.3'
-            gemfile: 'ar_7_1'
-          - ruby-version: '3.2'
-            gemfile: 'ar_7_1'
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:
