@@ -271,6 +271,38 @@ module Sequent
             end
           end
 
+          namespace :aggregates do
+            desc <<~EOS
+              Rake task that runs before all aggregates rake tasks. Hook applications can use to for instance run other rake tasks.
+            EOS
+            task :init
+
+            task :connect, ['sequent:init', :init, :set_env_var] do
+              ensure_sequent_env_set!
+
+              db_config = Sequent::Support::Database.read_config(@env)
+              Sequent::Support::Database.establish_connection(db_config)
+            end
+
+            desc <<~EOS
+              Rake task to apply pending partition key changes to the event store. This task cannot be run while a view schema
+              migration is running!
+            EOS
+            task :update_partition_keys, %i[limit] => :connect do |_t, args|
+              limit = args['limit']&.to_i
+
+              unless limit
+                fail ArgumentError,
+                     'usage rake sequent:aggregates:update_partition_keys[limit]'
+              end
+
+              count = Sequent::Internal::PartitionKeyChange.count
+              Sequent.logger.info "Applying #{count} partition key changes (limited to #{limit})"
+
+              Sequent::Internal::PartitionKeyChange.update_aggregate_partition_keys(limit:)
+            end
+          end
+
           namespace :snapshots do
             desc <<~EOS
               Rake task that runs before all snapshots rake tasks. Hook applications can use to for instance run other rake tasks.

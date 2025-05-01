@@ -6,9 +6,4 @@ require_relative 'event_type'
 require_relative 'partitioned_aggregate'
 require_relative 'partitioned_command'
 require_relative 'partitioned_event'
-
-module Sequent
-  module Internal
-  end
-  private_constant :Internal
-end
+require_relative 'partition_key_change'
