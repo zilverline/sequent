@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'active_support'
+require 'active_support/core_ext/class/attribute'
+
 require_relative 'message_handler_option_registry'
 require_relative 'message_router'
 
