@@ -13,17 +13,10 @@ module Sequent
       belongs_to :partitioned_command,
                  inverse_of: :partitioned_events,
                  foreign_key: :command_id
-      if Gem.loaded_specs['activerecord'].version < Gem::Version.create('7.2')
-        belongs_to :partitioned_aggregate,
-                   inverse_of: :partitioned_events,
-                   primary_key: %w[partition_key aggregate_id],
-                   query_constraints: %w[events_partition_key aggregate_id]
-      else
-        belongs_to :partitioned_aggregate,
-                   inverse_of: :partitioned_events,
-                   primary_key: %w[partition_key aggregate_id],
-                   foreign_key: %w[events_partition_key aggregate_id]
-      end
+      belongs_to :partitioned_aggregate,
+                 inverse_of: :partitioned_events,
+                 primary_key: %w[partition_key aggregate_id],
+                 foreign_key: %w[events_partition_key aggregate_id]
     end
   end
 end

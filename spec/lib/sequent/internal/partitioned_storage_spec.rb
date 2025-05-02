@@ -25,18 +25,6 @@ module Sequent
       end
 
       it 'persists to the partitioned tables' do
-        if Gem.loaded_specs['activerecord'].version < Gem::Version.create('7.2')
-          skip("AR 7.1.3 doesn't allow correct configuration of composite foreign key constraint")
-          # AR 7.1.3 fails with `Association Sequent::Internal::PartitionedEvent#partitioned_aggregate primary key
-          # ["partition_key", "aggregate_id"] doesn't match with foreign key ["events_partition_key",
-          # "aggregate_id"]. Please specify query_constraints, or primary_key and foreign_key values.`, however
-          # specifying the `foreign_key` with multiple columns results in the error: `Passing ["events_partition_key",
-          # "aggregate_id"] array to :foreign_key option on the
-          # Sequent::Internal::PartitionedEvent#partitioned_aggregate association is not supported. Use the
-          # query_constraints: ["events_partition_key", "aggregate_id"] option instead to represent a composite foreign
-          # key.`
-        end
-
         aggregate = PartitionedAggregate.first
         expect(aggregate).to be_present
         expect(aggregate.aggregate_id).to eq(aggregate_id)

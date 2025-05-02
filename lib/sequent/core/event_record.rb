@@ -93,17 +93,10 @@ module Sequent
 
       belongs_to :parent_command, class_name: :CommandRecord, foreign_key: :command_record_id
 
-      if Gem.loaded_specs['activerecord'].version < Gem::Version.create('7.2')
-        has_many :child_commands,
-                 class_name: :CommandRecord,
-                 primary_key: %i[aggregate_id sequence_number],
-                 query_constraints: %i[event_aggregate_id event_sequence_number]
-      else
-        has_many :child_commands,
-                 class_name: :CommandRecord,
-                 primary_key: %i[aggregate_id sequence_number],
-                 foreign_key: %i[event_aggregate_id event_sequence_number]
-      end
+      has_many :child_commands,
+               class_name: :CommandRecord,
+               primary_key: %i[aggregate_id sequence_number],
+               query_constraints: %i[event_aggregate_id event_sequence_number]
 
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :parent_command
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
