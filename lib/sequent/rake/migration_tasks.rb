@@ -277,7 +277,7 @@ module Sequent
             EOS
             task :init
 
-            task :connect, ['sequent:init', :init, :set_env_var] do
+            task connect: ['sequent:init', :init, :set_env_var] do
               ensure_sequent_env_set!
 
               db_config = Sequent::Support::Database.read_config(@env)
@@ -309,7 +309,7 @@ module Sequent
             EOS
             task :init
 
-            task :connect, ['sequent:init', :init, :set_env_var] do
+            task connect: ['sequent:init', :init, :set_env_var] do
               ensure_sequent_env_set!
 
               Sequent.configuration.command_handlers << Sequent::Core::AggregateSnapshotter.new
