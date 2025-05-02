@@ -15,7 +15,8 @@ module Sequent
         limit.times do
           ActiveRecord::Base.transaction do
             if Sequent::Migrations::Versions.running.present?
-              fail 'cannot update partition keys while view schema migration is running'
+              fail Sequent::Migrations::ConcurrentMigration,
+                   'cannot update partition keys while view schema migration is running'
             end
 
             change = PartitionKeyChange.first
