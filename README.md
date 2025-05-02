@@ -44,7 +44,6 @@ A GitHub personal access token is required if you want Jekyll to retrieve GitHub
 Ensure the version in `lib/version.rb` is the new version. If not change it and update the sequent version for all the `gemfiles`:
 
 ```
-BUNDLE_GEMFILE=gemfiles/ar_7_1.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_7_2.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_8_0.gemfile bundle update sequent --conservative
 ```
