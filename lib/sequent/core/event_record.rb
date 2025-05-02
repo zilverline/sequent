@@ -96,7 +96,7 @@ module Sequent
       has_many :child_commands,
                class_name: :CommandRecord,
                primary_key: %i[aggregate_id sequence_number],
-               query_constraints: %i[event_aggregate_id event_sequence_number]
+               foreign_key: %i[event_aggregate_id event_sequence_number]
 
       validates_presence_of :aggregate_id, :sequence_number, :event_type, :event_json, :stream_record, :parent_command
       validates_numericality_of :sequence_number, only_integer: true, greater_than: 0
