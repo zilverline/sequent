@@ -299,7 +299,11 @@ module Sequent
               count = Sequent::Internal::PartitionKeyChange.count
               Sequent.logger.info "Applying #{count} partition key changes (limited to #{limit})"
 
-              Sequent::Internal::PartitionKeyChange.update_aggregate_partition_keys(limit:)
+              begin
+                Sequent::Internal::PartitionKeyChange.update_aggregate_partition_keys(limit:)
+              rescue Sequent::Migrations::ConcurrentMigration
+                Sequent.logger.error 'View schema migration is active so not updating partition keys'
+              end
             end
           end
 
