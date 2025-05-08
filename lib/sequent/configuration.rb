@@ -41,6 +41,10 @@ module Sequent
 
     DEFAULT_TIME_PRECISION = ActiveSupport::JSON::Encoding.time_precision
 
+    DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS = proc do |clazz|
+      Sequent::Core::AggregateRoots.snapshot_version_by_type(clazz)
+    end
+
     attr_accessor :aggregate_repository,
                   :event_store,
                   :command_service,
@@ -72,7 +76,8 @@ module Sequent
                   :primary_database_role,
                   :primary_database_key,
                   :time_precision,
-                  :enable_autoregistration
+                  :enable_autoregistration,
+                  :aggregate_snapshot_versions
 
     attr_reader :migrations_class_name,
                 :versions_table_name
@@ -134,6 +139,7 @@ module Sequent
       self.time_precision = DEFAULT_TIME_PRECISION
 
       self.enable_autoregistration = false
+      self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
     end
 
     def can_use_multiple_databases?

@@ -13,6 +13,7 @@ module Sequent
           snapshots.map do |snapshot|
             {
               aggregate_id: snapshot.aggregate_id,
+              snapshot_version: snapshot.snapshot_version,
               sequence_number: snapshot.sequence_number,
               created_at: snapshot.created_at,
               snapshot_type: snapshot.class.name,
@@ -36,7 +37,11 @@ module Sequent
 
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
-        call_procedure(connection, 'delete_snapshots_before', [aggregate_id, sequence_number, Time.now])
+        call_procedure(
+          connection,
+          'delete_snapshots_before',
+          [aggregate_id, sequence_number, Time.now, snapshot_version_by_type.to_json],
+        )
       end
 
       # Marks an aggregate for snapshotting. Marked aggregates will be
@@ -46,14 +51,20 @@ module Sequent
       # +#store_events+ method as is done automatically by the
       # +AggregateRepository+ based on the aggregate's
       # +snapshot_threshold+.
-      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: Time.now)
-        connection.exec_update(<<~EOS, 'mark_aggregate_for_snapshotting', [aggregate_id, snapshot_outdated_at])
-          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
-          VALUES ($1, $2)
-              ON CONFLICT (aggregate_id) DO UPDATE
+      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_version:, snapshot_outdated_at: Time.now)
+        sql = <<~EOS
+          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_outdated_at)
+          VALUES ($1, $2, $3)
+              ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
              SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at),
                  snapshot_scheduled_at = NULL
         EOS
+
+        connection.exec_update(
+          sql,
+          'mark_aggregate_for_snapshotting',
+          [aggregate_id, snapshot_version, snapshot_outdated_at],
+        )
       end
 
       # Stops snapshotting the specified aggregate. Any existing
@@ -86,7 +97,7 @@ module Sequent
         query_function(
           connection,
           'aggregates_that_need_snapshots',
-          [last_aggregate_id, limit],
+          [last_aggregate_id, limit, snapshot_version_by_type.to_json],
           columns: ['aggregate_id'],
         )
           .pluck('aggregate_id')
@@ -96,9 +107,15 @@ module Sequent
         query_function(
           connection,
           'select_aggregates_for_snapshotting',
-          [limit, reschedule_snapshots_scheduled_before, Time.now],
+          [limit, reschedule_snapshots_scheduled_before, Time.now, snapshot_version_by_type.to_json],
           columns: ['aggregate_id'],
         ).pluck('aggregate_id')
+      end
+
+      private
+
+      def snapshot_version_by_type(clazz = AggregateRoot)
+        fail 'subclass responsibility'
       end
     end
   end
