@@ -10,6 +10,7 @@ describe Sequent::Core::EventStore do
   end
 
   class MyAggregate < Sequent::Core::AggregateRoot
+    enable_snapshots version: 42
   end
 
   let(:event_store) { Sequent.configuration.event_store }
@@ -68,7 +69,7 @@ describe Sequent::Core::EventStore do
 
     let(:aggregate) do
       stream, events = event_store.load_events(aggregate_id)
-      Sequent::Core::AggregateRoot.load_from_history(stream, events)
+      MyAggregate.load_from_history(stream, events)
     end
 
     let(:snapshot) do

@@ -387,6 +387,8 @@ describe Sequent::Core::AggregateRepository do
     class DummyAggregate3 < Sequent::Core::AggregateRoot
       attr_reader :pinged
 
+      enable_snapshots
+
       def initialize(id)
         super
         apply DummyCreated

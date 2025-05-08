@@ -13,21 +13,29 @@ module Sequent
       module ClassMethods
         ##
         # Enable snapshots for this aggregate. The aggregate instance
-        # must define the *take_snapshot* methods.
+        # must define the *take_snapshot* method.
         #
-        def enable_snapshots(default_threshold: 20)
-          @snapshot_default_threshold = default_threshold
+        def enable_snapshots(default_threshold: 20, version: 1)
+          self.snapshot_default_threshold = default_threshold
+          self.snapshot_version = version
         end
 
         def snapshots_enabled?
           !snapshot_default_threshold.nil?
         end
+      end
 
-        attr_reader :snapshot_default_threshold
+      def take_snapshot
+        fail 'subclass responsibility'
       end
 
       def self.included(host_class)
         host_class.extend(ClassMethods)
+
+        host_class.class_attribute :snapshot_default_threshold,
+                                   :snapshot_version,
+                                   instance_reader: false,
+                                   instance_writer: false
       end
     end
 
@@ -48,6 +56,12 @@ module Sequent
       def self.load_from_history(stream, events)
         first, *rest = events
         if first.is_a? SnapshotEvent
+          fail "snapshots not supported by #{self}" unless snapshots_enabled?
+
+          if first.snapshot_version != snapshot_version
+            fail "incompatible snapshot version #{first.snapshot_version}, expected #{snapshot_version}"
+          end
+
           # rubocop:disable Security/MarshalLoad
           aggregate_root = Marshal.load(Base64.decode64(first.data))
           # rubocop:enable Security/MarshalLoad
@@ -132,7 +146,11 @@ module Sequent
       end
 
       def take_snapshot
-        build_event SnapshotEvent, data: Base64.encode64(Marshal.dump(self))
+        fail "snapshots not supported by #{self.class}" unless self.class.snapshots_enabled?
+
+        build_event SnapshotEvent,
+                    snapshot_version: self.class.snapshot_version,
+                    data: Base64.encode64(Marshal.dump(self))
       end
 
       def apply_event(event)
