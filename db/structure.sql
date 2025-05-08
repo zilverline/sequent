@@ -30,18 +30,21 @@ CREATE TYPE sequent_schema.aggregate_event_type AS (
 
 
 --
--- Name: aggregates_that_need_snapshots(uuid, integer); Type: FUNCTION; Schema: sequent_schema; Owner: -
+-- Name: aggregates_that_need_snapshots(uuid, integer, jsonb); Type: FUNCTION; Schema: sequent_schema; Owner: -
 --
 
-CREATE FUNCTION sequent_schema.aggregates_that_need_snapshots(_last_aggregate_id uuid, _limit integer) RETURNS TABLE(aggregate_id uuid)
+CREATE FUNCTION sequent_schema.aggregates_that_need_snapshots(_last_aggregate_id uuid, _limit integer, _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS TABLE(aggregate_id uuid)
     LANGUAGE plpgsql
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN QUERY SELECT a.aggregate_id
-    FROM aggregates_that_need_snapshots a
-   WHERE a.snapshot_outdated_at IS NOT NULL
-     AND (_last_aggregate_id IS NULL OR a.aggregate_id > _last_aggregate_id)
+    FROM aggregates_that_need_snapshots s
+    JOIN aggregates a ON s.aggregate_id = a.aggregate_id
+    JOIN aggregate_types type ON a.aggregate_type_id = type.id
+   WHERE s.snapshot_outdated_at IS NOT NULL
+     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->(type.type))::integer, 1)
+     AND (_last_aggregate_id IS NULL OR s.aggregate_id > _last_aggregate_id)
    ORDER BY 1
    LIMIT _limit;
 END;
@@ -66,23 +69,30 @@ $$;
 
 
 --
--- Name: delete_snapshots_before(uuid, integer, timestamp with time zone); Type: PROCEDURE; Schema: sequent_schema; Owner: -
+-- Name: delete_snapshots_before(uuid, integer, timestamp with time zone, jsonb); Type: PROCEDURE; Schema: sequent_schema; Owner: -
 --
 
-CREATE PROCEDURE sequent_schema.delete_snapshots_before(IN _aggregate_id uuid, IN _sequence_number integer, IN _now timestamp with time zone DEFAULT now())
+CREATE PROCEDURE sequent_schema.delete_snapshots_before(IN _aggregate_id uuid, IN _sequence_number integer, IN _now timestamp with time zone DEFAULT now(), IN _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb)
     LANGUAGE plpgsql
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
-  DELETE FROM snapshot_records
+  DELETE FROM snapshot_records s
    WHERE aggregate_id = _aggregate_id
+     AND snapshot_version = COALESCE(
+           (SELECT _snapshot_version_by_type->(type.type)
+              FROM aggregates
+              JOIN aggregate_types type ON aggregate_type_id = type.id
+             WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
+           1
+         )
      AND sequence_number < _sequence_number;
 
-  UPDATE aggregates_that_need_snapshots
+  UPDATE aggregates_that_need_snapshots a
      SET snapshot_outdated_at = _now
    WHERE aggregate_id = _aggregate_id
      AND snapshot_outdated_at IS NULL
-     AND NOT EXISTS (SELECT 1 FROM snapshot_records WHERE aggregate_id = _aggregate_id);
+     AND NOT EXISTS (SELECT 1 FROM snapshot_records s WHERE aggregate_id = _aggregate_id AND a.snapshot_version = s.snapshot_version);
 END;
 $$;
 
@@ -189,10 +199,10 @@ $$;
 
 
 --
--- Name: load_events(jsonb, boolean, timestamp with time zone); Type: FUNCTION; Schema: sequent_schema; Owner: -
+-- Name: load_events(jsonb, boolean, timestamp with time zone, jsonb); Type: FUNCTION; Schema: sequent_schema; Owner: -
 --
 
-CREATE FUNCTION sequent_schema.load_events(_aggregate_ids jsonb, _use_snapshots boolean DEFAULT true, _until timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS SETOF sequent_schema.aggregate_event_type
+CREATE FUNCTION sequent_schema.load_events(_aggregate_ids jsonb, _use_snapshots boolean DEFAULT true, _until timestamp with time zone DEFAULT NULL::timestamp with time zone, _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS SETOF sequent_schema.aggregate_event_type
     LANGUAGE plpgsql
     SET search_path TO 'sequent_schema'
     AS $$
@@ -204,18 +214,25 @@ BEGIN
     -- in case transaction isolation level is lower than repeatable read (the default of
     -- PostgreSQL is read committed).
     RETURN QUERY WITH
-      aggregate AS (
+      aggregate AS MATERIALIZED (
         SELECT aggregate_types.type, aggregate_id, events_partition_key
           FROM aggregates
           JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
          WHERE aggregate_id = _aggregate_id
       ),
-      snapshot AS (
+      snapshot AS MATERIALIZED (
         SELECT *
           FROM snapshot_records
          WHERE _use_snapshots
            AND aggregate_id = _aggregate_id
            AND (_until IS NULL OR created_at < _until)
+           AND snapshot_version = COALESCE(
+                 (SELECT snapshot_version_by_type.value
+                    FROM jsonb_each(_snapshot_version_by_type) AS snapshot_version_by_type(type, value)
+                    JOIN aggregate ON snapshot_records.aggregate_id = aggregate.aggregate_id
+                   WHERE aggregate.type = snapshot_version_by_type.type)::integer,
+                 1
+               )
          ORDER BY sequence_number DESC LIMIT 1
       )
     (SELECT a.*, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s)
@@ -398,18 +415,25 @@ $$;
 
 
 --
--- Name: select_aggregates_for_snapshotting(integer, timestamp with time zone, timestamp with time zone); Type: FUNCTION; Schema: sequent_schema; Owner: -
+-- Name: select_aggregates_for_snapshotting(integer, timestamp with time zone, timestamp with time zone, jsonb); Type: FUNCTION; Schema: sequent_schema; Owner: -
 --
 
-CREATE FUNCTION sequent_schema.select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT now()) RETURNS TABLE(aggregate_id uuid)
+CREATE FUNCTION sequent_schema.select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT now(), _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS TABLE(aggregate_id uuid)
     LANGUAGE plpgsql
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
-    SELECT a.aggregate_id
-      FROM aggregates_that_need_snapshots AS a
+    SELECT s.aggregate_id
+      FROM aggregates_that_need_snapshots AS s
      WHERE snapshot_outdated_at IS NOT NULL
+       AND snapshot_version = COALESCE(
+             (SELECT _snapshot_version_by_type->(type.type)
+                FROM aggregates
+                JOIN aggregate_types type ON aggregate_type_id = type.id
+               WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
+             1
+           )
      ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
      LIMIT _limit
        FOR UPDATE
@@ -465,9 +489,9 @@ BEGIN
 
     _snapshot_outdated_at = _aggregate->>'snapshot_outdated_at';
     IF _snapshot_outdated_at IS NOT NULL THEN
-      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
-      VALUES (_aggregate_id, _snapshot_outdated_at)
-          ON CONFLICT (aggregate_id) DO UPDATE
+      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_outdated_at)
+      VALUES (_aggregate_id, COALESCE((_aggregate->>'snapshot_version')::integer, 1), _snapshot_outdated_at)
+          ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
          SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
        WHERE row.snapshot_outdated_at IS DISTINCT FROM EXCLUDED.snapshot_outdated_at;
     END IF;
@@ -588,23 +612,26 @@ CREATE PROCEDURE sequent_schema.store_snapshots(IN _snapshots jsonb)
 DECLARE
   _aggregate_id uuid;
   _snapshot jsonb;
+  _snapshot_version integer;
   _sequence_number snapshot_records.sequence_number%TYPE;
 BEGIN
   FOR _snapshot IN SELECT * FROM jsonb_array_elements(_snapshots) LOOP
     _aggregate_id = _snapshot->>'aggregate_id';
     _sequence_number = _snapshot->'sequence_number';
+    _snapshot_version = _snapshot->'snapshot_version';
 
-    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_sequence_number_high_water_mark)
-    VALUES (_aggregate_id, _sequence_number)
-        ON CONFLICT (aggregate_id) DO UPDATE
+    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_sequence_number_high_water_mark)
+    VALUES (_aggregate_id, _snapshot_version, _sequence_number)
+        ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
        SET snapshot_sequence_number_high_water_mark =
              GREATEST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark),
            snapshot_outdated_at = NULL,
            snapshot_scheduled_at = NULL;
 
-    INSERT INTO snapshot_records (aggregate_id, sequence_number, created_at, snapshot_type, snapshot_json)
+    INSERT INTO snapshot_records (aggregate_id, snapshot_version, sequence_number, created_at, snapshot_type, snapshot_json)
     VALUES (
       _aggregate_id,
+      _snapshot_version,
       _sequence_number,
       (_snapshot->>'created_at')::timestamptz,
       _snapshot->>'snapshot_type',
@@ -788,7 +815,8 @@ CREATE TABLE sequent_schema.aggregates_that_need_snapshots (
     aggregate_id uuid NOT NULL,
     snapshot_sequence_number_high_water_mark integer,
     snapshot_outdated_at timestamp with time zone,
-    snapshot_scheduled_at timestamp with time zone
+    snapshot_scheduled_at timestamp with time zone,
+    snapshot_version integer NOT NULL
 );
 
 
@@ -992,7 +1020,8 @@ CREATE TABLE sequent_schema.snapshot_records (
     sequence_number integer NOT NULL,
     created_at timestamp with time zone NOT NULL,
     snapshot_type text NOT NULL,
-    snapshot_json jsonb NOT NULL
+    snapshot_json jsonb NOT NULL,
+    snapshot_version integer NOT NULL
 );
 
 
@@ -1115,7 +1144,7 @@ ALTER TABLE ONLY sequent_schema.aggregates_default
 --
 
 ALTER TABLE ONLY sequent_schema.aggregates_that_need_snapshots
-    ADD CONSTRAINT aggregates_that_need_snapshots_pkey PRIMARY KEY (aggregate_id);
+    ADD CONSTRAINT aggregates_that_need_snapshots_pkey PRIMARY KEY (aggregate_id, snapshot_version);
 
 
 --
@@ -1203,7 +1232,7 @@ ALTER TABLE ONLY sequent_schema.saved_event_records
 --
 
 ALTER TABLE ONLY sequent_schema.snapshot_records
-    ADD CONSTRAINT snapshot_records_pkey PRIMARY KEY (aggregate_id, sequence_number);
+    ADD CONSTRAINT snapshot_records_pkey PRIMARY KEY (aggregate_id, snapshot_version, sequence_number);
 
 
 --
@@ -1446,11 +1475,11 @@ ALTER TABLE sequent_schema.events
 
 
 --
--- Name: snapshot_records snapshot_records_aggregate_id_fkey; Type: FK CONSTRAINT; Schema: sequent_schema; Owner: -
+-- Name: snapshot_records snapshot_records_aggregate_id_snapshot_version_fkey; Type: FK CONSTRAINT; Schema: sequent_schema; Owner: -
 --
 
 ALTER TABLE ONLY sequent_schema.snapshot_records
-    ADD CONSTRAINT snapshot_records_aggregate_id_fkey FOREIGN KEY (aggregate_id) REFERENCES sequent_schema.aggregates_that_need_snapshots(aggregate_id) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT snapshot_records_aggregate_id_snapshot_version_fkey FOREIGN KEY (aggregate_id, snapshot_version) REFERENCES sequent_schema.aggregates_that_need_snapshots(aggregate_id, snapshot_version) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
@@ -1461,9 +1490,9 @@ SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
 ('20250512135500'),
+('20250509133000'),
 ('20250509120000'),
 ('20250501120000'),
 ('20250312105100'),
 ('20250101000001'),
 ('20250101000000');
-

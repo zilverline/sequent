@@ -34,9 +34,9 @@ BEGIN
 
     _snapshot_outdated_at = _aggregate->>'snapshot_outdated_at';
     IF _snapshot_outdated_at IS NOT NULL THEN
-      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
-      VALUES (_aggregate_id, _snapshot_outdated_at)
-          ON CONFLICT (aggregate_id) DO UPDATE
+      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_outdated_at)
+      VALUES (_aggregate_id, COALESCE((_aggregate->>'snapshot_version')::integer, 1), _snapshot_outdated_at)
+          ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
          SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
        WHERE row.snapshot_outdated_at IS DISTINCT FROM EXCLUDED.snapshot_outdated_at;
     END IF;

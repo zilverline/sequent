@@ -51,7 +51,7 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
+              aggregate_type: MyAggregate.name,
               aggregate_id: aggregate_id,
             ),
             [
@@ -87,6 +87,7 @@ describe Sequent::Core::EventStore do
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
               snapshot_outdated_at: Time.now,
+              snapshot_version: MyAggregate.snapshot_version,
             ),
             [
               MyEvent.new(
@@ -106,7 +107,11 @@ describe Sequent::Core::EventStore do
     end
 
     it 'limits the number of concurrent aggregates scheduled for snapshotting' do
-      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.hour.ago)
+      event_store.mark_aggregate_for_snapshotting(
+        aggregate_id,
+        snapshot_version: MyAggregate.snapshot_version,
+        snapshot_outdated_at: 1.hour.ago,
+      )
 
       aggregate_id_2 = Sequent.new_uuid
       event_store.commit_events(
@@ -114,9 +119,10 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
+              aggregate_type: MyAggregate.name,
               aggregate_id: aggregate_id_2,
               snapshot_outdated_at: 2.minutes.ago,
+              snapshot_version: MyAggregate.snapshot_version,
             ),
             [
               MyEvent.new(
@@ -138,7 +144,11 @@ describe Sequent::Core::EventStore do
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id_2)
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
-      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.minute.ago)
+      event_store.mark_aggregate_for_snapshotting(
+        aggregate_id,
+        snapshot_version: MyAggregate.snapshot_version,
+        snapshot_outdated_at: 1.minute.ago,
+      )
 
       expect(event_store.select_aggregates_for_snapshotting(limit: 10, reschedule_snapshots_scheduled_before: Time.now))
         .to include(aggregate_id, aggregate_id_2)
@@ -151,7 +161,7 @@ describe Sequent::Core::EventStore do
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
 
-      event_store.mark_aggregate_for_snapshotting(aggregate_id)
+      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: MyAggregate.snapshot_version)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
     end
 
@@ -664,6 +674,7 @@ describe Sequent::Core::EventStore do
     let(:snapshot_event) do
       Sequent::Core::SnapshotEvent.new(
         aggregate_id: aggregate_id_1,
+        snapshot_version: MyAggregate.snapshot_version,
         sequence_number: 3,
         created_at: frozen_time + 8.minutes,
       )
