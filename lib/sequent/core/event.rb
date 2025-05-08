@@ -48,7 +48,7 @@ module Sequent
     end
 
     class SnapshotEvent < Event
-      attrs data: String
+      attrs snapshot_version: Integer, data: String
     end
   end
 end
