@@ -26,13 +26,30 @@ module Sequent
       end
 
       def load_latest_snapshot(aggregate_id)
-        snapshot_hash = query_function(connection, 'load_latest_snapshot', [aggregate_id]).first
+        snapshot_hash = query_function(
+          connection,
+          'load_latest_snapshot',
+          [aggregate_id, snapshot_version_by_type.to_json],
+        ).first
         deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
       end
 
       # Deletes all snapshots for all aggregates
       def delete_all_snapshots
         call_procedure(connection, 'delete_all_snapshots', [Time.now])
+      end
+
+      def delete_lower_snapshot_versions
+        connection.exec_update(<<~EOS, 'delete_lower_snapshot_versions', [snapshot_version_by_type.to_json])
+          DELETE FROM aggregates_that_need_snapshots s
+           WHERE snapshot_version < COALESCE(
+                   (SELECT ($1::jsonb)->(type.type)
+                      FROM aggregates
+                      JOIN aggregate_types type ON aggregate_type_id = type.id
+                     WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
+                   1
+                 );
+        EOS
       end
 
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.

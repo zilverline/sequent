@@ -33,6 +33,7 @@ class SequentVersionedSnapshots < ActiveRecord::Migration[7.2]
       execute_sql_file 'aggregates_that_need_snapshots', version: 2
       execute_sql_file 'delete_snapshots_before', version: 2
       execute_sql_file 'load_events', version: 2
+      execute_sql_file 'load_latest_snapshots', version: 2
       execute_sql_file 'select_aggregates_for_snapshotting', version: 2
       execute_sql_file 'store_aggregates', version: 3
       execute_sql_file 'store_snapshots', version: 2
@@ -68,6 +69,7 @@ class SequentVersionedSnapshots < ActiveRecord::Migration[7.2]
       execute_sql_file 'aggregates_that_need_snapshots', version: 1
       execute_sql_file 'delete_snapshots_before', version: 1
       execute_sql_file 'load_events', version: 1
+      execute_sql_file 'load_latest_snapshots', version: 1
       execute_sql_file 'select_aggregates_for_snapshotting', version: 1
       execute_sql_file 'store_aggregates', version: 2
       execute_sql_file 'store_snapshots', version: 1
