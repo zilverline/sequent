@@ -1432,9 +1432,9 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public, view_schema, sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250509120000'),
 ('20250501120000'),
 ('20250312105100'),
-('20250220161400'),
 ('20250101000001'),
 ('20250101000000');
 
