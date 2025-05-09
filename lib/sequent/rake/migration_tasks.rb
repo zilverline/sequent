@@ -20,38 +20,8 @@ module Sequent
         Sequent::Support::Database.read_database_config(@env)
       end
 
-      def connection
-        ensure_sequent_env_set!
-        Sequent::Support::Database.establish_connection(db_config)
-      end
-
       def register_tasks!
         namespace :sequent do
-          namespace :install do
-            desc <<~EOS
-              Copy (new) Sequent database migration files to your projects migrations directory
-            EOS
-            task :migrations do
-              MigrationFiles.new.copy('./db/migrate')
-            end
-          end
-
-          namespace :register do
-            desc <<~EOS
-              Register all aggregate root, command, and event types in the database type tables
-
-              NOTE make sure to load all Ruby classes before running this task!
-            EOS
-            task types: %i[sequent:init] do
-              ensure_sequent_env_set!
-
-              connection
-
-              Sequent.configuration.event_store.register_types!
-              Sequent.logger.info 'Registered aggregate root, command, and event types'
-            end
-          end
-
           desc <<~EOS
             Set the SEQUENT_ENV to RAILS_ENV or RACK_ENV if not already set
           EOS
@@ -68,6 +38,34 @@ module Sequent
           EOS
           task init: :set_env_var
 
+          task connect: :init do
+            ensure_sequent_env_set!
+            Sequent::Support::Database.establish_connection(db_config)
+          end
+
+          namespace :install do
+            desc <<~EOS
+              Copy (new) Sequent database migration files to your projects migrations directory
+            EOS
+            task :migrations do
+              MigrationFiles.new.copy('./db/migrate')
+            end
+          end
+
+          namespace :register do
+            desc <<~EOS
+              Register all aggregate root, command, and event types in the database type tables
+
+              NOTE make sure to load all Ruby classes before running this task!
+            EOS
+            task types: %i[sequent:connect] do
+              ensure_sequent_env_set!
+
+              Sequent.configuration.event_store.register_types!
+              Sequent.logger.info 'Registered aggregate root, command, and event types'
+            end
+          end
+
           desc 'Creates sequent view schema if not exists and runs internal migrations'
           task create_and_migrate_sequent_view_schema: ['sequent:init', :init] do
             ensure_sequent_env_set!
@@ -82,17 +80,16 @@ module Sequent
             end
 
             desc 'Apply Sequent event store migrations (NOT view schema projection migrations)'
-            task migrate: [:create] do
+            task migrate: %i[create sequent:connect] do
               ensure_sequent_env_set!
-              Sequent::Support::Database.establish_connection(db_config)
+
               ActiveRecord::MigrationContext.new('db/migrate').migrate
               ::Rake::Task['sequent:db:schema:dump'].invoke
             end
 
             namespace :schema do
               desc "Creates the database schema file 'db/structure.sql'"
-              task :dump do
-                connection
+              task dump: 'sequent:connect' do
                 old_dump_schemas = ActiveRecord.dump_schemas
                 begin
                   ActiveRecord.dump_schemas = nil
@@ -104,8 +101,7 @@ module Sequent
               end
 
               desc "Loads the database schema file 'db/structure.sql'"
-              task :load do
-                connection
+              task load: 'sequent:connect' do
                 DatabaseTasks.load_schema(db_config, :sql)
               end
             end

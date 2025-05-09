@@ -1429,7 +1429,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 -- PostgreSQL database dump complete
 --
 
-SET search_path TO public, view_schema, sequent_schema;
+SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
 ('20250509120000'),
