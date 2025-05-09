@@ -1,3 +1,10 @@
+DROP FUNCTION IF EXISTS select_aggregates_for_snapshotting(
+  _limit integer,
+  _reschedule_snapshot_scheduled_before timestamp with time zone,
+  _now timestamp with time zone,
+  _snapshot_version_by_type jsonb
+);
+
 CREATE OR REPLACE FUNCTION select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT NOW())
   RETURNS TABLE (aggregate_id uuid)
 LANGUAGE plpgsql SET search_path FROM CURRENT AS $$

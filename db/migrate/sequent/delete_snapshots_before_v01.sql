@@ -1,3 +1,10 @@
+DROP PROCEDURE IF EXISTS delete_snapshots_before(
+  _aggregate_id uuid,
+  _sequence_number integer,
+  _now timestamp with time zone,
+  _snapshot_version_by_type jsonb
+);
+
 CREATE OR REPLACE PROCEDURE delete_snapshots_before(_aggregate_id uuid, _sequence_number integer, _now timestamp with time zone DEFAULT NOW())
 LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN

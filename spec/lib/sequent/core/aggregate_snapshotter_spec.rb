@@ -4,7 +4,7 @@ require 'spec_helper'
 
 describe Sequent::Core::AggregateSnapshotter do
   class MyEvent < Sequent::Core::Event; end
-  class MyAggregate < Sequent::Core::AggregateRoot; end
+  class MyAggregate2 < Sequent::Core::AggregateRoot; end
 
   let(:command_handler) { described_class.new }
   let(:event_store) { Sequent.configuration.event_store }

@@ -1,14 +1,10 @@
-DROP FUNCTION IF EXISTS load_events(
-  _aggregate_ids jsonb,
-  _use_snapshots boolean,
-  _until timestamptz,
-  _snapshot_version_by_type jsonb
-);
+DROP FUNCTION IF EXISTS load_events(_aggregate_ids jsonb, _use_snapshots boolean, _until timestamptz);
 
 CREATE OR REPLACE FUNCTION load_events(
   _aggregate_ids jsonb,
   _use_snapshots boolean DEFAULT TRUE,
-  _until timestamptz DEFAULT NULL
+  _until timestamptz DEFAULT NULL,
+  _snapshot_version_by_type jsonb DEFAULT '{}'
 ) RETURNS SETOF aggregate_event_type
 LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
@@ -19,18 +15,25 @@ BEGIN
     -- in case transaction isolation level is lower than repeatable read (the default of
     -- PostgreSQL is read committed).
     RETURN QUERY WITH
-      aggregate AS (
+      aggregate AS MATERIALIZED (
         SELECT aggregate_types.type, aggregate_id, events_partition_key
           FROM aggregates
           JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
          WHERE aggregate_id = _aggregate_id
       ),
-      snapshot AS (
+      snapshot AS MATERIALIZED (
         SELECT *
           FROM snapshot_records
          WHERE _use_snapshots
            AND aggregate_id = _aggregate_id
            AND (_until IS NULL OR created_at < _until)
+           AND snapshot_version = COALESCE(
+                 (SELECT snapshot_version_by_type.value
+                    FROM jsonb_each(_snapshot_version_by_type) AS snapshot_version_by_type(type, value)
+                    JOIN aggregate ON snapshot_records.aggregate_id = aggregate.aggregate_id
+                   WHERE aggregate.type = snapshot_version_by_type.type)::integer,
+                 1
+               )
          ORDER BY sequence_number DESC LIMIT 1
       )
     (SELECT a.*, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s)
