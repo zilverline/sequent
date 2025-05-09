@@ -53,7 +53,11 @@ module Sequent
         end
       end
 
-      def register_types(aggregate_root_classes: [], command_classes: [], event_classes: [])
+      def register_types!(
+        aggregate_root_classes: Sequent::Core::AggregateRoot.descendants,
+        command_classes: Sequent::Core::Command.descendants,
+        event_classes: Sequent::Core::Event.descendants
+      )
         call_procedure(
           connection,
           'register_types',

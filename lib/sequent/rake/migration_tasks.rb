@@ -47,11 +47,8 @@ module Sequent
 
               connection
 
-              Sequent.configuration.event_store.register_types(
-                aggregate_root_classes: Sequent::Core::AggregateRoot.descendants,
-                command_classes: all_subclasses(Sequent::Core::Command),
-                event_classes: all_subclasses(Sequent::Core::Event),
-              )
+              Sequent.configuration.event_store.register_types!
+              Sequent.logger.info 'Registered aggregate root, command, and event types'
             end
           end
 
@@ -392,10 +389,6 @@ module Sequent
         @env ||= ENV['SEQUENT_ENV'] || fail('SEQUENT_ENV not set')
       end
       # rubocop:enable Naming/MemoizedInstanceVariableName
-
-      def all_subclasses(parent)
-        ObjectSpace.each_object(Class).select { |klass| klass < parent }
-      end
     end
   end
 end
