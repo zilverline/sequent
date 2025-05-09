@@ -165,7 +165,7 @@ describe Sequent::Core::EventStore do
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
     end
 
-    it 'can no longer find aggregates what are clear for snapshotting based on latest event timestamp' do
+    it 'can no longer find aggregates that are cleared for snapshotting based on latest event timestamp' do
       event_store.store_snapshots([snapshot])
 
       event_store.clear_aggregates_for_snapshotting_with_last_event_before(Time.now)
@@ -199,6 +199,32 @@ describe Sequent::Core::EventStore do
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+    end
+
+    context 'versioned snapshots' do
+      let(:snapshot_v1) do
+        snapshot = aggregate.take_snapshot
+        snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+        snapshot.snapshot_version = 1
+        snapshot
+      end
+
+      let(:snapshot_v2) do
+        snapshot = aggregate.take_snapshot
+        snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+        snapshot.snapshot_version = 2
+        snapshot
+      end
+
+      it 'can store both snapshot versions' do
+        event_store.store_snapshots([snapshot_v1, snapshot_v2])
+
+        MyAggregate.enable_snapshots version: 1
+        expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot_v1)
+
+        MyAggregate.enable_snapshots version: 2
+        expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot_v2)
+      end
     end
   end
 
