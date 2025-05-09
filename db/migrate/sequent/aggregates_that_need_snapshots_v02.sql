@@ -9,7 +9,7 @@ BEGIN
     JOIN aggregates a ON s.aggregate_id = a.aggregate_id
     JOIN aggregate_types type ON a.aggregate_type_id = type.id
    WHERE s.snapshot_outdated_at IS NOT NULL
-     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->(type.type))::integer, 1)
+     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(type.type))::integer, 1)
      AND (_last_aggregate_id IS NULL OR s.aggregate_id > _last_aggregate_id)
    ORDER BY 1
    LIMIT _limit;

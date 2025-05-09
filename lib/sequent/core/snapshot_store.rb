@@ -52,6 +52,28 @@ module Sequent
         EOS
       end
 
+      def mark_aggregates_with_lower_snapshot_versions_for_snapshotting
+        sql = <<~SQL
+          INSERT INTO aggregates_that_need_snapshots (aggregate_id, snapshot_version, snapshot_sequence_number_high_water_mark, snapshot_outdated_at)
+          SELECT source.aggregate_id,
+                 ($1::jsonb->>(t.type))::integer,
+                 MAX(snapshot_sequence_number_high_water_mark),
+                 MIN(snapshot_outdated_at)
+            FROM aggregates_that_need_snapshots source
+            JOIN aggregates a ON source.aggregate_id = a.aggregate_id
+            JOIN aggregate_types t ON a.aggregate_type_id = t.id
+           WHERE source.snapshot_version < ($1::jsonb->>(t.type))::integer
+           GROUP BY 1, 2
+              ON CONFLICT DO NOTHING;
+        SQL
+
+        connection.exec_update(
+          sql,
+          'mark_aggregates_with_lower_snapshot_versions_for_snapshotting',
+          [snapshot_version_by_type.to_json],
+        )
+      end
+
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
         call_procedure(

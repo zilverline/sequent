@@ -216,6 +216,8 @@ describe Sequent::Core::EventStore do
         snapshot
       end
 
+      SnapshotRecord = Sequent::Core::SnapshotRecord
+
       it 'can store both snapshot versions' do
         event_store.store_snapshots([snapshot_v1, snapshot_v2])
 
@@ -224,6 +226,84 @@ describe Sequent::Core::EventStore do
 
         MyAggregate.enable_snapshots version: 2
         expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot_v2)
+      end
+
+      it 'can delete lower snapshot versions' do
+        event_store.store_snapshots([snapshot_v1, snapshot_v2])
+        MyAggregate.enable_snapshots version: 1
+        expect { subject.delete_lower_snapshot_versions }.to change(SnapshotRecord, :count).by(0)
+
+        MyAggregate.enable_snapshots version: 2
+        expect { subject.delete_lower_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
+
+        expect(SnapshotRecord.find_by(aggregate_id:)).to have_attributes(snapshot_version: 2)
+
+        MyAggregate.enable_snapshots version: 3
+        expect { subject.delete_lower_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
+      end
+
+      it 'loads the event stream using the correct snapshot version' do
+        event_store.store_snapshots([snapshot_v1, snapshot_v2])
+
+        MyAggregate.enable_snapshots version: 4
+        expect(subject.load_events(aggregate_id)[1][0]).to be_a(MyEvent)
+
+        MyAggregate.enable_snapshots version: 1
+        expect(subject.load_events(aggregate_id)[1][0])
+          .to be_a(Sequent::Core::SnapshotEvent).and(have_attributes(snapshot_version: 1))
+
+        MyAggregate.enable_snapshots version: 2
+        expect(subject.load_events(aggregate_id)[1][0])
+          .to be_a(Sequent::Core::SnapshotEvent).and(have_attributes(snapshot_version: 2))
+      end
+
+      it 'selects aggregates for snapshotting using the correct snapshot version' do
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: 2)
+
+        MyAggregate.enable_snapshots version: 1
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        MyAggregate.enable_snapshots version: 2
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(aggregate_id)
+      end
+
+      it 'marks aggregates for snapshotting using the correct snapshot version when storing events' do
+        MyAggregate.enable_snapshots version: 2
+
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id:,
+                snapshot_outdated_at: Time.now,
+                snapshot_version: MyAggregate.snapshot_version,
+              ),
+              [
+                MyEvent.new(
+                  aggregate_id:,
+                  sequence_number: 2,
+                  created_at: Time.parse('2024-02-30T01:10:12Z'),
+                  data: "another event\n",
+                ),
+              ],
+            ],
+          ],
+        )
+
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(aggregate_id)
+
+        MyAggregate.enable_snapshots version: 1
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        MyAggregate.enable_snapshots version: 3
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        subject.mark_aggregates_with_lower_snapshot_versions_for_snapshotting
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(aggregate_id)
       end
     end
   end

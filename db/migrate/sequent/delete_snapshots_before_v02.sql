@@ -11,7 +11,7 @@ BEGIN
   DELETE FROM snapshot_records s
    WHERE aggregate_id = _aggregate_id
      AND snapshot_version = COALESCE(
-           (SELECT _snapshot_version_by_type->(type.type)
+           (SELECT _snapshot_version_by_type->>(type.type)
               FROM aggregates
               JOIN aggregate_types type ON aggregate_type_id = type.id
              WHERE s.aggregate_id = aggregates.aggregate_id)::integer,

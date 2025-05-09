@@ -43,7 +43,7 @@ BEGIN
     JOIN aggregates a ON s.aggregate_id = a.aggregate_id
     JOIN aggregate_types type ON a.aggregate_type_id = type.id
    WHERE s.snapshot_outdated_at IS NOT NULL
-     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->(type.type))::integer, 1)
+     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(type.type))::integer, 1)
      AND (_last_aggregate_id IS NULL OR s.aggregate_id > _last_aggregate_id)
    ORDER BY 1
    LIMIT _limit;
@@ -80,7 +80,7 @@ BEGIN
   DELETE FROM snapshot_records s
    WHERE aggregate_id = _aggregate_id
      AND snapshot_version = COALESCE(
-           (SELECT _snapshot_version_by_type->(type.type)
+           (SELECT _snapshot_version_by_type->>(type.type)
               FROM aggregates
               JOIN aggregate_types type ON aggregate_type_id = type.id
              WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
@@ -266,7 +266,7 @@ CREATE FUNCTION sequent_schema.load_latest_snapshot(_aggregate_id uuid, _snapsho
     JOIN aggregate_types t on a.aggregate_type_id = t.id
     JOIN snapshot_records s ON a.aggregate_id = s.aggregate_id
    WHERE a.aggregate_id = _aggregate_id
-     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->(t.type))::integer, 1)
+     AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(t.type))::integer, 1)
    ORDER BY s.sequence_number DESC
    LIMIT 1;
 $$;
@@ -427,11 +427,11 @@ CREATE FUNCTION sequent_schema.select_aggregates_for_snapshotting(_limit integer
     AS $$
 BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
-    SELECT s.aggregate_id
+    SELECT s.aggregate_id, s.snapshot_version
       FROM aggregates_that_need_snapshots AS s
      WHERE snapshot_outdated_at IS NOT NULL
        AND snapshot_version = COALESCE(
-             (SELECT _snapshot_version_by_type->(type.type)
+             (SELECT _snapshot_version_by_type->>(type.type)
                 FROM aggregates
                 JOIN aggregate_types type ON aggregate_type_id = type.id
                WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
@@ -444,6 +444,7 @@ BEGIN
         SET snapshot_scheduled_at = _now
        FROM scheduled
       WHERE row.aggregate_id = scheduled.aggregate_id
+        AND row.snapshot_version = scheduled.snapshot_version
         AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)
     RETURNING row.aggregate_id;
 END;
