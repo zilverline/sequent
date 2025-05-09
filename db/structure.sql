@@ -315,7 +315,7 @@ BEGIN
 
   WITH types AS (
     SELECT DISTINCT type AS type
-      FROM jsonb_array_elements_text(_types->'aggregate_root_types') AS type
+      FROM jsonb_array_elements_text(_types->'aggregate_types') AS type
     EXCEPT
     SELECT type FROM aggregate_types
   )

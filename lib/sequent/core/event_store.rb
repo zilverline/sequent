@@ -54,7 +54,7 @@ module Sequent
       end
 
       def register_types!(
-        aggregate_root_classes: Sequent::Core::AggregateRoot.descendants,
+        aggregate_classes: Sequent::Core::AggregateRoot.descendants,
         command_classes: Sequent::Core::Command.descendants,
         event_classes: Sequent::Core::Event.descendants
       )
@@ -63,7 +63,7 @@ module Sequent
           'register_types',
           [
             {
-              aggregate_root_types: aggregate_root_classes.map(&:name),
+              aggregate_root_types: aggregate_classes.map(&:name),
               command_types: command_classes.map(&:name),
               event_types: event_classes.map(&:name),
             }.to_json,
