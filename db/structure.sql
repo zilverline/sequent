@@ -294,6 +294,51 @@ $$;
 
 
 --
+-- Name: register_types(jsonb); Type: PROCEDURE; Schema: sequent_schema; Owner: -
+--
+
+CREATE PROCEDURE sequent_schema.register_types(IN _types jsonb)
+    LANGUAGE plpgsql
+    SET search_path TO 'sequent_schema'
+    AS $$
+BEGIN
+  WITH types AS (
+    SELECT DISTINCT type
+      FROM jsonb_array_elements_text(_types->'command_types') AS type
+    EXCEPT
+    SELECT type FROM command_types
+  )
+  INSERT INTO command_types (type)
+  SELECT type FROM types
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
+
+  WITH types AS (
+    SELECT DISTINCT type AS type
+      FROM jsonb_array_elements_text(_types->'aggregate_types') AS type
+    EXCEPT
+    SELECT type FROM aggregate_types
+  )
+  INSERT INTO aggregate_types (type)
+  SELECT type FROM types
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
+
+  WITH types AS (
+    SELECT DISTINCT type AS type
+      FROM jsonb_array_elements_text(_types->'event_types') AS type
+    EXCEPT
+    SELECT type FROM event_types
+  )
+  INSERT INTO event_types (type)
+  SELECT type FROM types
+   ORDER BY 1
+      ON CONFLICT DO NOTHING;
+END;
+$$;
+
+
+--
 -- Name: save_events_on_delete_trigger(); Type: FUNCTION; Schema: sequent_schema; Owner: -
 --
 
@@ -1384,9 +1429,10 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 -- PostgreSQL database dump complete
 --
 
-SET search_path TO public, view_schema, sequent_schema;
+SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250509120000'),
 ('20250501120000'),
 ('20250312105100'),
 ('20250101000001'),
