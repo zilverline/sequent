@@ -22,11 +22,13 @@ BEGIN
     _aggregate_id = _aggregate->>'aggregate_id';
     SELECT events_partition_key INTO STRICT _events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id;
 
-    SELECT MAX(sequence_number)
+    SELECT sequence_number
       INTO _last_sequence_number
       FROM events
      WHERE partition_key = _events_partition_key
-       AND aggregate_id = _aggregate_id;
+       AND aggregate_id = _aggregate_id
+     ORDER BY 1 DESC
+     LIMIT 1;
 
     SELECT MIN(event->'event_json'->>'sequence_number')
       INTO _next_sequence_number
