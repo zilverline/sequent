@@ -439,7 +439,7 @@ DECLARE
   _current_partition_key aggregates.events_partition_key%TYPE;
   _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
 BEGIN
-  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row LOOP
+  FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row ORDER BY row->0->>'aggregate_id' LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
 
     _events_partition_key = COALESCE(_aggregate->>'events_partition_key', '');
@@ -520,6 +520,8 @@ DECLARE
   _events jsonb;
   _aggregate_id aggregates.aggregate_id%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
+  _last_sequence_number events.sequence_number%TYPE;
+  _next_sequence_number events.sequence_number%TYPE;
 BEGIN
   CALL update_types(_command, _aggregates_with_events);
 
@@ -533,6 +535,25 @@ BEGIN
     _aggregate_id = _aggregate->>'aggregate_id';
     SELECT events_partition_key INTO STRICT _events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id;
 
+    SELECT MAX(sequence_number)
+      INTO _last_sequence_number
+      FROM events
+     WHERE partition_key = _events_partition_key
+       AND aggregate_id = _aggregate_id;
+
+    SELECT MIN(event->>'sequence_number')
+      INTO _next_sequence_number
+      FROM jsonb_array_elements(_events) AS event;
+
+    -- Check sequence number of first new event to ensure optimistic locking works correctly
+    -- (otherwise two concurrent transactions could insert events with different first/next
+    -- sequence number and no constraint violation would be raised).
+    IF _last_sequence_number IS NULL AND _next_sequence_number <> 1 THEN
+      RAISE EXCEPTION 'sequence_number of first event must be 1';
+    ELSIF _last_sequence_number IS NOT NULL AND _next_sequence_number <= _last_sequence_number + 1 THEN
+      RAISE EXCEPTION 'sequence_number must be consecutive';
+    END IF;
+
     INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
     SELECT _events_partition_key,
            _aggregate_id,
@@ -541,7 +562,8 @@ BEGIN
            _command_id,
            (SELECT id FROM event_types WHERE type = event->>'event_type'),
            (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
-      FROM jsonb_array_elements(_events) AS event;
+      FROM jsonb_array_elements(_events) AS event
+     ORDER BY 1, 2;
   END LOOP;
 
   _aggregates = (SELECT jsonb_agg(row->0) FROM jsonb_array_elements(_aggregates_with_events) AS row);
@@ -641,7 +663,7 @@ DECLARE
   _aggregate_id aggregates.aggregate_id%TYPE;
   _unique_keys jsonb;
 BEGIN
-  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate LOOP
+  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate ORDER BY aggregate->>'aggregate_id' LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
     _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
 
@@ -650,13 +672,14 @@ BEGIN
        AND NOT (_unique_keys ? target.scope);
   END LOOP;
 
-  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate LOOP
+  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate ORDER BY aggregate->>'aggregate_id' LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
     _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
 
     INSERT INTO aggregate_unique_keys AS target (aggregate_id, scope, key)
     SELECT _aggregate_id, key, value
       FROM jsonb_each(_unique_keys) AS x
+     ORDER BY 1, 2
         ON CONFLICT (aggregate_id, scope) DO UPDATE
        SET key = EXCLUDED.key
      WHERE target.key <> EXCLUDED.key;
@@ -1432,6 +1455,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250512135500'),
 ('20250509120000'),
 ('20250501120000'),
 ('20250312105100'),
