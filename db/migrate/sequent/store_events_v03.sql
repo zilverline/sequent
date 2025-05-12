@@ -50,7 +50,7 @@ BEGIN
            (SELECT id FROM event_types WHERE type = event->>'event_type'),
            (event->'event_json') - '{aggregate_id,created_at,event_type,sequence_number}'::text[]
       FROM jsonb_array_elements(_events) AS event
-     ORDER BY 1, 2;
+     ORDER BY 1, 2, 3;
   END LOOP;
 
   _aggregates = (SELECT jsonb_agg(row->0) FROM jsonb_array_elements(_aggregates_with_events) AS row);
