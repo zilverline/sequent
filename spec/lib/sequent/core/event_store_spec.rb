@@ -293,6 +293,59 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.load_events_since_marked_position(updated_mark)[0]).to be_empty
     end
+
+    it 'fails if the first event does not have sequence number 1' do
+      expect do
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id: Sequent.new_uuid,
+              ),
+              [
+                MyEvent.new(
+                  aggregate_id:,
+                  sequence_number: 2,
+                  created_at: Time.parse('2024-02-29T02:10:12Z'),
+                  data: "another event\n",
+                ),
+              ],
+            ],
+          ],
+        )
+      end.to raise_error(ActiveRecord::StatementInvalid)
+    end
+
+    it 'fails if the next event has a sequence number gap with the last event' do
+      stream = Sequent::Core::EventStream.new(
+        aggregate_type: 'MyAggregate',
+        aggregate_id: Sequent.new_uuid,
+      )
+      event = MyEvent.new(
+        aggregate_id:,
+        sequence_number: 1,
+        created_at: Time.parse('2024-02-29T02:10:12Z'),
+        data: "another event\n",
+      )
+
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [stream, [event]],
+        ],
+      )
+
+      expect do
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [stream, [event.copy(sequence_number: 3)]],
+          ],
+        )
+      end.to raise_error(ActiveRecord::StatementInvalid)
+    end
   end
 
   describe '#permanently_delete_events' do
