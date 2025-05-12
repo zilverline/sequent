@@ -541,7 +541,7 @@ BEGIN
      WHERE partition_key = _events_partition_key
        AND aggregate_id = _aggregate_id;
 
-    SELECT MIN(event->>'sequence_number')
+    SELECT MIN(event->'event_json'->>'sequence_number')
       INTO _next_sequence_number
       FROM jsonb_array_elements(_events) AS event;
 
@@ -549,9 +549,12 @@ BEGIN
     -- (otherwise two concurrent transactions could insert events with different first/next
     -- sequence number and no constraint violation would be raised).
     IF _last_sequence_number IS NULL AND _next_sequence_number <> 1 THEN
-      RAISE EXCEPTION 'sequence_number of first event must be 1';
-    ELSIF _last_sequence_number IS NOT NULL AND _next_sequence_number <= _last_sequence_number + 1 THEN
-      RAISE EXCEPTION 'sequence_number must be consecutive';
+      RAISE EXCEPTION 'sequence_number of first event must be 1, but was % (aggregate %)', _next_sequence_number, _aggregate_id
+            USING ERRCODE = 'integrity_constraint_violation';
+    ELSIF _last_sequence_number IS NOT NULL AND _next_sequence_number > _last_sequence_number + 1 THEN
+      RAISE EXCEPTION 'sequence_number must be consecutive, but last sequence number was % and next is % (aggregate %)',
+                      _last_sequence_number, _next_sequence_number, _aggregate_id
+            USING ERRCODE = 'integrity_constraint_violation';
     END IF;
 
     INSERT INTO events (partition_key, aggregate_id, sequence_number, created_at, command_id, event_type_id, event_json)
