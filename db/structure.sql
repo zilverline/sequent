@@ -440,13 +440,18 @@ BEGIN
      ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
      LIMIT _limit
        FOR UPDATE
-   ) UPDATE aggregates_that_need_snapshots AS row
+   ), updated AS MATERIALIZED (
+     UPDATE aggregates_that_need_snapshots AS row
         SET snapshot_scheduled_at = _now
        FROM scheduled
       WHERE row.aggregate_id = scheduled.aggregate_id
         AND row.snapshot_version = scheduled.snapshot_version
         AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)
-    RETURNING row.aggregate_id;
+     RETURNING row.*
+   )
+   SELECT updated.aggregate_id
+     FROM updated
+    ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC;
 END;
 $$;
 
