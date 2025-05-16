@@ -391,8 +391,8 @@ module Sequent
             desc <<~EOS
               Delete all aggregate snapshots with a lower snapshot version than currently supported.
             EOS
-            task delete_older_versions: :connect do
-              Sequent.configuration.event_store.delete_lower_snapshot_versions
+            task delete_unknown_snapshot_versions: :connect do
+              Sequent.configuration.event_store.delete_unknown_snapshot_versions
               Sequent.logger.info 'Deleted all lower snapshot versions from the event store'
             end
           end

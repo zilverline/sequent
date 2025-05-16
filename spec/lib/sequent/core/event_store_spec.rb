@@ -230,16 +230,14 @@ describe Sequent::Core::EventStore do
 
       it 'can delete lower snapshot versions' do
         event_store.store_snapshots([snapshot_v1, snapshot_v2])
-        MyAggregate.enable_snapshots version: 1
-        expect { subject.delete_lower_snapshot_versions }.to change(SnapshotRecord, :count).by(0)
 
         MyAggregate.enable_snapshots version: 2
-        expect { subject.delete_lower_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
+        expect { subject.delete_unknown_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
 
         expect(SnapshotRecord.find_by(aggregate_id:)).to have_attributes(snapshot_version: 2)
 
         MyAggregate.enable_snapshots version: 3
-        expect { subject.delete_lower_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
+        expect { subject.delete_unknown_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
       end
 
       it 'loads the event stream using the correct snapshot version' do
