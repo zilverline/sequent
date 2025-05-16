@@ -64,6 +64,19 @@ module Sequent
               Sequent.configuration.event_store.register_types!
               Sequent.logger.info 'Registered aggregate root, command, and event types'
             end
+
+            desc <<~EOS
+              Register the required snapshot version for each aggregate root. This will ensure the snapshotter
+              starts snapshotting with the right snapshot version.
+
+              NOTE make sure to load all Ruby classes before running this task!
+            EOS
+            task snapshot_versions: %i[sequent:connect] do
+              ensure_sequent_env_set!
+
+              Sequent.configuration.event_store.register_snapshot_versions!
+              Sequent.logger.info 'Registered required snapshot versions'
+            end
           end
 
           desc 'Creates sequent view schema if not exists and runs internal migrations'

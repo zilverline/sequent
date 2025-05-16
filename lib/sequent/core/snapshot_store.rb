@@ -39,10 +39,37 @@ module Sequent
         call_procedure(connection, 'delete_all_snapshots', [Time.now])
       end
 
-      def delete_lower_snapshot_versions
-        connection.exec_update(<<~EOS, 'delete_lower_snapshot_versions', [snapshot_version_by_type.to_json])
+      def register_snapshot_versions!
+        connection.exec_update(<<~SQL, 'register_snapshot_versions', [snapshot_version_by_type.to_json])
+          WITH existing_versions AS (
+            SELECT s.aggregate_id,
+                   MAX(snapshot_sequence_number_high_water_mark) AS snapshot_sequence_number_high_water_mark,
+                   MAX(snapshot_outdated_at) AS snapshot_outdated_at,
+                   array_agg(snapshot_version) AS existing_snapshot_versions
+              FROM aggregates_that_need_snapshots s
+             GROUP BY 1
+          )
+          INSERT INTO aggregates_that_need_snapshots (
+                        aggregate_id,
+                        snapshot_sequence_number_high_water_mark,
+                        snapshot_outdated_at,
+                        snapshot_version
+                      )
+          SELECT s.aggregate_id,
+                 s.snapshot_sequence_number_high_water_mark,
+                 s.snapshot_outdated_at,
+                 ($1::jsonb->(t.type))::integer
+            FROM existing_versions s
+            JOIN aggregates a ON s.aggregate_id = a.aggregate_id
+            JOIN aggregate_types t ON a.aggregate_type_id = t.id
+           WHERE ($1::jsonb->(t.type))::integer <> ALL (s.existing_snapshot_versions);
+        SQL
+      end
+
+      def delete_unknown_snapshot_versions
+        connection.exec_update(<<~EOS, 'delete_unknown_snapshot_versions', [snapshot_version_by_type.to_json])
           DELETE FROM aggregates_that_need_snapshots s
-           WHERE snapshot_version < COALESCE(
+           WHERE snapshot_version <> COALESCE(
                    (SELECT ($1::jsonb)->(type.type)
                       FROM aggregates
                       JOIN aggregate_types type ON aggregate_type_id = type.id
