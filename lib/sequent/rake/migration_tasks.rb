@@ -358,11 +358,13 @@ module Sequent
                      'usage rake sequent:snapshots:take_snapshots[limit]'
               end
 
-              aggregate_ids = Sequent.configuration.event_store.select_aggregates_for_snapshotting(limit:)
+              aggregates = Sequent.configuration.event_store.select_aggregates_for_snapshotting(limit:)
 
-              Sequent.logger.info "Taking #{aggregate_ids.size} snapshots"
-              aggregate_ids.each do |aggregate_id|
-                Sequent.command_service.execute_commands(Sequent::Core::TakeSnapshot.new(aggregate_id:))
+              Sequent.logger.info "Taking #{aggregates.size} snapshots"
+              aggregates.each do |aggregate|
+                Sequent.command_service.execute_commands(
+                  Sequent::Core::TakeSnapshot.new(aggregate_id: aggregate.aggregate_id),
+                )
               end
             end
 

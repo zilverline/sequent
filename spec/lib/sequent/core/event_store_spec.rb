@@ -136,12 +136,16 @@ describe Sequent::Core::EventStore do
         ],
       )
 
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+      )
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
       event_store.store_snapshots([snapshot])
 
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id_2)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, 42),
+      )
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
       event_store.mark_aggregate_for_snapshotting(
@@ -151,7 +155,10 @@ describe Sequent::Core::EventStore do
       )
 
       expect(event_store.select_aggregates_for_snapshotting(limit: 10, reschedule_snapshots_scheduled_before: Time.now))
-        .to include(aggregate_id, aggregate_id_2)
+        .to include(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, 42),
+        )
     end
 
     it 'can no longer find the aggregates that are cleared for snapshotting' do
@@ -184,7 +191,9 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+      )
     end
 
     it 'can delete all snapshots' do
@@ -198,7 +207,9 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+      )
     end
 
     context 'versioned snapshots' do
@@ -264,7 +275,9 @@ describe Sequent::Core::EventStore do
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
         MyAggregate.enable_snapshots version: 2
-        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(aggregate_id)
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 2),
+        )
       end
 
       it 'marks aggregates for snapshotting using the correct snapshot version when storing events' do
@@ -292,7 +305,9 @@ describe Sequent::Core::EventStore do
           ],
         )
 
-        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(aggregate_id)
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 2),
+        )
 
         MyAggregate.enable_snapshots version: 1
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
@@ -301,7 +316,9 @@ describe Sequent::Core::EventStore do
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
         subject.mark_aggregates_with_lower_snapshot_versions_for_snapshotting
-        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(aggregate_id)
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 3),
+        )
       end
     end
   end

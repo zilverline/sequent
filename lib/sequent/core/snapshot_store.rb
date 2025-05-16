@@ -5,6 +5,8 @@ require_relative 'helpers/pgsql_helpers'
 
 module Sequent
   module Core
+    AggregateSnapshotNeeded = Data.define(:aggregate_id, :snapshot_version)
+
     module SnapshotStore
       include Helpers::PgsqlHelpers
 
@@ -174,8 +176,9 @@ module Sequent
           connection,
           'select_aggregates_for_snapshotting',
           [limit, reschedule_snapshots_scheduled_before, Time.now, snapshot_version_by_type.to_json],
-          columns: ['aggregate_id'],
-        ).pluck('aggregate_id')
+        )
+          .pluck(*AggregateSnapshotNeeded.members.map(&:name))
+          .map { |row| AggregateSnapshotNeeded.new(*row) }
       end
 
       private
