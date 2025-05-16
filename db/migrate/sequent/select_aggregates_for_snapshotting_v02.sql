@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION select_aggregates_for_snapshotting(
   _now timestamp with time zone DEFAULT NOW(),
   _snapshot_version_by_type jsonb DEFAULT '{}'
 )
-  RETURNS TABLE (aggregate_id uuid)
+  RETURNS SETOF aggregates_that_need_snapshots
 LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
@@ -32,7 +32,7 @@ BEGIN
         AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)
      RETURNING row.*
    )
-   SELECT updated.aggregate_id
+   SELECT *
      FROM updated
     ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC;
 END;
