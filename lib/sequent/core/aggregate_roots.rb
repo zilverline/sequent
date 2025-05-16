@@ -14,6 +14,12 @@ module Sequent
         def all
           aggregate_roots
         end
+
+        def snapshot_version_by_type(clazz = Sequent::Core::AggregateRoot)
+          base_class = clazz || Sequent::Core::AggregateRoot
+          matching_aggregate_types = [base_class, *base_class.descendants].filter(&:snapshots_enabled?)
+          matching_aggregate_types.to_h { |type| [type, type.snapshot_version] }
+        end
       end
     end
   end
