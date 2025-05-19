@@ -24,6 +24,7 @@ CREATE TYPE sequent_schema.aggregate_event_type AS (
 	aggregate_type text,
 	aggregate_id uuid,
 	events_partition_key text,
+	event_sequence_number integer,
 	event_type text,
 	event_json jsonb
 );
@@ -186,6 +187,7 @@ BEGIN
   RETURN QUERY SELECT aggregate_types.type,
          a.aggregate_id,
          a.events_partition_key,
+         e.sequence_number,
          event_types.type,
          enrich_event_json(e)
     FROM aggregates a
@@ -229,15 +231,15 @@ BEGIN
            AND snapshot_version = COALESCE((_snapshot_version_by_type->(aggregate.type))::integer, 1)
          ORDER BY s.sequence_number DESC LIMIT 1
       )
-    (SELECT a.*, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s)
+    SELECT a.*, 0 AS sequence_number, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s
     UNION ALL
-    (SELECT a.*, event_types.type, enrich_event_json(e)
+    SELECT a.*, e.sequence_number, event_types.type, enrich_event_json(e)
        FROM aggregate a
        JOIN events e ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
        JOIN event_types ON e.event_type_id = event_types.id
       WHERE e.sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
         AND (_until IS NULL OR e.created_at < _until)
-      ORDER BY e.sequence_number ASC);
+    ORDER BY sequence_number ASC;
   END LOOP;
 END;
 $$;
@@ -254,6 +256,7 @@ CREATE FUNCTION sequent_schema.load_latest_snapshot(_aggregate_id uuid, _snapsho
   SELECT t.type,
          a.aggregate_id,
          a.events_partition_key,
+         0 AS sequence_number,
          s.snapshot_type,
          s.snapshot_json
     FROM aggregates a

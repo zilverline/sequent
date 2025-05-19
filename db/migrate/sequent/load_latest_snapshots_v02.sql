@@ -6,6 +6,7 @@ LANGUAGE SQL SET search_path FROM CURRENT AS $$
   SELECT t.type,
          a.aggregate_id,
          a.events_partition_key,
+         0 AS sequence_number,
          s.snapshot_type,
          s.snapshot_json
     FROM aggregates a
