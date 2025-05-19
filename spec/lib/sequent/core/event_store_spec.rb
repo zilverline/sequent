@@ -315,7 +315,7 @@ describe Sequent::Core::EventStore do
         MyAggregate.enable_snapshots version: 3
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
-        subject.mark_aggregates_with_lower_snapshot_versions_for_snapshotting
+        subject.register_snapshot_versions!
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
           Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 3),
         )
