@@ -80,7 +80,8 @@ module Sequent
         end
 
         it 'updates the aggregate and events using a maintenance task' do
-          PartitionKeyChange.update_aggregate_partition_keys(limit: 10)
+          applied_count = PartitionKeyChange.update_aggregate_partition_keys(limit: 10)
+          expect(applied_count).to eq(1)
 
           logged_change = PartitionKeyChange.find_by(aggregate_id:)
           expect(logged_change).to be_nil

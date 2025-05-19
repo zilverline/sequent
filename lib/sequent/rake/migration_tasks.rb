@@ -308,11 +308,12 @@ module Sequent
                      'usage rake sequent:aggregates:update_partition_keys[limit]'
               end
 
-              count = Sequent::Internal::PartitionKeyChange.count
-              Sequent.logger.info "Applying #{count} partition key changes (limited to #{limit})"
+              total_count = Sequent::Internal::PartitionKeyChange.count
+              Sequent.logger.info "Applying #{total_count} partition key changes (limited to #{limit})"
 
               begin
-                Sequent::Internal::PartitionKeyChange.update_aggregate_partition_keys(limit:)
+                applied_count = Sequent::Internal::PartitionKeyChange.update_aggregate_partition_keys(limit:)
+                Sequent.logger.info "Applied #{applied_count} out of #{total_count} partition key changes"
               rescue Sequent::Migrations::ConcurrentMigration
                 Sequent.logger.error 'View schema migration is active so not updating partition keys'
               end
