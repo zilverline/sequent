@@ -221,19 +221,13 @@ BEGIN
          WHERE aggregate_id = _aggregate_id
       ),
       snapshot AS MATERIALIZED (
-        SELECT *
-          FROM snapshot_records
+        SELECT s.*
+          FROM snapshot_records s JOIN aggregate ON s.aggregate_id = aggregate.aggregate_id
          WHERE _use_snapshots
-           AND aggregate_id = _aggregate_id
+           AND s.aggregate_id = _aggregate_id
            AND (_until IS NULL OR created_at < _until)
-           AND snapshot_version = COALESCE(
-                 (SELECT snapshot_version_by_type.value
-                    FROM jsonb_each(_snapshot_version_by_type) AS snapshot_version_by_type(type, value)
-                    JOIN aggregate ON snapshot_records.aggregate_id = aggregate.aggregate_id
-                   WHERE aggregate.type = snapshot_version_by_type.type)::integer,
-                 1
-               )
-         ORDER BY sequence_number DESC LIMIT 1
+           AND snapshot_version = COALESCE((_snapshot_version_by_type->(aggregate.type))::integer, 1)
+         ORDER BY s.sequence_number DESC LIMIT 1
       )
     (SELECT a.*, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s)
     UNION ALL
