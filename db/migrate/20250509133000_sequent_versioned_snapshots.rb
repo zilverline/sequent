@@ -53,7 +53,7 @@ class SequentVersionedSnapshots < ActiveRecord::Migration[7.2]
         SQL
       end
 
-      say 'Altering snapshot_records'
+      say 'Reverting snapshot_records'
       suppress_messages do
         execute <<~SQL
           ALTER TABLE snapshot_records
