@@ -5,7 +5,7 @@ require_relative 'helpers/pgsql_helpers'
 
 module Sequent
   module Core
-    AggregateSnapshotNeeded = Data.define(:aggregate_id, :snapshot_version)
+    AggregateSnapshotNeeded = Data.define(:aggregate_id, :aggregate_type, :snapshot_version)
 
     module SnapshotStore
       include Helpers::PgsqlHelpers

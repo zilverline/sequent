@@ -414,72 +414,25 @@ END;
 $$;
 
 
-SET default_table_access_method = heap;
-
---
--- Name: aggregates_that_need_snapshots; Type: TABLE; Schema: sequent_schema; Owner: -
---
-
-CREATE TABLE sequent_schema.aggregates_that_need_snapshots (
-    aggregate_id uuid NOT NULL,
-    snapshot_sequence_number_high_water_mark integer,
-    snapshot_outdated_at timestamp with time zone,
-    snapshot_scheduled_at timestamp with time zone,
-    snapshot_version integer NOT NULL
-);
-
-
---
--- Name: TABLE aggregates_that_need_snapshots; Type: COMMENT; Schema: sequent_schema; Owner: -
---
-
-COMMENT ON TABLE sequent_schema.aggregates_that_need_snapshots IS 'Contains a row for every aggregate with more events than its snapshot threshold.';
-
-
---
--- Name: COLUMN aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark; Type: COMMENT; Schema: sequent_schema; Owner: -
---
-
-COMMENT ON COLUMN sequent_schema.aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark IS 'The highest sequence number of the stored snapshot. Kept when snapshot are deleted to more easily query aggregates that need snapshotting the most';
-
-
---
--- Name: COLUMN aggregates_that_need_snapshots.snapshot_outdated_at; Type: COMMENT; Schema: sequent_schema; Owner: -
---
-
-COMMENT ON COLUMN sequent_schema.aggregates_that_need_snapshots.snapshot_outdated_at IS 'Not NULL indicates a snapshot is needed since the stored timestamp';
-
-
---
--- Name: COLUMN aggregates_that_need_snapshots.snapshot_scheduled_at; Type: COMMENT; Schema: sequent_schema; Owner: -
---
-
-COMMENT ON COLUMN sequent_schema.aggregates_that_need_snapshots.snapshot_scheduled_at IS 'Not NULL indicates a snapshot is in the process of being taken';
-
-
 --
 -- Name: select_aggregates_for_snapshotting(integer, timestamp with time zone, timestamp with time zone, jsonb); Type: FUNCTION; Schema: sequent_schema; Owner: -
 --
 
-CREATE FUNCTION sequent_schema.select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT now(), _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS SETOF sequent_schema.aggregates_that_need_snapshots
+CREATE FUNCTION sequent_schema.select_aggregates_for_snapshotting(_limit integer, _reschedule_snapshot_scheduled_before timestamp with time zone, _now timestamp with time zone DEFAULT now(), _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS TABLE(aggregate_id uuid, aggregate_type text, snapshot_version integer)
     LANGUAGE plpgsql
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
-    SELECT s.aggregate_id, s.snapshot_version
+    SELECT s.*, t.type AS aggregate_type
       FROM aggregates_that_need_snapshots AS s
-     WHERE snapshot_outdated_at IS NOT NULL
-       AND snapshot_version = COALESCE(
-             (SELECT _snapshot_version_by_type->>(type.type)
-                FROM aggregates
-                JOIN aggregate_types type ON aggregate_type_id = type.id
-               WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
-             1
-           )
-     ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
+      JOIN aggregates a ON s.aggregate_id = a.aggregate_id
+      JOIN aggregate_types t ON a.aggregate_type_id = t.id
+     WHERE s.snapshot_outdated_at IS NOT NULL
+       AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(t.type))::integer, 1)
+     ORDER BY s.snapshot_outdated_at ASC, s.snapshot_sequence_number_high_water_mark DESC, s.aggregate_id ASC
      LIMIT _limit
-       FOR UPDATE
+       FOR UPDATE OF s SKIP LOCKED
    ), updated AS MATERIALIZED (
      UPDATE aggregates_that_need_snapshots AS row
         SET snapshot_scheduled_at = _now
@@ -487,9 +440,9 @@ BEGIN
       WHERE row.aggregate_id = scheduled.aggregate_id
         AND row.snapshot_version = scheduled.snapshot_version
         AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)
-     RETURNING row.*
+     RETURNING scheduled.*
    )
-   SELECT *
+   SELECT updated.aggregate_id, updated.aggregate_type, updated.snapshot_version
      FROM updated
     ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC;
 END;
@@ -773,6 +726,8 @@ END;
 $$;
 
 
+SET default_table_access_method = heap;
+
 --
 -- Name: ar_internal_metadata; Type: TABLE; Schema: public; Owner: -
 --
@@ -852,6 +807,47 @@ CREATE TABLE sequent_schema.aggregates_default (
     aggregate_type_id smallint NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: aggregates_that_need_snapshots; Type: TABLE; Schema: sequent_schema; Owner: -
+--
+
+CREATE TABLE sequent_schema.aggregates_that_need_snapshots (
+    aggregate_id uuid NOT NULL,
+    snapshot_sequence_number_high_water_mark integer,
+    snapshot_outdated_at timestamp with time zone,
+    snapshot_scheduled_at timestamp with time zone,
+    snapshot_version integer NOT NULL
+);
+
+
+--
+-- Name: TABLE aggregates_that_need_snapshots; Type: COMMENT; Schema: sequent_schema; Owner: -
+--
+
+COMMENT ON TABLE sequent_schema.aggregates_that_need_snapshots IS 'Contains a row for every aggregate with more events than its snapshot threshold.';
+
+
+--
+-- Name: COLUMN aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark; Type: COMMENT; Schema: sequent_schema; Owner: -
+--
+
+COMMENT ON COLUMN sequent_schema.aggregates_that_need_snapshots.snapshot_sequence_number_high_water_mark IS 'The highest sequence number of the stored snapshot. Kept when snapshot are deleted to more easily query aggregates that need snapshotting the most';
+
+
+--
+-- Name: COLUMN aggregates_that_need_snapshots.snapshot_outdated_at; Type: COMMENT; Schema: sequent_schema; Owner: -
+--
+
+COMMENT ON COLUMN sequent_schema.aggregates_that_need_snapshots.snapshot_outdated_at IS 'Not NULL indicates a snapshot is needed since the stored timestamp';
+
+
+--
+-- Name: COLUMN aggregates_that_need_snapshots.snapshot_scheduled_at; Type: COMMENT; Schema: sequent_schema; Owner: -
+--
+
+COMMENT ON COLUMN sequent_schema.aggregates_that_need_snapshots.snapshot_scheduled_at IS 'Not NULL indicates a snapshot is in the process of being taken';
 
 
 --

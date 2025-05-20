@@ -137,14 +137,14 @@ describe Sequent::Core::EventStore do
       )
 
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
-        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
       )
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
       event_store.store_snapshots([snapshot])
 
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
-        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, 42),
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, MyAggregate.name, 42),
       )
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
@@ -156,8 +156,8 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.select_aggregates_for_snapshotting(limit: 10, reschedule_snapshots_scheduled_before: Time.now))
         .to include(
-          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
-          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, 42),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, MyAggregate.name, 42),
         )
     end
 
@@ -192,7 +192,7 @@ describe Sequent::Core::EventStore do
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
-        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
       )
     end
 
@@ -208,7 +208,7 @@ describe Sequent::Core::EventStore do
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
-        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 42),
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
       )
     end
 
@@ -276,7 +276,7 @@ describe Sequent::Core::EventStore do
 
         MyAggregate.enable_snapshots version: 2
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
-          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 2),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 2),
         )
       end
 
@@ -306,7 +306,7 @@ describe Sequent::Core::EventStore do
         )
 
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
-          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 2),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 2),
         )
 
         MyAggregate.enable_snapshots version: 1
@@ -317,7 +317,7 @@ describe Sequent::Core::EventStore do
 
         subject.register_snapshot_versions!
         expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
-          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, 3),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 3),
         )
       end
     end

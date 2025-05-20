@@ -6,23 +6,19 @@ CREATE OR REPLACE FUNCTION select_aggregates_for_snapshotting(
   _now timestamp with time zone DEFAULT NOW(),
   _snapshot_version_by_type jsonb DEFAULT '{}'
 )
-  RETURNS SETOF aggregates_that_need_snapshots
+  RETURNS TABLE (aggregate_id uuid, aggregate_type text, snapshot_version integer)
 LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
-    SELECT s.aggregate_id, s.snapshot_version
+    SELECT s.*, t.type AS aggregate_type
       FROM aggregates_that_need_snapshots AS s
-     WHERE snapshot_outdated_at IS NOT NULL
-       AND snapshot_version = COALESCE(
-             (SELECT _snapshot_version_by_type->>(type.type)
-                FROM aggregates
-                JOIN aggregate_types type ON aggregate_type_id = type.id
-               WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
-             1
-           )
-     ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC
+      JOIN aggregates a ON s.aggregate_id = a.aggregate_id
+      JOIN aggregate_types t ON a.aggregate_type_id = t.id
+     WHERE s.snapshot_outdated_at IS NOT NULL
+       AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(t.type))::integer, 1)
+     ORDER BY s.snapshot_outdated_at ASC, s.snapshot_sequence_number_high_water_mark DESC, s.aggregate_id ASC
      LIMIT _limit
-       FOR UPDATE
+       FOR UPDATE OF s SKIP LOCKED
    ), updated AS MATERIALIZED (
      UPDATE aggregates_that_need_snapshots AS row
         SET snapshot_scheduled_at = _now
@@ -30,9 +26,9 @@ BEGIN
       WHERE row.aggregate_id = scheduled.aggregate_id
         AND row.snapshot_version = scheduled.snapshot_version
         AND (row.snapshot_scheduled_at IS NULL OR row.snapshot_scheduled_at < _reschedule_snapshot_scheduled_before)
-     RETURNING row.*
+     RETURNING scheduled.*
    )
-   SELECT *
+   SELECT updated.aggregate_id, updated.aggregate_type, updated.snapshot_version
      FROM updated
     ORDER BY snapshot_outdated_at ASC, snapshot_sequence_number_high_water_mark DESC, aggregate_id ASC;
 END;
