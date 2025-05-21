@@ -12,6 +12,7 @@ module Sequent
       belongs_to :partitioned_aggregate, primary_key: :aggregate_id, foreign_key: :aggregate_id
 
       def self.update_aggregate_partition_keys(limit:)
+        count = 0
         limit.times do
           ActiveRecord::Base.transaction do
             if Sequent::Migrations::Versions.running.present?
@@ -19,8 +20,12 @@ module Sequent
                    'cannot update partition keys while view schema migration is running'
             end
 
-            change = PartitionKeyChange.first
-            return unless change
+            PartitionKeyChange.connection.exec_update("SET LOCAL statement_timeout TO '30s'", 'statement_timeout')
+
+            change = PartitionKeyChange.lock('FOR UPDATE SKIP LOCKED').first
+            return count unless change
+
+            count += 1
 
             PartitionedAggregate
               .where(aggregate_id: change.aggregate_id)
@@ -30,6 +35,7 @@ module Sequent
             change.destroy!
           end
         end
+        count
       end
     end
   end
