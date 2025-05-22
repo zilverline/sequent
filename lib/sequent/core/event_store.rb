@@ -109,10 +109,11 @@ module Sequent
         # PostgreSQLCursor::Cursor does not support bind parameters, so bind parameters manually instead.
         sql = ActiveRecord::Base.sanitize_sql_array(
           [
-            'SELECT * FROM load_events(:aggregate_ids, FALSE, :load_until)',
+            'SELECT * FROM load_events(:aggregate_ids, FALSE, :load_until, :snapshot_version_by_type)',
             {
               aggregate_ids: [aggregate_id].to_json,
               load_until: load_until,
+              snapshot_version_by_type: snapshot_version_by_type.to_json,
             },
           ],
         )
@@ -299,8 +300,16 @@ module Sequent
         Sequent.configuration.event_record_class.connection
       end
 
+      def snapshot_version_by_type(clazz = AggregateRoot)
+        Sequent.configuration.aggregate_snapshot_versions.call(clazz)
+      end
+
       def query_events(aggregate_ids, use_snapshots = true, load_until = nil)
-        query_function(connection, 'load_events', [aggregate_ids.to_json, use_snapshots, load_until])
+        query_function(
+          connection,
+          'load_events',
+          [aggregate_ids.to_json, use_snapshots, load_until, snapshot_version_by_type.to_json],
+        )
       end
 
       def deserialize_event(event_hash)

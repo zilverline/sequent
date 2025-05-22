@@ -64,6 +64,19 @@ module Sequent
               Sequent.configuration.event_store.register_types!
               Sequent.logger.info 'Registered aggregate root, command, and event types'
             end
+
+            desc <<~EOS
+              Register the required snapshot version for each aggregate root. This will ensure the snapshotter
+              starts snapshotting with the right snapshot version.
+
+              NOTE make sure to load all Ruby classes before running this task!
+            EOS
+            task snapshot_versions: %i[sequent:connect] do
+              ensure_sequent_env_set!
+
+              Sequent.configuration.event_store.register_snapshot_versions!
+              Sequent.logger.info 'Registered required snapshot versions'
+            end
           end
 
           desc 'Creates sequent view schema if not exists and runs internal migrations'
@@ -346,11 +359,13 @@ module Sequent
                      'usage rake sequent:snapshots:take_snapshots[limit]'
               end
 
-              aggregate_ids = Sequent.configuration.event_store.select_aggregates_for_snapshotting(limit:)
+              aggregates = Sequent.configuration.event_store.select_aggregates_for_snapshotting(limit:)
 
-              Sequent.logger.info "Taking #{aggregate_ids.size} snapshots"
-              aggregate_ids.each do |aggregate_id|
-                Sequent.command_service.execute_commands(Sequent::Core::TakeSnapshot.new(aggregate_id:))
+              Sequent.logger.info "Taking #{aggregates.size} snapshots"
+              aggregates.each do |aggregate|
+                Sequent.command_service.execute_commands(
+                  Sequent::Core::TakeSnapshot.new(aggregate_id: aggregate.aggregate_id),
+                )
               end
             end
 
@@ -374,6 +389,14 @@ module Sequent
             task delete_all: :connect do
               Sequent.configuration.event_store.delete_all_snapshots
               Sequent.logger.info 'Deleted all aggregate snapshots from the event store'
+            end
+
+            desc <<~EOS
+              Delete all aggregate snapshots with a lower snapshot version than currently supported.
+            EOS
+            task delete_unknown_snapshot_versions: :connect do
+              Sequent.configuration.event_store.delete_unknown_snapshot_versions
+              Sequent.logger.info 'Deleted all lower snapshot versions from the event store'
             end
           end
         end
