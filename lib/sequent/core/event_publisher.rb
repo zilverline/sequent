@@ -81,9 +81,8 @@ module Sequent
       end
 
       def ensure_no_unknown_active_projectors!
-        return unless Sequent.migrations_class
-
-        expected_version = Sequent.new_version
+        expected_version = Sequent.migrations_class&.version
+        return if expected_version.nil?
 
         registered_projectors = Migratable.projectors.to_set(&:name)
         active_projectors = Projectors

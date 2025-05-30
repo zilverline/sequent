@@ -116,21 +116,22 @@ module Sequent
       end
 
       def is_active?
-        return true unless Sequent.migrations_class
+        version = Sequent.migrations_class&.version
+        return true if version.nil?
 
         projector_state = Projectors.projector_states[self.class.name]
         return false if projector_state.nil?
 
-        expected_view_schema_version = Sequent.new_version
-        return true if projector_state.active_version == expected_view_schema_version
+        return true if projector_state.active_version == version
 
         # Replaying the current version, so run this projector (it will write to a temporary table).
-        return true if projector_state.replaying_version == expected_view_schema_version
+        return true if projector_state.replaying_version == version
 
         # Activating the current version, so run this projector
-        return true if projector_state.activating_version == expected_view_schema_version
+        return true if projector_state.activating_version == version
 
-        fail NewerProjectorIsActiveError, "newer version for projector #{self.class.name} code is #{projector_state}"
+        fail NewerProjectorIsActiveError,
+             "projector #{self.class} version #{version} does not match state #{projector_state}"
       end
 
       def_delegators :@persistor, :execute_sql, :commit
