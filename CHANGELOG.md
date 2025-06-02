@@ -1,3 +1,14 @@
+# Changelog 8.x
+
+- To prepare for rolling upgrades of Sequent based applications the
+  snapshot of an aggregate can now be versioned. This means that
+  whenever the snapshot format changes you should either delete all
+  snapshot on deployment of the new version (and ensure no old code is
+  running, which is a current requirement) or you should increment the
+  snapshot version using `enable_snapshots version: 2`. In this case the
+  old version of the code will continue to use snapshot version 1 (the
+  default version) while new code will only use snapshot version 2.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.
