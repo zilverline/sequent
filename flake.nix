@@ -33,6 +33,7 @@
               modules = [
                 {
                   env.PGPORT = postgresPort;
+                  env.SEQUENT_ENV = "test";
 
                   enterTest = ''
                     reset-database
@@ -62,7 +63,6 @@
                     bundle exec jekyll serve --livereload
                   '';
 
-
                   services.postgres = {
                     enable = true;
                     listen_addresses = "127.0.0.1";
@@ -82,8 +82,9 @@
                     postgresql
                   ];
 
+                  scripts.lint.exec = "bundle exec rubocop";
                   scripts.run-tests.exec = "bundle exec rspec";
-                  scripts.reset-database.exec = "SEQUENT_ENV=test bundle exec rake sequent:db:drop sequent:db:create";
+                  scripts.reset-database.exec = "bundle exec rake sequent:db:drop sequent:db:create";
                 }
               ];
             };
