@@ -2,6 +2,7 @@
 
 require_relative 'helpers/message_handler'
 require_relative 'persistors/active_record_persistor'
+require_relative 'projectors'
 
 module Sequent
   module Core
@@ -115,25 +116,6 @@ module Sequent
         super if is_active?
       end
 
-      def is_active?
-        version = Sequent.migrations_class&.version
-        return true if version.nil?
-
-        projector_state = Projectors.projector_states[self.class.name]
-        return false if projector_state.nil?
-
-        return true if projector_state.active_version == version
-
-        # Replaying the current version, so run this projector (it will write to a temporary table).
-        return true if projector_state.replaying_version == version
-
-        # Activating the current version, so run this projector
-        return true if projector_state.activating_version == version
-
-        fail NewerProjectorIsActiveError,
-             "projector #{self.class} version #{version} does not match state #{projector_state}"
-      end
-
       def_delegators :@persistor, :execute_sql, :commit
 
       def update_record(record_class, *rest, &block)
@@ -216,12 +198,22 @@ module Sequent
           EOS
         end
       end
-    end
 
-    #
-    # Utility class containing all subclasses of Projector.
-    #
-    class Projectors
+      def is_active?
+        version = Sequent.migrations_class&.version
+        return true if version.nil?
+
+        projector_state = Projectors.projector_states[self.class.name]
+        return false if projector_state.nil?
+
+        return true if projector_state.active_version == version
+
+        # Replaying or activating the current version, so run this projector (it will write to a temporary table).
+        return true if projector_state.replaying_version == version || projector_state.activating_version == version
+
+        fail NewerProjectorIsActiveError,
+             "projector #{self.class} version #{version} does not match state #{projector_state}"
+      end
     end
   end
 end
