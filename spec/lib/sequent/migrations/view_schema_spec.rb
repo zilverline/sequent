@@ -516,7 +516,6 @@ describe Sequent::Migrations::ViewSchema do
 
         insert_events('Message', [MessageCreated.new(aggregate_id: Sequent.new_uuid, sequence_number: 1)])
         wait_for_persisted_events_to_become_visible_for_online_migration[]
-
         migrator.migrate_online
         migrator.migrate_offline
 
@@ -604,7 +603,6 @@ describe Sequent::Migrations::ViewSchema do
               '2' => [AccountProjector, MessageProjector],
             }
           SpecMigrations.version = 2
-          pp Sequent::Core::Projectors.projector_states
           next_migration.migrate_online
 
           expect(Sequent::ApplicationRecord.connection).to have_view_schema_table('message_records_2')
