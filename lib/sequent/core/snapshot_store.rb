@@ -5,6 +5,8 @@ require_relative 'helpers/pgsql_helpers'
 
 module Sequent
   module Core
+    AggregateSnapshotNeeded = Data.define(:aggregate_id, :aggregate_type, :snapshot_version)
+
     module SnapshotStore
       include Helpers::PgsqlHelpers
 
@@ -13,6 +15,7 @@ module Sequent
           snapshots.map do |snapshot|
             {
               aggregate_id: snapshot.aggregate_id,
+              snapshot_version: snapshot.snapshot_version,
               sequence_number: snapshot.sequence_number,
               created_at: snapshot.created_at,
               snapshot_type: snapshot.class.name,
@@ -25,7 +28,11 @@ module Sequent
       end
 
       def load_latest_snapshot(aggregate_id)
-        snapshot_hash = query_function(connection, 'load_latest_snapshot', [aggregate_id]).first
+        snapshot_hash = query_function(
+          connection,
+          'load_latest_snapshot',
+          [aggregate_id, snapshot_version_by_type.to_json],
+        ).first
         deserialize_event(snapshot_hash) unless snapshot_hash['aggregate_id'].nil?
       end
 
@@ -34,9 +41,53 @@ module Sequent
         call_procedure(connection, 'delete_all_snapshots', [Time.now])
       end
 
+      def register_snapshot_versions!
+        connection.exec_update(<<~SQL, 'register_snapshot_versions', [snapshot_version_by_type.to_json])
+          WITH existing_versions AS (
+            SELECT s.aggregate_id,
+                   MAX(snapshot_sequence_number_high_water_mark) AS snapshot_sequence_number_high_water_mark,
+                   MAX(snapshot_outdated_at) AS snapshot_outdated_at,
+                   array_agg(snapshot_version) AS existing_snapshot_versions
+              FROM aggregates_that_need_snapshots s
+             GROUP BY 1
+          )
+          INSERT INTO aggregates_that_need_snapshots (
+                        aggregate_id,
+                        snapshot_sequence_number_high_water_mark,
+                        snapshot_outdated_at,
+                        snapshot_version
+                      )
+          SELECT s.aggregate_id,
+                 s.snapshot_sequence_number_high_water_mark,
+                 s.snapshot_outdated_at,
+                 ($1::jsonb->(t.type))::integer
+            FROM existing_versions s
+            JOIN aggregates a ON s.aggregate_id = a.aggregate_id
+            JOIN aggregate_types t ON a.aggregate_type_id = t.id
+           WHERE ($1::jsonb->(t.type))::integer <> ALL (s.existing_snapshot_versions);
+        SQL
+      end
+
+      def delete_unknown_snapshot_versions
+        connection.exec_update(<<~EOS, 'delete_unknown_snapshot_versions', [snapshot_version_by_type.to_json])
+          DELETE FROM aggregates_that_need_snapshots s
+           WHERE snapshot_version <> COALESCE(
+                   (SELECT ($1::jsonb)->(type.type)
+                      FROM aggregates
+                      JOIN aggregate_types type ON aggregate_type_id = type.id
+                     WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
+                   1
+                 );
+        EOS
+      end
+
       # Deletes all snapshots for aggregate_id with a sequence_number lower than the specified sequence number.
       def delete_snapshots_before(aggregate_id, sequence_number)
-        call_procedure(connection, 'delete_snapshots_before', [aggregate_id, sequence_number, Time.now])
+        call_procedure(
+          connection,
+          'delete_snapshots_before',
+          [aggregate_id, sequence_number, Time.now, snapshot_version_by_type.to_json],
+        )
       end
 
       # Marks an aggregate for snapshotting. Marked aggregates will be
@@ -46,14 +97,20 @@ module Sequent
       # +#store_events+ method as is done automatically by the
       # +AggregateRepository+ based on the aggregate's
       # +snapshot_threshold+.
-      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: Time.now)
-        connection.exec_update(<<~EOS, 'mark_aggregate_for_snapshotting', [aggregate_id, snapshot_outdated_at])
-          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_outdated_at)
-          VALUES ($1, $2)
-              ON CONFLICT (aggregate_id) DO UPDATE
+      def mark_aggregate_for_snapshotting(aggregate_id, snapshot_version:, snapshot_outdated_at: Time.now)
+        sql = <<~EOS
+          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_outdated_at)
+          VALUES ($1, $2, $3)
+              ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
              SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at),
                  snapshot_scheduled_at = NULL
         EOS
+
+        connection.exec_update(
+          sql,
+          'mark_aggregate_for_snapshotting',
+          [aggregate_id, snapshot_version, snapshot_outdated_at],
+        )
       end
 
       # Stops snapshotting the specified aggregate. Any existing
@@ -86,7 +143,7 @@ module Sequent
         query_function(
           connection,
           'aggregates_that_need_snapshots',
-          [last_aggregate_id, limit],
+          [last_aggregate_id, limit, snapshot_version_by_type.to_json],
           columns: ['aggregate_id'],
         )
           .pluck('aggregate_id')
@@ -96,9 +153,16 @@ module Sequent
         query_function(
           connection,
           'select_aggregates_for_snapshotting',
-          [limit, reschedule_snapshots_scheduled_before, Time.now],
-          columns: ['aggregate_id'],
-        ).pluck('aggregate_id')
+          [limit, reschedule_snapshots_scheduled_before, Time.now, snapshot_version_by_type.to_json],
+        )
+          .pluck(*AggregateSnapshotNeeded.members.map(&:name))
+          .map { |row| AggregateSnapshotNeeded.new(*row) }
+      end
+
+      private
+
+      def snapshot_version_by_type(clazz = AggregateRoot)
+        fail 'subclass responsibility'
       end
     end
   end

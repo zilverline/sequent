@@ -9,10 +9,11 @@ module Sequent
       :aggregate_id,
       :events_partition_key,
       :snapshot_outdated_at,
+      :snapshot_version,
       :unique_keys,
     ) do
       def initialize(aggregate_type:, aggregate_id:, events_partition_key: '', snapshot_outdated_at: nil,
-                     unique_keys: {})
+                     snapshot_version: 1, unique_keys: {})
         super
       end
     end

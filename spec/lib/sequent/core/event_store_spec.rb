@@ -10,6 +10,7 @@ describe Sequent::Core::EventStore do
   end
 
   class MyAggregate < Sequent::Core::AggregateRoot
+    enable_snapshots version: 42
   end
 
   let(:event_store) { Sequent.configuration.event_store }
@@ -50,7 +51,7 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
+              aggregate_type: MyAggregate.name,
               aggregate_id: aggregate_id,
             ),
             [
@@ -68,7 +69,7 @@ describe Sequent::Core::EventStore do
 
     let(:aggregate) do
       stream, events = event_store.load_events(aggregate_id)
-      Sequent::Core::AggregateRoot.load_from_history(stream, events)
+      MyAggregate.load_from_history(stream, events)
     end
 
     let(:snapshot) do
@@ -86,6 +87,7 @@ describe Sequent::Core::EventStore do
               aggregate_type: 'MyAggregate',
               aggregate_id: aggregate_id,
               snapshot_outdated_at: Time.now,
+              snapshot_version: MyAggregate.snapshot_version,
             ),
             [
               MyEvent.new(
@@ -105,7 +107,11 @@ describe Sequent::Core::EventStore do
     end
 
     it 'limits the number of concurrent aggregates scheduled for snapshotting' do
-      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.hour.ago)
+      event_store.mark_aggregate_for_snapshotting(
+        aggregate_id,
+        snapshot_version: MyAggregate.snapshot_version,
+        snapshot_outdated_at: 1.hour.ago,
+      )
 
       aggregate_id_2 = Sequent.new_uuid
       event_store.commit_events(
@@ -113,9 +119,10 @@ describe Sequent::Core::EventStore do
         [
           [
             Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
+              aggregate_type: MyAggregate.name,
               aggregate_id: aggregate_id_2,
               snapshot_outdated_at: 2.minutes.ago,
+              snapshot_version: MyAggregate.snapshot_version,
             ),
             [
               MyEvent.new(
@@ -129,18 +136,29 @@ describe Sequent::Core::EventStore do
         ],
       )
 
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
+      )
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
       event_store.store_snapshots([snapshot])
 
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id_2)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, MyAggregate.name, 42),
+      )
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
 
-      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_outdated_at: 1.minute.ago)
+      event_store.mark_aggregate_for_snapshotting(
+        aggregate_id,
+        snapshot_version: MyAggregate.snapshot_version,
+        snapshot_outdated_at: 1.minute.ago,
+      )
 
       expect(event_store.select_aggregates_for_snapshotting(limit: 10, reschedule_snapshots_scheduled_before: Time.now))
-        .to include(aggregate_id, aggregate_id_2)
+        .to include(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id_2, MyAggregate.name, 42),
+        )
     end
 
     it 'can no longer find the aggregates that are cleared for snapshotting' do
@@ -150,11 +168,11 @@ describe Sequent::Core::EventStore do
       expect(event_store.aggregates_that_need_snapshots(nil)).to be_empty
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
 
-      event_store.mark_aggregate_for_snapshotting(aggregate_id)
+      event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: MyAggregate.snapshot_version)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
     end
 
-    it 'can no longer find aggregates what are clear for snapshotting based on latest event timestamp' do
+    it 'can no longer find aggregates that are cleared for snapshotting based on latest event timestamp' do
       event_store.store_snapshots([snapshot])
 
       event_store.clear_aggregates_for_snapshotting_with_last_event_before(Time.now)
@@ -173,7 +191,9 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
+      )
     end
 
     it 'can delete all snapshots' do
@@ -187,7 +207,119 @@ describe Sequent::Core::EventStore do
 
       expect(event_store.load_latest_snapshot(aggregate_id)).to eq(nil)
       expect(event_store.aggregates_that_need_snapshots(nil)).to include(aggregate_id)
-      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(aggregate_id)
+      expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
+        Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
+      )
+    end
+
+    context 'versioned snapshots' do
+      let(:snapshot_v1) do
+        snapshot = aggregate.take_snapshot
+        snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+        snapshot.snapshot_version = 1
+        snapshot
+      end
+
+      let(:snapshot_v2) do
+        snapshot = aggregate.take_snapshot
+        snapshot.created_at = Time.parse('2024-02-28T04:12:33Z')
+        snapshot.snapshot_version = 2
+        snapshot
+      end
+
+      SnapshotRecord = Sequent::Core::SnapshotRecord
+
+      it 'can store both snapshot versions' do
+        event_store.store_snapshots([snapshot_v1, snapshot_v2])
+
+        MyAggregate.enable_snapshots version: 1
+        expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot_v1)
+
+        MyAggregate.enable_snapshots version: 2
+        expect(event_store.load_latest_snapshot(aggregate_id)).to eq(snapshot_v2)
+      end
+
+      it 'can delete lower snapshot versions' do
+        event_store.store_snapshots([snapshot_v1, snapshot_v2])
+
+        MyAggregate.enable_snapshots version: 2
+        expect { subject.delete_unknown_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
+
+        expect(SnapshotRecord.find_by(aggregate_id:)).to have_attributes(snapshot_version: 2)
+
+        MyAggregate.enable_snapshots version: 3
+        expect { subject.delete_unknown_snapshot_versions }.to change(SnapshotRecord, :count).by(-1)
+      end
+
+      it 'loads the event stream using the correct snapshot version' do
+        event_store.store_snapshots([snapshot_v1, snapshot_v2])
+
+        MyAggregate.enable_snapshots version: 4
+        expect(subject.load_events(aggregate_id)[1][0]).to be_a(MyEvent)
+
+        MyAggregate.enable_snapshots version: 1
+        expect(subject.load_events(aggregate_id)[1][0])
+          .to be_a(Sequent::Core::SnapshotEvent).and(have_attributes(snapshot_version: 1))
+
+        MyAggregate.enable_snapshots version: 2
+        expect(subject.load_events(aggregate_id)[1][0])
+          .to be_a(Sequent::Core::SnapshotEvent).and(have_attributes(snapshot_version: 2))
+      end
+
+      it 'selects aggregates for snapshotting using the correct snapshot version' do
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: 2)
+
+        MyAggregate.enable_snapshots version: 1
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        MyAggregate.enable_snapshots version: 2
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 2),
+        )
+      end
+
+      it 'marks aggregates for snapshotting using the correct snapshot version when storing events' do
+        MyAggregate.enable_snapshots version: 2
+
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyAggregate',
+                aggregate_id:,
+                snapshot_outdated_at: Time.now,
+                snapshot_version: MyAggregate.snapshot_version,
+              ),
+              [
+                MyEvent.new(
+                  aggregate_id:,
+                  sequence_number: 2,
+                  created_at: Time.parse('2024-02-30T01:10:12Z'),
+                  data: "another event\n",
+                ),
+              ],
+            ],
+          ],
+        )
+
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 2),
+        )
+
+        MyAggregate.enable_snapshots version: 1
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        MyAggregate.enable_snapshots version: 3
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to be_empty
+
+        subject.register_snapshot_versions!
+        expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to contain_exactly(
+          Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 3),
+        )
+      end
     end
   end
 
@@ -663,6 +795,7 @@ describe Sequent::Core::EventStore do
     let(:snapshot_event) do
       Sequent::Core::SnapshotEvent.new(
         aggregate_id: aggregate_id_1,
+        snapshot_version: MyAggregate.snapshot_version,
         sequence_number: 3,
         created_at: frozen_time + 8.minutes,
       )

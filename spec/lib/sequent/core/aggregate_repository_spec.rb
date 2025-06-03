@@ -101,7 +101,7 @@ describe Sequent::Core::AggregateRepository do
           ],
         ],
       )
-      expect { repository.load_aggregate(:id, Integer) }.to raise_error TypeError
+      expect { repository.load_aggregate(:id, DummyAggregate2) }.to raise_error TypeError
     end
 
     it 'should commit and clear events from aggregates in the identity map' do
@@ -305,7 +305,7 @@ describe Sequent::Core::AggregateRepository do
                 .once,
             )
 
-          expect { repository.load_aggregates([aggregate.id], Integer) }.to raise_error TypeError
+          expect { repository.load_aggregates([aggregate.id], DummyAggregate2) }.to raise_error TypeError
         end
 
         it 'fails if one if the aggregates in the events store is not of the requested type' do
@@ -386,6 +386,8 @@ describe Sequent::Core::AggregateRepository do
     class DummyCommand < Sequent::Core::BaseCommand; end
     class DummyAggregate3 < Sequent::Core::AggregateRoot
       attr_reader :pinged
+
+      enable_snapshots
 
       def initialize(id)
         super
