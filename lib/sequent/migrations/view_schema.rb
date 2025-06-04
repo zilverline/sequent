@@ -135,10 +135,14 @@ module Sequent
       #
       # This method is mainly useful in test scenario's or development tasks
       def replay_all!
+        projectors = Core::Migratable.projectors
+        Sequent::Core::Projectors.register_inactive_projectors!(projectors, Sequent.new_version)
+        Sequent::Core::Projectors.register_replaying_projectors!(projectors, Sequent.new_version)
         replay!(
           Sequent.configuration.online_replay_persistor_class.new,
-          projectors: Core::Migratable.projectors,
+          projectors:,
         )
+        Sequent::Core::Projectors.register_active_projectors!(projectors, Sequent.new_version)
       end
 
       ##
@@ -266,10 +270,7 @@ module Sequent
         end
 
         ActiveRecord::Base.transaction do
-          # Update all configurade projectors as active with the new version, old code can now longer apply any events
-          # using any still implemented projector. Projectors that are no longer present in this version of the code
-          # will remain activate at the older version level.
-          Sequent.activate_current_configuration!
+          Sequent::Core::Projectors.lock_projector_states_for_update
 
           in_view_schema do
             # 2.1, 2.2
@@ -277,6 +278,11 @@ module Sequent
             # 2.3 Create migration record
             Versions.end_offline!(Sequent.new_version)
           end
+
+          # Update all configurade projectors as active with the new version, old code can now longer apply any events
+          # using any still implemented projector. Projectors that are no longer present in this version of the code
+          # will remain activate at the older version level.
+          Sequent.activate_current_configuration!
         end
         logger.info "Migrated to version #{Sequent.new_version}"
       rescue ConcurrentMigration
