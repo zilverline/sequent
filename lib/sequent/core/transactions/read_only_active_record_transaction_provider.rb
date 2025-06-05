@@ -22,6 +22,14 @@ module Sequent
           end
         end
 
+        def after_commit(&block)
+          ActiveRecord::Base.current_transaction.after_commit(&block)
+        end
+
+        def after_rollback(&block)
+          ActiveRecord::Base.current_transaction.after_rollback(&block)
+        end
+
         private
 
         def stack_size
