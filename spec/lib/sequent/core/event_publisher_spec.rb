@@ -84,22 +84,24 @@ describe Sequent::Core::EventPublisher do
       Sequent.configuration.event_handlers << TestEventHandler.new
       Sequent.configuration.command_handlers << TestCommandHandler.new
       Sequent.configuration.migrations_class = SpecMigrations
+      Sequent.configuration.migrations_class.version = 0
+      Sequent.activate_current_configuration!
     end
 
     it 'fails when unknown projectors are active' do
-      Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector], 1)
+      Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector], 0)
 
       expect do
         Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
       end.to raise_error Sequent::Core::UnknownActiveProjectorError
     end
 
-    it 'fails when newer version of the projector is activating' do
+    it 'fails when different version of the projector is activating' do
       Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler], Sequent.new_version + 1)
 
       expect do
         Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
-      end.to raise_error Sequent::Core::NewerProjectorIsActiveError
+      end.to raise_error Sequent::Core::DifferentProjectorVersionIsActiveError
     end
   end
 end

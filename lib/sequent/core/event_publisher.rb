@@ -5,7 +5,7 @@ module Sequent
     class ProjectorMigrationError < RuntimeError; end
     class UnknownActiveProjectorError < ProjectorMigrationError; end
     class ReplayingProjectorMismatchError < ProjectorMigrationError; end
-    class NewerProjectorIsActiveError < ProjectorMigrationError; end
+    class DifferentProjectorVersionIsActiveError < ProjectorMigrationError; end
 
     #
     # EventPublisher ensures that, for every thread, events will be published
