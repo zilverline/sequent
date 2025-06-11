@@ -25,7 +25,7 @@ module Sequent
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
     DEFAULT_EVENT_STORE_SCHEMA_NAME = 'sequent_schema'
 
-    MIGRATIONS_CLASS_NAME = 'Sequent::Migrations::Projectors'
+    DEFAULT_MIGRATIONS_CLASS = nil
 
     DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
     DEFAULT_REPLAY_GROUP_TARGET_SIZE = 250_000
@@ -79,7 +79,7 @@ module Sequent
                   :enable_autoregistration,
                   :aggregate_snapshot_versions
 
-    attr_reader :migrations_class_name,
+    attr_reader :migrations_class,
                 :versions_table_name
 
     def self.instance
@@ -117,7 +117,7 @@ module Sequent
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
       self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
       self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
-      self.migrations_class_name = MIGRATIONS_CLASS_NAME
+      self.migrations_class = DEFAULT_MIGRATIONS_CLASS
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
       self.replay_group_target_size = DEFAULT_REPLAY_GROUP_TARGET_SIZE
 
@@ -153,13 +153,19 @@ module Sequent
       Sequent::Migrations::Versions.table_name = table_name
     end
 
+    def migrations_class_name = @migrations_class&.name
+
     def migrations_class_name=(class_name)
-      migration_class = Class.const_get(class_name)
-      unless migration_class <= Sequent::Migrations::Projectors
-        fail ArgumentError, "#{migration_class} must extend Sequent::Migrations::Projectors"
+      warn '[DEPRECATED] use `migrations_class=` to set the migrations class directly'
+      self.migrations_class = class_name.nil? ? nil : Class.const_get(class_name)
+    end
+
+    def migrations_class=(migrations_class)
+      if migrations_class.present? && !(migrations_class < Sequent::Migrations::Projectors)
+        fail ArgumentError, "#{migrations_class} must extend Sequent::Migrations::Projectors"
       end
 
-      @migrations_class_name = class_name
+      @migrations_class = migrations_class
     end
 
     # @!visibility private

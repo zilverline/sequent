@@ -13,13 +13,18 @@ module Sequent
           @transaction_provider.transactional do
             Sequent::ApplicationRecord.connection.execute('SET TRANSACTION READ ONLY')
             block.call
-          rescue ActiveRecord::StatementInvalid
-            @skip_set_transaction = true
-            raise
           ensure
             deregister_call
             reset_stack_size if stack_size == 0
           end
+        end
+
+        def after_commit(&block)
+          ActiveRecord::Base.current_transaction.after_commit(&block)
+        end
+
+        def after_rollback(&block)
+          ActiveRecord::Base.current_transaction.after_rollback(&block)
         end
 
         private

@@ -40,7 +40,7 @@ require_relative '../../db/sequent_migrations'
 
 Rails.application.reloader.to_prepare do
   Sequent.configure do |config|
-    config.migrations_class_name = 'SequentMigrations'
+    config.migrations_class = SequentMigrations
     config.enable_autoregistration = true
 
     config.database_config_directory = 'config'
