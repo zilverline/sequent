@@ -113,7 +113,7 @@ module Sequent
       end
 
       def dispatch_message(...)
-        super if is_active?
+        super if active?
       end
 
       def_delegators :@persistor, :execute_sql, :commit
@@ -199,7 +199,7 @@ module Sequent
         end
       end
 
-      def is_active?
+      def active?
         version = Sequent.migrations_class&.version
         return true if version.nil?
 

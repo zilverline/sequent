@@ -39,7 +39,7 @@ module Sequent
 
   def self.activate_current_configuration!
     configuration.event_store.register_types!
-    migration_class&.activate_current_configuration!
+    migrations_class&.activate_current_configuration!
   end
 
   # Short hand for Sequent.configuration.command_service

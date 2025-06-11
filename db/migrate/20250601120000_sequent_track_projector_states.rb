@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateProjectorStatesTable < ActiveRecord::Migration[7.2]
+class SequentTrackProjectorStates < ActiveRecord::Migration[7.2]
   def change
     Sequent::Support::Database.with_search_path(Sequent.configuration.event_store_schema_name) do
       create_table :projector_states, id: false, primary_key: :name do |t|

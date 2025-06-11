@@ -279,7 +279,7 @@ module Sequent
             Versions.end_offline!(Sequent.new_version)
           end
 
-          # Update all configurade projectors as active with the new version, old code can now longer apply any events
+          # Update all configured projectors as active with the new version, old code can now longer apply any events
           # using any still implemented projector. Projectors that are no longer present in this version of the code
           # will remain activate at the older version level.
           Sequent.activate_current_configuration!
