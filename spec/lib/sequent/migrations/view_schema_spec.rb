@@ -354,6 +354,7 @@ describe Sequent::Migrations::ViewSchema do
     let(:new_version) { SpecMigrations.version }
     let(:configure_sequent) do
       Sequent.configure do |config|
+        config.enable_projector_states = true
         config.migration_sql_files_directory = 'spec/fixtures/db/1'
         config.migrations_class = SpecMigrations
       end
@@ -407,6 +408,7 @@ describe Sequent::Migrations::ViewSchema do
         wait_for_persisted_events_to_become_visible_for_online_migration[]
 
         Sequent.configure do |config|
+          config.enable_projector_states = true
           config.migration_sql_files_directory = 'spec/fixtures/db/1'
           config.migrations_class = SpecMigrations
         end

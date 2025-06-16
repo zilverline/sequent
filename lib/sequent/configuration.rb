@@ -77,7 +77,8 @@ module Sequent
                   :primary_database_key,
                   :time_precision,
                   :enable_autoregistration,
-                  :aggregate_snapshot_versions
+                  :aggregate_snapshot_versions,
+                  :enable_projector_states
 
     attr_reader :migrations_class,
                 :versions_table_name
@@ -140,6 +141,7 @@ module Sequent
 
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
+      self.enable_projector_states = false
     end
 
     def can_use_multiple_databases?

@@ -38,6 +38,14 @@ describe Sequent::Core::Projector do
     def update_projector_states = Sequent::Core::Projectors.register_active_projectors!([Sequent::Core::Projector], 1)
     def read_projector_states = Sequent::Core::Projectors.projector_states
 
+    before do
+      Sequent.configuration.enable_projector_states = true
+      Sequent.activate_current_configuration!
+    end
+    after do
+      Sequent.configuration.enable_projector_states = false
+    end
+
     it 'waits for project state updates before reading' do
       reader_lock_attempted = Queue.new
       writer_locked = Queue.new

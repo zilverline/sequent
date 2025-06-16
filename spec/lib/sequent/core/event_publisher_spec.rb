@@ -60,7 +60,10 @@ describe Sequent::Core::EventPublisher do
     end
   end
 
-  before { Sequent::Configuration.reset }
+  before do
+    Sequent::Configuration.reset
+    Sequent.configuration.enable_projector_states = true
+  end
   after { Sequent::Configuration.reset }
 
   it 'handles events in the proper order' do
