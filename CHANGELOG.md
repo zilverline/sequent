@@ -9,6 +9,24 @@
   old version of the code will continue to use snapshot version 1 (the
   default version) while new code will only use snapshot version 2.
 
+- Also in preperation of rolling upgrades the enabled projectors are
+  now optionally tracked in the `projector_states` table. Use the
+  `enable_projector_states` configuration flag to enable this feature.
+
+  Only projectors that are active or replaying will process
+  events. When an unknown projector is active all event processing
+  will be blocked. This allows deploying a new version while the old
+  version of the code is still running and processing events. Only
+  after executing `Sequent#activate_current_configuration!` will the
+  new code start processing events, while the old code is blocked. At
+  this moment traffic can be redirected from the old version to the
+  new version.
+
+  Activating the current configuration is part of the
+  `migrate:offline` rake task, so the current deployment process (run
+  online migrations, take old code offline, run offline migrations,
+  start running the new code) will keep working as is.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.
