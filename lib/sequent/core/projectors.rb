@@ -57,7 +57,7 @@ module Sequent
 
         def projector_states
           cached = Thread.current[PROJECTOR_STATES_KEY]
-          return cached if cached.present?
+          return cached unless cached.nil?
 
           transaction_provider.transactional do
             cleanup = -> { Thread.current[PROJECTOR_STATES_KEY] = nil }
