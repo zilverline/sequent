@@ -166,19 +166,6 @@ module Sequent
       end
 
       ##
-      # Replays all events in the event store to the registered event_handlers.
-      #
-      # @param block that returns the events.
-      # <b>DEPRECATED:</b> use <tt>replay_events_from_cursor</tt> instead.
-      def replay_events
-        warn '[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`'
-        events = yield.map { |event_hash| deserialize_event(event_hash) }
-        Sequent.configuration.transaction_provider.transactional do
-          Sequent.configuration.event_publisher.replay_events(events)
-        end
-      end
-
-      ##
       # Replays all events on an `EventRecord` cursor from the given block.
       #
       # Prefer this replay method if your db adapter supports cursors.
