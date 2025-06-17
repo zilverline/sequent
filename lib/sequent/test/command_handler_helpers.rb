@@ -149,17 +149,18 @@ module Sequent
       end
 
       RSpec::Matchers.define :have_same_payload_as do |expected|
+        def load_dump(event) = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event.payload))
         match do |actual|
-          actual_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload))
-          expected_hash = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload))
-          values_match? expected_hash, actual_hash
+          @actual_payload = load_dump(actual).merge('event_class' => actual.class)
+          @expected_payload = load_dump(expected).merge('event_class' => expected.class)
+
+          values_match? @expected_payload, @actual_payload
         end
 
-        description do
-          expected.to_s
+        failure_message do |_actual|
+          diff = RSpec::Support::Differ.new.diff(@expected_payload, @actual_payload)
+          "\nexpected: #{@expected_payload.inspect}\n     got: #{@actual_payload.inspect}\n\n#{diff}"
         end
-
-        diffable
       end
 
       def given_events(*events)
@@ -175,15 +176,24 @@ module Sequent
       end
 
       def then_events(*expected_events)
-        matchers = expected_events.flatten(1).map do |expected|
-          if expected.is_a?(Sequent::Core::Event)
-            have_same_payload_as(expected)
+        expected = expected_events.flatten(1)
+        expected.each_with_index do |e, i|
+          actual = stored_events[i]
+          if e.is_a?(Sequent::Core::Event)
+            actual_payload = load_dump(actual).merge('event_class' => actual.class)
+            expected_payload = load_dump(e).merge('event_class' => e.class)
+            expect(expected_payload).to eq(actual_payload)
+          elsif e.is_a?(Class)
+            expect(actual.class).to eq e
           else
-            expected
+            expect(actual).to match(e)
           end
         end
 
-        expect(stored_events).to match(matchers)
+        expect(stored_events.length).to eq(expected.length), <<~STRING
+          Number of events is not equal (#{stored_events.length} != #{expected.length})
+          Actual #{stored_events.map(&:class)} expected #{expected.map { |e| e.is_a?(Class) ? e : e.class }}
+        STRING
       end
 
       def then_no_events
@@ -195,6 +205,8 @@ module Sequent
       end
 
       private
+
+      def load_dump(event) = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event.payload))
 
       def to_event_streams(uncommitted_events)
         # Specs use a simple list of given events.

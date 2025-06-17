@@ -22,6 +22,9 @@ module Sequent
     Event1 = Class.new(Sequent::Event)
     Event2 = Class.new(Sequent::Event)
     Event3 = Class.new(Sequent::Event)
+    Event4 = Class.new(Sequent::Event) do
+      attrs name: String
+    end
 
     AggregateClass = Class.new(Sequent::Core::AggregateRoot) do
       def initialize(id)
