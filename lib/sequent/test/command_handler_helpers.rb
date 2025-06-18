@@ -176,23 +176,30 @@ module Sequent
       end
 
       def then_events(*expected_events)
-        expected = expected_events.flatten(1)
-        expected.each_with_index do |e, i|
+        expected_events = expected_events.flatten(1)
+
+        expected_events.each_with_index do |expected, i|
+          break if i > stored_events.length
+
           actual = stored_events[i]
-          if e.is_a?(Sequent::Core::Event)
+
+          case expected
+          when Sequent::Core::Event
+            # Only compare type and payload, since aggregate_id is often unpredictable (random UUID) and sequence_number
+            # is already implied by the ordering of the expected events.
             actual_payload = load_dump(actual).merge('event_class' => actual.class)
-            expected_payload = load_dump(e).merge('event_class' => e.class)
-            expect(expected_payload).to eq(actual_payload)
-          elsif e.is_a?(Class)
-            expect(actual.class).to eq e
+            expected_payload = load_dump(expected).merge('event_class' => expected.class)
+            expect(expected_payload).to eq(actual_payload), "event #{i + 1} does not match"
+          when Class
+            expect(actual.class).to eq(expected), "event #{i + 1} has incorrect type"
           else
-            expect(actual).to match(e)
+            expect(actual).to match(expected), "event #{i + 1} does not match"
           end
         end
 
-        expect(stored_events.length).to eq(expected.length), <<~STRING
-          Number of events is not equal (#{stored_events.length} != #{expected.length})
-          Actual #{stored_events.map(&:class)} expected #{expected.map { |e| e.is_a?(Class) ? e : e.class }}
+        expect(stored_events.length).to eq(expected_events.length), <<~STRING
+          Number of actual events (#{stored_events.length}) is not equal to expected events (#{expected_events.length})
+          Actual #{stored_events.map(&:class)} expected #{expected_events.map { |e| e.is_a?(Class) ? e : e.class }}
         STRING
       end
 

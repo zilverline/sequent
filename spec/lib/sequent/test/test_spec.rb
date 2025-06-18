@@ -50,9 +50,24 @@ describe 'Test Helpers' do
       context 'when number of events does not match' do
         it 'shows a nice error message' do
           expect { then_events([]) }.to raise_error(RSpec::Expectations::ExpectationNotMetError) { |error|
-            expect(error.message).to include('Actual [Sequent::Fixtures::Event1, Sequent::Fixtures::Event4] expected []')
+            expect(error.message)
+              .to include('Actual [Sequent::Fixtures::Event1, Sequent::Fixtures::Event4] expected []')
           }
         end
+      end
+
+      it 'can match by type only' do
+        expect { then_events(Sequent::Fixtures::Event1, Sequent::Fixtures::Event2) }
+          .to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+            expect(error.message).to start_with('event 2 has incorrect type')
+          end
+      end
+
+      it 'can match using a matcher' do
+        expect { then_events(have_attributes(aggregate_id: '1'), have_attributes(aggregate_id: '2')) }
+          .to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+            expect(error.message).to start_with('event 2 does not match')
+          end
       end
 
       context 'when an event does not match' do
@@ -63,9 +78,9 @@ describe 'Test Helpers' do
           ]
         end
         it 'shows a nice error message using the differ' do
-          expect { then_events(expected_events) }.to raise_error(RSpec::Expectations::ExpectationNotMetError) { |error|
-            expect(error.message).to include('Diff')
-          }
+          expect { then_events(expected_events) }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+            expect(error.message).to start_with('event 2 does not match').and(include('Diff'))
+          end
         end
       end
     end
