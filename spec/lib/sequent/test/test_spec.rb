@@ -33,5 +33,56 @@ describe 'Test Helpers' do
     it 'does not conflict with Sequent::Test::WorkflowHelpers' do
       expect(Sequent.command_service.class).to eq(Sequent::Core::CommandService)
     end
+
+    context 'then_events' do
+      let(:actual_events) do
+        [
+          Sequent::Fixtures::Event1.new(aggregate_id: '1', sequence_number: 1),
+          Sequent::Fixtures::Event4.new(aggregate_id: '1', sequence_number: 2, name: 'foo'),
+        ]
+      end
+      before do
+        allow(Sequent.configuration.event_store)
+          .to receive(:load_events_since_marked_position)
+          .and_return([actual_events])
+      end
+
+      context 'when number of events does not match' do
+        it 'shows a nice error message' do
+          expect { then_events([]) }.to raise_error(RSpec::Expectations::ExpectationNotMetError) { |error|
+            expect(error.message)
+              .to include('Actual [Sequent::Fixtures::Event1, Sequent::Fixtures::Event4] expected []')
+          }
+        end
+      end
+
+      it 'can match by type only' do
+        expect { then_events(Sequent::Fixtures::Event1, Sequent::Fixtures::Event2) }
+          .to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+            expect(error.message).to start_with('event 2 has incorrect type')
+          end
+      end
+
+      it 'can match using a matcher' do
+        expect { then_events(have_attributes(aggregate_id: '1'), have_attributes(aggregate_id: '2')) }
+          .to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+            expect(error.message).to start_with('event 2 does not match')
+          end
+      end
+
+      context 'when an event does not match' do
+        let(:expected_events) do
+          [
+            Sequent::Fixtures::Event1.new(aggregate_id: '1', sequence_number: 1),
+            Sequent::Fixtures::Event4.new(aggregate_id: '1', sequence_number: 2, name: 'bar'),
+          ]
+        end
+        it 'shows a nice error message using the differ' do
+          expect { then_events(expected_events) }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+            expect(error.message).to start_with('event 2 does not match').and(include('Diff'))
+          end
+        end
+      end
+    end
   end
 end
