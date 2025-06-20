@@ -34,8 +34,6 @@ module Sequent
         result
       end
 
-      protected
-
       def payload_variables
         %i[@aggregate_id @sequence_number @created_at]
       end

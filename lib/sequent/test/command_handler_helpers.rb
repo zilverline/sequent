@@ -151,10 +151,9 @@ module Sequent
       end
 
       RSpec::Matchers.define :have_same_payload_as do |expected|
-        def load_dump(event) = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event.payload))
         match do |actual|
-          @actual_payload = load_dump(actual).merge('event_class' => actual.class)
-          @expected_payload = load_dump(expected).merge('event_class' => expected.class)
+          @actual_payload = CommandHandlerHelpers.load_dump(actual).merge('event_class' => actual.class)
+          @expected_payload = CommandHandlerHelpers.load_dump(expected).merge('event_class' => expected.class)
 
           values_match? @expected_payload, @actual_payload
         end
@@ -189,8 +188,8 @@ module Sequent
           when Sequent::Core::Event
             # Only compare type and payload, since aggregate_id is often unpredictable (random UUID) and sequence_number
             # is already implied by the ordering of the expected events.
-            actual_payload = load_dump(actual).merge('event_class' => actual.class)
-            expected_payload = load_dump(expected).merge('event_class' => expected.class)
+            actual_payload = CommandHandlerHelpers.load_dump(actual).merge('event_class' => actual.class)
+            expected_payload = CommandHandlerHelpers.load_dump(expected).merge('event_class' => expected.class)
             expect(expected_payload).to eq(actual_payload), "event #{i + 1} does not match"
           when Class
             expect(actual.class).to eq(expected), "event #{i + 1} has incorrect type"
@@ -213,9 +212,12 @@ module Sequent
         Sequent.configuration.event_store.load_events_since_marked_position(@helpers_events_position_mark)[0]
       end
 
-      private
+      def self.load_dump(event)
+        Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
+          .except(*event.payload_variables.map { |s| s[1..] })
+      end
 
-      def load_dump(event) = Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event.payload))
+      private
 
       def to_event_streams(uncommitted_events)
         # Specs use a simple list of given events.
