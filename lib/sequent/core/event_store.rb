@@ -166,17 +166,6 @@ module Sequent
       end
 
       ##
-      # Replays all events in the event store to the registered event_handlers.
-      #
-      # @param block that returns the events.
-      # <b>DEPRECATED:</b> use <tt>replay_events_from_cursor</tt> instead.
-      def replay_events
-        warn '[DEPRECATION] `replay_events` is deprecated in favor of `replay_events_from_cursor`'
-        events = yield.map { |event_hash| deserialize_event(event_hash) }
-        publish_events(events)
-      end
-
-      ##
       # Replays all events on an `EventRecord` cursor from the given block.
       #
       # Prefer this replay method if your db adapter supports cursors.
@@ -188,14 +177,18 @@ module Sequent
         progress = 0
         cursor = get_events.call
         ids_replayed = []
-        cursor.each_row(block_size: block_size).each do |record|
-          event = deserialize_event(record)
-          publish_events([event])
-          progress += 1
-          ids_replayed << record['aggregate_id']
-          if progress % block_size == 0
-            on_progress[progress, false, ids_replayed]
-            ids_replayed.clear
+        cursor.each_row_batch(block_size:).each do |records|
+          events = records.map(&method(:deserialize_event))
+          Sequent.configuration.transaction_provider.transactional do
+            Sequent.configuration.event_publisher.replay_events(events)
+          end
+          records.each do |record|
+            progress += 1
+            ids_replayed << record['aggregate_id']
+            if progress % block_size == 0
+              on_progress[progress, false, ids_replayed]
+              ids_replayed.clear
+            end
           end
         end
         on_progress[progress, true, ids_replayed]

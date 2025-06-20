@@ -2,6 +2,11 @@
 
 module Sequent
   module Core
+    class ProjectorMigrationError < RuntimeError; end
+    class UnknownActiveProjectorError < ProjectorMigrationError; end
+    class ReplayingProjectorMismatchError < ProjectorMigrationError; end
+    class DifferentProjectorVersionIsActiveError < ProjectorMigrationError; end
+
     #
     # EventPublisher ensures that, for every thread, events will be published
     #   in the order in which they are queued for publishing.
@@ -30,6 +35,15 @@ module Sequent
       def publish_events(events)
         return if configuration.disable_event_handlers
 
+        ensure_no_unknown_active_projectors!
+
+        events.each { |event| events_queue.push(event) }
+        process_events
+      end
+
+      def replay_events(events)
+        ensure_only_replaying_projectors_subscribed!
+
         events.each { |event| events_queue.push(event) }
         process_events
       end
@@ -55,6 +69,8 @@ module Sequent
 
         configuration.event_handlers.each do |handler|
           handler.handle_message event
+        rescue ProjectorMigrationError
+          raise
         rescue StandardError
           raise PublishEventError.new(handler.class, event)
         end
@@ -62,6 +78,39 @@ module Sequent
 
       def configuration
         Sequent.configuration
+      end
+
+      def ensure_no_unknown_active_projectors!
+        return unless Sequent.configuration.enable_projector_states
+
+        expected_version = Sequent.migrations_class&.version
+        return if expected_version.nil?
+
+        registered_projectors = Migratable.projectors.to_set(&:name)
+        active_projectors = Projectors.projector_states
+          .values
+          .select { |s| s.active_version == expected_version }
+          .to_set(&:name)
+        unknown_active_projectors = active_projectors - registered_projectors
+        if unknown_active_projectors.present?
+          fail UnknownActiveProjectorError,
+               "cannot publish event when unknown projectors are active #{unknown_active_projectors}"
+        end
+      end
+
+      def ensure_only_replaying_projectors_subscribed!
+        return unless Sequent.configuration.enable_projector_states
+        return unless Sequent.migrations_class
+
+        registered_projectors = Migratable.projectors.to_set(&:name)
+        replaying_projectors = Projectors.projector_states
+          .values
+          .select { |state| state.replaying? || state.activating? }
+          .to_set(&:name)
+        if registered_projectors != replaying_projectors
+          fail ReplayingProjectorMismatchError,
+               "cannot replay event when different projectors are replaying #{replaying_projectors}"
+        end
       end
     end
   end

@@ -3,6 +3,6 @@
 require './db/migrations'
 
 Sequent.configure do |config|
-  config.migrations_class_name = 'Migrations'
+  config.migrations_class = Migrations
   config.enable_autoregistration = true
 end

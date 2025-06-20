@@ -86,7 +86,7 @@ describe Sequent::Migrations::ViewSchema do
     before do
       Sequent.configure do |config|
         config.migration_sql_files_directory = 'spec/fixtures/db/1'
-        config.migrations_class_name = 'SpecMigrations'
+        config.migrations_class = SpecMigrations
         config.event_handlers = [
           AccountProjector,
           MessageProjector,
@@ -118,7 +118,7 @@ describe Sequent::Migrations::ViewSchema do
 
       Sequent.configure do |config|
         config.migration_sql_files_directory = 'spec/fixtures/db/1'
-        config.migrations_class_name = 'SpecMigrations'
+        config.migrations_class = SpecMigrations
       end
     end
 
@@ -354,8 +354,9 @@ describe Sequent::Migrations::ViewSchema do
     let(:new_version) { SpecMigrations.version }
     let(:configure_sequent) do
       Sequent.configure do |config|
+        config.enable_projector_states = true
         config.migration_sql_files_directory = 'spec/fixtures/db/1'
-        config.migrations_class_name = 'SpecMigrations'
+        config.migrations_class = SpecMigrations
       end
     end
     before :each do
@@ -406,6 +407,12 @@ describe Sequent::Migrations::ViewSchema do
         insert_events('Message', [MessageCreated.new(aggregate_id: message_id, sequence_number: 1)])
         wait_for_persisted_events_to_become_visible_for_online_migration[]
 
+        Sequent.configure do |config|
+          config.enable_projector_states = true
+          config.migration_sql_files_directory = 'spec/fixtures/db/1'
+          config.migrations_class = SpecMigrations
+        end
+
         migrator.migrate_online
 
         expect(AccountRecord.connection.select_value('select count(*) from account_records_1')).to eq(1)
@@ -441,12 +448,49 @@ describe Sequent::Migrations::ViewSchema do
         expect(Sequent::Migrations::Versions.done.maximum(:version)).to eq new_version
       end
 
-      it 'sets the affected resources' do
+      it 'tracks the affected projectors and tables' do
+        Sequent.configuration.event_handlers = [
+          AccountProjector,
+          FooProjector,
+          MessageProjector,
+        ].map(&:new)
+
+        expect(Sequent::Core::Projectors.projector_states).to match(
+          'AccountProjector' => have_attributes(replaying_version: 1),
+          'MessageProjector' => have_attributes(replaying_version: 1),
+        )
         migrator.migrate_offline
 
         expect(Sequent::Migrations::Versions.done.latest.target_projectors)
           .to eq([AccountProjector.name, MessageProjector.name])
         expect(Sequent::Migrations::Versions.done.latest.target_records).to eq []
+        expect(Sequent::Core::Projectors.projector_states).to match(
+          'AccountProjector' => have_attributes(active_version: 1),
+          'FooProjector' => have_attributes(active_version: 1),
+          'MessageProjector' => have_attributes(active_version: 1),
+        )
+
+        Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'
+        SpecMigrations.copy_and_add('2', [FooProjector, Sequent::Migrations.alter_table(AccountRecord)])
+        SpecMigrations.version = 2
+
+        new_migrator = Sequent::Migrations::ViewSchema.new(**opts)
+
+        new_migrator.migrate_online
+        expect(Sequent::Core::Projectors.projector_states).to match(
+          'AccountProjector' => have_attributes(active_version: 1),
+          'MessageProjector' => have_attributes(active_version: 1),
+          'FooProjector' => have_attributes(active_version: 1, replaying_version: 2),
+        )
+
+        new_migrator.migrate_offline
+
+        expect(Sequent::Migrations::Versions.done.latest.target_records).to eq ['AccountRecord']
+        expect(Sequent::Core::Projectors.projector_states).to match(
+          'AccountProjector' => have_attributes(active_version: 2),
+          'MessageProjector' => have_attributes(active_version: 2),
+          'FooProjector' => have_attributes(active_version: 2),
+        )
       end
 
       it 'ensures the "normal" table_names are set' do
@@ -462,7 +506,7 @@ describe Sequent::Migrations::ViewSchema do
         SpecMigrations.copy_and_add('1', [FooProjector])
         Sequent.configure do |config|
           config.migration_sql_files_directory = 'spec/fixtures/db/1'
-          config.migrations_class_name = 'SpecMigrations'
+          config.migrations_class = SpecMigrations
           config.online_replay_persistor_class = Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor
         end
       end

@@ -40,7 +40,7 @@ RSpec.configure do |config|
 
   config.around do |example|
     Sequent.configuration.aggregate_repository.clear
-    DatabaseCleaner.strategy = :truncation
+    DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.cleaning do
       example.run
     ensure
