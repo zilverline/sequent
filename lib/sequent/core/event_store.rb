@@ -172,15 +172,19 @@ module Sequent
       #
       # @param get_events lambda that returns the events cursor
       # @param on_progress lambda that gets called on substantial progress
-      def replay_events_from_cursor(get_events:, block_size: 2000,
-                                    on_progress: PRINT_PROGRESS)
+      def replay_events_from_cursor(
+        get_events:,
+        event_publisher: Sequent.configuration.event_publisher,
+        block_size: 2000,
+        on_progress: PRINT_PROGRESS
+      )
         progress = 0
         cursor = get_events.call
         ids_replayed = []
         cursor.each_row_batch(block_size:).each do |records|
           events = records.map(&method(:deserialize_event))
           Sequent.configuration.transaction_provider.transactional do
-            Sequent.configuration.event_publisher.replay_events(events)
+            event_publisher.publish_events(events)
           end
           records.each do |record|
             progress += 1

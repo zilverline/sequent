@@ -11,16 +11,25 @@
 
 - Also in preperation of rolling upgrades the enabled projectors are
   now optionally tracked in the `projector_states` table. Use the
-  `enable_projector_states` configuration flag to enable this feature.
+  `enable_projector_states` configuration flag and
+  `ActiveProjectorsEventPublisher` as the `event_publisher` enable
+  this feature.
 
-  Only projectors that are active or replaying will process
-  events. When an unknown projector is active all event processing
-  will be blocked. This allows deploying a new version while the old
-  version of the code is still running and processing events. Only
-  after executing `Sequent#activate_current_configuration!` will the
-  new code start processing events, while the old code is blocked. At
-  this moment traffic can be redirected from the old version to the
-  new version.
+  Only projectors that are active will process events during normal
+  operation. Events that are published while a newer projector is
+  activating or active will fail with a
+  `DifferentProjectorVersionIsActiveError` error. Event replay uses
+  the normal `EventPublisher` which does not check for projector
+  state, since replaying will write to temporary tables until replay
+  is finalized
+
+  When an unknown projector is active all event processing will be
+  blocked. This allows deploying a new version while the old version
+  of the code is still running and processing events. Only after
+  executing `Sequent#activate_current_configuration!` will the new
+  code start processing events, while the old code is blocked. At this
+  moment traffic can be redirected from the old version to the new
+  version.
 
   Activating the current configuration is part of the
   `migrate:offline` rake task, so the current deployment process (run
