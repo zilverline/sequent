@@ -218,7 +218,7 @@ module Sequent
                 projectors = view_schema.plan.projectors
                 event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
 
-                current_snapshot_xmin_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
+                current_snapshot_xmin_xact_id = Sequent::Support::Database.current_snapshot_xmin_xact_id
                 pending_events = Sequent.configuration.event_record_class
                   .where(event_type: event_types)
                   .where('xact_id >= ?', current_snapshot_xmin_xact_id)
