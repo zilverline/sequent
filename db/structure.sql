@@ -1011,6 +1011,40 @@ CREATE TABLE sequent_schema.projector_states (
 
 
 --
+-- Name: replay_states; Type: TABLE; Schema: sequent_schema; Owner: -
+--
+
+CREATE TABLE sequent_schema.replay_states (
+    id bigint NOT NULL,
+    state text NOT NULL,
+    projectors text[] NOT NULL,
+    continue_replay_at_xact_id bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'ready_for_activation'::text, 'done'::text])))
+);
+
+
+--
+-- Name: replay_states_id_seq; Type: SEQUENCE; Schema: sequent_schema; Owner: -
+--
+
+CREATE SEQUENCE sequent_schema.replay_states_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: replay_states_id_seq; Type: SEQUENCE OWNED BY; Schema: sequent_schema; Owner: -
+--
+
+ALTER SEQUENCE sequent_schema.replay_states_id_seq OWNED BY sequent_schema.replay_states.id;
+
+
+--
 -- Name: saved_event_records; Type: TABLE; Schema: sequent_schema; Owner: -
 --
 
@@ -1076,6 +1110,13 @@ ALTER TABLE ONLY sequent_schema.commands ATTACH PARTITION sequent_schema.command
 --
 
 ALTER TABLE ONLY sequent_schema.events ATTACH PARTITION sequent_schema.events_default DEFAULT;
+
+
+--
+-- Name: replay_states id; Type: DEFAULT; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE ONLY sequent_schema.replay_states ALTER COLUMN id SET DEFAULT nextval('sequent_schema.replay_states_id_seq'::regclass);
 
 
 --
@@ -1247,6 +1288,14 @@ ALTER TABLE ONLY sequent_schema.projector_states
 
 
 --
+-- Name: replay_states replay_states_pkey; Type: CONSTRAINT; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE ONLY sequent_schema.replay_states
+    ADD CONSTRAINT replay_states_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: saved_event_records saved_event_records_pkey; Type: CONSTRAINT; Schema: sequent_schema; Owner: -
 --
 
@@ -1351,6 +1400,13 @@ CREATE INDEX events_event_type_id_idx ON ONLY sequent_schema.events USING btree 
 --
 
 CREATE INDEX events_default_event_type_id_idx ON sequent_schema.events_default USING btree (event_type_id);
+
+
+--
+-- Name: replay_states_active_replay_idx; Type: INDEX; Schema: sequent_schema; Owner: -
+--
+
+CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> 'done'::text);
 
 
 --
@@ -1516,6 +1572,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250630113000'),
 ('20250601120000'),
 ('20250512135500'),
 ('20250509133000'),
