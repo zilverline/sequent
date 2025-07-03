@@ -1021,7 +1021,7 @@ CREATE TABLE sequent_schema.replay_states (
     continue_replay_at_xact_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'ready_for_activation'::text, 'done'::text])))
+    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'incremental_replay'::text, 'ready_for_activation'::text, 'done'::text])))
 );
 
 

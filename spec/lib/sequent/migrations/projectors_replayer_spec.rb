@@ -18,11 +18,8 @@ describe Sequent::Migrations::ProjectorsReplayer do
     SQL
     state = Sequent::Migrations::ReplayState.last
     exec_update("DROP SCHEMA IF EXISTS #{state.replay_schema} CASCADE") if state
-
-    ActiveRecord::Base.logger = Logger.new(STDOUT)
   end
   after do
-    ActiveRecord::Base.logger = nil
     Sequent::Migrations::ReplayState.delete_all
     state = Sequent::Migrations::ReplayState.last
     exec_update("DROP SCHEMA IF EXISTS #{state.replay_schema} CASCADE") if state
@@ -165,6 +162,37 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
       it 'should be ready for incremental replay and activation' do
         expect(replay_state).to have_attributes(state: 'ready_for_activation')
+      end
+
+      context '#incremental_replay' do
+        let(:incremental_event_count) { 800 }
+
+        before do
+          insert_events(incremental_event_count)
+          subject.perform_incremental_replay
+        end
+
+        it 'only processes the new events' do
+          expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
+            .to eq(['count' => initial_event_count + incremental_event_count])
+        end
+
+        it 'can be executed multiple times' do
+          extra_event_count = incremental_event_count / 10
+
+          insert_events(extra_event_count)
+          subject.perform_incremental_replay
+
+          expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
+            .to eq(['count' => initial_event_count + incremental_event_count + extra_event_count])
+        end
+
+        it 'can be executed without any more pending events' do
+          subject.perform_incremental_replay
+
+          expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
+            .to eq(['count' => initial_event_count + incremental_event_count])
+        end
       end
     end
   end

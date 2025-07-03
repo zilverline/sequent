@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'event_replayer'
+require 'active_support/core_ext/integer/inflections'
 
 module Sequent
   module Migrations
@@ -45,7 +46,7 @@ module Sequent
         @state.with_lock('FOR NO KEY UPDATE') do
           fail 'initial replay can only be performed when current state is `created`' unless @state.state == 'created'
 
-          exec_update("CREATE SCHEMA #{@replay_schema_name}")
+          exec_update("CREATE SCHEMA #{replay_schema_name}")
           @managed_tables.each do |table|
             exec_update(<<~SQL, 'create_table')
               CREATE TABLE #{replay_schema_name}.#{table.quoted_table_name} (LIKE #{view_schema_name}.#{table.quoted_table_name} INCLUDING ALL)
@@ -76,16 +77,6 @@ module Sequent
           Sequent::Support::Database.current_snapshot_xmin_xact_id
         end
 
-        with_group = ->(group, index, &block) do
-          logger.info("replaying #{index} group #{group}")
-
-          Sequent::Support::Database.with_search_path(
-            @replay_schema_name,
-            Sequent.configuration.event_store_schema_name,
-            &block
-          )
-        end
-
         replay!(
           Sequent.configuration.online_replay_persistor_class.new,
           projector_classes: @projector_classes,
@@ -103,106 +94,62 @@ module Sequent
         end
       end
 
+      def perform_incremental_replay
+        maximum_xact_id_exclusive = @state.with_lock('FOR NO KEY UPDATE') do
+          unless @state.state == 'ready_for_activation'
+            fail 'incremental replay can only be performed when current state is `ready_for_activation`'
+          end
+
+          @state.state = 'incremental_replay'
+          @state.save!
+
+          Sequent::Support::Database.current_snapshot_xmin_xact_id
+        end
+
+        replay!(
+          Sequent.configuration.offline_replay_persistor_class.new,
+          projector_classes: @projector_classes,
+          minimum_xact_id_inclusive: @state.continue_replay_at_xact_id,
+          maximum_xact_id_exclusive: maximum_xact_id_exclusive,
+          with_group:,
+        )
+
+        @state.with_lock('FOR NO KEY UPDATE') do
+          fail 'internal error' unless @state.state == 'incremental_replay'
+
+          @state.state = 'ready_for_activation'
+          @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
+          @state.save!
+        end
+      end
+
       def done!
         transaction do
           @state = @state.lock!('FOR NO KEY UPDATE')
           @state.state = 'done'
           @state.save!
 
-          exec_update("DROP SCHEMA #{quote_table_name(@replay_schema_name)} CASCADE")
+          exec_update("DROP SCHEMA #{quote_table_name(replay_schema_name)} CASCADE")
+        end
+      end
+
+      private
+
+      def with_group
+        ->(group, index, &block) do
+          logger.info("replaying #{(index + 1).ordinalize} group [#{group}]")
+
+          Sequent::Support::Database.with_search_path(
+            replay_schema_name,
+            event_store_schema_name,
+            &block
+          )
         end
       end
 
       def view_schema_name = Sequent.configuration.view_schema_name
 
-      def self.replay_projectors(db_config:, projectors:)
-        fail 'projector_states must be enabled' unless Sequent.configuration.enable_projector_states
-
-        # Create a new temporary table for each managed table using `CREATE TABLE foo_new (LIKE foo INCLUDING ALL)`
-        # Update the table name for each managed table
-        # Replay all events up to pg_current_snapshot()
-        # ... can take a while so replay up-to new pg_current_snapshot()
-        # Lock the projector_states table
-        # Rename old tables to _old
-        # Renam enew tables to update name
-        # Release projector_states table lock
-
-        if (unsupported = projectors.reject { |p| p < Sequent::Core::Projector }).present?
-          fail ArgumentError, "unsupported projectors #{unsupported.join(', ')}"
-        end
-
-        view_schema = ViewSchema.new(db_config:)
-
-        managed_tables = projectors.flat_map(&:managed_tables)
-
-        maximum_xact_id_exclusive = exec_query(
-          'SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint',
-          'pg_snapshot_xmin',
-        )[0]['pg_snapshot_xmin']
-
-        view_schema_name = Sequent.configuration.view_schema_name
-        replay_schema_name = 'replay_schema'
-
-        Sequent.configuration.transaction_provider.transactional do
-          exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
-          managed_tables.each do |table|
-            exec_update(<<~SQL, 'create_table')
-              CREATE TABLE #{replay_schema_name}.#{table.quoted_table_name} (LIKE #{view_schema_name}.#{table.quoted_table_name} INCLUDING ALL)
-            SQL
-          end
-        end
-
-        puts "initial replay of all events up-to xact id #{maximum_xact_id_exclusive}"
-        view_schema.replay!(
-          Sequent.configuration.online_replay_persistor_class.new,
-          projectors:,
-          maximum_xact_id_exclusive:,
-          replay_schema_name:,
-        )
-
-        minimum_xact_id_inclusive = maximum_xact_id_exclusive
-        maximum_xact_id_exclusive = exec_query(
-          'SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint',
-          'pg_snapshot_xmin',
-        )[0]['pg_snapshot_xmin']
-
-        puts "replay events from #{minimum_xact_id_inclusive} up-to #{maximum_xact_id_exclusive}"
-        view_schema.replay!(
-          Sequent.configuration.offline_replay_persistor_class.new,
-          projectors:,
-          minimum_xact_id_inclusive:,
-          maximum_xact_id_exclusive:,
-          replay_schema_name:,
-        )
-
-        puts 'swapping managed tables to use replayed tables'
-        Sequent.configuration.transaction_provider.transactional do
-          Sequent::Core::Projectors.lock_projector_states_for_update
-
-          ActiveRecord::Base.connection.exec_update(
-            "SET LOCAL search_path TO #{replay_schema_name}, #{Sequent.configuration.event_store_schema_name}",
-          )
-
-          event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
-          event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
-
-          view_schema.replay_events(
-            -> {
-              view_schema.event_stream(nil..nil, event_type_ids, maximum_xact_id_exclusive, nil)
-            },
-            Sequent.configuration.offline_replay_persistor_class.new,
-          ) { |progress| }
-
-          managed_tables.each do |table|
-            old_table_name = quote_table_name("#{table.table_name}_old")
-            exec_update(<<~SQL, 'replace_table')
-              DROP TABLE IF EXISTS #{old_table_name} CASCADE;
-              ALTER TABLE #{view_schema_name}.#{table.quoted_table_name} RENAME TO #{old_table_name};
-              ALTER TABLE #{replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{view_schema_name};
-            SQL
-          end
-        end
-      end
+      def event_store_schema_name = Sequent.configuration.event_store_schema_name
 
       def connection = ActiveRecord::Base.connection
 
