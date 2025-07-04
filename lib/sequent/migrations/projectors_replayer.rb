@@ -11,6 +11,7 @@ module Sequent
     # Replay a set of projectors while the system is running and atomically replace the existing
     # tables with the replayed tables when completed.
     class ProjectorsReplayer
+      extend Forwardable
       include EventReplayer
 
       attr_reader :projector_classes, :managed_tables, :replay_schema_name
@@ -131,26 +132,27 @@ module Sequent
 
           Sequent::Core::Projectors.lock_projector_states_for_update
 
+          event_types = projector_classes.flat_map { |p| p.message_mapping.keys }.uniq.map(&:name)
+          event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
+
           Sequent::Support::Database.with_search_path(replay_schema_name, event_store_schema_name) do
-            event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
-            event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
-
-            replay_events(
-              -> {
-                event_stream(nil..nil, event_type_ids, @state.continue_replay_at_xact_id, nil)
-              },
+            with_sequent_config(
               Sequent.configuration.offline_replay_persistor_class.new,
-            ) { |progress| }
+              @projector_classes,
+            ) do
+              replay_events(
+                -> {
+                  event_stream(nil..nil, event_type_ids, @state.continue_replay_at_xact_id, nil)
+                },
+                Sequent.configuration.offline_replay_persistor_class.new,
+              ) { |progress| }
+            end
           end
 
-          managed_tables.each do |table|
-            old_table_name = quote_table_name("#{table.table_name}_#{@state.id}")
-            exec_update(<<~SQL, 'replace_table')
-              DROP TABLE IF EXISTS #{old_table_name} CASCADE;
-              ALTER TABLE IF EXISTS #{view_schema_name}.#{table.quoted_table_name} RENAME TO #{old_table_name};
-              ALTER TABLE #{replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{view_schema_name};
-            SQL
-          end
+          exec_update("DROP SCHEMA IF EXISTS #{quoted_archive_schema_name} CASCADE")
+          exec_update("CREATE SCHEMA #{quoted_archive_schema_name}")
+
+          replace_replayed_tables_in_view_schema(managed_tables)
 
           @state.state = 'done'
           @state.save!
@@ -163,7 +165,7 @@ module Sequent
           @state.state = 'done'
           @state.save!
 
-          exec_update("DROP SCHEMA #{quote_table_name(replay_schema_name)} CASCADE")
+          exec_update("DROP SCHEMA #{quoted_replay_schema_name} CASCADE")
         end
       end
 
@@ -181,26 +183,50 @@ module Sequent
         end
       end
 
+      def replace_replayed_tables_in_view_schema(tables)
+        tables.each do |table|
+          exec_update(<<~SQL, 'replace_table')
+            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_archive_schema_name};
+            ALTER TABLE #{quoted_replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_view_schema_name};
+          SQL
+
+          # Migrate owned sequences to the new table
+          owned_sequences = exec_query(<<~SQL, 'owned_sequences').to_a
+            SELECT s.relname AS seq, a.attname AS col
+              FROM pg_class s
+              JOIN pg_depend d ON d.objid = s.oid AND d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_class'::regclass
+              JOIN pg_class t ON t.oid = d.refobjid
+              JOIN pg_namespace n ON n.oid = t.relnamespace
+              JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum = d.refobjsubid
+             WHERE s.relkind = 'S'
+               AND d.deptype = 'a'
+               AND n.nspname = '#{quote_string(archive_schema_name)}'
+               AND t.relname = '#{quote_string(table.table_name)}'
+          SQL
+
+          owned_sequences.each do |sequence|
+            quoted_sequence_name = quote_table_name(sequence['seq'])
+            exec_update(<<~SQL, 'alter_sequence_owned_by')
+              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} OWNED BY NONE;
+              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} SET SCHEMA #{quoted_view_schema_name};
+              ALTER SEQUENCE #{quoted_view_schema_name}.#{quoted_sequence_name}
+                    OWNED BY #{quoted_view_schema_name}.#{table.quoted_table_name}.#{quote_column_name(sequence['col'])};
+            SQL
+          end
+        end
+      end
+
+      def archive_schema_name = 'archive_schema'
+      def event_store_schema_name = Sequent.configuration.event_store_schema_name
       def view_schema_name = Sequent.configuration.view_schema_name
 
-      def event_store_schema_name = Sequent.configuration.event_store_schema_name
+      def quoted_archive_schema_name = quote_table_name(archive_schema_name)
+      def quoted_replay_schema_name = quote_table_name(replay_schema_name)
+      def quoted_view_schema_name = quote_table_name(view_schema_name)
 
       def connection = ActiveRecord::Base.connection
 
       def transaction(...) = Sequent.configuration.transaction_provider.transactional(...)
-
-      def transaction_in_replay_schema
-        transaction do
-          exec_update("SET search_path TO #{quote_table_name(replay_schema_name)}")
-          yield
-        end
-      end
-
-      def exec_update(...) = connection.exec_update(...)
-
-      def exec_query(...) = connection.execute(...)
-
-      def quote_table_name(...) = connection.quote_table_name(...)
     end
   end
 end
