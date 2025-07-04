@@ -27,7 +27,7 @@ module Sequent
 
         @state = state
         @managed_tables = projector_classes.flat_map(&:managed_tables)
-        @replay_schema_name = "replay_schema_#{state.id}"
+        @replay_schema_name = 'replay_schema'
       end
 
       def self.create!(db_config:, projector_classes:)
@@ -46,7 +46,7 @@ module Sequent
         @state.with_lock('FOR NO KEY UPDATE') do
           fail 'initial replay can only be performed when current state is `created`' unless @state.state == 'created'
 
-          exec_update("CREATE SCHEMA #{replay_schema_name}")
+          exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
           @managed_tables.each do |table|
             exec_update(<<~SQL, 'create_table')
               CREATE TABLE #{replay_schema_name}.#{table.quoted_table_name} (LIKE #{view_schema_name}.#{table.quoted_table_name} INCLUDING ALL)
@@ -119,6 +119,40 @@ module Sequent
 
           @state.state = 'ready_for_activation'
           @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
+          @state.save!
+        end
+      end
+
+      def activate!
+        @state.with_lock('FOR NO KEY UPDATE') do
+          unless @state.state == 'ready_for_activation'
+            fail 'activation can only be performed when current state is `ready_for_activation`'
+          end
+
+          Sequent::Core::Projectors.lock_projector_states_for_update
+
+          Sequent::Support::Database.with_search_path(replay_schema_name, event_store_schema_name) do
+            event_types = projectors.flat_map { |projector| projector.message_mapping.keys }.uniq.map(&:name)
+            event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
+
+            replay_events(
+              -> {
+                event_stream(nil..nil, event_type_ids, @state.continue_replay_at_xact_id, nil)
+              },
+              Sequent.configuration.offline_replay_persistor_class.new,
+            ) { |progress| }
+          end
+
+          managed_tables.each do |table|
+            old_table_name = quote_table_name("#{table.table_name}_#{@state.id}")
+            exec_update(<<~SQL, 'replace_table')
+              DROP TABLE IF EXISTS #{old_table_name} CASCADE;
+              ALTER TABLE IF EXISTS #{view_schema_name}.#{table.quoted_table_name} RENAME TO #{old_table_name};
+              ALTER TABLE #{replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{view_schema_name};
+            SQL
+          end
+
+          @state.state = 'done'
           @state.save!
         end
       end

@@ -8,6 +8,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
   before :each do
     SpecMigrations.reset
     Sequent::Migrations::ReplayState.delete_all
+    exec_update('DROP SCHEMA IF EXISTS replay_schema CASCADE')
     exec_update('DROP TABLE IF EXISTS view_schema.single_records')
     exec_update(<<~SQL)
       CREATE TABLE view_schema.single_records (
@@ -16,13 +17,10 @@ describe Sequent::Migrations::ProjectorsReplayer do
         name text NOT NULL
       )
     SQL
-    state = Sequent::Migrations::ReplayState.last
-    exec_update("DROP SCHEMA IF EXISTS #{state.replay_schema} CASCADE") if state
   end
   after do
     Sequent::Migrations::ReplayState.delete_all
-    state = Sequent::Migrations::ReplayState.last
-    exec_update("DROP SCHEMA IF EXISTS #{state.replay_schema} CASCADE") if state
+    exec_update('DROP SCHEMA IF EXISTS replay_schema CASCADE')
     exec_update('DROP TABLE IF EXISTS view_schema.single_records')
   end
 
