@@ -32,22 +32,33 @@ module Sequent
       def publish_events(events)
         return if configuration.disable_event_handlers
 
-        events.each { |event| events_queue.push(event) }
-        process_events
+        events_queue.concat(events)
+        process_events_if_not_already_processing
       end
 
       private
 
       def events_queue
-        Thread.current[:events_queue] ||= Queue.new
+        Thread.current[:events_queue] ||= []
+      end
+      def events_queue=(queue)
+        Thread.current[:events_queue] = queue
       end
 
-      def process_events
+      def process_events_if_not_already_processing
         Sequent::Util.skip_if_already_processing(:events_queue_lock) do
-          process_event(events_queue.pop) until events_queue.empty?
+          until events_queue.empty?
+            events = events_queue
+            self.events_queue = []
+            process_events(events)
+          end
         ensure
-          events_queue.clear
+          self.events_queue = []
         end
+      end
+
+      def process_events(events)
+        events.each { |event| process_event(event) }
       end
 
       def process_event(event)
