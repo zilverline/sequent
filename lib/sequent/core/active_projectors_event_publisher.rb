@@ -25,7 +25,7 @@ module Sequent
 
       def process_events(...)
         # Process all events inside a transaction to ensure consistency with the projector state
-        # (active or not) and updating the projector tables. Normally an transaction is already
+        # (active or not) and updating the projector tables. Normally a transaction is already
         # active due to using the `CommandService#execute_command`, but if this event publisher is
         # used directly it is also important to run inside a transaction.
         Sequent.configuration.transaction_provider.transactional { super(...) }
