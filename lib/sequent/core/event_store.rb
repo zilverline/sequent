@@ -183,9 +183,7 @@ module Sequent
         ids_replayed = []
         cursor.each_row_batch(block_size:).each do |records|
           events = records.map(&method(:deserialize_event))
-          Sequent.configuration.transaction_provider.transactional do
-            event_publisher.publish_events(events)
-          end
+          event_publisher.publish_events(events)
           records.each do |record|
             progress += 1
             ids_replayed << record['aggregate_id']
