@@ -181,7 +181,7 @@ module Sequent
         progress = 0
         cursor = get_events.call
         ids_replayed = []
-        cursor.each_row_batch(block_size:).each do |records|
+        cursor.each_row_batch(block_size:, with_hold: true).each do |records|
           events = records.map(&method(:deserialize_event))
           event_publisher.publish_events(events)
           records.each do |record|
