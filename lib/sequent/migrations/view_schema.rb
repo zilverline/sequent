@@ -395,8 +395,9 @@ module Sequent
         &on_progress
       )
         Sequent.configuration.event_store.replay_events_from_cursor(
-          block_size: 1000,
           get_events:,
+          event_publisher: Sequent::Core::EventPublisher.new,
+          block_size: 1000,
           on_progress:,
         )
 

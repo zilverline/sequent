@@ -112,10 +112,6 @@ module Sequent
         nil
       end
 
-      def dispatch_message(...)
-        super if active?
-      end
-
       def_delegators :@persistor, :execute_sql, :commit
 
       def update_record(record_class, *rest, &block)
@@ -197,32 +193,6 @@ module Sequent
             A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
           EOS
         end
-      end
-
-      def active?
-        version = Sequent.migrations_class&.version
-        return true if version.nil?
-
-        # Projector states are not enable so all projectors are considered active
-        return true unless Sequent.configuration.enable_projector_states
-
-        projector_state = Projectors.projector_states[self.class.name]
-        return false if projector_state.nil?
-
-        if projector_state.activating_version.present?
-          # Current projector version is activating, so we write to the temporary replay table.
-          return true if projector_state.activating_version == version
-        else
-          return true if projector_state.active_version == version
-
-          # Replaying the current version, so run this projector (it will write to a temporary table).
-          return true if projector_state.replaying_version == version
-        end
-
-        # A different projector version is active or activating, so we cannot write new events since they will
-        # not be properly propagated.
-        fail DifferentProjectorVersionIsActiveError,
-             "projector #{self.class} version #{version} does not match state #{projector_state}"
       end
     end
   end

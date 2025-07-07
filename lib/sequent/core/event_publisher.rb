@@ -3,9 +3,6 @@
 module Sequent
   module Core
     class ProjectorMigrationError < RuntimeError; end
-    class UnknownActiveProjectorError < ProjectorMigrationError; end
-    class ReplayingProjectorMismatchError < ProjectorMigrationError; end
-    class DifferentProjectorVersionIsActiveError < ProjectorMigrationError; end
 
     #
     # EventPublisher ensures that, for every thread, events will be published
@@ -35,31 +32,33 @@ module Sequent
       def publish_events(events)
         return if configuration.disable_event_handlers
 
-        ensure_no_unknown_active_projectors!
-
-        events.each { |event| events_queue.push(event) }
-        process_events
-      end
-
-      def replay_events(events)
-        ensure_only_replaying_projectors_subscribed!
-
-        events.each { |event| events_queue.push(event) }
-        process_events
+        events_queue.concat(events)
+        process_events_if_not_already_processing
       end
 
       private
 
       def events_queue
-        Thread.current[:events_queue] ||= Queue.new
+        Thread.current[:events_queue] ||= []
+      end
+      def events_queue=(queue)
+        Thread.current[:events_queue] = queue
       end
 
-      def process_events
+      def process_events_if_not_already_processing
         Sequent::Util.skip_if_already_processing(:events_queue_lock) do
-          process_event(events_queue.pop) until events_queue.empty?
+          until events_queue.empty?
+            events = events_queue
+            self.events_queue = []
+            process_events(events)
+          end
         ensure
-          events_queue.clear
+          self.events_queue = []
         end
+      end
+
+      def process_events(events)
+        events.each { |event| process_event(event) }
       end
 
       def process_event(event)
@@ -68,7 +67,7 @@ module Sequent
         Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
 
         configuration.event_handlers.each do |handler|
-          handler.handle_message event
+          handle_message(handler, event)
         rescue ProjectorMigrationError
           raise
         rescue StandardError
@@ -76,41 +75,12 @@ module Sequent
         end
       end
 
+      def handle_message(handler, event)
+        handler.handle_message(event)
+      end
+
       def configuration
         Sequent.configuration
-      end
-
-      def ensure_no_unknown_active_projectors!
-        return unless Sequent.configuration.enable_projector_states
-
-        expected_version = Sequent.migrations_class&.version
-        return if expected_version.nil?
-
-        registered_projectors = Migratable.projectors.to_set(&:name)
-        active_projectors = Projectors.projector_states
-          .values
-          .select { |s| s.active_version == expected_version }
-          .to_set(&:name)
-        unknown_active_projectors = active_projectors - registered_projectors
-        if unknown_active_projectors.present?
-          fail UnknownActiveProjectorError,
-               "cannot publish event when unknown projectors are active #{unknown_active_projectors}"
-        end
-      end
-
-      def ensure_only_replaying_projectors_subscribed!
-        return unless Sequent.configuration.enable_projector_states
-        return unless Sequent.migrations_class
-
-        registered_projectors = Migratable.projectors.to_set(&:name)
-        replaying_projectors = Projectors.projector_states
-          .values
-          .select { |state| state.replaying? || state.activating? }
-          .to_set(&:name)
-        if registered_projectors != replaying_projectors
-          fail ReplayingProjectorMismatchError,
-               "cannot replay event when different projectors are replaying #{replaying_projectors}"
-        end
       end
     end
   end

@@ -60,12 +60,6 @@ describe Sequent::Core::EventPublisher do
     end
   end
 
-  before do
-    Sequent::Configuration.reset
-    Sequent.configuration.enable_projector_states = true
-  end
-  after { Sequent::Configuration.reset }
-
   it 'handles events in the proper order' do
     test_event_handler = TestEventHandler.new
     Sequent.configuration.event_handlers << TestWorkflow.new
@@ -77,34 +71,106 @@ describe Sequent::Core::EventPublisher do
     expect(test_event_handler.sequence_numbers).to eq [1, 2]
   end
 
-  context 'event store database deploy' do
-    class UnknownProjector < Sequent::Core::Projector
-      manages_no_tables
-    end
-
+  context Sequent::Core::ActiveProjectorsEventPublisher do
     before do
-      Sequent::Core::ProjectorState.delete_all
-      Sequent.configuration.event_handlers << TestEventHandler.new
-      Sequent.configuration.command_handlers << TestCommandHandler.new
-      Sequent.configuration.migrations_class = SpecMigrations
-      Sequent.configuration.migrations_class.version = 0
-      Sequent.activate_current_configuration!
+      Sequent::Configuration.reset
+      Sequent.configuration.enable_projector_states = true
+      Sequent.configuration.event_publisher = Sequent::Core::ActiveProjectorsEventPublisher.new
+    end
+    after { Sequent::Configuration.reset }
+
+    context 'event store database deploy' do
+      class UnknownProjector < Sequent::Core::Projector
+        manages_no_tables
+      end
+
+      before do
+        Sequent::Core::ProjectorState.delete_all
+        Sequent.configuration.event_handlers << TestEventHandler.new
+        Sequent.configuration.command_handlers << TestCommandHandler.new
+        Sequent.configuration.migrations_class = SpecMigrations
+        Sequent.configuration.migrations_class.version = 0
+        Sequent.activate_current_configuration!
+      end
+
+      it 'fails when unknown projectors are active' do
+        Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector], 0)
+
+        expect do
+          Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+        end.to raise_error Sequent::Core::UnknownActiveProjectorError
+      end
+
+      it 'fails when the projector is activating to finalize event replay' do
+        Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler], Sequent.new_version + 1)
+
+        expect do
+          Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+        end.to raise_error Sequent::Core::DifferentProjectorVersionIsActiveError
+      end
     end
 
-    it 'fails when unknown projectors are active' do
-      Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector], 0)
+    context 'projector activation' do
+      def set_lock_timeout = ActiveRecord::Base.connection.execute("SET lock_timeout TO '10ms'")
+      def update_projector_states = Sequent::Core::Projectors.register_active_projectors!([Sequent::Core::Projector], 1)
+      def read_projector_states = Sequent::Core::Projectors.projector_states
 
-      expect do
-        Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
-      end.to raise_error Sequent::Core::UnknownActiveProjectorError
-    end
+      it 'waits for project state updates before reading' do
+        reader_lock_attempted = Queue.new
+        writer_locked = Queue.new
+        writer = Thread.new do
+          ActiveRecord::Base.transaction do
+            update_projector_states
+            writer_locked << 'locked states for reading'
 
-    it 'fails when different version of the projector is activating' do
-      Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler], Sequent.new_version + 1)
+            reader_lock_attempted.deq
+          end
+        end
 
-      expect do
-        Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
-      end.to raise_error Sequent::Core::DifferentProjectorVersionIsActiveError
+        reader = Thread.new do
+          ActiveRecord::Base.transaction do
+            writer_locked.deq
+            set_lock_timeout
+            read_projector_states
+            false
+          rescue ActiveRecord::LockWaitTimeout
+            true
+          end
+        end
+
+        expect(reader.join(0.5).value).to be(true)
+      ensure
+        reader_lock_attempted << 'reader finished'
+        writer.join(0.5).value
+      end
+
+      it 'waits for readers to when updating the projector states table' do
+        writer_lock_attempted = Queue.new
+        reader_locked = Queue.new
+        reader = Thread.new do
+          ActiveRecord::Base.transaction do
+            read_projector_states
+            reader_locked << 'locked states for reading'
+
+            writer_lock_attempted.deq
+          end
+        end
+
+        writer = Thread.new do
+          ActiveRecord::Base.transaction do
+            reader_locked.deq
+            set_lock_timeout
+            update_projector_states
+          rescue ActiveRecord::LockWaitTimeout
+            true
+          end
+        end
+
+        expect(writer.join(0.5).value).to be(true)
+      ensure
+        writer_lock_attempted << 'writer finished'
+        reader.join(0.5).value
+      end
     end
   end
 end
