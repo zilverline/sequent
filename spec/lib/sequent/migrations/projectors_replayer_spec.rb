@@ -29,9 +29,11 @@ describe Sequent::Migrations::ProjectorsReplayer do
     SQL
   end
   after do
-    # Sequent::Migrations::ReplayState.delete_all
-    # exec_update('DROP SCHEMA IF EXISTS archive_schema, replay_schema CASCADE')
-    # exec_update('DROP TABLE IF EXISTS view_schema.single_records')
+    Sequent::Migrations::ReplayState.delete_all
+    exec_update('DROP SCHEMA IF EXISTS archive_schema, replay_schema CASCADE')
+    exec_update('DROP TABLE IF EXISTS view_schema.single_records')
+    SpecMigrations.reset
+    Sequent::Configuration.reset
   end
 
   class DummyCommand < Sequent::Core::BaseCommand; end
@@ -160,12 +162,11 @@ describe Sequent::Migrations::ProjectorsReplayer do
       end
 
       it 'should have replayed to the replay schema table' do
-        expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
-          .to eq(['count' => initial_event_count])
+        expect(record_count(subject.replay_schema_name)).to eq(initial_event_count)
       end
 
       it 'should not affect the view schema tables' do
-        expect(exec_query('SELECT COUNT(*) FROM view_schema.single_records').to_a).to eq(['count' => 0])
+        expect(record_count('view_schema')).to eq(initial_event_count)
       end
 
       it 'should be ready for incremental replay and activation' do
@@ -181,8 +182,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
         end
 
         it 'only processes the new events' do
-          expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
-            .to eq(['count' => initial_event_count + incremental_event_count])
+          expect(record_count(subject.replay_schema_name)).to eq(initial_event_count + incremental_event_count)
         end
 
         it 'can be executed multiple times' do
@@ -191,15 +191,14 @@ describe Sequent::Migrations::ProjectorsReplayer do
           insert_events(extra_event_count)
           subject.perform_incremental_replay
 
-          expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
-            .to eq(['count' => initial_event_count + incremental_event_count + extra_event_count])
+          expect(record_count(subject.replay_schema_name))
+            .to eq(initial_event_count + incremental_event_count + extra_event_count)
         end
 
         it 'can be executed without any more pending events' do
           subject.perform_incremental_replay
 
-          expect(exec_query("SELECT COUNT(*) FROM #{subject.replay_schema_name}.single_records").to_a)
-            .to eq(['count' => initial_event_count + incremental_event_count])
+          expect(record_count(subject.replay_schema_name)).to eq(initial_event_count + incremental_event_count)
         end
       end
     end
@@ -214,7 +213,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
 
     context 'when ready for activation' do
-      let(:initial_event_count) { 1 }
+      let(:initial_event_count) { 5 }
 
       before do
         insert_events(initial_event_count)
@@ -226,8 +225,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
         subject.activate!
 
-        expect(exec_query('SELECT COUNT(*) FROM view_schema.single_records').to_a)
-          .to eq(['count' => initial_event_count + 10])
+        expect(record_count('view_schema')).to eq(initial_event_count + 10)
       end
 
       it 'blocks projectors during activation so not events are missed or duplicated' do
@@ -238,37 +236,32 @@ describe Sequent::Migrations::ProjectorsReplayer do
         t = Thread.new do
           queue << 'starting'
           10.times do
-            pp 'inserting events'
             insert_events(100)
             sleep 0.01
           end
-          puts 'done'
         end
 
         queue.deq
 
         sleep 0.05
-        puts 'activating'
         subject.activate!
-        puts 'done'
 
-        puts 'awaiting thread'
         t.join
-        puts 'done awaiting'
 
-        expect(exec_query('SELECT COUNT(*) FROM view_schema.single_records').to_a)
-          .to eq(['count' => initial_event_count + 2000])
+        expect(record_count('view_schema')).to eq(initial_event_count + 2000)
       end
 
       it 'renames the old table and replaces it with the new table' do
         subject.activate!
 
-        expect(exec_query('SELECT COUNT(*) FROM view_schema.single_records').to_a)
-          .to eq(['count' => initial_event_count])
+        expect(record_count('view_schema')).to eq(initial_event_count)
       end
     end
   end
 
+  def record_count(schema) = select_value("SELECT COUNT(*) FROM #{schema}.single_records")
+
+  def select_value(sql, binds = []) = ActiveRecord::Base.connection.select_value(sql, 'query', binds)
   def exec_query(sql, binds = []) = ActiveRecord::Base.connection.exec_query(sql, 'query', binds)
   def exec_update(sql, binds = []) = ActiveRecord::Base.connection.exec_update(sql, 'update', binds)
   def query_schemas = exec_query('SELECT nspname FROM pg_namespace').map { |r| r['nspname'] }
