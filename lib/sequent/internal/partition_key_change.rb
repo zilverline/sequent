@@ -15,12 +15,26 @@ module Sequent
         count = 0
         limit.times do
           ActiveRecord::Base.transaction do
-            if Sequent::Migrations::Versions.running.present?
+            PartitionKeyChange.connection.exec_update("SET LOCAL statement_timeout TO '30s'", 'statement_timeout')
+
+            # New style projector replay
+            # Ensure no new version can be inserted or updated while we update partition keys.
+            connection.execute("LOCK TABLE #{Sequent::Migrations::ReplayState.quoted_table_name} IN ROW EXCLUSIVE MODE")
+            if Sequent::Migrations::ReplayState.replaying.present?
               fail Sequent::Migrations::ConcurrentMigration,
-                   'cannot update partition keys while view schema migration is running'
+                   'cannot update partition keys while projectors are replaying'
             end
 
-            PartitionKeyChange.connection.exec_update("SET LOCAL statement_timeout TO '30s'", 'statement_timeout')
+            # Old style view schema migrations
+            if Sequent.migrations_class.present?
+              # Ensure no new version can be inserted or updated while we update partition keys.
+              connection.execute("LOCK TABLE #{Sequent::Migrations::Versions.quoted_table_name} IN ROW EXCLUSIVE MODE")
+
+              if Sequent::Migrations::Versions.running.present?
+                fail Sequent::Migrations::ConcurrentMigration,
+                     'cannot update partition keys while view schema migration is running'
+              end
+            end
 
             change = PartitionKeyChange.lock('FOR UPDATE SKIP LOCKED').first
             return count unless change
