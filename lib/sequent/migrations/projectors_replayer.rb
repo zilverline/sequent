@@ -187,8 +187,10 @@ module Sequent
       def replace_replayed_tables_in_view_schema(tables)
         tables.each do |table|
           exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_archive_schema_name};
-            ALTER TABLE #{quoted_replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_view_schema_name};
+            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_archive_schema_name}
+          SQL
+          exec_update(<<~SQL, 'replace_table')
+            ALTER TABLE #{quoted_replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_view_schema_name}
           SQL
 
           # Migrate owned sequences to the new table
@@ -208,10 +210,14 @@ module Sequent
           owned_sequences.each do |sequence|
             quoted_sequence_name = quote_table_name(sequence['seq'])
             exec_update(<<~SQL, 'alter_sequence_owned_by')
-              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} OWNED BY NONE;
-              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} SET SCHEMA #{quoted_view_schema_name};
+              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} OWNED BY NONE
+            SQL
+            exec_update(<<~SQL, 'alter_sequence_owned_by')
+              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} SET SCHEMA #{quoted_view_schema_name}
+            SQL
+            exec_update(<<~SQL, 'alter_sequence_owned_by')
               ALTER SEQUENCE #{quoted_view_schema_name}.#{quoted_sequence_name}
-                    OWNED BY #{quoted_view_schema_name}.#{table.quoted_table_name}.#{quote_column_name(sequence['col'])};
+                    OWNED BY #{quoted_view_schema_name}.#{table.quoted_table_name}.#{quote_column_name(sequence['col'])}
             SQL
           end
         end
