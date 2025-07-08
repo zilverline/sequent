@@ -57,7 +57,7 @@ module Sequent
       end
 
       def self.execute_sql(sql)
-        ActiveRecord::Base.connection.execute(sql)
+        connection.execute(sql)
       end
 
       def self.create_schema(schema)
@@ -71,18 +71,18 @@ module Sequent
         execute_sql "DROP SCHEMA if exists #{schema_name} cascade"
       end
 
-      def self.with_search_path(search_path)
-        old_search_path = ActiveRecord::Base.connection.select_value("SELECT current_setting('search_path')")
+      def self.with_search_path(*search_path)
+        old_search_path = connection.select_value("SELECT current_setting('search_path')")
         begin
-          ActiveRecord::Base.connection.exec_update("SET search_path TO #{search_path}", 'with_search_path')
+          connection.exec_update("SET search_path TO #{search_path.join(', ')}", 'with_search_path')
           yield
         ensure
-          ActiveRecord::Base.connection.exec_update("SET search_path TO #{old_search_path}", 'with_search_path')
+          connection.exec_update("SET search_path TO #{old_search_path}", 'with_search_path')
         end
       end
 
       def self.schema_exists?(schema, event_records_table = nil)
-        schema_exists = ActiveRecord::Base.connection.exec_query(
+        schema_exists = connection.exec_query(
           'SELECT 1 FROM information_schema.schemata WHERE schema_name LIKE $1',
           'schema_exists?',
           [schema],
@@ -93,7 +93,7 @@ module Sequent
         # existence of the `event_records` table (or view) as well.
         return schema_exists unless event_records_table
 
-        ActiveRecord::Base.connection.exec_query(
+        connection.exec_query(
           'SELECT 1 FROM information_schema.tables WHERE table_schema LIKE $1 AND table_name LIKE $2',
           'schema_exists?',
           [schema, event_records_table],
@@ -119,6 +119,12 @@ module Sequent
       def execute_sql(sql)
         self.class.execute_sql(sql)
       end
+
+      def self.current_snapshot_xmin_xact_id
+        connection.select_value('SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint AS xmin')
+      end
+
+      def self.connection = ActiveRecord::Base.connection
     end
   end
 end

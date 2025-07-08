@@ -13,38 +13,30 @@ module Sequent
     # (using `Sequent#activate_current_configuration!`).
     #
     class ActiveProjectorsEventPublisher < EventPublisher
-      def publish_events(events)
-        return if configuration.disable_event_handlers
-
-        ensure_no_unknown_active_projectors!
-
-        super
-      end
-
       private
 
-      def process_events(...)
+      def process_events(event_handlers, ...)
         # Process all events inside a transaction to ensure consistency with the projector state
         # (active or not) and updating the projector tables. Normally a transaction is already
         # active due to using the `CommandService#execute_command`, but if this event publisher is
         # used directly it is also important to run inside a transaction.
-        Sequent.configuration.transaction_provider.transactional { super(...) }
+        Sequent.configuration.transaction_provider.transactional do
+          ensure_no_unknown_active_projectors!(event_handlers)
+          active_event_handlers = event_handlers.select { |x| active?(x) }
+          super(active_event_handlers, ...)
+        end
       end
 
-      def handle_message(handler, event)
-        super if active?(handler)
-      end
-
-      def ensure_no_unknown_active_projectors!
+      def ensure_no_unknown_active_projectors!(event_handlers)
         expected_version = Sequent.migrations_class&.version
         return if expected_version.nil?
 
-        registered_projectors = Migratable.projectors.to_set(&:name)
-        active_projectors = Projectors.projector_states
+        registered_projectors = event_handlers.select { |x| x.is_a?(Projector) }.map { |x| x.class.name }
+        activated_projectors = Projectors.projector_states
           .values
           .select { |s| s.active_version == expected_version }
           .to_set(&:name)
-        unknown_active_projectors = active_projectors - registered_projectors
+        unknown_active_projectors = activated_projectors - registered_projectors
         if unknown_active_projectors.present?
           fail UnknownActiveProjectorError,
                "cannot publish event when unknown projectors are active #{unknown_active_projectors}"
