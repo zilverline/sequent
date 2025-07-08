@@ -6,6 +6,7 @@ require 'active_support/core_ext/integer/inflections'
 module Sequent
   module Migrations
     class ReplayState < ActiveRecord::Base
+      scope :replaying, -> { where(state: %w[initial_replay incremental_replay]) }
     end
 
     # Replay a set of projectors while the system is running and atomically replace the existing

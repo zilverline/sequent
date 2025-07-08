@@ -71,7 +71,6 @@ module Sequent
         fail MigrationNotStarted if current_migration.blank?
 
         current_migration.with_lock('FOR UPDATE NOWAIT') do
-          current_migration.reload
           fail MigrationDone if current_migration.status.nil?
           fail ConcurrentMigration if current_migration.status != MIGRATE_ONLINE_FINISHED
 
