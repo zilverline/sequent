@@ -50,33 +50,29 @@ module Sequent
           until events_queue.empty?
             events = events_queue
             self.events_queue = []
-            process_events(events)
+            process_events(configuration.event_handlers, events)
           end
         ensure
           self.events_queue = []
         end
       end
 
-      def process_events(events)
-        events.each { |event| process_event(event) }
+      def process_events(event_handlers, events)
+        events.each { |event| process_event(event_handlers, event) }
       end
 
-      def process_event(event)
+      def process_event(event_handlers, event)
         fail ArgumentError, 'event is required' if event.nil?
 
         Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
 
-        configuration.event_handlers.each do |handler|
-          handle_message(handler, event)
+        event_handlers.each do |handler|
+          handler.handle_message(event)
         rescue ProjectorMigrationError
           raise
         rescue StandardError
           raise PublishEventError.new(handler.class, event)
         end
-      end
-
-      def handle_message(handler, event)
-        handler.handle_message(event)
       end
 
       def configuration
