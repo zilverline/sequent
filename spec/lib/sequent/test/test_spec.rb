@@ -54,6 +54,24 @@ describe 'Test Helpers' do
               .to include('Actual [Sequent::Fixtures::Event1, Sequent::Fixtures::Event4] expected []')
           }
         end
+
+        context 'when there are no events' do
+          let(:actual_events) { [] }
+
+          it 'shows a nice error message' do
+            expect do
+              then_events(
+                Sequent::Fixtures::Event1.new(
+                  aggregate_id: '1',
+                  sequence_number: 1,
+                ),
+              )
+            end.to raise_error(RSpec::Expectations::ExpectationNotMetError) { |error|
+              expect(error.message)
+                .to include('Number of actual events (0) is not equal to expected events (1)')
+            }
+          end
+        end
       end
 
       it 'can match by type only' do
