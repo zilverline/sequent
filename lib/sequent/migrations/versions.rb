@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../support/database'
+
 module Sequent
   module Migrations
     class Versions < Sequent::ApplicationRecord
@@ -47,7 +49,11 @@ module Sequent
       end
 
       def self.start_online!(new_version)
-        create!(version: new_version, status: MIGRATE_ONLINE_RUNNING, xmin_xact_id: current_snapshot_xmin_xact_id)
+        create!(
+          version: new_version,
+          status: MIGRATE_ONLINE_RUNNING,
+          xmin_xact_id: Sequent::Support::Database.current_snapshot_xmin_xact_id,
+        )
       rescue ActiveRecord::RecordNotUnique
         raise ConcurrentMigration, "Migration for version #{new_version} is already running"
       end
@@ -65,7 +71,6 @@ module Sequent
         fail MigrationNotStarted if current_migration.blank?
 
         current_migration.with_lock('FOR UPDATE NOWAIT') do
-          current_migration.reload
           fail MigrationDone if current_migration.status.nil?
           fail ConcurrentMigration if current_migration.status != MIGRATE_ONLINE_FINISHED
 
@@ -81,10 +86,6 @@ module Sequent
 
       def self.end_offline!(new_version)
         find_by!(version: new_version, status: MIGRATE_OFFLINE_RUNNING).update(status: DONE)
-      end
-
-      def self.current_snapshot_xmin_xact_id
-        connection.execute('SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint AS xmin').first['xmin']
       end
     end
   end
