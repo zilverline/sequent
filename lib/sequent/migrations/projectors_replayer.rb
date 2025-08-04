@@ -33,22 +33,22 @@ module Sequent
         @replay_schema_name = 'replay_schema'
       end
 
-      def self.create!(db_config:, projector_classes:)
+      def self.create!(projector_classes:)
         fail 'at least one projector must be specified' if projector_classes.empty?
 
         state = ReplayState.create!(state: 'created', projectors: projector_classes.map(&:name))
-        new(db_config:, state:)
+        new(state:)
       end
 
-      def self.resume_from_database(db_config:)
-        state = ReplayState.where.not(state: 'done').last!
-        new(db_config:, state:)
+      def self.resume_from_database
+        state = ReplayState.where.not(state: %w[done aborted]).last!
+        new(state:)
       end
 
       def prepare_for_replay
         exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
 
-        @state.with_lock('FOR NO KEY UPDATE') do
+        with_locked_state do
           fail 'initial replay can only be performed when current state is `created`' unless @state.state == 'created'
 
           pg_dump_path = locate_command('pg_dump')
@@ -81,10 +81,13 @@ module Sequent
         end
 
         self
+      rescue StandardError
+        mark_replay_failed!
+        raise
       end
 
       def perform_initial_replay
-        maximum_xact_id_exclusive = @state.with_lock('FOR NO KEY UPDATE') do
+        maximum_xact_id_exclusive = with_locked_state do
           fail 'initial replay can only be performed when current state is `prepared`' unless @state.state == 'prepared'
 
           non_empty_tables = @managed_tables.select do |table|
@@ -108,17 +111,20 @@ module Sequent
           with_group:,
         )
 
-        @state.with_lock('FOR NO KEY UPDATE') do
+        with_locked_state do
           fail 'internal error' unless @state.state == 'initial_replay'
 
           @state.state = 'ready_for_activation'
           @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
           @state.save!
         end
+      rescue StandardError
+        mark_replay_failed!
+        raise
       end
 
       def perform_incremental_replay
-        maximum_xact_id_exclusive = @state.with_lock('FOR NO KEY UPDATE') do
+        maximum_xact_id_exclusive = with_locked_state do
           unless @state.state == 'ready_for_activation'
             fail 'incremental replay can only be performed when current state is `ready_for_activation`'
           end
@@ -137,17 +143,20 @@ module Sequent
           with_group:,
         )
 
-        @state.with_lock('FOR NO KEY UPDATE') do
+        with_locked_state do
           fail 'internal error' unless @state.state == 'incremental_replay'
 
           @state.state = 'ready_for_activation'
           @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
           @state.save!
         end
+      rescue StandardError
+        mark_replay_failed!
+        raise
       end
 
       def activate!
-        @state.with_lock('FOR NO KEY UPDATE') do
+        with_locked_state do
           unless @state.state == 'ready_for_activation'
             fail 'activation can only be performed when current state is `ready_for_activation`'
           end
@@ -176,18 +185,28 @@ module Sequent
 
           replace_replayed_tables_in_view_schema(managed_tables)
 
+          exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
+
           @state.state = 'done'
           @state.save!
         end
       end
 
       def done!
-        transaction do
-          @state = @state.lock!('FOR NO KEY UPDATE')
+        with_locked_state do
           @state.state = 'done'
           @state.save!
 
-          exec_update("DROP SCHEMA #{quoted_replay_schema_name} CASCADE")
+          exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
+        end
+      end
+
+      def abort!
+        with_locked_state do
+          @state.state = 'aborted'
+          @state.save!
+
+          exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
         end
       end
 
@@ -210,10 +229,12 @@ module Sequent
           [table.table_name, *query_partition_names(view_schema_name, table.table_name)]
         end.each do |table_name|
           exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{table_name} SET SCHEMA #{quoted_archive_schema_name}
+            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{quote_table_name(table_name)}
+              SET SCHEMA #{quoted_archive_schema_name}
           SQL
           exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE #{quoted_replay_schema_name}.#{table_name} SET SCHEMA #{quoted_view_schema_name}
+            ALTER TABLE #{quoted_replay_schema_name}.#{quote_table_name(table_name)}
+              SET SCHEMA #{quoted_view_schema_name}
           SQL
         end
       end
@@ -228,7 +249,7 @@ module Sequent
 
       def connection = ActiveRecord::Base.connection
 
-      def transaction(...) = Sequent.configuration.transaction_provider.transactional(...)
+      def with_locked_state(...) = @state.with_lock('FOR NO KEY UPDATE', ...)
 
       # Adapted from https://github.com/rails/rails/blob/main/activerecord/lib/active_record/tasks/postgresql_database_tasks.rb#L80
       def psql_env
@@ -270,6 +291,13 @@ module Sequent
         fail 'cannot determine full path of pg_dump executable' unless status.success?
 
         path.strip
+      end
+
+      def mark_replay_failed!
+        @state.with_lock('FOR NO KEY UPDATE') do
+          @state.state = 'failed'
+          @state.save!
+        end
       end
     end
   end

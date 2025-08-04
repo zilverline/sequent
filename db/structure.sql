@@ -1021,7 +1021,7 @@ CREATE TABLE sequent_schema.replay_states (
     continue_replay_at_xact_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'incremental_replay'::text, 'ready_for_activation'::text, 'done'::text])))
+    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'incremental_replay'::text, 'ready_for_activation'::text, 'failed'::text, 'done'::text, 'aborted'::text])))
 );
 
 
@@ -1406,7 +1406,7 @@ CREATE INDEX events_default_event_type_id_idx ON sequent_schema.events_default U
 -- Name: replay_states_active_replay_idx; Type: INDEX; Schema: sequent_schema; Owner: -
 --
 
-CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> 'done'::text);
+CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> ALL (ARRAY['done'::text, 'aborted'::text]));
 
 
 --

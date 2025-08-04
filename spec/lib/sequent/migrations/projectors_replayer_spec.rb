@@ -74,10 +74,9 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
-  let(:db_config) { Database.test_config }
   let(:projector_classes) { [SingleRecordProjector] }
 
-  subject { Sequent::Migrations::ProjectorsReplayer.create!(db_config:, projector_classes:) }
+  subject { Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:) }
 
   def replay_state = Sequent::Migrations::ReplayState.last
 
@@ -131,11 +130,24 @@ describe Sequent::Migrations::ProjectorsReplayer do
     it 'should allow preparing for replay again' do
       old_replay_state = Sequent::Migrations::ReplayState.last
 
-      replayer = Sequent::Migrations::ProjectorsReplayer.create!(db_config:, projector_classes: [SingleRecordProjector])
+      replayer = Sequent::Migrations::ProjectorsReplayer.create!(projector_classes: [SingleRecordProjector])
       replayer.prepare_for_replay
 
       new_replay_state = Sequent::Migrations::ReplayState.last
       expect(old_replay_state.id).to_not eq(new_replay_state.id)
+    end
+  end
+
+  context '#abort!' do
+    before do
+      subject.prepare_for_replay
+    end
+
+    it 'should remove the replay schema' do
+      subject.abort!
+
+      expect(query_schemas).to_not include(subject.replay_schema_name)
+      expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'aborted')
     end
   end
 

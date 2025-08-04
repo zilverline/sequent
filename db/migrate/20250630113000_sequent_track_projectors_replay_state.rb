@@ -12,11 +12,11 @@ class SequentTrackProjectorsReplayState < ActiveRecord::Migration[7.2]
       end
 
       add_check_constraint :replay_states, <<~SQL, name: 'valid_replay_state'
-        state IN ('created', 'prepared', 'initial_replay', 'incremental_replay', 'ready_for_activation', 'done')
+        state IN ('created', 'prepared', 'initial_replay', 'incremental_replay', 'ready_for_activation', 'failed', 'done', 'aborted')
       SQL
 
       execute <<~SQL
-        CREATE UNIQUE INDEX replay_states_active_replay_idx ON replay_states ((TRUE)) WHERE state NOT IN ('done')
+        CREATE UNIQUE INDEX replay_states_active_replay_idx ON replay_states ((TRUE)) WHERE state NOT IN ('done', 'aborted')
       SQL
     end
   end
