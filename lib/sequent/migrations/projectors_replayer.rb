@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'open3'
 require_relative 'event_replayer'
 require 'active_support/core_ext/integer/inflections'
 
@@ -45,14 +46,34 @@ module Sequent
       end
 
       def prepare_for_replay
+        exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
+
         @state.with_lock('FOR NO KEY UPDATE') do
           fail 'initial replay can only be performed when current state is `created`' unless @state.state == 'created'
 
-          exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
-          @managed_tables.each do |table|
-            exec_update(<<~SQL, 'create_table')
-              CREATE TABLE #{replay_schema_name}.#{table.quoted_table_name} (LIKE #{view_schema_name}.#{table.quoted_table_name} INCLUDING ALL)
-            SQL
+          pg_dump_path = locate_command('pg_dump')
+          psql_path = locate_command('psql')
+
+          pg_dump_args = %w[--schema-only --quote-all-identifiers --strict-names] +
+                         @managed_tables.map do |table|
+                           "--table-and-children=#{view_schema_name}.#{table.table_name}"
+                         end
+
+          ddl, stderr, status = Open3.capture3(psql_env, pg_dump_path, *pg_dump_args)
+          fail "failed to dump view schema projector tables #{stderr}" unless status.success?
+
+          psql_args = %w[--single-transaction --quiet --no-psqlrc --set=ON_ERROR_STOP=1 --file=-]
+          Open3.popen2e(psql_env, psql_path.strip, *psql_args) do |stdin, stdout_and_stderr, wait_thread|
+            replay_ddl = ddl.gsub(/#{quoted_view_schema_name}\./, "#{quoted_replay_schema_name}.")
+
+            stdin.write(replay_ddl)
+            stdin.close
+
+            output = stdout_and_stderr.read
+            stdout_and_stderr.close
+
+            status = wait_thread.value
+            fail "failed to create replay schema tables: #{output}" unless status.success?
           end
 
           @state.state = 'prepared'
@@ -185,41 +206,15 @@ module Sequent
       end
 
       def replace_replayed_tables_in_view_schema(tables)
-        tables.each do |table|
+        tables.flat_map do |table|
+          [table.table_name, *query_partition_names(view_schema_name, table.table_name)]
+        end.each do |table_name|
           exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_archive_schema_name}
+            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{table_name} SET SCHEMA #{quoted_archive_schema_name}
           SQL
           exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE #{quoted_replay_schema_name}.#{table.quoted_table_name} SET SCHEMA #{quoted_view_schema_name}
+            ALTER TABLE #{quoted_replay_schema_name}.#{table_name} SET SCHEMA #{quoted_view_schema_name}
           SQL
-
-          # Migrate owned sequences to the new table
-          owned_sequences = exec_query(<<~SQL, 'owned_sequences').to_a
-            SELECT s.relname AS seq, a.attname AS col
-              FROM pg_class s
-              JOIN pg_depend d ON d.objid = s.oid AND d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_class'::regclass
-              JOIN pg_class t ON t.oid = d.refobjid
-              JOIN pg_namespace n ON n.oid = t.relnamespace
-              JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum = d.refobjsubid
-             WHERE s.relkind = 'S'
-               AND d.deptype = 'a'
-               AND n.nspname = '#{quote_string(archive_schema_name)}'
-               AND t.relname = '#{quote_string(table.table_name)}'
-          SQL
-
-          owned_sequences.each do |sequence|
-            quoted_sequence_name = quote_table_name(sequence['seq'])
-            exec_update(<<~SQL, 'alter_sequence_owned_by')
-              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} OWNED BY NONE
-            SQL
-            exec_update(<<~SQL, 'alter_sequence_owned_by')
-              ALTER SEQUENCE #{quoted_archive_schema_name}.#{quoted_sequence_name} SET SCHEMA #{quoted_view_schema_name}
-            SQL
-            exec_update(<<~SQL, 'alter_sequence_owned_by')
-              ALTER SEQUENCE #{quoted_view_schema_name}.#{quoted_sequence_name}
-                    OWNED BY #{quoted_view_schema_name}.#{table.quoted_table_name}.#{quote_column_name(sequence['col'])}
-            SQL
-          end
         end
       end
 
@@ -234,6 +229,48 @@ module Sequent
       def connection = ActiveRecord::Base.connection
 
       def transaction(...) = Sequent.configuration.transaction_provider.transactional(...)
+
+      # Adapted from https://github.com/rails/rails/blob/main/activerecord/lib/active_record/tasks/postgresql_database_tasks.rb#L80
+      def psql_env
+        {}.tap do |env|
+          env['PGHOST'] = db_config[:host] if db_config[:host]
+          env['PGDATABASE'] = db_config[:database] if db_config[:database]
+          env['PGPORT'] = db_config[:port].to_s if db_config[:port]
+          env['PGPASSWORD'] = db_config[:password].to_s if db_config[:password]
+          env['PGUSER'] = db_config[:username].to_s if db_config[:username]
+          env['PGSSLMODE'] = db_config[:sslmode].to_s if db_config[:sslmode]
+          env['PGSSLCERT'] = db_config[:sslcert].to_s if db_config[:sslcert]
+          env['PGSSLKEY'] = db_config[:sslkey].to_s if db_config[:sslkey]
+          env['PGSSLROOTCERT'] = db_config[:sslrootcert].to_s if db_config[:sslrootcert]
+        end
+      end
+
+      def query_partition_names(schema_name, parent_table_name)
+        exec_query(<<~SQL, 'query_partitions', [schema_name, parent_table_name]).map { |row| row['partition_name'] }
+          WITH RECURSIVE inh AS (
+            SELECT i.inhrelid, NULL::text AS parent
+              FROM pg_catalog.pg_inherits i
+              JOIN pg_catalog.pg_class cl ON i.inhparent = cl.oid
+              JOIN pg_catalog.pg_namespace nsp ON cl.relnamespace = nsp.oid
+             WHERE nsp.nspname = $1
+               AND cl.relname = $2
+            UNION ALL
+            SELECT i.inhrelid, (i.inhparent::regclass)::text
+              FROM inh
+              JOIN pg_catalog.pg_inherits i ON inh.inhrelid = i.inhparent
+          )
+          SELECT c.relname AS partition_name
+            FROM inh
+            JOIN pg_catalog.pg_class c ON inh.inhrelid = c.oid
+        SQL
+      end
+
+      def locate_command(cmd)
+        path, status = Open3.capture2('command', '-v', cmd)
+        fail 'cannot determine full path of pg_dump executable' unless status.success?
+
+        path.strip
+      end
     end
   end
 end
