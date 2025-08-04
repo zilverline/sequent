@@ -180,7 +180,7 @@ module Sequent
         expected_events = expected_events.flatten(1)
 
         expected_events.each_with_index do |expected, i|
-          break if i > stored_events.length
+          break if i >= stored_events.length
 
           actual = stored_events[i]
 
