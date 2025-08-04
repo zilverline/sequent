@@ -104,9 +104,9 @@ describe Sequent::Migrations::ProjectorsReplayer do
     it 'should create a replay schema containing empty tables' do
       expect(replay_state).to have_attributes(state: 'prepared')
 
-      expect(query_schemas).to include(subject.replay_schema_name)
+      expect(query_schemas).to include('replay_schema')
 
-      tables = exec_query('SELECT tablename FROM pg_tables WHERE schemaname = $1', [subject.replay_schema_name]).to_a
+      tables = exec_query('SELECT tablename FROM pg_tables WHERE schemaname = $1', ['replay_schema']).to_a
       expect(tables).to contain_exactly(
         {'tablename' => 'single_records'},
         {'tablename' => 'single_records_p1'},
@@ -128,7 +128,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
 
     it 'should remove the replay schema name' do
-      expect(query_schemas).to_not include(subject.replay_schema_name)
+      expect(query_schemas).to_not include('replay_schema')
     end
 
     it 'should allow preparing for replay again' do
@@ -150,7 +150,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
     it 'should remove the replay schema' do
       subject.abort!
 
-      expect(query_schemas).to_not include(subject.replay_schema_name)
+      expect(query_schemas).to_not include('replay_schema')
       expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'aborted')
     end
   end
@@ -185,7 +185,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
       end
 
       it 'should have replayed to the replay schema table' do
-        expect(record_count(subject.replay_schema_name)).to eq(initial_event_count)
+        expect(record_count('replay_schema')).to eq(initial_event_count)
       end
 
       it 'should not affect the view schema tables' do
@@ -205,7 +205,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
         end
 
         it 'only processes the new events' do
-          expect(record_count(subject.replay_schema_name)).to eq(initial_event_count + incremental_event_count)
+          expect(record_count('replay_schema')).to eq(initial_event_count + incremental_event_count)
         end
 
         it 'can be executed multiple times' do
@@ -214,14 +214,14 @@ describe Sequent::Migrations::ProjectorsReplayer do
           insert_events(extra_event_count)
           subject.perform_incremental_replay
 
-          expect(record_count(subject.replay_schema_name))
+          expect(record_count('replay_schema'))
             .to eq(initial_event_count + incremental_event_count + extra_event_count)
         end
 
         it 'can be executed without any more pending events' do
           subject.perform_incremental_replay
 
-          expect(record_count(subject.replay_schema_name)).to eq(initial_event_count + incremental_event_count)
+          expect(record_count('replay_schema')).to eq(initial_event_count + incremental_event_count)
         end
       end
     end
@@ -278,7 +278,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
         subject.activate!
 
         expect(record_count('view_schema')).to eq(initial_event_count)
-        tables = exec_query('SELECT tablename FROM pg_tables WHERE schemaname = $1', [subject.replay_schema_name]).to_a
+        tables = exec_query('SELECT tablename FROM pg_tables WHERE schemaname = $1', ['replay_schema']).to_a
         expect(tables).to be_empty
       end
     end
@@ -295,7 +295,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
   def in_replay_schema
     transaction do
-      exec_update("SET LOCAL search_path TO #{subject.replay_schema_name}")
+      exec_update('SET LOCAL search_path TO replay_schema')
       yield
     end
   end

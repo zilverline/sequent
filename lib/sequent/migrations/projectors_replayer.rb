@@ -16,7 +16,7 @@ module Sequent
       extend Forwardable
       include EventReplayer
 
-      attr_reader :projector_classes, :managed_tables, :replay_schema_name
+      attr_reader :projector_classes, :managed_tables
 
       def_delegators :connection, :exec_update, :exec_query, :quote_column_name, :quote_string, :quote_table_name
 
@@ -30,7 +30,6 @@ module Sequent
 
         @state = state
         @managed_tables = projector_classes.flat_map(&:managed_tables)
-        @replay_schema_name = 'replay_schema'
       end
 
       def self.create!(projector_classes:)
@@ -239,9 +238,10 @@ module Sequent
         end
       end
 
-      def archive_schema_name = 'archive_schema'
       def event_store_schema_name = Sequent.configuration.event_store_schema_name
       def view_schema_name = Sequent.configuration.view_schema_name
+      def replay_schema_name = Sequent.configuration.replay_schema_name
+      def archive_schema_name = Sequent.configuration.archive_schema_name
 
       def quoted_archive_schema_name = quote_table_name(archive_schema_name)
       def quoted_replay_schema_name = quote_table_name(replay_schema_name)
