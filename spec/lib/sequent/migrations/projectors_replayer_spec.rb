@@ -24,11 +24,15 @@ describe Sequent::Migrations::ProjectorsReplayer do
         aggregate_id uuid NOT NULL PRIMARY KEY,
         serialid bigserial NOT NULL,
         name text NOT NULL
-      ) PARTITION BY HASH (aggregate_id);
+      ) PARTITION BY HASH (aggregate_id)
+    SQL
+    exec_update(<<~SQL)
       CREATE TABLE view_schema.single_records_p1 PARTITION OF view_schema.single_records
-         FOR VALUES WITH (MODULUS 2, REMAINDER 0);
+         FOR VALUES WITH (MODULUS 2, REMAINDER 0)
+    SQL
+    exec_update(<<~SQL)
       CREATE TABLE view_schema.single_records_p2 PARTITION OF view_schema.single_records
-         FOR VALUES WITH (MODULUS 2, REMAINDER 1);
+         FOR VALUES WITH (MODULUS 2, REMAINDER 1)
     SQL
   end
   after do
