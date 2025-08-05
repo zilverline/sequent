@@ -420,7 +420,7 @@ module Sequent
             end
 
             desc 'Abort the current background projector replay, completely deleting the `replay_schema`'
-            task abort: :connect do
+            task abort_replay: :connect do
               replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
               replayer.abort!
             end
@@ -470,7 +470,7 @@ module Sequent
               schema tables are moved to the archive schema). Once the tables have been moved the running system can
               write to the view schema again.
             EOS
-            task activate: :connect do
+            task activate_replayed_projectors: :connect do
               Sequent.logger.info('activating replayed tables')
               replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
               replayer.activate!
