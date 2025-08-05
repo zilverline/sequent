@@ -121,14 +121,15 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
-  context '#done!' do
+  context '#abort!' do
     before do
       subject.prepare_for_replay
-      subject.done!
+      subject.abort!
     end
 
     it 'should remove the replay schema name' do
       expect(query_schemas).to_not include('replay_schema')
+      expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'aborted')
     end
 
     it 'should allow preparing for replay again' do
@@ -139,19 +140,6 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
       new_replay_state = Sequent::Migrations::ReplayState.last
       expect(old_replay_state.id).to_not eq(new_replay_state.id)
-    end
-  end
-
-  context '#abort!' do
-    before do
-      subject.prepare_for_replay
-    end
-
-    it 'should remove the replay schema' do
-      subject.abort!
-
-      expect(query_schemas).to_not include('replay_schema')
-      expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'aborted')
     end
   end
 
@@ -241,6 +229,10 @@ describe Sequent::Migrations::ProjectorsReplayer do
       before do
         insert_events(initial_event_count)
         subject.perform_initial_replay
+      end
+
+      after do
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'done')
       end
 
       it 'incrementally replays the events within the transaction' do

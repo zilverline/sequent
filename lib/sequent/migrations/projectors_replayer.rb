@@ -25,7 +25,7 @@ module Sequent
 
         @projector_classes = state.projectors.map { |p| Class.const_get(p) }
         if (unsupported = @projector_classes.reject { |p| p < Sequent::Core::Projector }).present?
-          fail ArgumentError, "unsupported projectors #{unsupported.join(', ')}"
+          fail ArgumentError, "unsupported projector(s) #{unsupported.join(', ')}"
         end
 
         @state = state
@@ -85,7 +85,10 @@ module Sequent
         raise
       end
 
-      def perform_initial_replay
+      def perform_initial_replay(
+        replay_group_target_size: Sequent.configuration.replay_group_target_size,
+        number_of_replay_processes: Sequent.configuration.number_of_replay_processes
+      )
         maximum_xact_id_exclusive = with_locked_state do
           fail 'initial replay can only be performed when current state is `prepared`' unless @state.state == 'prepared'
 
@@ -108,6 +111,8 @@ module Sequent
           minimum_xact_id_inclusive: nil,
           maximum_xact_id_exclusive: maximum_xact_id_exclusive,
           with_group:,
+          replay_group_target_size:,
+          number_of_replay_processes:,
         )
 
         with_locked_state do
@@ -122,7 +127,10 @@ module Sequent
         raise
       end
 
-      def perform_incremental_replay
+      def perform_incremental_replay(
+        replay_group_target_size: Sequent.configuration.replay_group_target_size,
+        number_of_replay_processes: Sequent.configuration.number_of_replay_processes
+      )
         maximum_xact_id_exclusive = with_locked_state do
           unless @state.state == 'ready_for_activation'
             fail 'incremental replay can only be performed when current state is `ready_for_activation`'
@@ -140,6 +148,8 @@ module Sequent
           minimum_xact_id_inclusive: @state.continue_replay_at_xact_id,
           maximum_xact_id_exclusive: maximum_xact_id_exclusive,
           with_group:,
+          replay_group_target_size:,
+          number_of_replay_processes:,
         )
 
         with_locked_state do
@@ -254,6 +264,7 @@ module Sequent
       # Adapted from https://github.com/rails/rails/blob/main/activerecord/lib/active_record/tasks/postgresql_database_tasks.rb#L80
       def psql_env
         {}.tap do |env|
+          db_config = ActiveRecord::Base.connection_db_config.configuration_hash
           env['PGHOST'] = db_config[:host] if db_config[:host]
           env['PGDATABASE'] = db_config[:database] if db_config[:database]
           env['PGPORT'] = db_config[:port].to_s if db_config[:port]

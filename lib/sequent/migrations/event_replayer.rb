@@ -27,10 +27,11 @@ module Sequent
         projector_classes:,
         minimum_xact_id_inclusive: nil,
         maximum_xact_id_exclusive: nil,
-        with_group: ->(_group, _index, &block) { block.call }
+        with_group: ->(_group, _index, &block) { block.call },
+        replay_group_target_size: Sequent.configuration.replay_group_target_size,
+        number_of_replay_processes: Sequent.configuration.number_of_replay_processes
       )
         event_types = projector_classes.flat_map { |p| p.message_mapping.keys }.uniq.map(&:name)
-        group_target_size = Sequent.configuration.replay_group_target_size
         event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
 
         partitions_query = Internal::PartitionedEvent.where(event_type_id: event_type_ids)
@@ -39,7 +40,7 @@ module Sequent
         partitions = partitions_query.group(:partition_key).order(:partition_key).count
         event_count = partitions.values.sum
 
-        groups = Sequent::Migrations::Grouper.group_partitions(partitions, group_target_size)
+        groups = Sequent::Migrations::Grouper.group_partitions(partitions, replay_group_target_size)
 
         if groups.empty?
           groups = [nil..nil]
@@ -58,7 +59,7 @@ module Sequent
             # using `map_with_index` because https://github.com/grosser/parallel/issues/175
             result = Parallel.map_with_index(
               groups,
-              in_processes: Sequent.configuration.number_of_replay_processes,
+              in_processes: number_of_replay_processes,
             ) do |group, index|
               @connected ||= establish_connection
               with_group.call(group, index) do
