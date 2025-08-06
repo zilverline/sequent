@@ -27,10 +27,10 @@ module Sequent
       end
 
       def copy_files
-        FileUtils.copy_entry(File.expand_path('template_project', __dir__), path)
         ['.ruby-version', 'db'].each do |file|
           FileUtils.copy_entry(File.expand_path("../../../#{file}", __dir__), "#{path}/#{file}")
         end
+        FileUtils.copy_entry(File.expand_path('template_project', __dir__), path)
       end
 
       def rename_app_file

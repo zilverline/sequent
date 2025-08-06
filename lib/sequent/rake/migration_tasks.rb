@@ -16,8 +16,7 @@ module Sequent
       include ActiveRecord::Tasks
 
       def db_config
-        DatabaseTasks.db_dir = Sequent.configuration.database_schema_directory unless defined?(Rails)
-        Sequent::Support::Database.read_database_config(@env)
+        ActiveRecord::Base.configurations.find_db_config(@env)
       end
 
       def register_tasks!
@@ -40,7 +39,7 @@ module Sequent
 
           task connect: :init do
             ensure_sequent_env_set!
-            Sequent::Support::Database.establish_connection(db_config)
+            ActiveRecord::Base.establish_connection(@env.to_sym)
           end
 
           namespace :install do
@@ -129,7 +128,6 @@ module Sequent
                 EOS
               end
 
-              db_config = Sequent::Support::Database.read_config(@env)
               Sequent::Support::Database.drop!(db_config)
             end
 
@@ -160,6 +158,8 @@ module Sequent
               Rake task that runs before all migrate rake tasks. Hook applications can use to for instance run other rake tasks.
             EOS
             task :init
+
+            task connect: %i[sequent:connect init]
 
             desc 'Prints the current version in the database'
             task current_version: [:create_and_migrate_sequent_view_schema] do
@@ -236,24 +236,20 @@ module Sequent
             desc <<~EOS
               Migrates the Projectors while the app is running. Call +sequent:migrate:offline+ after this successfully completed.
             EOS
-            task online: ['sequent:init', :init] do
+            task online: :connect do
               ensure_sequent_env_set!
 
-              db_config = Sequent::Support::Database.read_config(@env)
-              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
-
+              view_schema = Sequent::Migrations::ViewSchema.new
               view_schema.migrate_online
             end
 
             desc <<~EOS
               Migrates the events inserted while +online+ was running. It is expected +sequent:migrate:online+ ran first.
             EOS
-            task offline: ['sequent:init', :init] do
+            task offline: :connect do
               ensure_sequent_env_set!
 
-              db_config = Sequent::Support::Database.read_config(@env)
-              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
-
+              view_schema = Sequent::Migrations::ViewSchema.new
               view_schema.migrate_offline
             end
 
@@ -262,12 +258,10 @@ module Sequent
 
               Pass a regular expression as parameter to select the projectors to run, otherwise all projectors are selected.
             EOS
-            task :dryrun, %i[regex group_target_size] => ['sequent:init', :init] do |_task, args|
+            task :dryrun, %i[regex group_target_size] => :connect do |_task, args|
               ensure_sequent_env_set!
 
-              db_config = Sequent::Support::Database.read_config(@env)
-              view_schema = Sequent::DryRun::ViewSchema.new(db_config: db_config)
-
+              view_schema = Sequent::DryRun::ViewSchema.new
               Sequent.configuration.replay_group_target_size = group_target_size
 
               view_schema.migrate_dryrun(regex: args[:regex])
@@ -279,7 +273,7 @@ module Sequent
               Use this after adding new unique key constraints to an aggregate to ensure every aggregate's unique keys
               are present in the database.
             EOS
-            task :unique_keys, %i[aggregate_type group_size] => ['sequent:init', :init] do |_task, args|
+            task :unique_keys, %i[aggregate_type group_size] => :connect do |_task, args|
               count = 0
               Sequent.configuration.event_store.event_streams_enumerator(
                 aggregate_type: args[:aggregate_type],
@@ -302,12 +296,7 @@ module Sequent
             EOS
             task :init
 
-            task connect: ['sequent:init', :init, :set_env_var] do
-              ensure_sequent_env_set!
-
-              db_config = Sequent::Support::Database.read_config(@env)
-              Sequent::Support::Database.establish_connection(db_config)
-            end
+            task connect: %i[sequent:connect init]
 
             desc <<~EOS
               Rake task to apply pending partition key changes to the event store. This task cannot be run while a view schema
@@ -339,14 +328,7 @@ module Sequent
             EOS
             task :init
 
-            task connect: ['sequent:init', :init, :set_env_var] do
-              ensure_sequent_env_set!
-
-              Sequent.configuration.command_handlers << Sequent::Core::AggregateSnapshotter.new
-
-              db_config = Sequent::Support::Database.read_config(@env)
-              Sequent::Support::Database.establish_connection(db_config)
-            end
+            task connect: %i[sequent:connect init]
 
             desc <<~EOS
               Takes up-to `limit` snapshots, starting with the highest priority aggregates (based on snapshot outdated time and number of events)
@@ -406,7 +388,7 @@ module Sequent
 
       # rubocop:disable Naming/MemoizedInstanceVariableName
       def ensure_sequent_env_set!
-        @env ||= ENV['SEQUENT_ENV'] || fail('SEQUENT_ENV not set')
+        @env ||= Sequent.env || fail('SEQUENT_ENV not set')
       end
       # rubocop:enable Naming/MemoizedInstanceVariableName
     end

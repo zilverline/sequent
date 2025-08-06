@@ -13,25 +13,17 @@ module Sequent
     class Database
       include ActiveRecord::Tasks
 
-      attr_reader :db_config
-
       def self.connect!(env)
-        db_config = read_config(env)
-        establish_connection(db_config)
+        ActiveRecord::Base.establish_connection(env&.to_sym)
       end
 
       def self.read_database_config(env)
         fail ArgumentError, 'env is mandatory' unless env
 
-        DatabaseTasks.db_dir = Sequent.configuration.database_schema_directory unless defined?(Rails)
-        database_yml = File.join(Sequent.configuration.database_config_directory, 'database.yml')
-        config = YAML.safe_load(ERB.new(File.read(database_yml)).result, aliases: true)[env]
-        ActiveRecord::Base.configurations.resolve(config)
+        ActiveRecord::Base.configurations.find_db_config(env)
       end
 
-      def self.read_config(env)
-        read_database_config(env).configuration_hash.with_indifferent_access
-      end
+      def self.read_config(env) = read_database_config(env)
 
       def self.create!(db_config)
         DatabaseTasks.create(db_config)
@@ -41,15 +33,8 @@ module Sequent
         DatabaseTasks.drop(db_config)
       end
 
-      def self.establish_connection(db_config)
-        if Sequent.configuration.can_use_multiple_databases?
-          ActiveRecord::Base.configurations = db_config.stringify_keys
-          ActiveRecord::Base.connects_to database: {
-            Sequent.configuration.primary_database_role => Sequent.configuration.primary_database_key,
-          }
-        else
-          ActiveRecord::Base.establish_connection(db_config)
-        end
+      def self.establish_connection(db_config_or_env = Sequent.env&.to_sym)
+        ActiveRecord::Base.establish_connection(db_config_or_env)
       end
 
       def self.disconnect!

@@ -16,6 +16,8 @@ module Sequent
     Sequent.configuration.uuid_generator.uuid
   end
 
+  def self.env = ENV['SEQUENT_ENV'] || ENV['RAILS_ENV'] || ENV['RACK_ENV']
+
   #
   # Setup Sequent.
   #

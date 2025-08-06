@@ -74,10 +74,6 @@ describe Sequent::Generator::Project do
     )
 
     Bundler.with_unbundled_env do
-      # Change default database configuration
-      Sequent.configuration.database_config_directory = File.join(path, 'db')
-      Database.write_database_yml_for_test(env: 'test', database_name: 'blog_with_special_symbols_test')
-
       system 'bash', '-cex', <<~SCRIPT
         cd blog-with_special-symbols
         export SEQUENT_ENV=test

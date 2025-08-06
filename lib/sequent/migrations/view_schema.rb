@@ -65,7 +65,7 @@ module Sequent
       include Sequent::Util::Printer
       include Sql
 
-      attr_reader :view_schema, :db_config, :logger
+      attr_reader :view_schema, :logger
 
       class << self
         # @see #create_view_tables
@@ -73,9 +73,8 @@ module Sequent
         def create_view_tables(env:)
           fail ArgumentError, 'env is required' if env.blank?
 
-          db_config = Sequent::Support::Database.read_config(env)
-          Sequent::Support::Database.establish_connection(db_config)
-          new(db_config: db_config).create_view_tables
+          Sequent::Support::Database.establish_connection(env.to_sym)
+          new.create_view_tables
         end
 
         # @see #create_view_schema_if_not_exists
@@ -83,15 +82,13 @@ module Sequent
         def create_view_schema_if_not_exists(env:)
           fail ArgumentError, 'env is required' if env.blank?
 
-          db_config = Sequent::Support::Database.read_config(env)
-          Sequent::Support::Database.establish_connection(db_config)
+          Sequent::Support::Database.establish_connection(env.to_sym)
 
-          new(db_config: db_config).create_view_schema_if_not_exists
+          new.create_view_schema_if_not_exists
         end
       end
 
-      def initialize(db_config:)
-        @db_config = db_config
+      def initialize
         @view_schema = Sequent.configuration.view_schema_name
         @logger = Sequent.logger
       end
@@ -507,13 +504,8 @@ module Sequent
       end
 
       ## shortcut methods
-      def disconnect!
-        Sequent::Support::Database.disconnect!
-      end
-
-      def establish_connection
-        Sequent::Support::Database.establish_connection(db_config)
-      end
+      def disconnect! = Sequent::Support::Database.disconnect!
+      def establish_connection = Sequent::Support::Database.establish_connection
     end
   end
 end
