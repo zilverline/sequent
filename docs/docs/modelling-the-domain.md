@@ -425,29 +425,6 @@ end
 When we run this spec we get the following error message:
 
 ```text
-RuntimeError:
-  Cannot find aggregate type associated with creation event {AuthorAdded: ...}, did you include an event handler in your aggregate for this event?
-```
-
-Sequent requires us to define an event handler in the Aggregate for at least the creation event, otherwise Sequent is
-not able to find an Aggregate in the repository.
-
-So let's change our aggregate to satisfy this demand.
-
-Add to `Author` in `lib/author/author.rb`
-
-```ruby
-class Author < Sequent::AggregateRoot
-  ...
-
-  on AuthorCreated do
-  end
-end
-```
-
-Running the test case again results in the following error:
-
-```text
 expected Sequent::Core::AggregateKeyNotUniqueError but nothing was raised
 ```
 
