@@ -35,7 +35,7 @@ module Sequent
       # Adds the given aggregate to the repository (or unit of work).
       #
       # Only when +commit+ is called all aggregates in the unit of work are 'processed'
-      # and all uncammited_events are stored in the +event_store+
+      # and all uncommited_events are stored in the +event_store+
       #
       def add_aggregate(aggregate)
         existing = aggregates[aggregate.id]

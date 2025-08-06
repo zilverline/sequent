@@ -27,7 +27,7 @@ module Sequent
           prompt.say(<<~EOS)
             Success!
 
-            Your brand spanking new sequent app is waiting for you in:
+            Your brand new sparkling sequent app is waiting for you in:
               #{File.expand_path(project_name, Dir.pwd)}
 
             To finish setting up your app:
