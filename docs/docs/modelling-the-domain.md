@@ -431,7 +431,7 @@ expected Sequent::Core::AggregateKeyNotUniqueError but nothing was raised
 This is as expected, since we haven't told Sequent about this unique
 constraint yet. So to enforce uniqueness of the author's username
 define it as a unique key on the `Author` aggregate by adding the
-following declarations to the `Author`:
+following declarations to the `Author` in `lib/author/author.rb` file:
 
 ```ruby
 attr_reader :email
