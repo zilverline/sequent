@@ -30,7 +30,7 @@ module Sequent
       #
       class ActiveRecordTransactionProvider
         def transactional(&block)
-          Sequent::ApplicationRecord.transaction(requires_new: true, &block)
+          ActiveRecord::Base.transaction(requires_new: true, &block)
         end
 
         def after_commit(&block)
