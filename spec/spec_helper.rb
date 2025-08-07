@@ -20,16 +20,26 @@ require_relative 'database'
 ActiveRecord::Tasks::DatabaseTasks.db_dir = 'db'
 
 RSpec.configure do |c|
+  c.before(:suite) do
+    env = Sequent.env
+    ActiveRecord::Base.configurations = {env => Database.test_config}
+    ActiveRecord::Base.establish_connection(env.to_sym)
+    Sequent::Support::Database.drop_schema!(Sequent.configuration.view_schema_name)
+  end
+
   c.before do
     env = Sequent.env
 
     Timecop.return
     Sequent::Configuration.reset
 
+    Sequent::Support::Database.disconnect!
     ActiveRecord::Base.configurations = {env => Database.test_config}
     ActiveRecord::Base.establish_connection(env.to_sym)
     Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env:)
-    ActiveRecord::Base.connection.execute('TRUNCATE commands, aggregates, saved_event_records CASCADE')
+    ActiveRecord::Base.connection.execute(<<~SQL)
+      TRUNCATE commands, aggregates, saved_event_records, projector_states CASCADE
+    SQL
   end
 
   def exec_sql(sql)

@@ -53,7 +53,7 @@ module Sequent
       end
 
       def self.drop_schema!(schema_name)
-        execute_sql "DROP SCHEMA if exists #{schema_name} cascade"
+        execute_sql "DROP SCHEMA IF EXISTS #{schema_name} CASCADE"
       end
 
       def self.with_search_path(search_path)

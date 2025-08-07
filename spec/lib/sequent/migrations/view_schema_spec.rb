@@ -24,6 +24,7 @@ describe Sequent::Migrations::ViewSchema do
     )
   end
   before(:each) do
+    Sequent::Support::Database.disconnect!
     @original_config = ActiveRecord::Base.configurations
     Sequent::Support::Database.create!(db_config)
     ActiveRecord::Base.configurations = {'test' => db_config}
