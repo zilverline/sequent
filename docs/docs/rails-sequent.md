@@ -91,11 +91,6 @@ Sequent::Rake::MigrationTasks.new.register_tasks!
 # the sequent initializer - which is required to run these rake tasks -
 # doesn't run
 task 'sequent:init' => [:environment]
-task 'sequent:migrate:init' => [:sequent_db_connect]
-
-task 'sequent_db_connect' do
- Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
-end
 ```
 
 #### Database schema format
