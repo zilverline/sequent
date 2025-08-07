@@ -17,14 +17,6 @@ module Sequent
         ActiveRecord::Base.establish_connection(env&.to_sym)
       end
 
-      def self.read_database_config(env)
-        fail ArgumentError, 'env is mandatory' unless env
-
-        ActiveRecord::Base.configurations.find_db_config(env)
-      end
-
-      def self.read_config(env) = read_database_config(env)
-
       def self.create!(db_config)
         DatabaseTasks.create(db_config)
       end

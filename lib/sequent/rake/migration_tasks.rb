@@ -198,10 +198,9 @@ module Sequent
             desc <<-EOS
               Shows the current status of the migrations
             EOS
-            task status: ['sequent:init', :init] do
+            task status: :connect do
               ensure_sequent_env_set!
-              db_config = Sequent::Support::Database.read_config(@env)
-              view_schema = Sequent::Migrations::ViewSchema.new(db_config: db_config)
+              view_schema = Sequent::Migrations::ViewSchema.new
 
               latest_done_version = Sequent::Migrations::Versions.done.latest
               latest_version = Sequent::Migrations::Versions.latest
