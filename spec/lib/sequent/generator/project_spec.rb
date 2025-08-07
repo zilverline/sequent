@@ -78,6 +78,8 @@ describe Sequent::Generator::Project do
         cd blog-with_special-symbols
         export SEQUENT_ENV=test
         export BUNDLE_GEMFILE=./Gemfile
+        export PGUSER=sequent
+        export PGPASSWORD=sequent
 
         ruby_version=$(ruby -v | awk '{print $2}' | grep -o '^[0-9.]*')
         echo "$ruby_version" > .ruby-version
