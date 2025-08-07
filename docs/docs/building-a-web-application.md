@@ -248,18 +248,16 @@ psql blog_development
 ```
 1. Execute the query:
 ```sql
-select aggregate_id, sequence_number, event_type from sequent_schema.event_records order by id, sequence_number;
+select aggregate_id, sequence_number, event_type from sequent_schema.event_records order by aggregate_id, sequence_number;
 ```
 1. This should display:
 ```text
                 aggregate_id             | sequence_number |    event_type
 --------------------------------------+-----------------+------------------
- 85507d60-8645-4a8a-bdb8-3a9c86a0c635 |               1 | UsernamesCreated
- 85507d60-8645-4a8a-bdb8-3a9c86a0c635 |               2 | UsernameAdded
- a8b1a534-f50b-4173-a73b-5b4a8bbcdd12 |               1 | AuthorCreated
+ a8b1a534-f50b-4173-a73b-5b4a8bbcdd12 |               1 | AuthorAdded
  a8b1a534-f50b-4173-a73b-5b4a8bbcdd12 |               2 | AuthorNameSet
  a8b1a534-f50b-4173-a73b-5b4a8bbcdd12 |               3 | AuthorEmailSet
-(5 rows)
+(3 rows)
 ```
 {: .no-copy}
 
@@ -311,7 +309,7 @@ require_relative '../../lib/author/events'
 class AuthorProjector < Sequent::Projector
   manages_tables AuthorRecord
 
-  on AuthorCreated do |event|
+  on AuthorAdded do |event|
     create_record(
       AuthorRecord,
       aggregate_id: event.aggregate_id

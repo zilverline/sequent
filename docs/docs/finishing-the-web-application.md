@@ -212,7 +212,7 @@ So to summarize, when creating a web application:
 ### Handling Errors outside Command Validation
 
 What about errors that occur outside Command validation? Remember that we enforce uniqueness of email addresses in the 
-`Usernames` AggregateRoot. This will raise a `Usernames::UsernameAlreadyRegistered` error and is not rescued in our 
+`Authors` AggregateRoot. This will raise a `Sequent::Core::AggregateKeyNotUniqueError` error and is not rescued in our 
 web application.
 
 Again, this is not something that Sequent handles for you, since it is not a web framework. It is however not that hard
@@ -231,7 +231,7 @@ post '/authors' do
 rescue Sequent::Core::CommandNotValid => e
   @errors = e.errors
   erb :index
-rescue Usernames::UsernameAlreadyRegistered
+rescue Sequent::Core::AggregateKeyNotUniqueError
   @errors = {email: ['already registered, please choose another']}
   erb :index
 end

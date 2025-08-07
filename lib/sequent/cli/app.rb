@@ -27,13 +27,13 @@ module Sequent
           prompt.say(<<~EOS)
             Success!
 
-            Your brand spanking new sequent app is waiting for you in:
+            Your brand new sparkling sequent app is waiting for you in:
               #{File.expand_path(project_name, Dir.pwd)}
 
             To finish setting up your app:
               cd #{project_name}
               bundle install
-              bundle exec rake sequent:db:create
+              bundle exec rake sequent:db:migrate
               bundle exec rake sequent:db:create_view_schema
               bundle exec rake sequent:migrate:online
               bundle exec rake sequent:migrate:offline

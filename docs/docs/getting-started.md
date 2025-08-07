@@ -124,8 +124,7 @@ Now let's finish our setup by installing the gems and preparing the database:
 
 ```bash
 bundle install
-bundle exec rake sequent:db:create
-SEQUENT_ENV=test bundle exec rake sequent:db:create
+bundle exec rake sequent:db:migrate
 bundle exec rake sequent:db:create_view_schema
 bundle exec rake sequent:migrate:online
 bundle exec rake sequent:migrate:offline
@@ -139,6 +138,10 @@ bundle exec rake sequent:db:create_event_store
 bundle exec rake sequent:db:create_view_schema
 bundle exec rake sequent:migrate:online
 bundle exec rake sequent:migrate:offline
+```
+To set up the test database used for running tests locally use:
+```bash
+SEQUENT_ENV=test bundle exec rake sequent:db:create
 ```
 
 Your Sequent app is ready to rock!
