@@ -248,7 +248,7 @@ psql blog_development
 ```
 1. Execute the query:
 ```sql
-select aggregate_id, sequence_number, event_type from sequent_schema.event_records;
+select aggregate_id, sequence_number, event_type from sequent_schema.event_records order by aggregate_id, sequence_number;
 ```
 1. This should display:
 ```text

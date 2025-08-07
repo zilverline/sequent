@@ -33,7 +33,6 @@ module Sequent
             To finish setting up your app:
               cd #{project_name}
               bundle install
-              bundle exec rake sequent:db:create
               bundle exec rake sequent:db:migrate
               bundle exec rake sequent:db:create_view_schema
               bundle exec rake sequent:migrate:online
