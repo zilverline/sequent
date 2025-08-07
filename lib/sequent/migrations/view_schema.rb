@@ -352,6 +352,7 @@ module Sequent
           logger.info "Start replaying #{event_count} events in #{groups.size} groups"
 
           time("#{event_count} events in #{groups.size} groups replayed") do
+            db_config = ActiveRecord::Base.connection_db_config
             disconnect!
 
             @connected = false
@@ -360,7 +361,7 @@ module Sequent
               groups,
               in_processes: Sequent.configuration.number_of_replay_processes,
             ) do |group, index|
-              @connected ||= establish_connection
+              @connected ||= establish_connection(db_config)
               msg = <<~EOS.chomp
                 Group #{group} (#{index + 1}/#{groups.size}) replayed
               EOS
@@ -380,7 +381,7 @@ module Sequent
               recursively_print(e)
               raise Parallel::Kill # immediately kill all sub-processes
             end
-            establish_connection
+            establish_connection(db_config)
             fail if result.nil?
           end
         end
@@ -405,8 +406,6 @@ module Sequent
       end
 
       def rollback_migration
-        disconnect!
-        establish_connection
         drop_old_tables(Sequent.new_version)
 
         executor.reset_table_names(plan)
@@ -505,7 +504,7 @@ module Sequent
 
       ## shortcut methods
       def disconnect! = Sequent::Support::Database.disconnect!
-      def establish_connection = Sequent::Support::Database.establish_connection
+      def establish_connection(...) = Sequent::Support::Database.establish_connection(...)
     end
   end
 end
