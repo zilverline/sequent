@@ -1,0 +1,9 @@
+---
+test:
+  adapter: postgresql
+  host: localhost
+  username: sequent
+  password: sequent
+  database: sequent_spec_db
+  schema_search_path: public,view_schema,sequent_schema
+  advisory_locks: false

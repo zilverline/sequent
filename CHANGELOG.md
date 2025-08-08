@@ -1,4 +1,23 @@
-# Changelog 8.x
+# Changelog 9.x
+
+- Database connection management has been removed from Sequent and
+  must be provided by the hosting application. This is done
+  automatically by Rails and can be done using the
+  `sinatra-activerecord` gem if you are using Sinatra.
+
+  Otherwise you can add code like:
+
+  ```ruby
+  ActiveRecord::Base.configurations = YAML.load_file(
+    'db/database.yml',
+    aliases: true,
+  )
+  ActiveRecord::Base.establish_connection(Sequent.env&.to_sym)
+  ```
+
+  The Sequent configuration options `database_config_directory`,
+  `database_schema_directory`, `primary_database_key`, and
+  `primary_database_role` have been removed.
 
 - To prepare for rolling upgrades of Sequent based applications the
   snapshot of an aggregate can now be versioned. This means that

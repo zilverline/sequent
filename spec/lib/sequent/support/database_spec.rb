@@ -9,22 +9,16 @@ require 'sequent/support'
 describe Sequent::Support::Database do
   let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
-    if Sequent.configuration.enable_multiple_database_support
-      Database
-        .test_config
-        .deep_merge(Sequent.configuration.primary_database_key => {'database' => database_name}).stringify_keys
-    else
-      Database.test_config.merge(
-        'database' => database_name,
-      )
-    end
+    Database.test_config.merge(
+      'database' => database_name,
+    )
   end
   let(:resolved_config) do
     ActiveRecord::Base.configurations = ActiveRecord::DatabaseConfigurations.new(test: db_config)
     ActiveRecord::Base.configurations.resolve(:test)
   end
 
-  shared_examples 'class methods' do
+  describe 'class methods' do
     describe '.create' do
       after do
         Sequent::Support::Database.disconnect!
@@ -74,43 +68,17 @@ describe Sequent::Support::Database do
           .to eq('public, view_schema, sequent_schema')
       end
     end
-
-    describe '.read_config' do
-      let(:test_config) do
-        File.join(Sequent.configuration.database_config_directory, 'database.yml')
-      end
-      before do
-        Sequent.configuration.database_config_directory = 'tmp'
-        if Sequent.configuration.enable_multiple_database_support
-          db_config = {}
-          db_config[Sequent.configuration.primary_database_key.to_s] =
-            Database.test_config[Sequent.configuration.primary_database_key.to_s].to_h
-          db_config = db_config.to_h
-          File.write(test_config, {'test' => db_config}.to_yaml)
-        else
-          File.write(test_config, {'test' => Database.test_config.to_h}.to_yaml)
-        end
-      end
-      # after { File.delete(test_config) }
-
-      it 'works' do
-        expect(Sequent::Support::Database.read_config('test')).to be
-      end
-    end
   end
 
-  describe 'class methods' do
-    context 'with multiple database support' do
-      before { Sequent.configuration.enable_multiple_database_support = true }
-      include_examples 'class methods'
-      after { Sequent.configuration.enable_multiple_database_support = false }
-    end
-    context 'no multiple database support' do
-      include_examples 'class methods'
-    end
-  end
+  describe 'instance methods' do
+    subject(:database) { Sequent::Support::Database.new }
 
-  shared_examples 'instance methods' do
+    before do
+      Sequent::Support::Database.create!(resolved_config)
+      Sequent::Support::Database.establish_connection(db_config)
+    end
+    after { Sequent::Support::Database.drop!(resolved_config) }
+
     describe '#create_schema!' do
       before do
         Sequent::ApplicationRecord.connection.execute('DROP SCHEMA IF EXISTS eventstore CASCADE')
@@ -148,30 +116,6 @@ describe Sequent::Support::Database do
     end
   end
 
-  describe 'instance methods' do
-    subject(:database) { Sequent::Support::Database.new }
-    context 'with multiple database support' do
-      before do
-        Sequent.configuration.enable_multiple_database_support = true
-        Sequent::Support::Database.create!(resolved_config)
-        Sequent::Support::Database.establish_connection(db_config)
-      end
-      after { Sequent::Support::Database.drop!(resolved_config) }
-      after :all do
-        Sequent.configuration.enable_multiple_database_support = false
-      end
-      include_examples 'instance methods'
-    end
-    context 'no multiple database support' do
-      before do
-        Sequent::Support::Database.create!(resolved_config)
-        Sequent::Support::Database.establish_connection(db_config)
-      end
-      after { Sequent::Support::Database.drop!(resolved_config) }
-      include_examples 'instance methods'
-    end
-  end
-
   describe 'connection options' do
     let(:test_config) { Database.test_config }
     let(:db_config) do
@@ -191,36 +135,6 @@ describe Sequent::Support::Database do
       expect(Sequent::ApplicationRecord.connection).to be_active
       expect(Sequent::ApplicationRecord.connection.schema_search_path.gsub(' ', ''))
         .to eq test_config['schema_search_path'].gsub(' ', '')
-    end
-
-    context 'multiple database support' do
-      before { Sequent.configuration.enable_multiple_database_support = true }
-      after { Sequent.configuration.enable_multiple_database_support = false }
-      let(:test_config) { Database.test_config[Sequent.configuration.primary_database_key] }
-      let(:db_config) do
-        {
-          Sequent.configuration.primary_database_key => {
-            'url' => <<~EOS.chomp,
-              postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}
-            EOS
-            'schema_search_path' => test_config['schema_search_path'],
-          },
-          'replica' => {
-            'replica' => true,
-            'url' => <<~EOS.chomp,
-              postgresql://#{test_config['username']}:#{test_config['password']}@#{test_config['host']}:5432/#{test_config['database']}
-            EOS
-            'schema_search_path' => test_config['schema_search_path'],
-          },
-        }
-      end
-      it 'connects using an url option' do
-        Sequent::Support::Database.establish_connection(db_config)
-        Sequent::ApplicationRecord.connection.reconnect!
-        expect(Sequent::ApplicationRecord.connection).to be_active
-        expect(Sequent::ApplicationRecord.connection.schema_search_path.gsub(' ', ''))
-          .to eq test_config['schema_search_path'].gsub(' ', '')
-      end
     end
   end
 

@@ -6,7 +6,7 @@ module Sequent
       ALLOWED_ENVS = %w[development test spec].freeze
 
       class << self
-        # Utility method to let Sequent handle creation of sequent_schema and view_schema
+        # Utility method to let Sequent handle creation of the view_schema
         # rather than using the available rake tasks.
         def maintain_test_database_schema(env: 'test')
           fail ArgumentError, "env must one of [#{ALLOWED_ENVS.join(',')}] '#{env}'" unless ALLOWED_ENVS.include?(env)

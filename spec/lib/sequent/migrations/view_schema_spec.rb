@@ -16,8 +16,7 @@ describe Sequent::Migrations::ViewSchema do
     end
   end
 
-  let(:opts) { {db_config: db_config} }
-  let(:migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
+  let(:migrator) { Sequent::Migrations::ViewSchema.new }
   let(:database_name) { Sequent.new_uuid }
   let(:db_config) do
     Database.test_config.merge(
@@ -25,24 +24,19 @@ describe Sequent::Migrations::ViewSchema do
     )
   end
   before(:each) do
-    @original_config = Sequent.configuration.database_config_directory
-    Sequent.configuration.database_config_directory = "tmp/view_schema_spec/#{database_name}"
-    Database.write_database_yml_for_test(env: 'test', database_name: database_name)
+    Sequent::Support::Database.disconnect!
+    @original_config = ActiveRecord::Base.configurations
+    Sequent::Support::Database.create!(db_config)
+    ActiveRecord::Base.configurations = {'test' => db_config}
+    ActiveRecord::Base.establish_connection(:test)
   end
 
   after(:each) do
     FileUtils.rm_rf('tmp/view_schema_spec')
 
-    Sequent.configuration.database_config_directory = @original_config
-  end
-
-  before do
-    Sequent::Support::Database.create!(db_config)
-    ActiveRecord::Base.establish_connection(db_config)
-  end
-  after do
-    Sequent::Support::Database.drop!(db_config)
     Sequent::Support::Database.disconnect!
+    Sequent::Support::Database.drop!(db_config)
+    ActiveRecord::Base.configurations = @original_config if @original_config
   end
 
   let(:view_schema) { Sequent.configuration.view_schema_name }
@@ -257,7 +251,7 @@ describe Sequent::Migrations::ViewSchema do
           migrator.migrate_offline # to version 1
         end
 
-        let(:new_migrator) { Sequent::Migrations::ViewSchema.new(**opts) }
+        let(:new_migrator) { Sequent::Migrations::ViewSchema.new }
 
         it 'does not replay with only alter tables' do
           Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'
@@ -474,7 +468,7 @@ describe Sequent::Migrations::ViewSchema do
         SpecMigrations.copy_and_add('2', [FooProjector, Sequent::Migrations.alter_table(AccountRecord)])
         SpecMigrations.version = 2
 
-        new_migrator = Sequent::Migrations::ViewSchema.new(**opts)
+        new_migrator = Sequent::Migrations::ViewSchema.new
 
         new_migrator.migrate_online
         expect(Sequent::Core::Projectors.projector_states).to match(
@@ -510,7 +504,7 @@ describe Sequent::Migrations::ViewSchema do
           config.online_replay_persistor_class = Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor
         end
       end
-      let(:next_migration) { Sequent::Migrations::ViewSchema.new(**opts) }
+      let(:next_migration) { Sequent::Migrations::ViewSchema.new }
 
       before :each do
         migrator.create_view_schema_if_not_exists
@@ -584,7 +578,7 @@ describe Sequent::Migrations::ViewSchema do
       context 'with an existing view schema' do
         let(:account_id) { Sequent.new_uuid }
         let(:message_id) { Sequent.new_uuid }
-        let(:next_migration) { Sequent::Migrations::ViewSchema.new(**opts) }
+        let(:next_migration) { Sequent::Migrations::ViewSchema.new }
 
         before :each do
           insert_events('Account', [AccountCreated.new(aggregate_id: account_id, sequence_number: 1)])

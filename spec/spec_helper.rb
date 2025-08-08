@@ -17,17 +17,29 @@ SimpleCov.start if ENV['COVERAGE']
 
 require_relative 'database'
 
-Sequent.configuration.database_config_directory = 'tmp'
-Database.write_database_yml_for_test(env: ENV['SEQUENT_ENV'])
-Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: ENV['SEQUENT_ENV'])
+ActiveRecord::Tasks::DatabaseTasks.db_dir = 'db'
 
 RSpec.configure do |c|
+  c.before(:suite) do
+    env = Sequent.env
+    ActiveRecord::Base.configurations = {env => Database.test_config}
+    ActiveRecord::Base.establish_connection(env.to_sym)
+    Sequent::Support::Database.drop_schema!(Sequent.configuration.view_schema_name)
+  end
+
   c.before do
+    env = Sequent.env
+
     Timecop.return
-    Database.establish_connection
-    Sequent::ApplicationRecord.connection.execute('TRUNCATE commands, aggregates, saved_event_records CASCADE')
     Sequent::Configuration.reset
-    Sequent.configuration.database_config_directory = 'tmp'
+
+    Sequent::Support::Database.disconnect!
+    ActiveRecord::Base.configurations = {env => Database.test_config}
+    ActiveRecord::Base.establish_connection(env.to_sym)
+    Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env:)
+    ActiveRecord::Base.connection.execute(<<~SQL)
+      TRUNCATE commands, aggregates, saved_event_records, projector_states CASCADE
+    SQL
   end
 
   def exec_sql(sql)

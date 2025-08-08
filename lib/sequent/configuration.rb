@@ -19,8 +19,6 @@ module Sequent
     DEFAULT_VERSIONS_TABLE_NAME = 'sequent_versions'
 
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
-    DEFAULT_DATABASE_CONFIG_DIRECTORY = 'db'
-    DEFAULT_DATABASE_SCHEMA_DIRECTORY = 'db'
 
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
     DEFAULT_EVENT_STORE_SCHEMA_NAME = 'sequent_schema'
@@ -68,13 +66,8 @@ module Sequent
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
                   :replay_group_target_size,
-                  :database_config_directory,
-                  :database_schema_directory,
                   :event_store_schema_name,
                   :strict_check_attributes_on_apply_events,
-                  :enable_multiple_database_support,
-                  :primary_database_role,
-                  :primary_database_key,
                   :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
@@ -126,26 +119,16 @@ module Sequent
 
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
-      self.database_config_directory = DEFAULT_DATABASE_CONFIG_DIRECTORY
-      self.database_schema_directory = DEFAULT_DATABASE_SCHEMA_DIRECTORY
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
-
-      self.enable_multiple_database_support = false
-      self.primary_database_role = :writing
-      self.primary_database_key = :primary
 
       self.time_precision = DEFAULT_TIME_PRECISION
 
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
       self.enable_projector_states = false
-    end
-
-    def can_use_multiple_databases?
-      enable_multiple_database_support
     end
 
     def versions_table_name=(table_name)

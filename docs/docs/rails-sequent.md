@@ -43,8 +43,6 @@ Rails.application.reloader.to_prepare do
     config.migrations_class = SequentMigrations
     config.enable_autoregistration = true
 
-    config.database_config_directory = 'config'
-
     # this is the location of your sql files for your view_schema
     config.migration_sql_files_directory = 'db/sequent'
   end
@@ -93,11 +91,6 @@ Sequent::Rake::MigrationTasks.new.register_tasks!
 # the sequent initializer - which is required to run these rake tasks -
 # doesn't run
 task 'sequent:init' => [:environment]
-task 'sequent:migrate:init' => [:sequent_db_connect]
-
-task 'sequent_db_connect' do
- Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
-end
 ```
 
 #### Database schema format

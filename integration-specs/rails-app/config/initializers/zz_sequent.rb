@@ -10,8 +10,6 @@ Rails.application.reloader.to_prepare do
 
     config.migrations_class = SequentMigrations
 
-    config.database_config_directory = 'config'
-
     # this is the location of your sql files for your view_schema
     config.migration_sql_files_directory = 'db/sequent'
     config.logger = Logger.new(STDOUT)

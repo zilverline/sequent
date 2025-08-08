@@ -16,12 +16,14 @@ module DomainTests
   end
 end
 
+ActiveRecord::Base.configurations = YAML.load_file('db/database.yml', aliases: true)
+ActiveRecord::Base.establish_connection(:test)
+
 RSpec.configure do |config|
   config.include Sequent::Test::CommandHandlerHelpers
   config.include DomainTests, file_path: %r{/spec\/lib/}
 
   config.before :suite do
-    Sequent::Support::Database.connect!('test')
     Sequent::Support::Database.drop_schema!(Sequent.configuration.view_schema_name)
 
     Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: 'test')

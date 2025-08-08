@@ -14,15 +14,9 @@ end
 require 'sequent'
 require 'sequent/rake/migration_tasks'
 
+ActiveRecord::Base.configurations = YAML.load_file('db/database.yml', aliases: true)
+ActiveRecord::Tasks::DatabaseTasks.env = Sequent.env
+ActiveRecord::Tasks::DatabaseTasks.db_dir = 'db'
 Sequent::Rake::MigrationTasks.new.register_tasks!
-Sequent.configuration.database_config_directory = 'tmp'
-
-Database.write_database_yml_for_test(env: 'test')
-
-task 'sequent:migrate:init' => [:db_connect]
-
-task 'db_connect' do
-  Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
-end
 
 Bundler::GemHelper.install_tasks
