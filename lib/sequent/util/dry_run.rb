@@ -71,7 +71,9 @@ module Sequent
           @result = result
         end
 
-        def process_event(event)
+        def process_event(_event_handlers, event)
+          # We should actually use the `_event_handlers` here instead of assuming all workflows and projectors
+          # are used.
           [*Sequent::Core::Workflow.descendants, *Sequent::Core::Projector.descendants].each do |handler_class|
             next unless handler_class.handles_message?(event)
 

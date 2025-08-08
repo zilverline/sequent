@@ -190,11 +190,11 @@ describe Sequent::Migrations::ViewSchema do
         )
         wait_for_persisted_events_to_become_visible_for_online_migration[]
 
-        before_migration_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
+        before_migration_xact_id = Sequent::Support::Database.current_snapshot_xmin_xact_id
 
         migrator.migrate_online
 
-        after_migration_xact_id = Sequent::Migrations::Versions.current_snapshot_xmin_xact_id
+        after_migration_xact_id = Sequent::Support::Database.current_snapshot_xmin_xact_id
 
         expect(AccountRecord.table_name).to eq 'account_records'
         expect(AccountRecord.connection.select_value('select count(*) from account_records_1')).to eq 2
