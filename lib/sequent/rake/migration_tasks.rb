@@ -436,7 +436,7 @@ module Sequent
             EOS
             task :perform_initial_replay,
                  %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
-                   replay_group_target_size = args[:target_group_size]&.to_i ||
+                   replay_group_target_size = args[:replay_group_target_size]&.to_i ||
                                               Sequent.configuration.replay_group_target_size
                    number_of_replay_processes = args[:number_of_replay_processes]&.to_i ||
                                                 Sequent.configuration.number_of_replay_processes
@@ -453,7 +453,7 @@ module Sequent
             EOS
             task :perform_incremental_replay,
                  %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
-                   replay_group_target_size = args[:target_group_size]&.to_i ||
+                   replay_group_target_size = args[:replay_group_target_size]&.to_i ||
                                               Sequent.configuration.replay_group_target_size&.to_i
                    number_of_replay_processes = args[:number_of_replay_processes]&.to_i ||
                                                 Sequent.configuration.number_of_replay_processes
