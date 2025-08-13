@@ -21,6 +21,8 @@ module Sequent
     DEFAULT_MIGRATION_SQL_FILES_DIRECTORY = 'db/tables'
 
     DEFAULT_VIEW_SCHEMA_NAME = 'view_schema'
+    DEFAULT_REPLAY_SCHEMA_NAME = 'replay_schema'
+    DEFAULT_ARCHIVE_SCHEMA_NAME = 'archive_schema'
     DEFAULT_EVENT_STORE_SCHEMA_NAME = 'sequent_schema'
 
     DEFAULT_MIGRATIONS_CLASS = nil
@@ -62,6 +64,8 @@ module Sequent
                   :error_locale_resolver,
                   :migration_sql_files_directory,
                   :view_schema_name,
+                  :replay_schema_name,
+                  :archive_schema_name,
                   :offline_replay_persistor_class,
                   :online_replay_persistor_class,
                   :number_of_replay_processes,
@@ -110,6 +114,8 @@ module Sequent
       self.versions_table_name = DEFAULT_VERSIONS_TABLE_NAME
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
       self.view_schema_name = DEFAULT_VIEW_SCHEMA_NAME
+      self.replay_schema_name = DEFAULT_REPLAY_SCHEMA_NAME
+      self.archive_schema_name = DEFAULT_ARCHIVE_SCHEMA_NAME
       self.event_store_schema_name = DEFAULT_EVENT_STORE_SCHEMA_NAME
       self.migrations_class = DEFAULT_MIGRATIONS_CLASS
       self.number_of_replay_processes = DEFAULT_NUMBER_OF_REPLAY_PROCESSES
