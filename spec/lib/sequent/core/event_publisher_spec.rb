@@ -94,7 +94,7 @@ describe Sequent::Core::EventPublisher do
       end
 
       it 'fails when unknown projectors are active' do
-        Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector], 0)
+        Sequent::Core::Projectors.register_active_projectors!([TestEventHandler, UnknownProjector])
 
         expect do
           Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
@@ -102,7 +102,8 @@ describe Sequent::Core::EventPublisher do
       end
 
       it 'fails when the projector is activating to finalize event replay' do
-        Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler], Sequent.new_version + 1)
+        TestEventHandler.version = Sequent.new_version + 1
+        Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler])
 
         expect do
           Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
@@ -112,7 +113,7 @@ describe Sequent::Core::EventPublisher do
 
     context 'projector activation' do
       def set_lock_timeout = ActiveRecord::Base.connection.execute("SET lock_timeout TO '10ms'")
-      def update_projector_states = Sequent::Core::Projectors.register_active_projectors!([Sequent::Core::Projector], 1)
+      def update_projector_states = Sequent::Core::Projectors.register_active_projectors!([Sequent::Core::Projector])
       def read_projector_states = Sequent::Core::Projectors.projector_states
 
       it 'waits for project state updates before reading' do
