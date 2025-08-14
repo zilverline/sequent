@@ -29,7 +29,7 @@ module Sequent
           projectors.select { |p| p.managed_tables&.include?(record_class) }
         end
 
-        def register_inactive_projectors!(projector_classes, _version)
+        def register_inactive_projectors!(projector_classes)
           rows = projector_classes.map do |c|
             {name: c.name, active_version: nil, replaying_version: nil, activating_version: nil}
           end
