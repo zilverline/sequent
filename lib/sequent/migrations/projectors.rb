@@ -23,10 +23,7 @@ module Sequent
                "new version [#{version}] must be the same as current view schema version [#{current_version}]"
         end
 
-        Sequent::Core::Projectors.register_active_projectors!(
-          Sequent::Core::Migratable.projectors,
-          version,
-        )
+        Sequent::Core::Projectors.register_active_projectors!(Sequent::Core::Migratable.projectors)
       end
     end
   end
