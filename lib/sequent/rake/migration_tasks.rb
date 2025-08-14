@@ -402,6 +402,18 @@ module Sequent
             end
 
             desc <<~EOS
+              Deactivates the specified projectors so they no longer process events.
+
+              The managed tables are NOT removed or deleted so the data remains but is no longer updated
+              when new events arrive. A deactivated projector can only be re-activated by replaying
+              all its events and then activating the replayed projector.
+            EOS
+            task deactivate: :connect do |_t, args|
+              projector_classes = args.extras.map { |name| Class.const_get(name) }
+              Sequent::Core::Projectors.deactivate_projectors!(projector_classes)
+            end
+
+            desc <<~EOS
               Prepare the specified projectors for background replay
 
               Creates the `#{Sequent.configuration.replay_schema_name}` with the projector's tables copied from the
