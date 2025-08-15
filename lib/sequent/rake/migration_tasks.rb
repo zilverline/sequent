@@ -426,9 +426,6 @@ module Sequent
             rescue NameError => e
               Sequent.logger.error("prepare_for_replay: unknown projector '#{e.name}'")
               exit(1)
-            rescue StandardError => e
-              Sequent.logger.error("repare_for_replay: #{e.message}")
-              exit(1)
             end
 
             desc 'Abort the current background projector replay, completely deleting the `replay_schema`'
@@ -474,6 +471,18 @@ module Sequent
                    replayer.perform_incremental_replay(replay_group_target_size:, number_of_replay_processes:)
                  end
 
+            desc <<~EOS
+              Prepares the replayed tables for activation (VACUUM, CREATE INDEX, ANALYZE)
+
+              Vacuums (or clusters, if there is a clustered index) the replayed tables and re-creates the query
+              only indexes. Once this step is completed the replayed tables can be activated.
+            EOS
+            task prepare_for_activation: :connect do
+              Sequent.logger.info('preparing replayed tables for activation')
+              replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
+              replayer.prepare_for_activation!
+              Sequent.logger.info('replayed tables are now ready for activation')
+            end
             desc <<~EOS
               Performs replay of new event since replay and atomically moves the replay tables to the view schema
 

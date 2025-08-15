@@ -1021,7 +1021,9 @@ CREATE TABLE sequent_schema.replay_states (
     continue_replay_at_xact_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'incremental_replay'::text, 'ready_for_activation'::text, 'failed'::text, 'done'::text, 'aborted'::text])))
+    index_definitions jsonb,
+    table_cluster_indexes jsonb,
+    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'initial_replay_completed'::text, 'incremental_replay'::text, 'prepare_for_activation'::text, 'ready_for_activation'::text, 'failed'::text, 'done'::text, 'aborted'::text])))
 );
 
 
@@ -1572,6 +1574,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250815103000'),
 ('20250630113000'),
 ('20250601120000'),
 ('20250512135500'),
