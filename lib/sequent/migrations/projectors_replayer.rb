@@ -48,7 +48,7 @@ module Sequent
         exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
 
         with_locked_state do
-          fail 'initial replay can only be performed when current state is `created`' unless @state.state == 'created'
+          verify_state 'initial replay can only be performed when', :created
 
           pg_dump_path = locate_command('pg_dump')
           psql_path = locate_command('psql')
@@ -75,6 +75,11 @@ module Sequent
             fail "failed to create replay schema tables: #{output}" unless status.success?
           end
 
+          @state.index_definitions = query_index_definitions
+          @state.table_cluster_indexes = query_table_cluster_indexes
+
+          drop_indexes_not_needed_for_replay
+
           @state.state = 'prepared'
           @state.save!
         end
@@ -90,7 +95,7 @@ module Sequent
         number_of_replay_processes: Sequent.configuration.number_of_replay_processes
       )
         maximum_xact_id_exclusive = with_locked_state do
-          fail 'initial replay can only be performed when current state is `prepared`' unless @state.state == 'prepared'
+          verify_state 'initial replay can only be performed when', :prepared
 
           non_empty_tables = @managed_tables.select do |table|
             exec_query("SELECT 1 FROM #{quote_table_name(replay_schema_name)}.#{table.quoted_table_name} LIMIT 1")
@@ -118,7 +123,7 @@ module Sequent
         with_locked_state do
           fail 'internal error' unless @state.state == 'initial_replay'
 
-          @state.state = 'ready_for_activation'
+          @state.state = 'initial_replay_completed'
           @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
           @state.save!
         end
@@ -131,15 +136,15 @@ module Sequent
         replay_group_target_size: Sequent.configuration.replay_group_target_size,
         number_of_replay_processes: Sequent.configuration.number_of_replay_processes
       )
-        maximum_xact_id_exclusive = with_locked_state do
-          unless @state.state == 'ready_for_activation'
-            fail 'incremental replay can only be performed when current state is `ready_for_activation`'
-          end
+        maximum_xact_id_exclusive, saved_state = with_locked_state do
+          verify_state 'incremental replay can only be performed when', :initial_replay_completed, :ready_for_activation
+
+          saved_state = @state.state
 
           @state.state = 'incremental_replay'
           @state.save!
 
-          Sequent::Support::Database.current_snapshot_xmin_xact_id
+          [Sequent::Support::Database.current_snapshot_xmin_xact_id, saved_state]
         end
 
         replay!(
@@ -155,7 +160,7 @@ module Sequent
         with_locked_state do
           fail 'internal error' unless @state.state == 'incremental_replay'
 
-          @state.state = 'ready_for_activation'
+          @state.state = saved_state
           @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
           @state.save!
         end
@@ -164,11 +169,29 @@ module Sequent
         raise
       end
 
+      def prepare_for_activation!
+        with_locked_state do
+          verify_state 'activation can only be performed when', :initial_replay_completed
+
+          @state.state = 'prepare_for_activation'
+          @state.save!
+        end
+
+        vacuum_tables
+        recreate_dropped_indexes
+        analyze_tables
+
+        with_locked_state do
+          fail 'internal error' unless @state.state == 'prepare_for_activation'
+
+          @state.state = 'ready_for_activation'
+          @state.save!
+        end
+      end
+
       def activate!
         with_locked_state do
-          unless @state.state == 'ready_for_activation'
-            fail 'activation can only be performed when current state is `ready_for_activation`'
-          end
+          verify_state 'activation can only be performed when', :ready_for_activation
 
           Sequent::Core::Projectors.lock_projector_states_for_update
 
@@ -220,6 +243,12 @@ module Sequent
       end
 
       private
+
+      def verify_state(message, *expected_states)
+        unless expected_states.map(&:to_s).include?(@state.state)
+          fail "#{message} current state is #{expected_states.join(' or ')}"
+        end
+      end
 
       def with_group
         ->(group, index, &block) do
@@ -274,6 +303,88 @@ module Sequent
           env['PGSSLCERT'] = db_config[:sslcert].to_s if db_config[:sslcert]
           env['PGSSLKEY'] = db_config[:sslkey].to_s if db_config[:sslkey]
           env['PGSSLROOTCERT'] = db_config[:sslrootcert].to_s if db_config[:sslrootcert]
+        end
+      end
+
+      def query_table_cluster_indexes
+        rows = exec_query(<<~SQL, 'clustered tables', [replay_schema_name])
+          SELECT c.relname AS table_name,
+                 ic.relname AS index_name
+            FROM pg_namespace ns
+            JOIN pg_class c ON c.relnamespace = ns.oid
+            JOIN pg_index i ON c.oid = i.indrelid
+            JOIN pg_class ic ON i.indexrelid = ic.oid
+           WHERE ns.nspname = $1
+             AND c.relkind = 'r'  -- only regular tables, not partitioned tables
+             AND i.indisclustered
+        SQL
+        rows.pluck('table_name', 'index_name').to_h
+      end
+
+      def query_index_definitions
+        index_definitions = exec_query(<<~SQL, 'index definitions', [replay_schema_name])
+          SELECT * FROM pg_indexes WHERE schemaname = $1
+        SQL
+        index_definitions.pluck('indexname', 'indexdef').to_h
+      end
+
+      def drop_indexes_not_needed_for_replay
+        disposable_indexes = exec_query(<<~SQL, 'disposable indexes', [replay_schema_name]).pluck('index_name')
+          SELECT ic.relname AS index_name
+            FROM pg_namespace ns
+            JOIN pg_class c ON c.relnamespace = ns.oid
+            JOIN pg_index i ON c.oid = i.indrelid
+            JOIN pg_class ic ON i.indexrelid = ic.oid
+           WHERE ns.nspname = $1
+             AND c.relkind = 'r'  -- only drop indexes on real tables, not on partitioned tables
+             AND NOT i.indisunique
+             AND NOT i.indisprimary
+             AND NOT i.indisexclusion
+        SQL
+        droppable_indexes = disposable_indexes - @projector_classes.flat_map(&:additional_replay_indexes).map(&:to_s)
+        droppable_indexes.each do |index_name|
+          exec_update("DROP INDEX #{quoted_replay_schema_name}.#{quote_table_name(index_name)}")
+        end
+      end
+
+      def recreate_dropped_indexes
+        @state.index_definitions.each_key do |name|
+          create_index_if_missing(name)
+        end
+      end
+
+      def create_index_if_missing(index_name)
+        exists = connection.select_value(<<~SQL, 'index exists?', [replay_schema_name, index_name])
+          SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname = $1 AND indexname = $2)
+        SQL
+        unless exists
+          definition = @state.index_definitions[index_name]
+          logger.info(definition)
+          exec_update(definition)
+        end
+      end
+
+      def vacuum_tables
+        clustered_tables, non_clustered_tables = @managed_tables.partition do |table|
+          @state.table_cluster_indexes.key?(table.table_name)
+        end
+
+        clustered_tables.each do |table|
+          cluster_index_name = @state.table_cluster_indexes[table.table_name]
+          create_index_if_missing(cluster_index_name)
+
+          exec_update(<<~SQL, 'cluster table')
+            CLUSTER #{quoted_replay_schema_name}.#{table.quoted_table_name} USING #{quote_table_name(cluster_index_name)}
+          SQL
+        end
+        non_clustered_tables.each do |table|
+          exec_update("VACUUM FULL #{quoted_replay_schema_name}.#{table.quoted_table_name}", 'vacuum table')
+        end
+      end
+
+      def analyze_tables
+        @managed_tables.each do |table|
+          exec_update("ANALYZE #{quoted_replay_schema_name}.#{table.quoted_table_name}", 'analyze table')
         end
       end
 
