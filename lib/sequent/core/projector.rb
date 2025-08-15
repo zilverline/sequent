@@ -42,6 +42,11 @@ module Sequent
 
       def self.included(host_class)
         host_class.extend(ClassMethods)
+
+        host_class.class_attribute :additional_replay_indexes,
+                                   default: [],
+                                   instance_reader: false,
+                                   instance_writer: false
       end
 
       def self.none
