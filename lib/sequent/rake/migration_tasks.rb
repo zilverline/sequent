@@ -105,7 +105,11 @@ module Sequent
                 old_dump_schemas = ActiveRecord.dump_schemas
                 begin
                   ActiveRecord.dump_schemas = nil
-                  DatabaseTasks.structure_dump_flags = "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+                  ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags = %W[
+                    --exclude-schema=#{Sequent.configuration.view_schema_name}
+                    --exclude-schema=#{Sequent.configuration.replay_schema_name}
+                    --exclude-schema=#{Sequent.configuration.archive_schema_name}
+                  ]
                   DatabaseTasks.dump_schema(db_config, :sql)
                 ensure
                   ActiveRecord.dump_schemas = old_dump_schemas
