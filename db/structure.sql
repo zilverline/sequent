@@ -1004,9 +1004,7 @@ CREATE TABLE sequent_schema.projector_states (
     replaying_version integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT activating_newer_than_active CHECK ((activating_version > active_version)),
-    CONSTRAINT replaying_conflicts_with_activating CHECK (((replaying_version IS NULL) OR (activating_version IS NULL))),
-    CONSTRAINT replaying_newer_then_active CHECK ((replaying_version > active_version))
+    CONSTRAINT replaying_conflicts_with_activating CHECK (((replaying_version IS NULL) OR (activating_version IS NULL)))
 );
 
 

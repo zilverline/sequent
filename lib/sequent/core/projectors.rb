@@ -64,6 +64,13 @@ module Sequent
           update_projector_state(rows)
         end
 
+        def abort_replaying_projectors(projector_classes)
+          rows = projector_classes.map do |c|
+            {name: c.name, activating_version: nil, replaying_version: nil}
+          end
+          update_projector_state(rows)
+        end
+
         def projector_states
           cached = Thread.current[PROJECTOR_STATES_KEY]
           return cached unless cached.nil?

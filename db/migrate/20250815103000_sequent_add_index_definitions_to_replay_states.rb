@@ -9,6 +9,8 @@ class SequentAddIndexDefinitionsToReplayStates < ActiveRecord::Migration[7.2]
       add_check_constraint :replay_states, <<~SQL, name: 'valid_replay_state'
         state IN ('created', 'prepared', 'initial_replay', 'initial_replay_completed', 'incremental_replay', 'prepare_for_activation', 'ready_for_activation', 'failed', 'done', 'aborted')
       SQL
+      remove_check_constraint :projector_states, name: 'replaying_newer_then_active'
+      remove_check_constraint :projector_states, name: 'activating_newer_than_active'
     end
   end
 end
