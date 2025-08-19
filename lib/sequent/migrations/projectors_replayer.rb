@@ -375,7 +375,8 @@ module Sequent
              AND NOT i.indisprimary
              AND NOT i.indisexclusion
         SQL
-        droppable_indexes = disposable_indexes - @projector_classes.flat_map(&:additional_replay_indexes).map(&:to_s)
+        additional_replay_indexes = /^#{Regexp.union(@projector_classes.map(&:additional_replay_indexes).flatten)}$/
+        droppable_indexes = disposable_indexes.grep_v(additional_replay_indexes)
         droppable_indexes.each do |index_name|
           exec_update("DROP INDEX #{quoted_replay_schema_name}.#{quote_table_name(index_name)}")
         end
