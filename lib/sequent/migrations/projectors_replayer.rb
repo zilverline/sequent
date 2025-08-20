@@ -59,7 +59,7 @@ module Sequent
       end
 
       def prepare_for_replay
-        exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
+        log_and_exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
 
         with_locked_state do
           verify_state 'initial replay can only be performed when', 'created'
@@ -239,12 +239,12 @@ module Sequent
             end
           end
 
-          exec_update("DROP SCHEMA IF EXISTS #{quoted_archive_schema_name} CASCADE")
-          exec_update("CREATE SCHEMA #{quoted_archive_schema_name}")
+          log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_archive_schema_name} CASCADE")
+          log_and_exec_update("CREATE SCHEMA #{quoted_archive_schema_name}")
 
           replace_replayed_tables_in_view_schema(managed_tables)
 
-          exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
+          log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
 
           Sequent::Core::Projectors.register_active_projectors!(projector_classes)
 
@@ -258,7 +258,7 @@ module Sequent
           @state.state = 'completed'
           @state.save!
 
-          exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
+          log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
         end
       end
 
@@ -269,7 +269,7 @@ module Sequent
           @state.state = 'aborted'
           @state.save!
 
-          exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
+          log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
         end
       end
 
@@ -314,13 +314,11 @@ module Sequent
         tables.flat_map do |table|
           [table.table_name, *query_partition_names(view_schema_name, table.table_name)]
         end.each do |table_name|
-          exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{quote_table_name(table_name)}
-              SET SCHEMA #{quoted_archive_schema_name}
+          log_and_exec_update(<<~SQL, 'replace_table')
+            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{quote_table_name(table_name)} SET SCHEMA #{quoted_archive_schema_name}
           SQL
-          exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE #{quoted_replay_schema_name}.#{quote_table_name(table_name)}
-              SET SCHEMA #{quoted_view_schema_name}
+          log_and_exec_update(<<~SQL, 'replace_table')
+            ALTER TABLE #{quoted_replay_schema_name}.#{quote_table_name(table_name)} SET SCHEMA #{quoted_view_schema_name}
           SQL
         end
       end
@@ -408,8 +406,7 @@ module Sequent
         SQL
         unless exists
           definition = @state.index_definitions[index_name]
-          logger.info(definition)
-          exec_update(definition)
+          log_and_exec_update_update(definition)
         end
       end
 
@@ -422,24 +419,18 @@ module Sequent
           cluster_index_name = @state.table_cluster_indexes[table.table_name]
           create_index_if_missing(cluster_index_name)
 
-          cluster_sql = <<~SQL
+          log_and_exec_update(<<~SQL, 'cluster table')
             CLUSTER #{quoted_replay_schema_name}.#{table.quoted_table_name} USING #{quote_table_name(cluster_index_name)}
           SQL
-          logger.info(cluster_sql)
-          exec_update(cluster_sql, 'cluster table')
         end
         non_clustered_tables.each do |table|
-          vacuum_sql = "VACUUM FULL #{quoted_replay_schema_name}.#{table.quoted_table_name}"
-          logger.info(vacuum_sql)
-          exec_update(vacuum_sql, 'vacuum table')
+          log_and_exec_update("VACUUM FULL #{quoted_replay_schema_name}.#{table.quoted_table_name}", 'vacuum table')
         end
       end
 
       def analyze_tables
         @managed_tables.each do |table|
-          analyze_sql = "ANALYZE #{quoted_replay_schema_name}.#{table.quoted_table_name}"
-          logger.info(analyze_sql)
-          exec_update(analyze_sql, 'analyze table')
+          log_and_exec_update("ANALYZE #{quoted_replay_schema_name}.#{table.quoted_table_name}", 'analyze table')
         end
       end
 
@@ -476,6 +467,11 @@ module Sequent
           @state.state = 'failed'
           @state.save!
         end
+      end
+
+      def log_and_exec_update(sql, ...)
+        Sequent.logger.info(sql.strip)
+        exec_update(sql, ...)
       end
     end
   end
