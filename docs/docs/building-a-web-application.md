@@ -57,7 +57,7 @@ require './app/web'
 run Web
 ```
 
-For now this is enough. 
+For now this is enough.
 
 To run the application, execute on the command line:
 ```shell
@@ -114,7 +114,7 @@ Create `app/views/index.erb` with:
 </html>
 ```
 
-When opening [our web application](http://localhost:4567), we see a simple form that allows us 
+When opening [our web application](http://localhost:4567), we see a simple form that allows us
 to submit values for creating a new Author.
 
 ![signup author form]({{ site.url }}{{ site.baseurl }}/assets/images/signup_author_form.png){: .align-center width="636"}
@@ -157,37 +157,16 @@ It blows up with the following error:
 
 Since we are using ActiveRecord outside Rails we need to set up connection handling ourselves.
 
-### Connecting to a Database
+### Booting the web application
 
-We can create a simple `Database` class that handles creating connections to the database.
-
-Create `app/database.rb`:
-
-```ruby
-require 'sequent'
-
-class Database
-  class << self
-    def establish_connection(env = ENV['SEQUENT_ENV'])
-      Sequent::Support::Database.connect!(env)
-    end
-  end
-end
-```
-
-As you can see this is just a small wrapper for `ActiveRecord`. 
-
-To establish the database connections on boot time we add a file `boot.rb`. This will contain all the code needed to 
-require and boot our app. In the case that the `SEQUENT_ENV` is unset, we set it equal to `development`, which ensures 
-the correct database config is loaded before connecting.
+To set the correct environment and boot the web application we add a file `boot.rb`. This will contain
+all the code needed to require and boot our app. In the case that the `SEQUENT_ENV` is unset, we set it equal to
+`development`, which ensures the correct database config is loaded before connecting.
 
 Create `boot.rb`:
 
 ```ruby
 ENV['SEQUENT_ENV'] ||= 'development'
-
-require './app/database'
-Database.establish_connection
 
 require './app/web'
 ```
@@ -200,8 +179,8 @@ require './boot'
 run Web
 ```
 
-Since we are using Sinatra, we also need to give the transaction back to the pool after each request.
-So we need to add an `after` block in our `app/web.rb`.
+Since we are using Sinatra, we also need to give the transaction back to the pool after each request. So we need to add
+an `after` block in our `app/web.rb`.
 
 Update `app/web.rb` with:
 
@@ -226,7 +205,7 @@ Restart your web application if it's running.
 
 ### Final test
 
-Now try filling in a name and e-mail address [in the application](http://localhost:4567), 
+Now try filling in a name and e-mail address [in the application](http://localhost:4567),
 and submit the form.
 
 Success! It works when you see
@@ -240,6 +219,7 @@ error Sequent raises when `Command` validations fail. You can handle these excep
 {: .notice}
 
 ### Inspect the events
+
 Let's inspect the `sequent_schema` and see if the events are actually stored in the database.
 
 1. Run:
@@ -280,20 +260,21 @@ class AuthorRecord < Sequent::ApplicationRecord
 end
 ```
 
-### Create the corresponding SQL file
+### Create the corresponding ActiveRecord migration file
 
-Create `db/tables/author_records.sql`:
+Create `db/migrate/20250819150000_create_author_records.rb`:
 
 ```sql
-CREATE TABLE author_records%SUFFIX% (
-  id serial NOT NULL,
-  aggregate_id uuid NOT NULL,
-  name character varying,
-  email character varying,
-  CONSTRAINT author_records_pkey%SUFFIX% PRIMARY KEY (id)
-);
-
-CREATE UNIQUE INDEX author_records_keys%SUFFIX% ON author_records%SUFFIX% USING btree (aggregate_id);
+class CreateAuthorRecords < ActiveRecord::Migration[8.0]
+  def change
+    Sequent::Support::Database.with_search_path(Sequent.configuration.view_schema_name) do
+      create_table :author_records, id: :uuid, primary_key: :aggregate_id do |t|
+        t.text :name
+        t.text :email
+      end
+    end
+  end
+end
 ```
 
 ### Create the [Projector](concepts/projector.html)
@@ -340,43 +321,22 @@ Ensure it's being required in `blog.rb`:
 require_relative 'app/projectors/author_projector'
 ```
 
-### Update and run the migration
+### Run the databse migration
 
-To migrate the database, update the view_schema version and add the projectors that need to be rebuild.
+To migrate the database, run:
 
-Update `db/migrations.rb` to:
-
-```ruby
-require 'sequent/migrations/projectors'
-
-VIEW_SCHEMA_VERSION = 2 # <= updated to version 2
-
-class Migrations < Sequent::Migrations::Projectors
-  def self.version
-    VIEW_SCHEMA_VERSION
-  end
-
-  def self.versions
-    {
-      '1' => [
-        PostProjector
-      ],
-      '2' => [ 
-        AuthorProjector # <= Projectors that need to be rebuild
-      ]
-    }
-  end
-end
-```
-
-Make sure you have updated your `VIEW_SCHEMA_VERSION` constant.
-{: .notice}
-
-Stop your app, run the migration and see what happens:
 ```bash
-bundle exec rake sequent:migrate:online && 
-bundle exec rake sequent:migrate:offline
+bundle exec rake db:migrate
 ```
+
+To backfill the new projection using the already existing events stop your app and run:
+
+
+```bash
+bundle exec rake sequent:projectors:replay:all
+bundle exec rake sequent:projectors:replay:complete
+```
+
 ```bash
 I, [..]  INFO -- : Start migrate_online for version 2
 I, [..]  INFO -- : Number of groups 4096
@@ -396,7 +356,7 @@ I, [..]  INFO -- : Migrated to version 2
 Let's inspect the database again:
 
 ```bash
-psql blog_development 
+psql blog_development
 ```
 ```sql
 select * from view_schema.author_records;
@@ -465,10 +425,10 @@ Create `app/views/authors/index.erb` with:
 </html>
 ```
 
-Restart your web application if it's still running to make sure any changes to `blog.rb` or the Sequent config are 
+Restart your web application if it's still running to make sure any changes to `blog.rb` or the Sequent config are
 propagated.
 
-Open [your application](http://localhost:4567), click on 
+Open [your application](http://localhost:4567), click on
 [All authors](http://localhost:4567/authors) and you should see all author records:
 
 ![author list]({{ site.url }}{{ site.baseurl }}/assets/images/author_list.png)
@@ -499,7 +459,7 @@ Create `app/views/authors/show.erb` with:
 </html>
 ```
 
-In [your application](http://localhost:4567), click on 
+In [your application](http://localhost:4567), click on
 [All authors](http://localhost:4567/authors). You should now be able to view the details of an author
 by clicking on the ID:
 
@@ -515,8 +475,8 @@ In this guide we learned:
 3. Store database records with a Projector and Migration
 4. Display the database records
 
-The full source code of the web application is available in the 
+The full source code of the web application is available in the
 [sequent-examples repository](https://github.com/zilverline/sequent-examples/tree/master/building-a-web-application).
 
-We will continue with this web application in the 
+We will continue with this web application in the
 [Finishing the web application](finishing-the-web-application.html) guide.

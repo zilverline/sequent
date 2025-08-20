@@ -7,10 +7,17 @@ class SequentAddIndexDefinitionsToReplayStates < ActiveRecord::Migration[7.2]
       add_column :replay_states, :table_cluster_indexes, :jsonb
       remove_check_constraint :replay_states, name: 'valid_replay_state'
       add_check_constraint :replay_states, <<~SQL, name: 'valid_replay_state'
-        state IN ('created', 'prepared', 'initial_replay', 'initial_replay_completed', 'incremental_replay', 'prepare_for_activation', 'ready_for_activation', 'failed', 'done', 'aborted')
+        state IN ('created', 'prepared_initial', 'replaying_initial', 'replaying_increment', 'replayed', 'prepared_completion', 'completed', 'failed', 'aborted')
       SQL
       remove_check_constraint :projector_states, name: 'replaying_newer_then_active'
       remove_check_constraint :projector_states, name: 'activating_newer_than_active'
+
+      execute <<~SQL
+        DROP INDEX replay_states_active_replay_idx
+      SQL
+      execute <<~SQL
+        CREATE UNIQUE INDEX replay_states_active_replay_idx ON replay_states ((TRUE)) WHERE state NOT IN ('completed', 'aborted')
+      SQL
     end
   end
 end
