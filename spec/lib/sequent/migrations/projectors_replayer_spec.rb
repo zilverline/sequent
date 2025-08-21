@@ -102,7 +102,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
 
     it 'should create a replay schema containing empty tables' do
-      expect(replay_state).to have_attributes(state: 'prepared')
+      expect(replay_state).to have_attributes(state: 'prepared_initial')
 
       expect(query_schemas).to include('replay_schema')
 
@@ -181,7 +181,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
       end
 
       it 'should be ready for incremental replay and or preparing for activation' do
-        expect(replay_state).to have_attributes(state: 'initial_replay_completed')
+        expect(replay_state).to have_attributes(state: 'replayed')
       end
 
       context '#incremental_replay' do
@@ -226,7 +226,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
     it 'requires initial replay to have been completed' do
       expect { subject.activate! }
-        .to raise_error(/activation can only be performed when current state is ready_for_activation/)
+        .to raise_error(/activation can only be performed when current state is prepared_completion/)
     end
 
     context 'when ready for activation' do
@@ -239,7 +239,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
       end
 
       after do
-        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'done')
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'completed')
       end
 
       it 'incrementally replays the events within the transaction' do
