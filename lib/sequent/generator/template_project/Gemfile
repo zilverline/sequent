@@ -5,7 +5,7 @@ ruby file: '.ruby-version'
 
 gem 'csv'
 gem 'rake'
-gem 'sequent', git: 'https://github.com/zilverline/sequent.git', ref: 'drop-query-only-indexes-during-projector-replay'
+gem 'sequent', git: 'https://github.com/zilverline/sequent.git', ref: 'background-projector-replay-documentation'
 # gem 'sequent', '~> 8'
 
 group :test do
