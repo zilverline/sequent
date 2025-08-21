@@ -423,7 +423,7 @@ module Sequent
               desc <<~EOS
                 Replay all projectors and prepare for activating the replayed projectors
               EOS
-              task all: %i[prepare_initial initial increment prepare_completion increment]
+              task all: %i[prepare_initial initial increment prepare_completion increment complete]
 
               desc <<~EOS
                 Prepare the specified projectors for background replay

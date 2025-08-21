@@ -334,7 +334,6 @@ To backfill the new projection using the already existing events stop your app a
 
 ```bash
 bundle exec rake sequent:projectors:replay:all
-bundle exec rake sequent:projectors:replay:complete
 ```
 
 ```bash
