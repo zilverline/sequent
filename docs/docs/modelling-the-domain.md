@@ -153,7 +153,7 @@ This test will fail as our code is missing the `PublishPost` command, `PostPubli
 
 ### Publish Post command
 
-Let's add a `PublishPost` command, the command will look like this:
+Let's add a `PublishPost` command to `lib/post/commands.rb`. The command will look like this:
 
 ```ruby
 class PublishPost < Sequent::Command
@@ -171,11 +171,11 @@ We add our own `on` block below the `AddPost` block in `lib/post/post_command_ha
 command:
 
 ```ruby
-on PublishPost do |command|
-  do_with_aggregate(command, Post) do |post|
-    post.publish(command.publication_date)
+  on PublishPost do |command|
+    do_with_aggregate(command, Post) do |post|
+      post.publish(command.publication_date)
+    end
   end
-end
 ```
 
 Sequent retrieves the post for us and we call the (to be defined) `publish` method on the returned `Post` instance.
@@ -186,13 +186,13 @@ Let's define how the domain should behave when receiving our new `PublishPost` c
 initialize method add:
 
 ```ruby
-class PostAlreadyPublishedError < StandardError; end
+  class PostAlreadyPublishedError < StandardError; end
 
-def publish(publication_date)
-  fail PostAlreadyPublishedError if @publication_date.present?
+  def publish(publication_date)
+    fail PostAlreadyPublishedError if @publication_date.present?
 
-  apply PostPublished, publication_date: publication_date
-end
+    apply PostPublished, publication_date: publication_date
+  end
 ```
 
 In Sequent you execute / enforce your business rules in these methods **before** applying events.
@@ -213,9 +213,9 @@ end
 Back in the aggregate root, we handle the `PostPublished` event. Add the following to the class `Post` in lib/post/post.rb`:
 
 ```ruby
-on PostPublished do |event|
-  @publication_date = event.publication_date
-end
+  on PostPublished do |event|
+    @publication_date = event.publication_date
+  end
 ```
 
 With this latest change, the test case in `post_command_handler_spec.rb` will succeed. The domain is now able to handle

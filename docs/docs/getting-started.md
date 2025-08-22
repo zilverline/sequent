@@ -125,20 +125,16 @@ Now let's finish our setup by installing the gems and preparing the database:
 ```bash
 bundle install
 bundle exec rake sequent:db:migrate
-bundle exec rake sequent:db:create_view_schema
-bundle exec rake sequent:migrate:online
-bundle exec rake sequent:migrate:offline
 ```
 
 If your database already exists and you just need to create the `event_store` schema
 and the `view_schema` then do:
 
 ```bash
-bundle exec rake sequent:db:create_event_store
-bundle exec rake sequent:db:create_view_schema
-bundle exec rake sequent:migrate:online
-bundle exec rake sequent:migrate:offline
+bundle exec rake sequent:install:migrations
+bundle exec rake sequent:db:migrate
 ```
+
 To set up the test database used for running tests locally use:
 ```bash
 SEQUENT_ENV=test bundle exec rake sequent:db:create
@@ -148,9 +144,9 @@ Your Sequent app is ready to rock!
 
 ## Hello, Sequent!
 
-Sequent does not come with a web framework included. We'll look into bringing it all together in a later guide. As such, a real "hello world" is outside the scope of this
-guide. What we can do is demonstrate our business logic is working. We'll examine our example domain in a minute.
-Let's first take a look at our (generated) specs:
+Sequent does not come with a web framework included. We'll look into bringing it all together in a later guide. As such,
+a real "hello world" is outside the scope of this guide. What we can do is demonstrate our business logic is
+working. We'll examine our example domain in a minute.  Let's first take a look at our (generated) specs:
 
 - `spec/lib/post/post_command_handler_spec.rb`: Here we test that when a command is given, certain events will occur.
 - `spec/app/projectors/post_projector_spec.rb`: Here we test that when an event occurs, the projector updates the view records.

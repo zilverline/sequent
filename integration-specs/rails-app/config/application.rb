@@ -28,8 +28,10 @@ module RailsApp
     #####################################################################
     config.active_record.schema_format = :sql
     config.active_record.dump_schemas = nil
-    ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags =
-      "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+    ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags = %W[
+      --exclude-schema=#{Sequent.configuration.replay_schema_name}
+      --exclude-schema=#{Sequent.configuration.archive_schema_name}
+    ]
     #####################################################################
     # END SEQUENT
     #####################################################################

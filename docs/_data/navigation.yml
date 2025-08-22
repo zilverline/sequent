@@ -60,3 +60,5 @@ docs:
         url: /docs/concepts/advanced.html
       - title: GDPR
         url: /docs/concepts/gdpr.html
+      - title: Migrations (Sequent 8 and earlier)
+        url: /docs/concepts/migrations-sequent-8.html

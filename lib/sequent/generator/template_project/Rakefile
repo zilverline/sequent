@@ -5,7 +5,4 @@ ENV['SEQUENT_ENV'] ||= 'development'
 require './my_app'
 require 'sequent/rake/migration_tasks'
 
-ActiveRecord::Base.configurations = YAML.load_file('db/database.yml', aliases: true)
-ActiveRecord::Tasks::DatabaseTasks.env = Sequent.env
-ActiveRecord::Tasks::DatabaseTasks.db_dir = 'db'
 Sequent::Rake::MigrationTasks.new.register_tasks!

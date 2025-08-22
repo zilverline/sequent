@@ -102,11 +102,14 @@ to dump the schema using `bundle exec rake db:schema:dump`. Add the following co
 ```ruby
 # Use SQL for the schema dump format (`db/structure.sql`)
 config.active_record.schema_format = :sql
-# Dump all schemas, except for the Sequent view schema since it
-# is managed by Sequent migrations.
+# Dump all schemas, except for the Sequent projector replay and archive
+# schemas since these are managed by Sequent projector replay.
 config.active_record.dump_schemas = nil
-ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags =
-  "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags = %W[
+  --exclude-schema=#{Sequent.configuration.replay_schema_name}
+  --exclude-schema=#{Sequent.configuration.archive_schema_name}
+]
+]
 ```
 
 ### Database setup

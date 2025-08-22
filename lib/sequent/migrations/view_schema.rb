@@ -129,13 +129,13 @@ module Sequent
       # This method is mainly useful in test scenario's or development tasks
       def replay_all!
         projector_classes = Core::Migratable.projectors
-        Sequent::Core::Projectors.register_inactive_projectors!(projector_classes, Sequent.new_version)
-        Sequent::Core::Projectors.register_replaying_projectors!(projector_classes, Sequent.new_version)
+        Sequent::Core::Projectors.register_inactive_projectors!(projector_classes)
+        Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
         replay!(
           Sequent.configuration.online_replay_persistor_class.new,
           projector_classes:,
         )
-        Sequent::Core::Projectors.register_active_projectors!(projector_classes, Sequent.new_version)
+        Sequent::Core::Projectors.register_active_projectors!(projector_classes)
       end
 
       ##
@@ -182,7 +182,7 @@ module Sequent
 
         Sequent.logger.info("Start migrate_online for version #{Sequent.new_version}")
 
-        Sequent::Core::Projectors.register_replaying_projectors!(plan.projectors, Sequent.new_version)
+        Sequent::Core::Projectors.register_replaying_projectors!(plan.projectors)
 
         in_view_schema do
           Versions.start_online!(Sequent.new_version)
@@ -241,7 +241,7 @@ module Sequent
 
         ActiveRecord::Base.transaction do
           # Mark updated projectors as activating, so that old code can no longer apply events using the older version.
-          Sequent::Core::Projectors.register_activating_projectors!(affected_projectors, Sequent.new_version)
+          Sequent::Core::Projectors.register_activating_projectors!(affected_projectors)
 
           in_view_schema do
             Versions.start_offline!(

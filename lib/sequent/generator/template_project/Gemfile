@@ -5,7 +5,8 @@ ruby file: '.ruby-version'
 
 gem 'csv'
 gem 'rake'
-gem 'sequent', '~> 8'
+gem 'sequent', git: 'https://github.com/zilverline/sequent.git', ref: 'background-projector-replay-documentation'
+# gem 'sequent', '~> 8'
 
 group :test do
   gem 'database_cleaner'

@@ -34,9 +34,6 @@ module Sequent
               cd #{project_name}
               bundle install
               bundle exec rake sequent:db:migrate
-              bundle exec rake sequent:db:create_view_schema
-              bundle exec rake sequent:migrate:online
-              bundle exec rake sequent:migrate:offline
 
             Run the example specs:
               SEQUENT_ENV=test bundle exec rake sequent:db:create
