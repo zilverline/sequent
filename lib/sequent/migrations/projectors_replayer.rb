@@ -59,13 +59,19 @@ module Sequent
       end
 
       def prepare_for_replay
-        log_and_exec_update("CREATE SCHEMA IF NOT EXISTS #{replay_schema_name}")
+        pg_dump_path = locate_command('pg_dump')
+        psql_path = locate_command('psql')
 
         with_locked_state do
           verify_state 'initial replay can only be performed when', 'created'
 
-          pg_dump_path = locate_command('pg_dump')
-          psql_path = locate_command('psql')
+          log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
+          log_and_exec_update("CREATE SCHEMA #{quoted_replay_schema_name}")
+        end
+
+        # Start new transaction to ensure replay schema is visible when running pg_dump and psql.
+        with_locked_state do
+          verify_state 'initial replay can only be performed when', 'created'
 
           pg_dump_args = %w[--schema-only --quote-all-identifiers --strict-names] +
                          @managed_tables.map do |table|
@@ -98,12 +104,10 @@ module Sequent
 
           @state.state = 'prepared_initial'
           @state.save!
+        rescue StandardError
+          mark_replay_failed!
+          raise
         end
-
-        self
-      rescue StandardError
-        mark_replay_failed!
-        raise
       end
 
       def perform_initial_replay(
