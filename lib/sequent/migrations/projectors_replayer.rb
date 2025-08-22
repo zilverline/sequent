@@ -222,6 +222,8 @@ module Sequent
           verify_state 'activation can only be performed when', 'prepared_completion'
           verify_replaying_projector_versions
 
+          exec_update("SET LOCAL lock_timeout TO '1s'")
+
           Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
 
           lock_view_schema_tables_for_exclusive_access(managed_tables)
