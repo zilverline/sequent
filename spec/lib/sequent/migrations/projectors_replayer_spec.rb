@@ -153,7 +153,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
 
     it 'should fail if the state is not `prepared`' do
-      subject.done!
+      subject.abort!
 
       expect { subject.perform_initial_replay }
         .to raise_error(/initial replay can only be performed when current state is prepared/)

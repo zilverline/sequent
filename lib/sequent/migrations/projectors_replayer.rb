@@ -253,15 +253,6 @@ module Sequent
         end
       end
 
-      def done!
-        with_locked_state do
-          @state.state = 'completed'
-          @state.save!
-
-          log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
-        end
-      end
-
       def abort!
         with_locked_state do
           Sequent::Core::Projectors.abort_replaying_projectors(projector_classes)
