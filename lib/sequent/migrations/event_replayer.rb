@@ -28,12 +28,14 @@ module Sequent
         minimum_xact_id_inclusive: nil,
         maximum_xact_id_exclusive: nil,
         with_group: ->(_group, _index, &block) { block.call },
+        replay_group_target_size: Sequent.configuration.replay_group_target_size,
         number_of_replay_processes: Sequent.configuration.number_of_replay_processes
       )
         event_types = projector_classes.flat_map { |p| p.message_mapping.keys }.uniq.map(&:name)
         event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
 
         event_count, groups = calculate_groups(
+          replay_group_target_size:,
           minimum_xact_id_inclusive:,
           maximum_xact_id_exclusive:,
           event_type_ids:,
@@ -128,25 +130,19 @@ module Sequent
           .where(
             event_type_id: event_type_ids,
           )
-        if group.begin && group.end
+        if group.begin
           event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) BETWEEN (?, ?) AND (?, ?)',
+            '(events.partition_key, events.aggregate_id) >= (?, ?)',
             group.begin.partition_key,
             group.begin.aggregate_id,
+          )
+        end
+        if group.end
+          op = group.exclude_end? ? '<' : '<='
+          event_stream = event_stream.where(
+            "(events.partition_key, events.aggregate_id) #{op} (?, ?)",
             group.end.partition_key,
             group.end.aggregate_id,
-          )
-        elsif group.end
-          event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) < (?, ?)',
-            group.end.partition_key,
-            group.end.aggregate_id,
-          )
-        elsif group.begin
-          event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) > (?, ?)',
-            group.begin.partition_key,
-            group.begin.aggregate_id,
           )
         end
         event_stream = xact_id_filter(event_stream, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
@@ -178,25 +174,18 @@ module Sequent
       private
 
       def calculate_groups(
+        replay_group_target_size:,
         minimum_xact_id_inclusive:,
         maximum_xact_id_exclusive:,
         event_type_ids:
       )
-        tablesample_target = [1.0, 100_000_000 / (events_table_size + 1)].min
-        puts(events_table_size:, tablesample_target:)
-
         partitions_query = Internal::PartitionedEvent.where(event_type_id: event_type_ids)
         partitions_query = xact_id_filter(partitions_query, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
 
         partitions = partitions_query.group(:partition_key).order(:partition_key).count
         event_count = partitions.values.sum
 
-        if groups.empty?
-          groups = [nil..nil]
-        else
-          groups.prepend(nil..groups.first.begin)
-          groups.append(groups.last.end..nil)
-        end
+        groups = Sequent::Migrations::Grouper.group_partitions(partitions, replay_group_target_size)
 
         [event_count, groups]
       end

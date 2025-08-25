@@ -29,40 +29,33 @@ describe Sequent::Migrations::Grouper do
       groups = subject.group_partitions(partitions, group_target_size)
 
       # The groups must cover all partitions
-      expect(groups.first.begin).to eq(EP[partitions.keys.min, Sequent::Migrations::Grouper::LOWEST_UUID])
-      expect(groups.last.end).to eq(EP[partitions.keys.max, Sequent::Migrations::Grouper::HIGHEST_UUID])
+      expect(groups.first.begin).to be_nil
+      expect(groups.last.end).to be_nil
 
       groups.each do |group|
         # begin must be before end for each group
-        expect(group).not_to be_exclude_end
-        expect(group.begin).to be <= group.end
+        expect(group).to be_exclude_end
+        expect(group.end).to be > group.begin unless group == groups.first || group == groups.last
       end
       groups.each_cons(2).each do |prev_group, next_group|
-        # end of previous group must be before begin of next group
-        expect(prev_group.end).to be < next_group.begin
-        # groups must be consecutive
-        if prev_group.end.partition_key == next_group.begin.partition_key
-          expect(NEXT_UUID[prev_group.end.aggregate_id]).to eq(next_group.begin.aggregate_id)
-        else
-          expect(prev_group.end.aggregate_id).to eq(Sequent::Migrations::Grouper::HIGHEST_UUID)
-          expect(next_group.begin.aggregate_id).to eq(Sequent::Migrations::Grouper::LOWEST_UUID)
-        end
+        # exclusive end of previous group must be equal begin of next group (consecutive groups)
+        expect(prev_group.end).to eq(next_group.begin)
       end
     end
   end
 
   it 'creates a single group when all partitions fit' do
     expect(subject.group_partitions(partitions, 1000))
-      .to eq([EP[:a, subject::LOWEST_UUID]..EP[:c, subject::HIGHEST_UUID]])
+      .to eq([nil...nil])
   end
 
   it 'creates multiple groups from a single large partition' do
     expect(subject.group_partitions({a: 100}, 40))
       .to eq(
         [
-          EP[:a, subject::LOWEST_UUID]..EP[:a, '66666666-6666-6666-6666-666666666665'],
-          EP[:a, '66666666-6666-6666-6666-666666666666']..EP[:a, 'cccccccc-cccc-cccc-cccc-cccccccccccb'],
-          EP[:a, 'cccccccc-cccc-cccc-cccc-cccccccccccc']..EP[:a, subject::HIGHEST_UUID],
+          nil...EP[:a, '66666666-6666-6666-6666-666666666666'],
+          EP[:a, '66666666-6666-6666-6666-666666666666']...EP[:a, 'cccccccc-cccc-cccc-cccc-cccccccccccc'],
+          EP[:a, 'cccccccc-cccc-cccc-cccc-cccccccccccc']...nil,
         ],
       )
   end
@@ -72,8 +65,8 @@ describe Sequent::Migrations::Grouper do
       expect(subject.group_partitions(partitions, 500))
         .to eq(
           [
-            EP[:a, subject::LOWEST_UUID]..EP[:b, '7fffffff-ffff-ffff-ffff-ffffffffffff'],
-            EP[:b, '80000000-0000-0000-0000-000000000000']..EP[:c, subject::HIGHEST_UUID],
+            nil...EP[:b, '80000000-0000-0000-0000-000000000000'],
+            EP[:b, '80000000-0000-0000-0000-000000000000']...nil,
           ],
         )
     end
@@ -82,9 +75,9 @@ describe Sequent::Migrations::Grouper do
       expect(subject.group_partitions(partitions, 400))
         .to eq(
           [
-            EP[:a, subject::LOWEST_UUID]..EP[:b, '55555555-5555-5555-5555-555555555554'],
-            EP[:b, '55555555-5555-5555-5555-555555555555']..EP[:b, 'ffffffff-ffff-ffff-ffff-ffffffffffff'],
-            EP[:c, '00000000-0000-0000-0000-000000000000']..EP[:c, subject::HIGHEST_UUID],
+            nil...EP[:b, '55555555-5555-5555-5555-555555555555'],
+            EP[:b, '55555555-5555-5555-5555-555555555555']...EP[:c, '00000000-0000-0000-0000-000000000000'],
+            EP[:c, '00000000-0000-0000-0000-000000000000']...nil,
           ],
         )
     end
@@ -93,9 +86,9 @@ describe Sequent::Migrations::Grouper do
       expect(subject.group_partitions({a: 200, b: 500, c: 200}, 300))
         .to eq(
           [
-            EP[:a, subject::LOWEST_UUID]..EP[:b, '33333333-3333-3333-3333-333333333332'],
-            EP[:b, '33333333-3333-3333-3333-333333333333']..EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccb'],
-            EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccc']..EP[:c, subject::HIGHEST_UUID],
+            nil...EP[:b, '33333333-3333-3333-3333-333333333333'],
+            EP[:b, '33333333-3333-3333-3333-333333333333']...EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccc'],
+            EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccc']...nil,
           ],
         )
     end
@@ -104,9 +97,9 @@ describe Sequent::Migrations::Grouper do
       expect(subject.group_partitions({a: 200, b: 500, c: 200}, 300))
         .to eq(
           [
-            EP[:a, subject::LOWEST_UUID]..EP[:b, '33333333-3333-3333-3333-333333333332'],
-            EP[:b, '33333333-3333-3333-3333-333333333333']..EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccb'],
-            EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccc']..EP[:c, subject::HIGHEST_UUID],
+            nil...EP[:b, '33333333-3333-3333-3333-333333333333'],
+            EP[:b, '33333333-3333-3333-3333-333333333333']...EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccc'],
+            EP[:b, 'cccccccc-cccc-cccc-cccc-cccccccccccc']...nil,
           ],
         )
     end

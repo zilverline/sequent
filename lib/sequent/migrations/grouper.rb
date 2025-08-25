@@ -21,48 +21,58 @@ module Sequent
       # events partition keys and the number of events per partition
       # key.  Each group is defined by a lower bound (partition-key,
       # aggregate-id) and upper bound (partition-key, aggregate-id)
-      # (inclusive).
+      # (exclusive). The first group's lower bound and last group's
+      # upper bound are always nil.
+      #
+      # The returned array contains at least one group (`nil...nil`
+      # when there are no partitions).
       #
       # For splitting a partition into equal sized groups the
       # assumption is made that aggregate-ids and their events are
       # equally distributed.
       def self.group_partitions(partitions, target_group_size)
-        return [] unless partitions.present?
+        return [(nil...nil)] if partitions.empty?
 
         partitions = partitions.sort.map do |key, count|
           PartitionData.new(key:, original_size: count, remaining_size: count, lower_bound: 0)
         end
 
         partition = partitions.shift
-        current_start = GroupEndpoint.new(partition.key, LOWEST_UUID)
+        current_start = nil
         current_size = 0
 
         result = []
         while partition.present?
           if current_size + partition.remaining_size < target_group_size
-            current_size += partition.remaining_size
             if partitions.empty?
-              result << (current_start..GroupEndpoint.new(partition.key, HIGHEST_UUID))
+              result << (current_start...nil)
               break
             end
+
+            current_size += partition.remaining_size
             partition = partitions.shift
           elsif current_size + partition.remaining_size == target_group_size
-            result << (current_start..GroupEndpoint.new(partition.key, HIGHEST_UUID))
+            if partitions.empty?
+              result << (current_start...nil)
+              break
+            end
 
             partition = partitions.shift
-            break unless partition
+            current_end = GroupEndpoint.new(partition.key, LOWEST_UUID)
+            result << (current_start...current_end)
 
-            current_start = GroupEndpoint.new(partition.key, LOWEST_UUID)
+            current_start = current_end
             current_size = 0
           else
             taken = target_group_size - current_size
             upper_bound = partition.lower_bound + (UUID_COUNT * taken / partition.original_size)
 
-            result << (current_start..GroupEndpoint.new(partition.key, number_to_uuid(upper_bound - 1)))
+            current_end = GroupEndpoint.new(partition.key, number_to_uuid(upper_bound))
+            result << (current_start...current_end)
 
             remaining_size = partition.remaining_size - taken
             partition = partition.with(remaining_size:, lower_bound: upper_bound)
-            current_start = GroupEndpoint.new(partition.key, number_to_uuid(upper_bound))
+            current_start = current_end
             current_size = 0
           end
         end
