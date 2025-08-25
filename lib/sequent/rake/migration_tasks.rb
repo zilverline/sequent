@@ -162,12 +162,12 @@ module Sequent
             task connect: %i[sequent:connect init]
 
             desc 'Prints the current version in the database'
-            task current_version: [:create_and_migrate_sequent_view_schema] do
+            task current_version: [:connect] do
               puts "Current version in the database is: #{Sequent::Migrations::Versions.current_version}"
             end
 
             desc 'Returns whether a migration is currently running'
-            task check_running_migrations: [:create_and_migrate_sequent_view_schema] do
+            task check_running_migrations: [:connect] do
               if Sequent::Migrations::Versions.running.any?
                 puts <<~EOS
                   Migration is running, current version: #{Sequent::Migrations::Versions.current_version},
@@ -179,7 +179,7 @@ module Sequent
             end
 
             desc 'Returns whether a migration is pending'
-            task check_pending_migrations: [:create_and_migrate_sequent_view_schema] do
+            task check_pending_migrations: [:connect] do
               if Sequent.new_version != Sequent::Migrations::Versions.current_version
                 puts <<~EOS
                   Migration is pending, current version: #{Sequent::Migrations::Versions.current_version},
@@ -191,7 +191,7 @@ module Sequent
             end
 
             desc 'Aborts if a migration is pending'
-            task abort_if_pending_migrations: [:create_and_migrate_sequent_view_schema] do
+            task abort_if_pending_migrations: [:connect] do
               abort if Sequent.new_version != Sequent::Migrations::Versions.current_version
             end
 
