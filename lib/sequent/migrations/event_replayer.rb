@@ -201,27 +201,25 @@ module Sequent
           [Internal::PartitionedEvent.table_name],
         )
 
-        # If the table is larger than 10 MB, only scan a subset to avoid spending too much time
-        # counting events. An alternative is to use the system time limit tablesample extension:
-        # https://www.postgresql.org/docs/current/tsm-system-time.html
-        #
-        # Event store size            Estimated sampled data size
-        # 10 MB                       10 MB
-        # 100 MB                      12.5 MB
-        # 1 GB                        15.6 MB
-        # 10 GB                       19.5 MB
-        # 100 GB                      24.4 MB
-        # 1 TB                        30.5 MB
-        tablesample_target = if events_table_size <= 10_000_000
-                               100
-                             else
-                               100 / (8**Math.log10(events_table_size / 10_000_000))
-                             end
-        partitions_query = partitions_query.joins("TABLESAMPLE SYSTEM (#{tablesample_target})")
+        if events_table_size > 10_000_000 && estimated_event_count > 100_000
+          # If the table is larger than 10 MB, only scan a subset to avoid spending too much time
+          # counting events. An alternative is to use the system time limit tablesample extension:
+          # https://www.postgresql.org/docs/current/tsm-system-time.html
+          #
+          # Event store size            Estimated sampled data size
+          # 10 MB                       10 MB
+          # 100 MB                      12.5 MB
+          # 1 GB                        15.6 MB
+          # 10 GB                       19.5 MB
+          # 100 GB                      24.4 MB
+          # 1 TB                        30.5 MB
+          percentage = 100 / (8**Math.log10(events_table_size / 10_000_000))
+          partitions_query = partitions_query.joins("TABLESAMPLE SYSTEM (#{percentage})")
+        end
 
         # Use the PostgreSQL `ntile` function to partition the events in similar sized groups:
         # https://www.postgresql.org/docs/current/functions-window.html
-        boundaries = ActiveRecord::Base.connection.exec_query(<<~SQL, 'event groups', [target_group_count])
+        boundaries = ActiveRecord::Base.connection.exec_query(<<~SQL, 'event groups', [target_group_count - 1])
           WITH source AS (#{partitions_query.to_sql}),
                buckets AS (
             SELECT ntile($1) OVER (ORDER BY partition_key, aggregate_id) AS bucket,
