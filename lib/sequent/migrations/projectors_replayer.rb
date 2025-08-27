@@ -7,16 +7,16 @@ require 'active_support/core_ext/integer/inflections'
 module Sequent
   module Migrations
     class ReplayState < ActiveRecord::Base
-      scope :replaying, -> { where(state: %w[replaying_initial replaying_increment]) }
+      scope :replaying, -> { where(state: %w[replaying catching_up]) }
 
       REPLAY_STATES = %w[
         created
-        prepared_initial
-        replaying_initial
-        replaying_increment
+        prepared
+        replaying
+        catching_up
         replayed
-        prepared_completion
-        completed
+        optimized
+        live
         aborted
         failed
       ].freeze
@@ -63,7 +63,7 @@ module Sequent
         psql_path = locate_command('psql')
 
         with_locked_state do
-          verify_state 'initial replay can only be performed when', 'created'
+          verify_state 'preparing for replay can only be performed when', 'created'
 
           log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
           log_and_exec_update("CREATE SCHEMA #{quoted_replay_schema_name}")
@@ -71,7 +71,7 @@ module Sequent
 
         # Start new transaction to ensure replay schema is visible when running pg_dump and psql.
         with_locked_state do
-          verify_state 'initial replay can only be performed when', 'created'
+          verify_state 'preparing for replay can only be performed when', 'created'
 
           pg_dump_args = %w[--schema-only --quote-all-identifiers --strict-names] +
                          @managed_tables.map do |table|
@@ -102,7 +102,7 @@ module Sequent
 
           Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
 
-          @state.state = 'prepared_initial'
+          @state.state = 'prepared'
           @state.save!
         rescue StandardError
           mark_replay_failed!
@@ -115,7 +115,7 @@ module Sequent
         number_of_replay_processes: Sequent.configuration.number_of_replay_processes
       )
         maximum_xact_id_exclusive = with_locked_state do
-          verify_state 'initial replay can only be performed when', 'prepared_initial'
+          verify_state 'initial replay can only be performed when', 'prepared'
           verify_replaying_projector_versions
 
           non_empty_tables = @managed_tables.select do |table|
@@ -125,7 +125,7 @@ module Sequent
           end
           fail "managed tables #{non_empty_tables.join(', ')} are not empty" unless non_empty_tables.empty?
 
-          @state.state = 'replaying_initial'
+          @state.state = 'replaying'
           @state.save!
 
           Sequent::Support::Database.current_snapshot_xmin_xact_id
@@ -144,7 +144,7 @@ module Sequent
 
           with_locked_state do
             verify_replaying_projector_versions
-            fail 'internal error' unless @state.state == 'replaying_initial'
+            fail 'internal error' unless @state.state == 'replaying'
 
             @state.state = 'replayed'
             @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
@@ -161,12 +161,12 @@ module Sequent
         number_of_replay_processes: Sequent.configuration.number_of_replay_processes
       )
         maximum_xact_id_exclusive, saved_state = with_locked_state do
-          verify_state 'incremental replay can only be performed when', 'replayed', 'prepared_completion'
+          verify_state 'catching up can only be performed when', 'replayed', 'optimized'
           verify_replaying_projector_versions
 
           saved_state = @state.state
 
-          @state.state = 'replaying_increment'
+          @state.state = 'catching_up'
           @state.save!
 
           [Sequent::Support::Database.current_snapshot_xmin_xact_id, saved_state]
@@ -185,7 +185,7 @@ module Sequent
 
           with_locked_state do
             verify_replaying_projector_versions
-            fail 'internal error' unless @state.state == 'replaying_increment'
+            fail 'internal error' unless @state.state == 'catching_up'
 
             @state.state = saved_state
             @state.continue_replay_at_xact_id = maximum_xact_id_exclusive
@@ -212,14 +212,14 @@ module Sequent
           recreate_dropped_indexes
           analyze_tables
 
-          @state.state = 'prepared_completion'
+          @state.state = 'optimized'
           @state.save!
         end
       end
 
       def activate!
         with_locked_state do
-          verify_state 'activation can only be performed when', 'prepared_completion'
+          verify_state 'going live can only be performed when', 'optimized'
           verify_replaying_projector_versions
 
           exec_update("SET LOCAL lock_timeout TO '1s'")
@@ -254,7 +254,7 @@ module Sequent
 
           Sequent::Core::Projectors.register_active_projectors!(projector_classes)
 
-          @state.state = 'completed'
+          @state.state = 'live'
           @state.save!
         end
       end

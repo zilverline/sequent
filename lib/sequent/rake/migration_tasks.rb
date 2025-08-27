@@ -424,24 +424,24 @@ module Sequent
               end
 
               desc <<~EOS
-                Replay all projectors and prepare for activating the replayed projectors
+                Replay all projectors and go live
               EOS
-              task all: %i[prepare_initial initial increment prepare_completion increment complete]
+              task all: %i[prepare replay catchup optimize catchup golive]
 
               desc <<~EOS
                 Prepare the specified projectors for background replay
 
                 Creates the `#{Sequent.configuration.replay_schema_name}` with the projector's tables copied from the
-                `#{Sequent.configuration.view_schema_name}` (schema only, not including table's data)
+                `#{Sequent.configuration.view_schema_name}` (schema only, not including the table's data)
               EOS
-              task prepare_initial: :connect do |_t, args|
+              task prepare: :connect do |_t, args|
                 projector_classes = args.extras.map { |name| Class.const_get(name) }.presence ||
                                     Sequent::Core::Migratable.all
                 replayer = Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:)
                 replayer.prepare_for_replay
                 show_replay_state(replayer.state)
               rescue NameError => e
-                Sequent.logger.error("prepare_for_replay: unknown projector '#{e.name}'")
+                Sequent.logger.error("prepare: unknown projector '#{e.name}'")
                 exit(1)
               end
 
@@ -455,13 +455,14 @@ module Sequent
               desc <<~EOS
                 Performs the initial replay of all applicable events from the event store
 
-                Splits the aggregates into groups of approximately `replay_group_target_size` (default #{Sequent.configuration.replay_group_target_size}) events
-                using `number_of_replay_processes` (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
+                Splits the aggregates into groups of approximately `replay_group_target_size`
+                (default #{Sequent.configuration.replay_group_target_size}) events using `number_of_replay_processes`
+                (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
 
-                Once the initial replay has been completed you can continue with incremental replay or activation of the
-                projectors.
+                Once the initial replay has been completed you can catchup with incremental replay or optimize before
+                going lie with the projectors.
               EOS
-              task :initial,
+              task :replay,
                    %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
                      replay_group_target_size = args[:replay_group_target_size]&.to_i ||
                                                 Sequent.configuration.replay_group_target_size
@@ -474,12 +475,12 @@ module Sequent
                    end
 
               desc <<~EOS
-                Performs replay of new event since last initial or incremental replay
+                Performs replay of new event since last replay
 
                 Splits the aggregates into groups of approximately `replay_group_target_size` (default #{Sequent.configuration.replay_group_target_size}) events
                 using `number_of_replay_processes` (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
               EOS
-              task :increment,
+              task :catchup,
                    %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
                      replay_group_target_size = args[:replay_group_target_size]&.to_i ||
                                                 Sequent.configuration.replay_group_target_size&.to_i
@@ -492,12 +493,12 @@ module Sequent
                    end
 
               desc <<~EOS
-                Prepares the replayed tables for activation (VACUUM, CREATE INDEX, ANALYZE)
+                Optimizes and prepares the replayed tables for activation (VACUUM, CREATE INDEX, ANALYZE)
 
                 Vacuums (or clusters, if there is a clustered index) the replayed tables and re-creates the query
-                only indexes. Once this step is completed the replayed tables can be activated.
+                only indexes. Once this step is completed the replayed tables can go live.
               EOS
-              task prepare_completion: :connect do
+              task optimize: :connect do
                 Sequent.logger.info('preparing replayed tables for activation')
                 replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
                 replayer.prepare_for_activation!
@@ -507,17 +508,17 @@ module Sequent
               desc <<~EOS
                 Performs replay of new event since last and atomically actives the replayed projector using the new tables
 
-                Atomically replays any events since the last initial or incremental replay (temporarily blocking the
-                projectors writing to the view schema) and moves the replayed tables into the view schema (the old view
-                schema tables are moved to the archive schema). Once the tables have been moved the running system can
-                write to the view schema again.
+                Atomically replays any events since the last replay (temporarily blocking the projectors writing to the
+                view schema) and moves the replayed tables into the view schema (the old view schema tables are moved to
+                the archive schema). Once the tables have been moved the running system can write to the view schema
+                again.
               EOS
-              task complete: :connect do
-                Sequent.logger.info('activating replayed tables')
+              task golive: :connect do
+                Sequent.logger.info('activating replayed projectors')
                 replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
                 replayer.activate!
                 show_replay_state(replayer.state)
-                Sequent.logger.info('replayed tables are now in the view schema, old tables are in the archive schema')
+                Sequent.logger.info('replayed projectors are now live (previous data saved in the archive schema)')
               end
             end
           end

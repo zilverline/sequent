@@ -1021,7 +1021,7 @@ CREATE TABLE sequent_schema.replay_states (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     index_definitions jsonb,
     table_cluster_indexes jsonb,
-    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared_initial'::text, 'replaying_initial'::text, 'replaying_increment'::text, 'replayed'::text, 'prepared_completion'::text, 'completed'::text, 'failed'::text, 'aborted'::text])))
+    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'replaying'::text, 'catching_up'::text, 'replayed'::text, 'optimized'::text, 'live'::text, 'failed'::text, 'aborted'::text])))
 );
 
 
@@ -1406,7 +1406,7 @@ CREATE INDEX events_default_event_type_id_idx ON sequent_schema.events_default U
 -- Name: replay_states_active_replay_idx; Type: INDEX; Schema: sequent_schema; Owner: -
 --
 
-CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> ALL (ARRAY['completed'::text, 'aborted'::text]));
+CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> ALL (ARRAY['live'::text, 'aborted'::text]));
 
 
 --
