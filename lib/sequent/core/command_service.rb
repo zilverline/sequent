@@ -40,11 +40,6 @@ module Sequent
         process_commands
       end
 
-      def remove_event_handler(clazz)
-        warn '[DEPRECATION] `remove_event_handler` is deprecated'
-        event_store.remove_event_handler(clazz)
-      end
-
       private
 
       def process_commands
