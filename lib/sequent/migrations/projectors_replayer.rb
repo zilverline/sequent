@@ -308,15 +308,19 @@ module Sequent
       end
 
       def replace_replayed_tables_in_view_schema(tables)
-        tables.flat_map do |table|
-          [table.table_name, *query_partition_names(view_schema_name, table.table_name)]
-        end.each do |table_name|
-          log_and_exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{quote_table_name(table_name)} SET SCHEMA #{quoted_archive_schema_name}
-          SQL
-          log_and_exec_update(<<~SQL, 'replace_table')
-            ALTER TABLE #{quoted_replay_schema_name}.#{quote_table_name(table_name)} SET SCHEMA #{quoted_view_schema_name}
-          SQL
+        tables.each do |table|
+          view_tables = [table.table_name, *query_partition_names(view_schema_name, table.table_name)]
+          view_tables.each do |name|
+            log_and_exec_update(<<~SQL, 'replace_table')
+              ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{quote_table_name(name)} SET SCHEMA #{quoted_archive_schema_name}
+            SQL
+          end
+          replayed_tables = [table.table_name, *query_partition_names(replay_schema_name, table.table_name)]
+          replayed_tables.each do |name|
+            log_and_exec_update(<<~SQL, 'replace_table')
+              ALTER TABLE #{quoted_replay_schema_name}.#{quote_table_name(name)} SET SCHEMA #{quoted_view_schema_name}
+            SQL
+          end
         end
       end
 
