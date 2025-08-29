@@ -454,7 +454,7 @@ module Sequent
 
       def locate_command(cmd)
         path, status = Open3.capture2("which #{cmd}")
-        fail 'cannot determine full path of pg_dump executable' unless status.success?
+        fail "cannot determine full path of the `#{cmd}` executable" unless status.success?
 
         path.strip
       end
