@@ -407,7 +407,7 @@ module Sequent
         SQL
         unless exists
           definition = @state.index_definitions[index_name]
-          log_and_exec_update_update(definition)
+          log_and_exec_update(definition)
         end
       end
 
