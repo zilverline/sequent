@@ -406,8 +406,7 @@ module Sequent
               all its events and then activating the replayed projector.
             EOS
             task deactivate: :connect do |_t, args|
-              projector_classes = args.extras.map { |name| Class.const_get(name) }
-              Sequent::Core::Projectors.deactivate_projectors!(projector_classes)
+              Sequent::Core::Projectors.deactivate_projectors!(args.extras)
             end
 
             namespace :replay do

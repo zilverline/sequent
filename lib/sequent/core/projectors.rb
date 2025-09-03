@@ -29,9 +29,9 @@ module Sequent
           projectors.select { |p| p.managed_tables&.include?(record_class) }
         end
 
-        def deactivate_projectors!(projector_classes)
-          rows = projector_classes.map do |c|
-            {name: c.name, active_version: nil}
+        def deactivate_projectors!(projector_names)
+          rows = projector_names.map do |name|
+            {name:, active_version: nil}
           end
           update_projector_state(rows)
         end
