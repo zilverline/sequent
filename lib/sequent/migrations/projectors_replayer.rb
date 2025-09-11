@@ -8,6 +8,7 @@ module Sequent
   module Migrations
     class ReplayState < ActiveRecord::Base
       scope :replaying, -> { where(state: %w[replaying catching_up]) }
+      scope :in_progress, -> { where.not(state: %w[live aborted]) }
 
       REPLAY_STATES = %w[
         created
@@ -16,9 +17,9 @@ module Sequent
         catching_up
         replayed
         optimized
+        failed
         live
         aborted
-        failed
       ].freeze
 
       validates :state, presence: true, inclusion: REPLAY_STATES
@@ -54,7 +55,7 @@ module Sequent
       end
 
       def self.resume_from_database
-        state = ReplayState.where.not(state: %w[done aborted]).last!
+        state = ReplayState.in_progress.last!
         new(state:)
       end
 
