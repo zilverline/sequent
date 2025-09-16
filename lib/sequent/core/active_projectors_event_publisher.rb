@@ -30,12 +30,12 @@ module Sequent
       def ensure_no_unknown_active_projectors!(event_handlers)
         registered_projectors = event_handlers
           .select { |x| x.is_a?(Projector) }
-          .to_h { |x| [x.class.name, x.class.version] }
+          .map { |x| x.class.name }
         activated_projectors = Projectors.projector_states
           .values
-          .select { |s| s.active_version == registered_projectors[s.name] || registered_projectors[s.name].nil? }
+          .select { |s| s.active_version.present? || s.activating_version.present? }
           .to_set(&:name)
-        unknown_active_projectors = activated_projectors - registered_projectors.keys
+        unknown_active_projectors = activated_projectors - registered_projectors
         if unknown_active_projectors.present?
           fail UnknownActiveProjectorError,
                "cannot publish event when unknown projectors are active #{unknown_active_projectors}"
