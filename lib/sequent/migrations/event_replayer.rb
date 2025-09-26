@@ -195,7 +195,7 @@ module Sequent
           ),
         ).dig(0, 'Plan', 'Plan Rows') || 0
 
-        target_group_count = [10 * number_of_replay_processes, estimated_event_count / replay_group_target_size].max
+        target_group_count = [4 * number_of_replay_processes, estimated_event_count / replay_group_target_size].max
 
         events_table_size = ActiveRecord::Base.connection.select_value(
           'SELECT sum(pg_relation_size(relid))::bigint FROM pg_partition_tree($1) AS t',
