@@ -133,17 +133,19 @@ module Sequent
           )
         if group.begin
           event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) >= (?, ?)',
-            group.begin.partition_key,
-            group.begin.aggregate_id,
+            'events.partition_key >= :partition_key AND ' \
+            '(events.partition_key, events.aggregate_id) >= (:partition_key, :aggregate_id)',
+            partition_key: group.begin.partition_key,
+            aggregate_id: group.begin.aggregate_id,
           )
         end
         if group.end
           op = group.exclude_end? ? '<' : '<='
           event_stream = event_stream.where(
-            "(events.partition_key, events.aggregate_id) #{op} (?, ?)",
-            group.end.partition_key,
-            group.end.aggregate_id,
+            'events.partition_key <= :partition_key AND ' \
+            "(events.partition_key, events.aggregate_id) #{op} (:partition_key, :aggregate_id)",
+            partition_key: group.end.partition_key,
+            aggregate_id: group.end.aggregate_id,
           )
         end
         event_stream = xact_id_filter(event_stream, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
