@@ -34,25 +34,18 @@ module Sequent
         event_types = projector_classes.flat_map { |p| p.message_mapping.keys }.uniq.map(&:name)
         event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
 
-        partitions_query = Internal::PartitionedEvent.where(event_type_id: event_type_ids)
-        partitions_query = xact_id_filter(partitions_query, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
-
-        partitions = partitions_query.group(:partition_key).order(:partition_key).count
-        event_count = partitions.values.sum
-
-        groups = Sequent::Migrations::Grouper.group_partitions(partitions, replay_group_target_size)
-
-        if groups.empty?
-          groups = [nil..nil]
-        else
-          groups.prepend(nil..groups.first.begin)
-          groups.append(groups.last.end..nil)
-        end
+        estimated_event_count, groups = calculate_groups(
+          replay_group_target_size:,
+          number_of_replay_processes:,
+          minimum_xact_id_inclusive:,
+          maximum_xact_id_exclusive:,
+          event_type_ids:,
+        )
 
         with_sequent_config(replay_persistor, projector_classes) do
-          logger.info "Start replaying #{event_count} events in #{groups.size} groups"
+          logger.info "Start replaying an estimated #{estimated_event_count} events in #{groups.size} groups"
 
-          time("#{event_count} events in #{groups.size} groups replayed") do
+          time("#{estimated_event_count} events in #{groups.size} groups replayed") do
             disconnect!
 
             @connected = false
@@ -138,25 +131,21 @@ module Sequent
           .where(
             event_type_id: event_type_ids,
           )
-        if group.begin && group.end
+        if group.begin
           event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) BETWEEN (?, ?) AND (?, ?)',
-            group.begin.partition_key,
-            group.begin.aggregate_id,
-            group.end.partition_key,
-            group.end.aggregate_id,
+            'events.partition_key >= :partition_key AND ' \
+            '(events.partition_key, events.aggregate_id) >= (:partition_key, :aggregate_id)',
+            partition_key: group.begin.partition_key,
+            aggregate_id: group.begin.aggregate_id,
           )
-        elsif group.end
+        end
+        if group.end
+          op = group.exclude_end? ? '<' : '<='
           event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) < (?, ?)',
-            group.end.partition_key,
-            group.end.aggregate_id,
-          )
-        elsif group.begin
-          event_stream = event_stream.where(
-            '(events.partition_key, events.aggregate_id) > (?, ?)',
-            group.begin.partition_key,
-            group.begin.aggregate_id,
+            'events.partition_key <= :partition_key AND ' \
+            "(events.partition_key, events.aggregate_id) #{op} (:partition_key, :aggregate_id)",
+            partition_key: group.end.partition_key,
+            aggregate_id: group.end.aggregate_id,
           )
         end
         event_stream = xact_id_filter(event_stream, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
@@ -184,6 +173,72 @@ module Sequent
       ## shortcut methods
       def disconnect! = Sequent::Support::Database.disconnect!
       def establish_connection(...) = Sequent::Support::Database.establish_connection(...)
+
+      private
+
+      def calculate_groups(
+        replay_group_target_size:,
+        number_of_replay_processes:,
+        minimum_xact_id_inclusive:,
+        maximum_xact_id_exclusive:,
+        event_type_ids:
+      )
+        partitions_query = Internal::PartitionedEvent
+          .where(event_type_id: event_type_ids)
+          .select('partition_key', 'aggregate_id')
+        partitions_query = xact_id_filter(partitions_query, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+
+        # Let PostgreSQL estimate the number of events matching the event types and xact id constraints.
+        estimated_event_count = JSON.parse(
+          ActiveRecord::Base.connection.select_value(
+            "EXPLAIN (FORMAT JSON) #{partitions_query.to_sql}",
+          ),
+        ).dig(0, 'Plan', 'Plan Rows') || 0
+
+        target_group_count = [8 * number_of_replay_processes, estimated_event_count / replay_group_target_size].max
+
+        events_table_size = ActiveRecord::Base.connection.select_value(
+          'SELECT sum(pg_relation_size(relid))::bigint FROM pg_partition_tree($1) AS t',
+          'events table size',
+          [Internal::PartitionedEvent.table_name],
+        )
+
+        if events_table_size > 10_000_000 && estimated_event_count > 100_000
+          # If the table is larger than 10 MB, only scan a subset to avoid spending too much time
+          # counting events. An alternative is to use the system time limit tablesample extension:
+          # https://www.postgresql.org/docs/current/tsm-system-time.html
+          #
+          # Event store size            Estimated sampled data size
+          # 10 MB                       10 MB
+          # 100 MB                      12.5 MB
+          # 1 GB                        15.6 MB
+          # 10 GB                       19.5 MB
+          # 100 GB                      24.4 MB
+          # 1 TB                        30.5 MB
+          percentage = 100 / (8**Math.log10(events_table_size / 10_000_000))
+          partitions_query = partitions_query.joins("TABLESAMPLE SYSTEM (#{percentage})")
+        end
+
+        # Use the PostgreSQL `ntile` function to partition the events in similar sized groups:
+        # https://www.postgresql.org/docs/current/functions-window.html
+        boundaries = ActiveRecord::Base.connection.exec_query(<<~SQL, 'event groups', [target_group_count - 1])
+          WITH source AS (#{partitions_query.to_sql}),
+               buckets AS (
+            SELECT ntile($1) OVER (ORDER BY partition_key, aggregate_id) AS bucket,
+                   partition_key,
+                   aggregate_id
+              FROM source
+          )
+          SELECT DISTINCT ON (bucket) bucket, partition_key, aggregate_id
+            FROM buckets
+           ORDER BY bucket, partition_key, aggregate_id
+        SQL
+
+        endpoints = boundaries.map { |group| Grouper::GroupEndpoint.new(group['partition_key'], group['aggregate_id']) }
+        groups = [nil, *endpoints, nil].each_cons(2).map { |lower, upper| lower...upper }
+
+        [estimated_event_count, groups]
+      end
     end
   end
 end
