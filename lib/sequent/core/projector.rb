@@ -25,6 +25,14 @@ module Sequent
           !!@manages_no_tables || manages_no_tables_from_superclass?
         end
 
+        def version=(version)
+          @version = version
+        end
+
+        def version
+          @version || Sequent.migrations_class&.version || 1
+        end
+
         private
 
         def managed_tables_from_superclass
@@ -42,6 +50,11 @@ module Sequent
 
       def self.included(host_class)
         host_class.extend(ClassMethods)
+
+        host_class.class_attribute :additional_replay_indexes,
+                                   default: [],
+                                   instance_reader: false,
+                                   instance_writer: false
       end
 
       def self.none

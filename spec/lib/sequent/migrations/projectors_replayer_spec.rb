@@ -117,7 +117,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
     it 'should fail if already prepared' do
       expect do
         subject.prepare_for_replay
-      end.to raise_error(/when current state is `created`/)
+      end.to raise_error(/when current state is created/)
     end
   end
 
@@ -153,10 +153,10 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
 
     it 'should fail if the state is not `prepared`' do
-      subject.done!
+      subject.abort!
 
       expect { subject.perform_initial_replay }
-        .to raise_error(/initial replay can only be performed when current state is `prepared`/)
+        .to raise_error(/initial replay can only be performed when current state is prepared/)
     end
 
     it 'should ensure the replay tables are empty for the initial replay' do
@@ -180,8 +180,8 @@ describe Sequent::Migrations::ProjectorsReplayer do
         expect(record_count('view_schema')).to eq(initial_event_count)
       end
 
-      it 'should be ready for incremental replay and activation' do
-        expect(replay_state).to have_attributes(state: 'ready_for_activation')
+      it 'should be ready for incremental replay and or preparing for activation' do
+        expect(replay_state).to have_attributes(state: 'replayed')
       end
 
       context '#incremental_replay' do
@@ -211,6 +211,12 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
           expect(record_count('replay_schema')).to eq(initial_event_count + incremental_event_count)
         end
+
+        it 'can be executed after preparing for activation' do
+          subject.prepare_for_activation!
+
+          subject.perform_incremental_replay
+        end
       end
     end
   end
@@ -220,7 +226,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
     it 'requires initial replay to have been completed' do
       expect { subject.activate! }
-        .to raise_error(/activation can only be performed when current state is `ready_for_activation`/)
+        .to raise_error(/going live can only be performed when current state is optimized/)
     end
 
     context 'when ready for activation' do
@@ -229,10 +235,11 @@ describe Sequent::Migrations::ProjectorsReplayer do
       before do
         insert_events(initial_event_count)
         subject.perform_initial_replay
+        subject.prepare_for_activation!
       end
 
       after do
-        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'done')
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
       end
 
       it 'incrementally replays the events within the transaction' do

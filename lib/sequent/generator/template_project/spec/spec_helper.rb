@@ -23,12 +23,6 @@ RSpec.configure do |config|
   config.include Sequent::Test::CommandHandlerHelpers
   config.include DomainTests, file_path: %r{/spec\/lib/}
 
-  config.before :suite do
-    Sequent::Support::Database.drop_schema!(Sequent.configuration.view_schema_name)
-
-    Sequent::Test::DatabaseHelpers.maintain_test_database_schema(env: 'test')
-  end
-
   # Domain tests run with a clean sequent configuration and the in memory FakeEventStore
   config.around :each, :domain_tests do |example|
     old_config = Sequent.configuration

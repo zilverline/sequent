@@ -6,6 +6,7 @@ require 'erb'
 require_relative 'lib/post'
 require_relative 'app/projectors/post_projector'
 
+require_relative 'config/initializers/active_record'
 require_relative 'config/initializers/sequent'
 
 module MyApp

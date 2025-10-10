@@ -28,13 +28,12 @@ module Sequent
       end
 
       def ensure_no_unknown_active_projectors!(event_handlers)
-        expected_version = Sequent.migrations_class&.version
-        return if expected_version.nil?
-
-        registered_projectors = event_handlers.select { |x| x.is_a?(Projector) }.map { |x| x.class.name }
+        registered_projectors = event_handlers
+          .select { |x| x.is_a?(Projector) }
+          .map { |x| x.class.name }
         activated_projectors = Projectors.projector_states
           .values
-          .select { |s| s.active_version == expected_version }
+          .select { |s| s.active_version.present? || s.activating_version.present? }
           .to_set(&:name)
         unknown_active_projectors = activated_projectors - registered_projectors
         if unknown_active_projectors.present?
@@ -46,7 +45,7 @@ module Sequent
       def active?(handler)
         return true unless handler.is_a?(Projector)
 
-        version = Sequent.migrations_class&.version
+        version = handler.class.version
         return true if version.nil?
 
         # Projector states are not enable so all projectors are considered active

@@ -1004,9 +1004,7 @@ CREATE TABLE sequent_schema.projector_states (
     replaying_version integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT activating_newer_than_active CHECK ((activating_version > active_version)),
-    CONSTRAINT replaying_conflicts_with_activating CHECK (((replaying_version IS NULL) OR (activating_version IS NULL))),
-    CONSTRAINT replaying_newer_then_active CHECK ((replaying_version > active_version))
+    CONSTRAINT replaying_conflicts_with_activating CHECK (((replaying_version IS NULL) OR (activating_version IS NULL)))
 );
 
 
@@ -1021,7 +1019,9 @@ CREATE TABLE sequent_schema.replay_states (
     continue_replay_at_xact_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'initial_replay'::text, 'incremental_replay'::text, 'ready_for_activation'::text, 'failed'::text, 'done'::text, 'aborted'::text])))
+    index_definitions jsonb,
+    table_cluster_indexes jsonb,
+    CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'replaying'::text, 'catching_up'::text, 'replayed'::text, 'optimized'::text, 'live'::text, 'failed'::text, 'aborted'::text])))
 );
 
 
@@ -1406,7 +1406,7 @@ CREATE INDEX events_default_event_type_id_idx ON sequent_schema.events_default U
 -- Name: replay_states_active_replay_idx; Type: INDEX; Schema: sequent_schema; Owner: -
 --
 
-CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> ALL (ARRAY['done'::text, 'aborted'::text]));
+CREATE UNIQUE INDEX replay_states_active_replay_idx ON sequent_schema.replay_states USING btree ((true)) WHERE (state <> ALL (ARRAY['live'::text, 'aborted'::text]));
 
 
 --
@@ -1572,6 +1572,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20250815103000'),
 ('20250630113000'),
 ('20250601120000'),
 ('20250512135500'),

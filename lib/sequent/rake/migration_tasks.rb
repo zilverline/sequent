@@ -105,7 +105,14 @@ module Sequent
                 old_dump_schemas = ActiveRecord.dump_schemas
                 begin
                   ActiveRecord.dump_schemas = nil
-                  DatabaseTasks.structure_dump_flags = "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+                  ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags = %W[
+                    --exclude-schema=#{Sequent.configuration.replay_schema_name}
+                    --exclude-schema=#{Sequent.configuration.archive_schema_name}
+                  ]
+                  if Sequent.configuration.migrations_class
+                    ActiveRecord::Tasks::DatabaseTasks.structure_dump_flags <<
+                      "--exclude-schema=#{Sequent.configuration.view_schema_name}"
+                  end
                   DatabaseTasks.dump_schema(db_config, :sql)
                 ensure
                   ActiveRecord.dump_schemas = old_dump_schemas
@@ -382,99 +389,136 @@ module Sequent
           end
 
           namespace :projectors do
-            desc 'shows the current status of the projectors and background projector replay status'
+            desc 'shows the current status of the projectors'
             task status: :connect do
               format = "%-50s | %10s | %10s | %10s\n"
               printf format, 'Projector', 'active', 'activating', 'replaying'
               Sequent::Core::ProjectorState.order(:name).all.each do |s|
                 printf format, s.name, s.active_version, s.activating_version, s.replaying_version
               end
+            end
 
-              replay_state = Sequent::Migrations::ReplayState.last
-              if replay_state
-                printf "replay state: %s, continue at xact_id: %s, projectors: %s\n",
-                       replay_state.state,
-                       replay_state.continue_replay_at_xact_id || 0,
-                       replay_state.projectors.join(', ')
-              else
-                printf "replay state is not present\n"
+            desc <<~EOS
+              Deactivates the specified projectors so they no longer process events.
+
+              The managed tables are NOT removed or deleted so the data remains but is no longer updated
+              when new events arrive. A deactivated projector can only be re-activated by replaying
+              all its events and then activating the replayed projector.
+            EOS
+            task deactivate: :connect do |_t, args|
+              Sequent::Core::Projectors.deactivate_projectors!(args.extras)
+            end
+
+            namespace :replay do
+              desc 'shows the current replay status'
+              task status: :connect do
+                replay_state = Sequent::Migrations::ReplayState.last
+                if replay_state
+                  show_replay_state(replay_state)
+                else
+                  Sequent.logger.info(
+                    'replay state is not present, use sequent:projectors:replay:prepare to start replaying',
+                  )
+                end
               end
-            end
 
-            desc <<~EOS
-              Prepare the specified projectors for background replay
+              desc <<~EOS
+                Replay all projectors and go live
+              EOS
+              task all: %i[prepare replay catchup optimize catchup golive]
 
-              Creates the `#{Sequent.configuration.replay_schema_name}` with the projector's tables copied from the
-              `#{Sequent.configuration.view_schema_name}` (schema only, not including table's data)
-            EOS
-            task prepare_for_replay: :connect do |_t, args|
-              projector_classes = args.extras.map { |name| Class.const_get(name) }
-              replayer = Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:)
-              replayer.prepare_for_replay
-            rescue NameError => e
-              Sequent.logger.error("prepare_for_replay: unknown projector '#{e.name}'")
-              exit(1)
-            rescue StandardError => e
-              Sequent.logger.error("repare_for_replay: #{e.message}")
-              exit(1)
-            end
+              desc <<~EOS
+                Prepare the specified projectors for background replay
 
-            desc 'Abort the current background projector replay, completely deleting the `replay_schema`'
-            task abort_replay: :connect do
-              replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
-              replayer.abort!
-            end
+                Creates the `#{Sequent.configuration.replay_schema_name}` with the projector's tables copied from the
+                `#{Sequent.configuration.view_schema_name}` (schema only, not including the table's data)
+              EOS
+              task prepare: :connect do |_t, args|
+                projector_classes = args.extras.map { |name| Class.const_get(name) }.presence ||
+                                    Sequent::Core::Migratable.all
+                replayer = Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:)
+                replayer.prepare_for_replay
+                show_replay_state(replayer.state)
+              rescue NameError => e
+                Sequent.logger.error("prepare: unknown projector '#{e.name}'")
+                exit(1)
+              end
 
-            desc <<~EOS
-              Performs the initial replay of all applicable events from the event store
+              desc 'Abort the current background projector replay, completely deleting the `replay_schema`'
+              task abort: :connect do
+                replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
+                replayer.abort!
+                show_replay_state(replayer.state)
+              end
 
-              Splits the aggregates into groups of approximately `replay_group_target_size` (default #{Sequent.configuration.replay_group_target_size}) events
-              using `number_of_replay_processes` (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
+              desc <<~EOS
+                Performs the initial replay of all applicable events from the event store
 
-              Once the initial replay has been completed you can continue with incremental replay or activation of the
-              projectors.
-            EOS
-            task :perform_initial_replay,
-                 %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
-                   replay_group_target_size = args[:replay_group_target_size]&.to_i ||
-                                              Sequent.configuration.replay_group_target_size
-                   number_of_replay_processes = args[:number_of_replay_processes]&.to_i ||
-                                                Sequent.configuration.number_of_replay_processes
+                Splits the aggregates into groups of approximately `replay_group_target_size`
+                (default #{Sequent.configuration.replay_group_target_size}) events using `number_of_replay_processes`
+                (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
 
-                   replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
-                   replayer.perform_initial_replay(replay_group_target_size:, number_of_replay_processes:)
-                 end
+                Once the initial replay has been completed you can catchup with incremental replay or optimize before
+                going lie with the projectors.
+              EOS
+              task :replay,
+                   %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
+                     replay_group_target_size = args[:replay_group_target_size]&.to_i ||
+                                                Sequent.configuration.replay_group_target_size
+                     number_of_replay_processes = args[:number_of_replay_processes]&.to_i ||
+                                                  Sequent.configuration.number_of_replay_processes
 
-            desc <<~EOS
-              Performs replay of new event since last initial or incremental replay
+                     replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
+                     replayer.perform_initial_replay(replay_group_target_size:, number_of_replay_processes:)
+                     show_replay_state(replayer.state)
+                   end
 
-              Splits the aggregates into groups of approximately `replay_group_target_size` (default #{Sequent.configuration.replay_group_target_size}) events
-              using `number_of_replay_processes` (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
-            EOS
-            task :perform_incremental_replay,
-                 %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
-                   replay_group_target_size = args[:replay_group_target_size]&.to_i ||
-                                              Sequent.configuration.replay_group_target_size&.to_i
-                   number_of_replay_processes = args[:number_of_replay_processes]&.to_i ||
-                                                Sequent.configuration.number_of_replay_processes
+              desc <<~EOS
+                Performs replay of new event since last replay
 
-                   replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
-                   replayer.perform_incremental_replay(replay_group_target_size:, number_of_replay_processes:)
-                 end
+                Splits the aggregates into groups of approximately `replay_group_target_size` (default #{Sequent.configuration.replay_group_target_size}) events
+                using `number_of_replay_processes` (default #{Sequent.configuration.number_of_replay_processes}) parallel worker processes.
+              EOS
+              task :catchup,
+                   %i[replay_group_target_size number_of_replay_processes] => :connect do |_t, args|
+                     replay_group_target_size = args[:replay_group_target_size]&.to_i ||
+                                                Sequent.configuration.replay_group_target_size&.to_i
+                     number_of_replay_processes = args[:number_of_replay_processes]&.to_i ||
+                                                  Sequent.configuration.number_of_replay_processes
 
-            desc <<~EOS
-              Performs replay of new event since replay and atomically moves the replay tables to the view schema
+                     replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
+                     replayer.perform_incremental_replay(replay_group_target_size:, number_of_replay_processes:)
+                     show_replay_state(replayer.state)
+                   end
 
-              Atomically replays any events since the last initial or incremental replay (temporarily blocking the
-              projectors writing to the view schema) and moves the replayed tables into the view schema (the old view
-              schema tables are moved to the archive schema). Once the tables have been moved the running system can
-              write to the view schema again.
-            EOS
-            task activate_replayed_projectors: :connect do
-              Sequent.logger.info('activating replayed tables')
-              replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
-              replayer.activate!
-              Sequent.logger.info('replayed tables are now in the view schema, old tables are in the archive schema')
+              desc <<~EOS
+                Optimizes and prepares the replayed tables for activation (VACUUM, CREATE INDEX, ANALYZE)
+
+                Vacuums (or clusters, if there is a clustered index) the replayed tables and re-creates the query
+                only indexes. Once this step is completed the replayed tables can go live.
+              EOS
+              task optimize: :connect do
+                Sequent.logger.info('preparing replayed tables for activation')
+                replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
+                replayer.prepare_for_activation!
+                show_replay_state(replayer.state)
+              end
+
+              desc <<~EOS
+                Performs replay of new event since last and atomically actives the replayed projector using the new tables
+
+                Atomically replays any events since the last replay (temporarily blocking the projectors writing to the
+                view schema) and moves the replayed tables into the view schema (the old view schema tables are moved to
+                the archive schema). Once the tables have been moved the running system can write to the view schema
+                again.
+              EOS
+              task golive: :connect do
+                Sequent.logger.info('activating replayed projectors')
+                replayer = Sequent::Migrations::ProjectorsReplayer.resume_from_database
+                replayer.activate!
+                show_replay_state(replayer.state)
+                Sequent.logger.info('replayed projectors are now live (previous data saved in the archive schema)')
+              end
             end
           end
         end
@@ -487,6 +531,36 @@ module Sequent
         @env ||= Sequent.env || fail('SEQUENT_ENV not set')
       end
       # rubocop:enable Naming/MemoizedInstanceVariableName
+
+      def show_replay_state(replay_state)
+        next_actions = case replay_state.state
+                       when 'completed', 'aborted'
+                         %w[prepare_initial]
+                       when 'prepared_initial'
+                         %w[initial abort]
+                       when 'replaying_initial', 'replaying_increment'
+                         %w[]
+                       when 'replayed'
+                         %w[increment prepare_completion abort]
+                       when 'prepared_completion'
+                         %w[increment complete abort]
+                       when 'failed'
+                         %w[abort]
+                       end
+        Sequent.logger.info(
+          format(
+            'replay state: %s at %s, continue at xact_id: %s, projectors: %s',
+            replay_state.state,
+            replay_state.updated_at,
+            replay_state.continue_replay_at_xact_id || 0,
+            replay_state.projectors.join(', '),
+          ),
+        )
+        if next_actions.present?
+          available_tasks = next_actions.map { |a| "sequent:projectors:replay:#{a}" }
+          Sequent.logger.info("available tasks: #{available_tasks.join(', ')}")
+        end
+      end
     end
   end
 end

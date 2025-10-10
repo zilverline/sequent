@@ -2,184 +2,135 @@
 title: Migrations
 ---
 
-When you want to add or change Projections you need to migrate your view model.
-The view model is **not** maintained via ActiveRecord's migrations. The reason for
-this is that the ActiveRecord's model does not fit an event sourced application.
-Since the view model is a view on your events, you can add or change new [Projectors](projector.html) and rebuild the view model from the Events.
+The projector migration process has changed significantly since Sequent 8. See [Migrations (Sequent
+8)](/docs/concepts/migrations-sequent-8.html) for the previous, deprecated mechanism.
+{: .notice--info}
 
-## How migrations work in Sequent.
 
-Sequent supports 2 types of migrations:
+When you want to add or change Projections you need to migrate your view model. Normal database
+migrations (creating tables, adding columns, etc) can be done using ActiveRecord migrations.
 
-### 1. ReplayTable
-
-A ReplayTable will build up a table from [Events](event.html) from scratch. This is the
-most commonly used migration.
-
-### 2. AlterTable
-
-This migration is an optimization migration and may come in handy for large projections.
-Over time your projections will grow. As you introduce new Events and want to use
-this data in your projection, you typically need to alter the table and add a column.
-Since in this case the column will initially be empty (or when a default value suffices), a
-ReplayTable will work but is a bit overkill. For this reason you can also
-specify an `alter_table` migration in which you can alter an existing table
-and add a column.
-
-## Defining migrations
-
-In Sequent, migrations are defined in your `Sequent.configuration.migrations_class`, which must extend
-`Sequent::Core::Projectors`.
-
-### ReplayTable
-
-To replay (existing or new) tables from scratch you can just specify
-which Projectors you want to replay:
+Since the view tables are normally in a separate table you must use the
+`Sequent::Support::Database.with_search_path` helper to manage tables in the correct schema. Below is
+an example:
 
 ```ruby
-VIEW_SCHEMA_VERSION = 1
-
-class Migrations < Sequent::Migrations::Projectors
-  def self.version
-    VIEW_SCHEMA_VERSION
-  end
-
-  def self.versions
-    {
-      '1' => [
-        UserProjector,
-      ],
-    }
+class CreatePostRecords < ActiveRecord::Migration[8.0]
+  def change
+    Sequent::Support::Database.with_search_path(Sequent.configuration.view_schema_name) do
+      create_table :post_records, id: :uuid, primary_key: :aggregate_id do |t|
+        t.text :author
+        t.text :title
+        t.text :content
+      end
+    end
   end
 end
 ```
 
-For clarity also a minimal version of the Projector and the Record:
+Run the rake `db:migrate` or `sequent:db:migrate` commands to apply your changes to the schema
+before replay.
+
+Your existing application can keep running if your database migrations are back- and
+forward-compatible!
+{: .notice--info}
+
+
+During normal operation the projectors run within the Sequent transaction to update
+the view tables as events are committed. In other words, the view tables are fully consistent with
+the event store.
+
+However, when you add a new projector or update a projector to process events that were not
+processed before you can *replay* the projector. This is done using the following steps:
+
+```sh
+$ bundle exec rake sequent:projectors:replay:prepare_initial[AutherProjector,PostProjector]
+```
+
+This step creates a new schema (default `replay_schema`) and copies the *table definitions* of the
+tables managed by the projectors from the view schema, including constraints. This is done using
+`pg_dump` and `psql`, so these programs must be available. If you do not specify any projectors all
+projectors will be included.
+
+Note that the replay schema is *DROPPED* before creating the new tables
+{: .notice--info}
+
+Index definitions are not copied (except those needed to enforce constraints) as these slow down
+database inserts during replay. If your projector relies on a particular index for data lookups you
+can specify these using:
 
 ```ruby
-class UserRecord < Sequent::ApplicationRecord; end
-
-class UserProjector
-  manages_tables UserRecord
-  # rest of code omitted for clarity
+class MyProjector < Sequent::Core::Projector
+  # Can be a regexp or a list of index names and regexps
+  self.additional_replay_indexes = %w[post_by_author_idx]
 end
 ```
 
-To be able to create the `UserRecord`, Sequent expects a SQL file name
-`user_records.sql` in the location `Sequent.configuration.migration_sql_files_directory`.
-This location can be configured in Sequent's [Configuration](configuration.html).
+After the replay schema has been prepared the initial replay can be performed:
 
-```sql
-CREATE TABLE user_records%SUFFIX% (
-  id serial NOT NULL,
-  aggregate_id uuid NOT NULL,
-  CONSTRAINT user_records_pkey%SUFFIX% PRIMARY KEY (id)
-);
-
-CREATE UNIQUE INDEX unique_aggregate_id%SUFFIX% ON user_records%SUFFIX% USING btree (aggregate_id);
+```sh
+$ bundle exec rake sequent:projectors:replay:initial[100000,8]
 ```
 
-Note the usage of the **%SUFFIX%** placeholder. This needs to be added
-to all names that are required to be unique in postgres. These are for instance:
+The first parameter specifies how many events should be included in a single database transaction
+(approximately) and the second parameter is the number of concurrent replay processes. If not
+specified these parameters default to the Sequent configuration.
 
-- table names
-- constraint names
-- index names
+The initial replay uses an optimized persistence algorithm (keeping all records in memory and then
+using a single database operation to insert every record) that can only be used when the replay
+tables are still empty.
 
-The **%SUFFIX%** placeholder makes use of the specified `VIEW_SCHEMA_VERSION` and guarantees the uniqueness of names during the migration.
+If the initial replay takes a long time and/or many new events are inserted by the running system
+while the replay is taking place you can replay events incrementally using:
 
-**Tip**: If you want to replay all projectors you can say `Sequent::Migrations.all_projectors`
-instead of specifying each `Projector` individually.
-{: .notice--success}
-
-### AlterTable
-
-When all you want to change an existing table **without replaying the events**
-you can use:
-
-
-```ruby
-VIEW_SCHEMA_VERSION = 2
-
-class Migrations < Sequent::Migrations::Projectors
-  def self.version
-    VIEW_SCHEMA_VERSION
-  end
-
-  def self.versions
-    {
-      '1' => [
-        UserProjector,
-      ],
-      '2' => [
-        Sequent::Migrations.alter_table(UserRecord),
-      ],
-    }
-  end
-end
+```sh
+$ bundle exec rake sequent:projectors:replay:increment[100000,8]
 ```
 
-To be able to run this migration, Sequent expects next to the `user_records.sql`
-a file called `user_records_2.sql` in the same location: `Sequent.configuration.migration_sql_files_directory`.
-The contents of this file can be something like:
+To complete the replay it is necessary to first prepare the tables and build additional
+indexes. This is done using:
 
-```sql
-alter table user_records add column if not exists first_name character varying;
+```sh
+$ bundle exec rake sequent:projectors:replay:prepare_completion
 ```
 
-As you can see there is no need to use the **%SUFFIX%** placeholder in these migrations
-since it is an in-place update.
-{: .notice--info}
+Building indexes can take some time (and will also impact the running system). In additional, the
+tables are [CLUSTER](https://www.postgresql.org/docs/current/sql-cluster.html)ed,
+[VACUUM](https://www.postgresql.org/docs/current/sql-vacuum.html)ed, and
+[ANALYZE](https://www.postgresql.org/docs/current/sql-analyze.html)d. This ensures the tables are
+fully ready for use by the live system.
 
-**Important**:
-1. You must also incorporate your changes to the table-name.sql (`user_records.sql` in case of the example) file.
-So the column `first_name` should be added as well in the table definition. Reason for this is that currently Sequent only
-executes the "main" `sql` files when re-generating the schema from scratch (e.g. in tests).
-2. You must make the statement idempotent with for instance "if not exists". See https://github.com/zilverline/sequent/issues/382.
-{: .notice--warning}
+You are now ready to replace the existing tables in the view schema with the replayed tables. This
+requires some locking and will stop the live system from updating projections, so it is important to
+minimize the work done. It is *recommended* to run an incremental replay again before running:
 
+```sh
+$ bundle exec rake sequent:projectors:replay:complete
+```
 
-## Running migrations
+This step moves the existing view schema tables to the archive schema (default is `archive_schema`)
+and moves the replayed tables to the view schema.
 
-Sequent provides some rake tasks to fully support a 3-phase-deploy to minimize downtime.
-A typical scenario for upgrading your application:
+Note that the archive schema is *DROPPED* before moving the existing tables, so any old archived
+data is lost!  {: .notice--danger}
 
-Given that your application is deployed in directory `/app/version/1` and running
-and you want to deploy a version `2` and need to migrate the view model
+Once the replayed tables are active in the view schema your code can now use the new projections.
 
-### 1. Install new version and run migrations
-- Install your application in `/app/version/2`
-- From within that directory run `bundle exec rake sequent:migrate:online`
+## Handling errors
 
-When running this rake task, Sequent is able to build up the new Projections
-from [Events](event.html) while the application is running. Sequent keeps track
-of which Events are being replayed. The new Projections
-are created in the view schema under unique names, not visible
-to the running app. Only one `sequent:migrate:online` can run at the same time.
-When the online migration part is done you need to run the [offline migration](#2-stop-application-and-finish-migrations) part.
+If the replay process fails at any point you can use:
 
-### 2. Stop application and finish migrations
-- To ensure we get all events, you now need to stop your application and run
-  `bundle exec rake sequent:migrate:offline`
+```sh
+$ bundle exec rake sequent:projectors:replay:abort
+```
 
-It is possible (highly likely) that new Events are being committed to the
-event store during the online migration part. These new Events need to be
-replayed by running `bundle exec rake sequent:migrate:offline`.
+To abort the current replay process. The replay schema is dropped and all replayed data is
+removed. You can then start again after fixing the problem that caused the replay failure.
 
-In order to ensure all events are replayed this part should only be run
-after you put you application in maintenance mode and **ensure that no new Events are inserted in the event store**.
-{: .notice--danger}
+If you need to know the status of the current replay process you can run:
 
-To minimize downtime when replaying offline, the event stream is scoped to the last 24 hours.
-{: .notice--info}
+```sh
+$ bundle exec rake sequent:projectors:replay:status
+```
 
-**Pro-Tip** You can also choose to keep the application running in
-read-only mode. Then you need to ensure no state changes will occur while running the last part of the migration. You can use [CommandFilters](configuration.html#commandfilters) e.g. rejecting all commands to achieve this. This will minimize downtime even further.
-{: .notice--info}
-
-This is the step in which the [AlterTable](#AlterTable) migrations are executed.
-
-### Phase 3 - Switch to new version
-- If all went well you can now switch to `/app/version/2` and (re)start your application.
-
-Congratulations! The new version of your application is live.
+for some additional information.

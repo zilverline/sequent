@@ -8,6 +8,7 @@ module Sequent
       class << self
         # Utility method to let Sequent handle creation of the view_schema
         # rather than using the available rake tasks.
+        # DEPRECATED since background projector replay
         def maintain_test_database_schema(env: 'test')
           fail ArgumentError, "env must one of [#{ALLOWED_ENVS.join(',')}] '#{env}'" unless ALLOWED_ENVS.include?(env)
 

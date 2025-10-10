@@ -29,30 +29,46 @@ module Sequent
           projectors.select { |p| p.managed_tables&.include?(record_class) }
         end
 
-        def register_inactive_projectors!(projector_classes, _version)
-          update_projector_state(
-            projector_classes,
-            active_version: nil,
-            replaying_version: nil,
-            activating_version: nil,
-          )
+        def deactivate_projectors!(projector_names)
+          rows = projector_names.map do |name|
+            {name:, active_version: nil}
+          end
+          update_projector_state(rows)
         end
 
-        def register_replaying_projectors!(projector_classes, version)
-          update_projector_state(projector_classes, replaying_version: version, activating_version: nil)
+        def register_inactive_projectors!(projector_classes)
+          rows = projector_classes.map do |c|
+            {name: c.name, active_version: nil, replaying_version: nil, activating_version: nil}
+          end
+          update_projector_state(rows)
         end
 
-        def register_activating_projectors!(projector_classes, version)
-          update_projector_state(projector_classes, activating_version: version, replaying_version: nil)
+        def register_replaying_projectors!(projector_classes)
+          rows = projector_classes.map do |c|
+            {name: c.name, replaying_version: c.version, activating_version: nil}
+          end
+          update_projector_state(rows)
         end
 
-        def register_active_projectors!(projector_classes, version)
-          update_projector_state(
-            projector_classes,
-            active_version: version,
-            activating_version: nil,
-            replaying_version: nil,
-          )
+        def register_activating_projectors!(projector_classes)
+          rows = projector_classes.map do |c|
+            {name: c.name, activating_version: c.version, replaying_version: nil}
+          end
+          update_projector_state(rows)
+        end
+
+        def register_active_projectors!(projector_classes)
+          rows = projector_classes.map do |c|
+            {name: c.name, active_version: c.version, activating_version: nil, replaying_version: nil}
+          end
+          update_projector_state(rows)
+        end
+
+        def abort_replaying_projectors(projector_classes)
+          rows = projector_classes.map do |c|
+            {name: c.name, activating_version: nil, replaying_version: nil}
+          end
+          update_projector_state(rows)
         end
 
         def projector_states
@@ -83,16 +99,10 @@ module Sequent
           Sequent.configuration.transaction_provider
         end
 
-        def update_projector_state(projector_classes, **attrs)
+        def update_projector_state(rows)
           transaction_provider.transactional do
             lock_projector_states_for_update
 
-            rows = projector_classes.map do |projector_class|
-              {
-                name: projector_class.name,
-                **attrs,
-              }
-            end
             ProjectorState.upsert_all(rows)
           end
         end
