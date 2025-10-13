@@ -63,9 +63,9 @@ module Sequent
           'register_types',
           [
             {
-              aggregate_root_types: aggregate_classes.map(&:name),
-              command_types: command_classes.map(&:name),
-              event_types: event_classes.map(&:name),
+              aggregate_root_types: aggregate_classes.map(&:name).compact,
+              command_types: command_classes.map(&:name).compact,
+              event_types: event_classes.map(&:name).compact,
             }.to_json,
           ],
         )
