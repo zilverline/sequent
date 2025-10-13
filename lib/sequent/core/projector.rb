@@ -101,6 +101,7 @@ module Sequent
       include Helpers::MessageHandler
       include Migratable
       extend ActiveSupport::DescendantsTracker
+
       class NotManagedByThisProjector < RuntimeError
         def initialize(record_class)
           super

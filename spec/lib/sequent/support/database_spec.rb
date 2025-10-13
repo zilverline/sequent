@@ -143,7 +143,7 @@ describe Sequent::Support::Database do
 SELECT 1 FROM pg_database
  WHERE datname = '#{database_name}'
 )
-    results.count == 1
+    results.one?
   end
 
   def table_exists?(table_name)
@@ -151,6 +151,6 @@ SELECT 1 FROM pg_database
 SELECT 1 FROM pg_tables
  WHERE tablename = '#{table_name}'
 )
-    results.count == 1
+    results.one?
   end
 end

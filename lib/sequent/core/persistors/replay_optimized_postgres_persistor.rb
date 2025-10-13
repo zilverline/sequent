@@ -54,6 +54,7 @@ module Sequent
       #   )
       class ReplayOptimizedPostgresPersistor
         include Persistor
+
         CHUNK_SIZE = 1024
 
         attr_reader :record_store

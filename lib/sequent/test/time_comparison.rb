@@ -10,9 +10,7 @@ module Sequent
       end
 
       module Compare
-        # rubocop:disable Style/Alias
-        alias :'___<=>' :'<=>'
-        # rubocop:enable Style/Alias
+        alias :'___<=>' :'<=>' # rubocop:disable Style/Alias,Naming/MethodName
 
         # omit nsec in datetime comparisons
         def <=>(other)

@@ -3,6 +3,7 @@
 class NestedTestClass
   include ActiveModel::Validations
   include Sequent::Core::Helpers::AttributeSupport
+
   attrs message: String
   validates_presence_of :message
 end
@@ -10,6 +11,7 @@ end
 class AttributeSupportTestClass
   include ActiveModel::Validations
   include Sequent::Core::Helpers::AttributeSupport
+
   attrs message: String, nested_test_class: NestedTestClass
   validates_presence_of :message
   validates_with Sequent::Core::Helpers::AssociationValidator, associations: :nested_test_class

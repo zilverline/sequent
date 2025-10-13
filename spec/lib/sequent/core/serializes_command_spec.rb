@@ -6,6 +6,7 @@ require_relative '../../../fixtures/for_attribute_support'
 describe Sequent::Core::SerializesCommand do
   class RecordMock
     include Sequent::Core::SerializesCommand
+
     attr_accessor :aggregate_id,
                   :created_at,
                   :user_id,
@@ -48,6 +49,7 @@ describe Sequent::Core::SerializesCommand do
     describe 'optional fields' do
       class MyRecord
         include Sequent::Core::SerializesCommand
+
         attr_accessor :aggregate_id,
                       :created_at,
                       :user_id,

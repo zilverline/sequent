@@ -13,6 +13,7 @@ module Sequent
       include Sequent::Core::Helpers::AttributeSupport
       include Sequent::Core::Helpers::EqualSupport
       include Sequent::Core::Helpers::StringSupport
+
       attrs aggregate_id: String, sequence_number: Integer, created_at: Time
 
       def initialize(args = {})

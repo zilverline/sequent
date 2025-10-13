@@ -63,7 +63,7 @@ module Sequent
           'SELECT 1 FROM information_schema.schemata WHERE schema_name LIKE $1',
           'schema_exists?',
           [schema],
-        ).count == 1
+        ).one?
 
         # The ActiveRecord 7.1 schema_dumper.rb now also adds `create_schema` statements for any schema that
         # is not named `public`, and in this case the schema may already be created so we check for the
@@ -74,7 +74,7 @@ module Sequent
           'SELECT 1 FROM information_schema.tables WHERE table_schema LIKE $1 AND table_name LIKE $2',
           'schema_exists?',
           [schema, event_records_table],
-        ).count == 1
+        ).one?
       end
 
       def self.configuration_hash

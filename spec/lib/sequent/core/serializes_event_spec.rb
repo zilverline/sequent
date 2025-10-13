@@ -6,6 +6,7 @@ require_relative '../../../fixtures/for_attribute_support'
 describe Sequent::Core::SerializesEvent do
   class RecordMock
     include Sequent::Core::SerializesEvent
+
     attr_accessor :aggregate_id,
                   :sequence_number,
                   :event_type,

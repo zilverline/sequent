@@ -44,6 +44,7 @@ module Sequent
 
     module UpdateSequenceNumber
       extend ActiveSupport::Concern
+
       included do
         attrs sequence_number: Integer
         validates_presence_of :sequence_number
