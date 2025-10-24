@@ -409,6 +409,17 @@ module Sequent
               Sequent::Core::Projectors.deactivate_projectors!(args.extras)
             end
 
+            desc <<~EOS
+              Deactivates projectors that are not registered in the Sequent configuration
+
+              The managed tables are NOT removed or deleted so the data remains but is no longer updated
+              when new events arrive.
+            EOS
+            task deactivate_unknown_projectors: :connect do
+              known_projector_classes = Sequent::Core::Migratable.projectors
+              Sequent::Core::Projectors.deactivate_unknown_projectors!(known_projector_classes:)
+            end
+
             namespace :replay do
               desc 'shows the current replay status'
               task status: :connect do

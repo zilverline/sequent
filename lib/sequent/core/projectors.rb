@@ -36,6 +36,16 @@ module Sequent
           update_projector_state(rows)
         end
 
+        def deactivate_unknown_projectors!(known_projector_classes: Sequent::Core::Migratable.projectors)
+          transaction_provider.transactional do
+            lock_projector_states_for_update
+
+            ProjectorState
+              .where.not(name: known_projector_classes.map(&:name))
+              .update_all(active_version: nil)
+          end
+        end
+
         def register_inactive_projectors!(projector_classes)
           rows = projector_classes.map do |c|
             {name: c.name, active_version: nil, replaying_version: nil, activating_version: nil}
