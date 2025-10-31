@@ -26,19 +26,13 @@ module Sequent
       #
       module AutosetAttributes
         module ClassMethods
-          @@autoset_ignore_attributes = %w[aggregate_id sequence_number created_at]
-
-          def set_autoset_ignore_attributes(attribute_names)
-            @@autoset_ignore_attributes = attribute_names
-          end
-
           def event_attribute_keys(event_class)
-            event_class.types.keys.reject { |k| @@autoset_ignore_attributes.include?(k.to_s) }
+            event_class.types.keys.reject { |k| autoset_ignore_attributes.include?(k.to_s) }
           end
 
-          def autoset_attributes_for_events(*args)
-            args.each do |arg|
-              on arg do |event|
+          def autoset_attributes_for_events(*event_classes)
+            event_classes.each do |event_class|
+              on event_class do |event|
                 self.class.event_attribute_keys(event.class).each do |attribute_name|
                   instance_variable_set(:"@#{attribute_name}", event.public_send(attribute_name.to_sym))
                 end
@@ -49,6 +43,14 @@ module Sequent
 
         def self.included(host_class)
           host_class.extend(ClassMethods)
+
+          host_class.class_attribute :autoset_ignore_attributes,
+                                     default: %w[aggregate_id sequence_number created_at],
+                                     instance_reader: false,
+                                     instance_writer: false
+
+          # Deprecated
+          host_class.singleton_class.alias_method :set_autoset_ignore_attributes, :autoset_ignore_attributes=
         end
       end
     end
