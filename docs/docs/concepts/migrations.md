@@ -44,7 +44,7 @@ However, when you add a new projector or update a projector to process events th
 processed before you can *replay* the projector. This is done using the following steps:
 
 ```sh
-$ bundle exec rake sequent:projectors:replay:prepare_initial[AutherProjector,PostProjector]
+$ bundle exec rake sequent:projectors:replay:prepare[AutherProjector,PostProjector]
 ```
 
 This step creates a new schema (default `replay_schema`) and copies the *table definitions* of the
@@ -69,7 +69,7 @@ end
 After the replay schema has been prepared the initial replay can be performed:
 
 ```sh
-$ bundle exec rake sequent:projectors:replay:initial[100000,8]
+$ bundle exec rake sequent:projectors:replay:replay[100000,8]
 ```
 
 The first parameter specifies how many events should be included in a single database transaction
@@ -81,17 +81,17 @@ using a single database operation to insert every record) that can only be used 
 tables are still empty.
 
 If the initial replay takes a long time and/or many new events are inserted by the running system
-while the replay is taking place you can replay events incrementally using:
+while the replay is taking place you can catchup to the most recent events incrementally using:
 
 ```sh
-$ bundle exec rake sequent:projectors:replay:increment[100000,8]
+$ bundle exec rake sequent:projectors:replay:catchup[100000,8]
 ```
 
-To complete the replay it is necessary to first prepare the tables and build additional
-indexes. This is done using:
+To complete the replay it is necessary to first prepare and optimize the tables, and build
+additional indexes. This is done using:
 
 ```sh
-$ bundle exec rake sequent:projectors:replay:prepare_completion
+$ bundle exec rake sequent:projectors:replay:optimize
 ```
 
 Building indexes can take some time (and will also impact the running system). In additional, the
@@ -105,7 +105,7 @@ requires some locking and will stop the live system from updating projections, s
 minimize the work done. It is *recommended* to run an incremental replay again before running:
 
 ```sh
-$ bundle exec rake sequent:projectors:replay:complete
+$ bundle exec rake sequent:projectors:replay:golive
 ```
 
 This step moves the existing view schema tables to the archive schema (default is `archive_schema`)
