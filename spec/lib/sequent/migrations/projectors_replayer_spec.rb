@@ -20,25 +20,32 @@ describe Sequent::Migrations::ProjectorsReplayer do
     exec_update('DROP SCHEMA IF EXISTS archive_schema, replay_schema CASCADE')
     exec_update('DROP TABLE IF EXISTS view_schema.single_records')
     exec_update(<<~SQL)
-      CREATE TABLE view_schema.single_records (
+      CREATE TABLE view_schema.single_records_base_table (
         aggregate_id uuid NOT NULL PRIMARY KEY,
         serialid bigserial NOT NULL,
         name text NOT NULL
       ) PARTITION BY HASH (aggregate_id)
     SQL
     exec_update(<<~SQL)
-      CREATE TABLE view_schema.single_records_p1 PARTITION OF view_schema.single_records
+      CREATE TABLE view_schema.single_records_p1 PARTITION OF view_schema.single_records_base_table
          FOR VALUES WITH (MODULUS 2, REMAINDER 0)
     SQL
     exec_update(<<~SQL)
-      CREATE TABLE view_schema.single_records_p2 PARTITION OF view_schema.single_records
+      CREATE TABLE view_schema.single_records_p2 PARTITION OF view_schema.single_records_base_table
          FOR VALUES WITH (MODULUS 2, REMAINDER 1)
+    SQL
+    # Reference the partitioned table through a view to see if replaying creates and restores all
+    # tables/view correctly. Views are useful in the view schema to allow for zero-downtime
+    # refactorings (e.g. renaming a column and using a view to have both names for the same columns
+    # temporarily).
+    exec_update(<<~SQL)
+      CREATE VIEW view_schema.single_records AS SELECT * FROM view_schema.single_records_base_table
     SQL
   end
   after do
     Sequent::Migrations::ReplayState.delete_all
     exec_update('DROP SCHEMA IF EXISTS archive_schema, replay_schema CASCADE')
-    exec_update('DROP TABLE IF EXISTS view_schema.single_records')
+    exec_update('DROP TABLE IF EXISTS view_schema.single_records_base_table CASCADE')
     SpecMigrations.reset
     Sequent::Configuration.reset
   end
@@ -106,11 +113,15 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
       expect(query_schemas).to include('replay_schema')
 
-      tables = exec_query('SELECT tablename FROM pg_tables WHERE schemaname = $1', ['replay_schema']).to_a
+      tables = exec_query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
+        ['replay_schema'],
+      ).to_a
       expect(tables).to contain_exactly(
-        {'tablename' => 'single_records'},
-        {'tablename' => 'single_records_p1'},
-        {'tablename' => 'single_records_p2'},
+        {'table_name' => 'single_records'},
+        {'table_name' => 'single_records_base_table'},
+        {'table_name' => 'single_records_p1'},
+        {'table_name' => 'single_records_p2'},
       )
     end
 
