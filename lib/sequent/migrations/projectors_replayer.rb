@@ -105,6 +105,8 @@ module Sequent
 
           @state.state = 'prepared'
           @state.save!
+
+          Sequent.configuration.projectors_replayer_after_prepare_hook&.call
         rescue StandardError
           mark_replay_failed!
           raise
@@ -257,6 +259,8 @@ module Sequent
 
           @state.state = 'live'
           @state.save!
+
+          Sequent.configuration.projectors_replayer_after_activate_hook&.call
         end
       end
 
