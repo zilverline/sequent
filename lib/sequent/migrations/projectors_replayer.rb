@@ -75,8 +75,8 @@ module Sequent
           verify_state 'preparing for replay can only be performed when', 'created'
 
           pg_dump_args = %w[--schema-only --quote-all-identifiers --strict-names] +
-                         @managed_tables.map do |table|
-                           "--table-and-children=#{view_schema_name}.#{table.table_name}"
+                         managed_relations(view_schema_name).map do |relation_name|
+                           "--table-and-children=#{view_schema_name}.#{relation_name}"
                          end
 
           ddl, stderr, status = Open3.capture3(psql_env, pg_dump_path, *pg_dump_args)
@@ -227,7 +227,7 @@ module Sequent
 
           Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
 
-          lock_view_schema_tables_for_exclusive_access(managed_tables)
+          lock_view_schema_tables_for_exclusive_access
 
           event_types = projector_classes.flat_map { |p| p.message_mapping.keys }.uniq.map(&:name)
           event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
@@ -249,7 +249,7 @@ module Sequent
           log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_archive_schema_name} CASCADE")
           log_and_exec_update("CREATE SCHEMA #{quoted_archive_schema_name}")
 
-          replace_replayed_tables_in_view_schema(managed_tables)
+          replace_replayed_tables_in_view_schema
 
           log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
 
@@ -302,27 +302,40 @@ module Sequent
         end
       end
 
-      def lock_view_schema_tables_for_exclusive_access(tables)
+      def lock_view_schema_tables_for_exclusive_access
         Sequent::Support::Database.with_search_path(view_schema_name) do
-          exec_update("LOCK TABLE #{tables.map(&:quoted_table_name).join(', ')} IN ACCESS EXCLUSIVE MODE")
+          relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
+          exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
         end
       end
 
-      def replace_replayed_tables_in_view_schema(tables)
-        tables.each do |table|
-          view_tables = [table.table_name, *query_partition_names(view_schema_name, table.table_name)]
-          view_tables.each do |name|
-            log_and_exec_update(<<~SQL, 'replace_table')
-              ALTER TABLE IF EXISTS #{quoted_view_schema_name}.#{quote_table_name(name)} SET SCHEMA #{quoted_archive_schema_name}
-            SQL
-          end
-          replayed_tables = [table.table_name, *query_partition_names(replay_schema_name, table.table_name)]
-          replayed_tables.each do |name|
-            log_and_exec_update(<<~SQL, 'replace_table')
-              ALTER TABLE #{quoted_replay_schema_name}.#{quote_table_name(name)} SET SCHEMA #{quoted_view_schema_name}
+      def replace_replayed_tables_in_view_schema
+        move_managed_relations(view_schema_name, archive_schema_name)
+        move_managed_relations(replay_schema_name, view_schema_name)
+      end
+
+      def move_managed_relations(from_schema_name, to_schema_name)
+        managed_relations(from_schema_name) do |table_name|
+          tables = [table_name, *query_partition_names(from_schema_name, table_name)]
+          tables.each do |name|
+            log_and_exec_update(<<~SQL, 'move_table')
+              ALTER TABLE IF EXISTS #{quote_table_name(from_schema_name)}.#{quote_table_name(name)} SET SCHEMA #{quote_table_name(to_schema_name)}
             SQL
           end
         end
+      end
+
+      # If a table managed by a projector is actually a view then we also need to include the view
+      # schema tables in the FROM clause of the view. This is mainly useful when a view is
+      # (temporarily) used to perform a column rename database refactoring while staying compatible
+      # with the old and new projector versions.
+      def managed_relations(schema_name)
+        (@managed_tables.map(&:table_name) + @managed_tables.flat_map do |table|
+          exec_query(<<~SQL, 'view_table_usage', [schema_name, table.table_name]).map { |row| row['table_name'] }
+            SELECT table_name FROM information_schema.view_table_usage
+             WHERE view_schema = $1 AND table_schema = $1 AND view_name = $2
+          SQL
+        end).uniq
       end
 
       def event_store_schema_name = Sequent.configuration.event_store_schema_name
@@ -413,26 +426,32 @@ module Sequent
       end
 
       def vacuum_tables
-        clustered_tables, non_clustered_tables = @managed_tables.partition do |table|
-          @state.table_cluster_indexes.key?(table.table_name)
+        clustered_tables, non_clustered_tables = managed_relations(replay_schema_name).partition do |relation_name|
+          @state.table_cluster_indexes.key?(relation_name)
         end
 
-        clustered_tables.each do |table|
+        clustered_tables.each do |table_name|
           cluster_index_name = @state.table_cluster_indexes[table.table_name]
           create_index_if_missing(cluster_index_name)
 
           log_and_exec_update(<<~SQL, 'cluster table')
-            CLUSTER #{quoted_replay_schema_name}.#{table.quoted_table_name} USING #{quote_table_name(cluster_index_name)}
+            CLUSTER #{quoted_replay_schema_name}.#{quote_table_name(table_name)} USING #{quote_table_name(cluster_index_name)}
           SQL
         end
-        non_clustered_tables.each do |table|
-          log_and_exec_update("VACUUM FULL #{quoted_replay_schema_name}.#{table.quoted_table_name}", 'vacuum table')
+        non_clustered_tables.each do |table_name|
+          log_and_exec_update(
+            "VACUUM FULL #{quoted_replay_schema_name}.#{quote_table_name(table_name)}",
+            'vacuum table',
+          )
         end
       end
 
       def analyze_tables
-        @managed_tables.each do |table|
-          log_and_exec_update("ANALYZE #{quoted_replay_schema_name}.#{table.quoted_table_name}", 'analyze table')
+        managed_relations(replay_schema_name).each do |relation_name|
+          log_and_exec_update(
+            "ANALYZE #{quoted_replay_schema_name}.#{quote_table_name(relation_name)}",
+            'analyze table',
+          )
         end
       end
 
