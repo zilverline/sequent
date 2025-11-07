@@ -101,12 +101,12 @@ module Sequent
 
           drop_indexes_not_needed_for_replay
 
+          Sequent.configuration.projectors_replayer_after_prepare_hook&.call
+
           Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
 
           @state.state = 'prepared'
           @state.save!
-
-          Sequent.configuration.projectors_replayer_after_prepare_hook&.call
         rescue StandardError
           mark_replay_failed!
           raise
@@ -253,14 +253,16 @@ module Sequent
 
           replace_replayed_tables_in_view_schema
 
+          Sequent.configuration.projectors_replayer_after_activate_hook&.call
+
+          ensure_archive_schema_tables_have_no_external_dependents
+
           log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
 
           Sequent::Core::Projectors.register_active_projectors!(projector_classes)
 
           @state.state = 'live'
           @state.save!
-
-          Sequent.configuration.projectors_replayer_after_activate_hook&.call
         end
       end
 
@@ -340,6 +342,41 @@ module Sequent
              WHERE view_schema = $1 AND table_schema = $1 AND view_name = $2
           SQL
         end).uniq
+      end
+
+      # Check if dropping all views and tables in the archive schema works to ensure there are no
+      # database objects that are still referencing these tables. If no error is generated we rollback
+      # this sub-transaction so that the tables are not really dropped.
+      #
+      # This prevents that (for example) views that reference the original table are updated to use the
+      # replayed table using a replay activation hook.
+      def ensure_archive_schema_tables_have_no_external_dependents
+        Sequent::Support::Database.with_search_path(archive_schema_name) do
+          ActiveRecord::Base.transaction(requires_new: true) do
+            relations = exec_query(<<~SQL, 'archived tables', [archive_schema_name]).to_a
+              SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = $1
+            SQL
+            views, tables = relations.partition { |row| row['table_type'] == 'VIEW' }
+            if views.present?
+              exec_update("DROP VIEW #{views.map { |row| quote_table_name(row['table_name']) }.join(', ')}")
+            end
+            if tables.present?
+              exec_update("DROP TABLE #{tables.map { |row| quote_table_name(row['table_name']) }.join(', ')}")
+            end
+            fail ActiveRecord::Rollback
+          rescue ActiveRecord::StatementInvalid => e
+            case e.cause
+            when PG::DependentObjectsStillExist
+              # Remove the PostgreSQL hint (use CASCADE), since it is not helpful in this case
+              message = e.cause.message.lines.grep_v(/^HINT:/).join
+              raise StandardError,
+                    'dependent objects still exists for archived view tables, use a after activate hook to remove or ' \
+                    "re-create these objects using the activated tables: #{message}"
+            else
+              raise
+            end
+          end
+        end
       end
 
       def event_store_schema_name = Sequent.configuration.event_store_schema_name

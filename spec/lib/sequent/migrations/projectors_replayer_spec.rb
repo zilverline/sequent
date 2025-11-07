@@ -249,8 +249,22 @@ describe Sequent::Migrations::ProjectorsReplayer do
         subject.prepare_for_activation!
       end
 
-      after do
-        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
+      context 'with dependent objects' do
+        before do
+          exec_update('CREATE VIEW dependent AS SELECT * FROM view_schema.single_records')
+        end
+
+        it 'fails to activate if archived tables still have dependents' do
+          expect { subject.activate! }.to raise_error(/other objects depend on it/)
+        end
+
+        it 'runs the after activate hook to allow for dependent objects to be re-created using the replayed tables' do
+          Sequent.configuration.projectors_replayer_after_activate_hook = -> do
+            exec_update('CREATE OR REPLACE VIEW dependent AS SELECT * FROM view_schema.single_records')
+          end
+
+          subject.activate!
+        end
       end
 
       it 'incrementally replays the events within the transaction' do
@@ -258,7 +272,9 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
         subject.activate!
 
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
         expect(record_count('view_schema')).to eq(initial_event_count + 10)
+        expect(record_count('archive_schema')).to eq(initial_event_count + 10)
       end
 
       it 'blocks projectors during activation so no events are missed or duplicated' do
@@ -281,6 +297,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
         t.join
 
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
         expect(record_count('view_schema')).to eq(initial_event_count + 2000)
       end
 
