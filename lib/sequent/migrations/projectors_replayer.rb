@@ -315,7 +315,7 @@ module Sequent
       end
 
       def move_managed_relations(from_schema_name, to_schema_name)
-        managed_relations(from_schema_name) do |table_name|
+        managed_relations(from_schema_name).each do |table_name|
           tables = [table_name, *query_partition_names(from_schema_name, table_name)]
           tables.each do |name|
             log_and_exec_update(<<~SQL, 'move_table')
