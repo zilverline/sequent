@@ -472,7 +472,7 @@ module Sequent
         end
 
         clustered_tables.each do |table_name|
-          cluster_index_name = @state.table_cluster_indexes[table.table_name]
+          cluster_index_name = @state.table_cluster_indexes[table_name]
           create_index_if_missing(cluster_index_name)
 
           log_and_exec_update(<<~SQL, 'cluster table')
