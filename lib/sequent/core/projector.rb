@@ -30,7 +30,7 @@ module Sequent
         end
 
         def version
-          @version || Sequent.migrations_class&.version || 1
+          @version || version_from_superclass || Sequent.migrations_class&.version || 1
         end
 
         private
@@ -41,6 +41,10 @@ module Sequent
 
         def manages_no_tables_from_superclass?
           superclass.manages_no_tables? if superclass.respond_to?(:manages_no_tables?)
+        end
+
+        def version_from_superclass
+          superclass.version if superclass.respond_to?(:version)
         end
       end
 

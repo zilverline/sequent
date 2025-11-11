@@ -33,6 +33,35 @@ describe Sequent::Core::Projector do
     end.to raise_error(Sequent::Core::Projector::NotManagedByThisProjector)
   end
 
+  context 'versioning' do
+    let(:parent_projector_class) do
+      Class.new(Sequent::Core::Projector) do
+        self.version = 3
+      end
+    end
+
+    it 'should default to 1 if not specified' do
+      projector_class = Class.new(Sequent::Core::Projector)
+
+      expect(projector_class.version).to eq(1)
+    end
+
+    it 'should inherit the version from the superclass' do
+      child_projector_class = Class.new(parent_projector_class)
+
+      expect(child_projector_class.version).to eq(3)
+      expect(parent_projector_class.version).to eq(3)
+    end
+
+    it 'can override the version without affecting the superclass' do
+      child_projector_class = Class.new(parent_projector_class)
+      child_projector_class.version = 7
+
+      expect(child_projector_class.version).to eq(7)
+      expect(parent_projector_class.version).to eq(3)
+    end
+  end
+
   context 'forward methods' do
     let(:persistor) { double('persistor') }
     let(:record) { double('record') }
