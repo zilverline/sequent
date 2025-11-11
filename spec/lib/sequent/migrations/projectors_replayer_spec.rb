@@ -113,15 +113,11 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
       expect(query_schemas).to include('replay_schema')
 
-      tables = exec_query(
-        'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
-        ['replay_schema'],
-      ).to_a
-      expect(tables).to contain_exactly(
-        {'table_name' => 'single_records'},
-        {'table_name' => 'single_records_base_table'},
-        {'table_name' => 'single_records_p1'},
-        {'table_name' => 'single_records_p2'},
+      expect(table_names('replay_schema')).to contain_exactly(
+        'single_records',
+        'single_records_base_table',
+        'single_records_p1',
+        'single_records_p2',
       )
     end
 
@@ -249,8 +245,22 @@ describe Sequent::Migrations::ProjectorsReplayer do
         subject.prepare_for_activation!
       end
 
-      after do
-        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
+      context 'with dependent objects' do
+        before do
+          exec_update('CREATE VIEW dependent AS SELECT * FROM view_schema.single_records')
+        end
+
+        it 'fails to activate if archived tables still have dependents' do
+          expect { subject.activate! }.to raise_error(/other objects depend on it/)
+        end
+
+        it 'runs the after activate hook to allow for dependent objects to be re-created using the replayed tables' do
+          Sequent.configuration.projectors_replayer_after_activate_hook = -> do
+            exec_update('CREATE OR REPLACE VIEW dependent AS SELECT * FROM view_schema.single_records')
+          end
+
+          subject.activate!
+        end
       end
 
       it 'incrementally replays the events within the transaction' do
@@ -258,7 +268,9 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
         subject.activate!
 
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
         expect(record_count('view_schema')).to eq(initial_event_count + 10)
+        expect(record_count('archive_schema')).to eq(initial_event_count + 10)
       end
 
       it 'blocks projectors during activation so no events are missed or duplicated' do
@@ -281,6 +293,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
 
         t.join
 
+        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
         expect(record_count('view_schema')).to eq(initial_event_count + 2000)
       end
 
@@ -291,6 +304,35 @@ describe Sequent::Migrations::ProjectorsReplayer do
         tables = exec_query('SELECT tablename FROM pg_tables WHERE schemaname = $1', ['replay_schema']).to_a
         expect(tables).to be_empty
       end
+    end
+  end
+
+  context 'schema changes' do
+    it 'should allow modifying the replay schema before initial replay' do
+      Sequent.configuration.projectors_replayer_after_prepare_hook = -> do
+        exec_update('ALTER TABLE replay_schema.single_records_p1 RENAME TO single_records_even')
+        exec_update('ALTER TABLE replay_schema.single_records_p2 RENAME TO single_records_odd')
+      end
+
+      subject.prepare_for_replay
+
+      expect(table_names('replay_schema')).to contain_exactly(
+        'single_records',
+        'single_records_base_table',
+        'single_records_even',
+        'single_records_odd',
+      )
+
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+      subject.activate!
+
+      expect(table_names('view_schema')).to include(
+        'single_records',
+        'single_records_base_table',
+        'single_records_even',
+        'single_records_odd',
+      )
     end
   end
 
@@ -308,5 +350,12 @@ describe Sequent::Migrations::ProjectorsReplayer do
       exec_update('SET LOCAL search_path TO replay_schema')
       yield
     end
+  end
+
+  def table_names(schema)
+    exec_query(
+      'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
+      [schema],
+    ).to_a.flat_map(&:values)
   end
 end
