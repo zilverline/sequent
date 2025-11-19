@@ -35,7 +35,7 @@ module Sequent
         def self.valid_date?(value)
           return true if value.blank?
           return true if value.is_a?(Date)
-          return false unless value =~ /\d{4}-\d{2}-\d{2}/
+          return false unless value.respond_to?(:=~) && value =~ /^\d{4}-\d{2}-\d{2}$/
 
           begin
             !!Date.iso8601(value)
