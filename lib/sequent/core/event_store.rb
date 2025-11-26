@@ -216,22 +216,17 @@ module Sequent
       end
 
       def load_events_since_marked_position(mark)
-        events = connection.execute(
-          Sequent.configuration.event_record_class
-            .where(<<~SQL, {mark:})
-              xact_id >= pg_snapshot_xmin(CAST(:mark AS pg_snapshot))::text::bigint
-                AND NOT pg_visible_in_snapshot(xact_id::text::xid8, CAST(:mark AS pg_snapshot))
-            SQL
-            .select('*, pg_current_snapshot()::text AS mark')
-            .to_sql,
-        ).to_a
+        new_mark = position_mark
+        events = Sequent.configuration.event_record_class
+          .where(<<~SQL, {mark:, new_mark:})
+            xact_id >= pg_snapshot_xmin(CAST(:mark AS pg_snapshot))::text::bigint
+              AND NOT pg_visible_in_snapshot(xact_id::text::xid8, CAST(:mark AS pg_snapshot))
+              AND pg_visible_in_snapshot(xact_id::text::xid8, CAST(:new_mark AS pg_snapshot))
+          SQL
+          .order(:created_at, :aggregate_id, :sequence_number)
+          .to_a
 
-        return [[], mark] if events.empty?
-
-        [
-          events.map { |hash| deserialize_event(hash) },
-          events[0]['mark'],
-        ]
+        [events.map(&:event), new_mark]
       end
 
       # Returns an enumerator that yields aggregate ids in blocks of `group_size` arrays. Optionally the
