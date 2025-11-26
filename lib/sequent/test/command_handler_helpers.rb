@@ -127,7 +127,6 @@ module Sequent
         def load_events_since_marked_position(mark)
           new_mark = position_mark
           events = deserialize_events(@stored_events[mark..new_mark])
-            .sort_by { |e| [e.created_at, e.aggregate_id, e.sequence_number] }
           [events, new_mark]
         end
 
