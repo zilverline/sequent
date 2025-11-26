@@ -30,7 +30,7 @@ module Sequent
 
         def validate(record)
           # get the current validation context to pass along to the associations
-          current_context = record.validation_context
+          current_context = record.validation_context&.to_sym
 
           associations = options[:associations]
           associations = [associations] unless associations.instance_of?(Array)
