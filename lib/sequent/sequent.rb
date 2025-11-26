@@ -41,6 +41,7 @@ module Sequent
 
   def self.activate_current_configuration!
     configuration.event_store.register_types!
+    configuration.event_store.register_snapshot_versions!
     migrations_class&.activate_current_configuration!
   end
 
