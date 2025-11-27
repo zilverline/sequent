@@ -125,7 +125,9 @@ module Sequent
         end
 
         def load_events_since_marked_position(mark)
-          [deserialize_events(@stored_events[mark..]), position_mark]
+          new_mark = position_mark
+          events = deserialize_events(@stored_events[mark..new_mark])
+          [events, new_mark]
         end
 
         def event_streams_enumerator(aggregate_type: nil, group_size: 100)
@@ -179,10 +181,11 @@ module Sequent
       def then_events(*expected_events)
         expected_events = expected_events.flatten(1)
 
+        actual_events = stored_events
         expected_events.each_with_index do |expected, i|
-          break if i >= stored_events.length
+          break if i >= actual_events.length
 
-          actual = stored_events[i]
+          actual = actual_events[i]
 
           case expected
           when Sequent::Core::Event
@@ -198,9 +201,9 @@ module Sequent
           end
         end
 
-        expect(stored_events.length).to eq(expected_events.length), <<~STRING
-          Number of actual events (#{stored_events.length}) is not equal to expected events (#{expected_events.length})
-          Actual #{stored_events.map(&:class)} expected #{expected_events.map { |e| e.is_a?(Class) ? e : e.class }}
+        expect(actual_events.length).to eq(expected_events.length), <<~STRING
+          Number of actual events (#{actual_events.length}) is not equal to expected events (#{expected_events.length})
+          Actual #{actual_events.map(&:class)} expected #{expected_events.map { |e| e.is_a?(Class) ? e : e.class }}
         STRING
       end
 
