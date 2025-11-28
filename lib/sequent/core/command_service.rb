@@ -29,7 +29,7 @@ module Sequent
       #
       # At the end the transaction is committed and the AggregateRepository's Unit of Work is cleared.
       #
-      def execute_commands(*commands)
+      def execute_commands(*commands, validation_context: nil)
         commands.each do |command|
           if command.respond_to?(:event_aggregate_id) && CurrentEvent.current
             command.event_aggregate_id = CurrentEvent.current.aggregate_id
@@ -37,18 +37,18 @@ module Sequent
           end
         end
         commands.each { |command| command_queue.push(command) }
-        process_commands
+        process_commands(validation_context)
       end
 
       private
 
-      def process_commands
+      def process_commands(validation_context)
         Sequent::Util.skip_if_already_processing(:command_service_process_commands) do
           transaction_provider.transactional do
             until command_queue.empty?
               command = command_queue.pop
               command_middleware.invoke(command) do
-                process_command(command)
+                process_command(command, validation_context)
               end
             end
             Sequent::Util.done_processing(:command_service_process_commands)
@@ -59,7 +59,7 @@ module Sequent
         end
       end
 
-      def process_command(command)
+      def process_command(command, validation_context)
         fail ArgumentError, 'command is required' if command.nil?
 
         Sequent.logger.debug("[CommandService] Processing command #{command.class}") if Sequent.logger.debug?
@@ -67,7 +67,7 @@ module Sequent
         filters.each { |filter| filter.execute(command) }
 
         I18n.with_locale(Sequent.configuration.error_locale_resolver.call) do
-          fail CommandNotValid, command unless command.valid?
+          fail CommandNotValid, command unless command.valid?(validation_context&.to_sym)
         end
 
         parsed_command = command.parse_attrs_to_correct_types

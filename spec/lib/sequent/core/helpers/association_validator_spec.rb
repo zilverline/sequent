@@ -25,7 +25,7 @@ describe Sequent::Core::Helpers::AssociationValidator do
     let(:object) { ValueObjectWithSimpleTypeAssociations.new(values) }
 
     it 'can handle nil as arrays' do
-      subject.validate(object)
+      object.valid?
       expect(object.errors).to be_empty
     end
 
@@ -57,6 +57,9 @@ describe Sequent::Core::Helpers::AssociationValidator do
   context 'validating an array with value objects' do
     class ValueObjectWithInteger < Sequent::Core::ValueObject
       attrs number: Integer
+      attrs name: String
+
+      validates :name, presence: true, on: :test_scope
     end
 
     class ValueObjectWithValueObjectAssociations < Sequent::Core::ValueObject
@@ -66,6 +69,20 @@ describe Sequent::Core::Helpers::AssociationValidator do
     let(:options) { {associations: [:numbers]} }
     let(:values) { {} }
     let(:object) { ValueObjectWithValueObjectAssociations.new(values) }
+
+    context 'with numbers and a scope' do
+      let(:values) { {numbers: [ValueObjectWithInteger.new(number: 1)]} }
+      it 'validates the value objects in the array with a scope' do
+        object.valid?(:test_scope)
+        expect(object.errors).to be
+        expect(object.validation_errors[:numbers]).to_not be_empty
+        expect(object.validation_errors[:numbers_0_name]).to_not be_empty
+      end
+      it 'respects the scopes' do
+        object.valid?(:non_existing_scope)
+        expect(object.errors).to be_empty
+      end
+    end
 
     it 'can handle nil as arrays' do
       subject.validate(object)
