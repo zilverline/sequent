@@ -211,6 +211,14 @@ module Sequent
         record&.event_stream
       end
 
+      def find_aggregate_id_by_unique_key(scope, key)
+        connection.select_value(
+          'SELECT aggregate_id FROM aggregate_unique_keys WHERE scope = $1 AND key = $2',
+          'find_aggregate_id_by_unique_key',
+          [scope, key.to_json],
+        )
+      end
+
       def position_mark
         connection.exec_query('SELECT pg_current_snapshot()::text AS mark')[0]['mark']
       end

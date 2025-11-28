@@ -130,6 +130,11 @@ module Sequent
         end
       end
 
+      def find_aggregate_by_unique_key(scope, key, clazz = nil)
+        aggregate_id = Sequent.configuration.event_store.find_aggregate_id_by_unique_key(scope, key)
+        load_aggregate(aggregate_id, clazz) if aggregate_id
+      end
+
       ##
       # Returns whether the event store has an aggregate with the given id
       def contains_aggregate?(aggregate_id)

@@ -82,6 +82,10 @@ module Sequent
           @event_streams[aggregate_id]
         end
 
+        def find_aggregate_id_by_unique_key(scope, key)
+          @unique_keys[[scope, key]]
+        end
+
         def commit_events(_, streams_with_events)
           keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
             streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
