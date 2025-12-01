@@ -29,6 +29,9 @@ module Sequent
         end
 
         def validate(record)
+          # get the current validation context to pass along to the associations
+          current_context = record.validation_context&.to_sym
+
           associations = options[:associations]
           associations = [associations] unless associations.instance_of?(Array)
           associations.each do |association|
@@ -37,8 +40,8 @@ module Sequent
               record.errors.add(association, "is not of type #{describe_type(record.class.types[association])}")
             elsif value.is_a?(Array)
               item_type = record.class.types.fetch(association).item_type
-              record.errors.add(association, 'is invalid') unless validate_all(value, item_type).all?
-            elsif value&.invalid?
+              record.errors.add(association, 'is invalid') unless validate_all(value, item_type, current_context).all?
+            elsif value&.invalid?(current_context)
               record.errors.add(association, 'is invalid')
             end
           end
@@ -57,12 +60,12 @@ module Sequent
           end
         end
 
-        def validate_all(values, item_type)
+        def validate_all(values, item_type, current_context)
           values.map do |value|
             if value.nil?
               false
             elsif value.respond_to?(:valid?)
-              value.valid?
+              value.valid?(current_context)
             else
               Sequent::Core::Helpers::ValueValidators.for(item_type).valid_value?(value)
             end
