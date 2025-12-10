@@ -77,7 +77,8 @@ module Sequent
                   :aggregate_snapshot_versions,
                   :enable_projector_states,
                   :projectors_replayer_after_prepare_hook,
-                  :projectors_replayer_after_activate_hook
+                  :projectors_replayer_after_activate_hook,
+                  :aggregates_that_need_snapshots_loaded_callback
 
     attr_reader :migrations_class,
                 :versions_table_name

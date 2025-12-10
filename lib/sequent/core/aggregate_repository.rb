@@ -109,11 +109,17 @@ module Sequent
         result = aggregates.values_at(*unique_ids).compact
         query_ids = unique_ids - result.map(&:id)
 
-        result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids).map do |stream, events|
+        loaded_aggregates = event_store.load_events_for_aggregates(query_ids).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
           aggregate_class.load_from_history(stream, events)
         end
 
+        aggregates_that_need_snapshots = loaded_aggregates.select(&:snapshot_outdated?)
+        if aggregates_that_need_snapshots.present?
+          Sequent.configuration.aggregates_that_need_snapshots_loaded_callback&.call(aggregates_that_need_snapshots)
+        end
+
+        result += loaded_aggregates
         if result.count != unique_ids.count
           missing_aggregate_ids = unique_ids - result.map(&:id)
           fail AggregateNotFound, missing_aggregate_ids
@@ -131,15 +137,14 @@ module Sequent
       end
 
       def find_aggregate_by_unique_key(scope, key, clazz = nil)
-        aggregate_id = Sequent.configuration.event_store.find_aggregate_id_by_unique_key(scope, key)
+        aggregate_id = event_store.find_aggregate_id_by_unique_key(scope, key)
         load_aggregate(aggregate_id, clazz) if aggregate_id
       end
 
       ##
       # Returns whether the event store has an aggregate with the given id
       def contains_aggregate?(aggregate_id)
-        Sequent.configuration.event_store.stream_exists?(aggregate_id) &&
-          Sequent.configuration.event_store.events_exists?(aggregate_id)
+        event_store.stream_exists?(aggregate_id) && event_store.events_exists?(aggregate_id)
       end
 
       # Gets all uncommitted_events from the 'registered' aggregates
@@ -186,8 +191,10 @@ module Sequent
       end
 
       def store_events(command, streams_with_events)
-        Sequent.configuration.event_store.commit_events(command, streams_with_events)
+        event_store.commit_events(command, streams_with_events)
       end
+
+      def event_store = Sequent.configuration.event_store
     end
   end
 end

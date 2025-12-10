@@ -29,14 +29,18 @@ describe Sequent::Core::AggregateRepository do
     end
 
     before do
-      Sequent.configuration.event_store = event_store
+      Sequent.configure do |c|
+        c.event_store = event_store
+        c.aggregates_that_need_snapshots_loaded_callback = aggregates_that_need_snapshots_loaded_callback
+      end
       repository.clear
     end
     after do
       repository.clear
     end
 
-    let(:event_store) { double }
+    let(:aggregates_that_need_snapshots_loaded_callback) { instance_spy(Proc, 'snapshot notification callback') }
+    let(:event_store) { instance_double(Sequent::Core::EventStore, 'event store') }
     let(:repository) { Sequent.configuration.aggregate_repository }
     let(:aggregate) { DummyAggregate.new(Sequent.new_uuid) }
     let(:events) do
@@ -102,6 +106,43 @@ describe Sequent::Core::AggregateRepository do
         ],
       )
       expect { repository.load_aggregate(:id, DummyAggregate2) }.to raise_error TypeError
+    end
+
+    context 'loading aggregates' do
+      class MyAggregateThatNeedsSnapshot < DummyAggregate
+        def snapshot_outdated? = true
+      end
+
+      before do
+        allow(event_store).to receive(:load_events_for_aggregates).with([:id]).and_return(
+          [
+            [
+              aggregate.event_stream,
+              events,
+            ],
+          ],
+        )
+      end
+
+      context 'aggregate that does not need a snapshot' do
+        it 'should not notify when the aggregate is loaded' do
+          loaded = repository.load_aggregate(:id)
+          expect(loaded.class).to eq(DummyAggregate)
+          expect(loaded.snapshot_outdated?).to be false
+          expect(aggregates_that_need_snapshots_loaded_callback).to_not have_received(:call)
+        end
+      end
+
+      context 'aggregate that needs a snapshot' do
+        let(:aggregate) { MyAggregateThatNeedsSnapshot.new(Sequent.new_uuid) }
+
+        it 'should notify when an aggregate is loaded that needs a snapshot' do
+          loaded = repository.load_aggregate(:id)
+          expect(aggregates_that_need_snapshots_loaded_callback).to have_received(:call).with([loaded])
+          expect(loaded.class).to eq(MyAggregateThatNeedsSnapshot)
+          expect(loaded.snapshot_outdated?).to be true
+        end
+      end
     end
 
     it 'should commit and clear events from aggregates in the identity map' do
