@@ -129,6 +129,34 @@ module Sequent
         )
       end
 
+      context 'find by unique key' do
+        before do
+          given_events UniqueKeysEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, keys: %w[a b])
+        end
+
+        it 'can find an aggregate by its unique keys' do
+          aggregate = Sequent.configuration.aggregate_repository.find_aggregate_by_unique_key(
+            :a,
+            'a',
+          )
+          expect(aggregate).to be_present
+
+          aggregate = Sequent.configuration.aggregate_repository.find_aggregate_by_unique_key(
+            :b,
+            'b',
+          )
+          expect(aggregate).to be_present
+        end
+
+        it 'returns nil if not found' do
+          aggregate = Sequent.configuration.aggregate_repository.find_aggregate_by_unique_key(
+            :c,
+            'c',
+          )
+          expect(aggregate).to be_nil
+        end
+      end
+
       # Test located here so it tests both the real event store and the fake event store in one go.
       it 'can enumerate event streams' do
         given_events UniqueKeysEvent.new(aggregate_id: aggregate_id_1, sequence_number: 1, keys: %w[a b]),
