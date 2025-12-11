@@ -9,43 +9,22 @@ module Sequent
     module Migratable
       module ClassMethods
         def manages_tables(*tables)
-          @managed_tables = tables
-        end
+          fail 'must specify at least one table to manager' if tables.empty?
 
-        def managed_tables
-          @managed_tables || managed_tables_from_superclass
+          self.managed_tables = tables
         end
 
         def manages_no_tables
-          @manages_no_tables = true
-          manages_tables
+          self.managed_tables = nil
         end
 
-        def manages_no_tables?
-          !!@manages_no_tables || manages_no_tables_from_superclass?
-        end
+        def manages_no_tables? = managed_tables.nil?
 
         def version=(version)
-          @version = version
+          self.projector_version = version
         end
 
-        def version
-          @version || version_from_superclass || Sequent.migrations_class&.version || 1
-        end
-
-        private
-
-        def managed_tables_from_superclass
-          superclass.managed_tables if superclass.respond_to?(:managed_tables)
-        end
-
-        def manages_no_tables_from_superclass?
-          superclass.manages_no_tables? if superclass.respond_to?(:manages_no_tables?)
-        end
-
-        def version_from_superclass
-          superclass.version if superclass.respond_to?(:version)
-        end
+        def version = projector_version || Sequent.migrations_class&.version || 1
       end
 
       def self.projectors
@@ -55,10 +34,16 @@ module Sequent
       def self.included(host_class)
         host_class.extend(ClassMethods)
 
+        host_class.class_attribute :projector_version,
+                                   default: nil,
+                                   instance_accessor: false
+        host_class.class_attribute :managed_tables,
+                                   default: [],
+                                   instance_reader: true,
+                                   instance_writer: false
         host_class.class_attribute :additional_replay_indexes,
                                    default: [],
-                                   instance_reader: false,
-                                   instance_writer: false
+                                   instance_accessor: false
       end
 
       def self.none
@@ -67,10 +52,6 @@ module Sequent
 
       def self.all
         Migratable.projectors
-      end
-
-      def managed_tables
-        self.class.managed_tables
       end
     end
 
@@ -204,9 +185,7 @@ module Sequent
       end
 
       def ensure_valid!
-        return if self.class.manages_no_tables?
-
-        if self.class.managed_tables.nil? || self.class.managed_tables.empty?
+        if self.class.managed_tables == []
           fail <<~EOS.chomp
             A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
           EOS
