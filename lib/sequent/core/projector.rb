@@ -11,14 +11,14 @@ module Sequent
         def manages_tables(*tables)
           fail 'must specify at least one table to manager' if tables.empty?
 
-          self.managed_tables = tables
+          self.managed_tables = tables.freeze
         end
 
         def manages_no_tables
-          self.managed_tables = nil
+          self.managed_tables = [].freeze
         end
 
-        def manages_no_tables? = managed_tables.nil?
+        def manages_no_tables? = managed_tables.empty?
 
         def version=(version)
           self.projector_version = version
@@ -38,7 +38,7 @@ module Sequent
                                    default: nil,
                                    instance_accessor: false
         host_class.class_attribute :managed_tables,
-                                   default: [],
+                                   default: nil,
                                    instance_reader: true,
                                    instance_writer: false
         host_class.class_attribute :additional_replay_indexes,
@@ -185,7 +185,7 @@ module Sequent
       end
 
       def ensure_valid!
-        if self.class.managed_tables == []
+        if self.class.managed_tables.nil?
           fail <<~EOS.chomp
             A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
           EOS
