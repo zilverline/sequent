@@ -638,7 +638,11 @@ BEGIN
       (_snapshot->>'created_at')::timestamptz,
       _snapshot->>'snapshot_type',
       _snapshot->'snapshot_json'
-    );
+    )   ON CONFLICT (aggregate_id, snapshot_version, sequence_number) DO UPDATE
+       SET created_at = EXCLUDED.created_at,
+           snapshot_type = EXCLUDED.snapshot_type,
+           snapshot_json = EXCLUDED.snapshot_json
+     WHERE snapshot_records.created_at <= EXCLUDED.created_at;
   END LOOP;
 END;
 $$;
@@ -1572,6 +1576,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20251211080900'),
 ('20250815103000'),
 ('20250630113000'),
 ('20250601120000'),
