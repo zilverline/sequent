@@ -9,7 +9,7 @@ module Sequent
     module Migratable
       module ClassMethods
         def manages_tables(*tables)
-          fail 'must specify at least one table to manager' if tables.empty?
+          fail 'must specify at least one table to manage' if tables.empty?
 
           self.managed_tables = tables.freeze
         end
