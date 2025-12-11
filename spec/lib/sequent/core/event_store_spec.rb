@@ -867,7 +867,7 @@ describe Sequent::Core::EventStore do
         it 'argument error for no events' do
           expect do |block|
             event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time - 1.year, &block)
-          end.to raise_error(ArgumentError, 'no events for this aggregate')
+          end.to raise_error(ArgumentError, "no events for aggregate #{aggregate_id_1}")
         end
       end
 
