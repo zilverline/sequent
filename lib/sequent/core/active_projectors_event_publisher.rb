@@ -4,6 +4,7 @@ module Sequent
   module Core
     class UnknownActiveProjectorError < ProjectorMigrationError; end
     class DifferentProjectorVersionIsActiveError < ProjectorMigrationError; end
+    class ProjectorIsActivatingError < ProjectorMigrationError; end
 
     #
     # Subtype of EventPublisher that only dispatches events to Projectors that are marked active in
@@ -54,10 +55,20 @@ module Sequent
         projector_state = Projectors.projector_states[handler.class.name]
         return false if projector_state.nil?
 
-        return true if projector_state.activating_version.nil? && projector_state.active_version == version
+        if projector_state.activating_version.present?
+          # Activating projectors are replaying the last remaining events before going live, so new events cannot be
+          # processed until activation is completed.
+          fail ProjectorIsActivatingError, "projector #{handler.class} is currently activating"
+        end
 
-        # A different projector version is active, so we cannot write
-        # new events since they will not be properly propagated.
+        # Projector is not yet active (probably just replaying)
+        return false if projector_state.active_version.nil?
+
+        # Projector is active and has the same version
+        return true if projector_state.active_version == version
+
+        # A different projector version is active, so we cannot write new events since our projector version is not
+        # compatible with the active version.
         fail DifferentProjectorVersionIsActiveError,
              "projector #{handler.class} version #{version} does not match state #{projector_state}"
       end
