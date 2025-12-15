@@ -60,8 +60,9 @@ describe Sequent::Core::EventPublisher do
     end
   end
 
+  let(:test_event_handler) { TestEventHandler.new }
+
   it 'handles events in the proper order' do
-    test_event_handler = TestEventHandler.new
     Sequent.configuration.event_handlers << TestWorkflow.new
     Sequent.configuration.event_handlers << test_event_handler
     Sequent.configuration.command_handlers << TestCommandHandler.new
@@ -86,11 +87,16 @@ describe Sequent::Core::EventPublisher do
 
       before do
         Sequent::Core::ProjectorState.delete_all
-        Sequent.configuration.event_handlers << TestEventHandler.new
+        Sequent.configuration.event_handlers << test_event_handler
         Sequent.configuration.command_handlers << TestCommandHandler.new
-        Sequent.configuration.migrations_class = SpecMigrations
-        Sequent.configuration.migrations_class.version = 0
-        Sequent.activate_current_configuration!
+      end
+
+      it 'ignores projectors that are replaying, but not active and not activating' do
+        Sequent::Core::Projectors.register_replaying_projectors!([TestEventHandler])
+
+        Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+
+        expect(test_event_handler.sequence_numbers).to be_empty
       end
 
       it 'fails when unknown projectors are active' do
@@ -102,8 +108,16 @@ describe Sequent::Core::EventPublisher do
       end
 
       it 'fails when the projector is activating to finalize event replay' do
-        TestEventHandler.version = Sequent.new_version + 1
         Sequent::Core::Projectors.register_activating_projectors!([TestEventHandler])
+
+        expect do
+          Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
+        end.to raise_error Sequent::Core::ProjectorIsActivatingError
+      end
+
+      it "fails when the active projector's version is different from our version" do
+        Sequent::Core::Projectors.register_active_projectors!([TestEventHandler])
+        TestEventHandler.version += 1
 
         expect do
           Sequent.command_service.execute_commands TriggerTestCase.new(aggregate_id: Sequent.new_uuid)
