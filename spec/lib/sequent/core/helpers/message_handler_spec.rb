@@ -211,4 +211,40 @@ describe Sequent::Core::Helpers::MessageHandler do
       end
     end
   end
+
+  describe 'handlers that use `return`' do
+    class HandlerWithReturn
+      include Sequent::Core::Helpers::MessageHandler
+
+      attr_reader :first_block_called, :last_block_called
+
+      on MessageHandlerEvent do
+        return
+      end
+
+      on MessageHandlerEventOtherEvent do
+        @first_block_called = true
+        next
+      end
+
+      on MessageHandlerEventOtherEvent do
+        @last_block_called = true
+      end
+    end
+
+    let(:handler) { HandlerWithReturn.new }
+
+    it 'should fail when a handler fails with a non-local jump' do
+      expect do
+        handler.handle_message(MessageHandlerEvent.new)
+      end.to raise_error(RuntimeError, 'use `next` to skip handler code, not `return`')
+    end
+
+    it 'should call subsequent handlers when a handler uses `next`' do
+      handler.handle_message(MessageHandlerEventOtherEvent.new(aggregate_id: 'foo', sequence_number: 1))
+
+      expect(handler.first_block_called).to be_truthy
+      expect(handler.last_block_called).to be_truthy
+    end
+  end
 end

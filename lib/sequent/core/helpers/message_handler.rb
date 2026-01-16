@@ -113,7 +113,14 @@ module Sequent
             if Sequent.logger.debug?
               Sequent.logger.debug("[MessageHandler] Handler #{self.class} handling #{message.class}")
             end
-            instance_exec(message, &handler)
+            # Run instance exec inside of a lambda to avoid return from `dispatch_message` if the
+            # `handler` uses `return`.
+            -> do
+              instance_exec(message, &handler)
+            rescue LocalJumpError => e
+              # Handlers should not return or break, but use next instead
+              raise "use `next` to skip handler code, not `#{e.reason}`"
+            end.call
           end
         end
       end
