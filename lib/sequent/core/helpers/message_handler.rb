@@ -42,14 +42,17 @@ module Sequent
       #
       module MessageHandler
         module ClassMethods
-          def on(*args, **opts, &block)
+          def on(*args, **opts, &handler)
             OnArgumentsValidator.validate_arguments!(*args)
 
             message_matchers = args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) }
 
+            handler_method_name = "__sequent_handler_#{handler.object_id}"
+            define_method(handler_method_name, &handler)
+
             message_router.register_matchers(
               *message_matchers,
-              block,
+              instance_method(handler_method_name),
             )
 
             opts.each do |name, value|
@@ -113,14 +116,9 @@ module Sequent
             if Sequent.logger.debug?
               Sequent.logger.debug("[MessageHandler] Handler #{self.class} handling #{message.class}")
             end
-            # Run instance exec inside of a lambda to avoid return from `dispatch_message` if the
-            # `handler` uses `return`.
-            -> do
-              instance_exec(message, &handler)
-            rescue LocalJumpError => e
-              # Handlers should not return or break, but use next instead
-              raise "use `next` to skip handler code, not `#{e.reason}`"
-            end.call
+
+            args = handler.arity == 0 ? [] : [message]
+            handler.bind_call(self, *args)
           end
         end
       end
