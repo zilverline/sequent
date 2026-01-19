@@ -42,14 +42,24 @@ module Sequent
       #
       module MessageHandler
         module ClassMethods
-          def on(*args, **opts, &block)
+          def on(*args, **opts, &handler)
             OnArgumentsValidator.validate_arguments!(*args)
 
             message_matchers = args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) }
 
+            unbound_method = begin
+              handler_method_name = :"__sequent_handler_#{handler.object_id}"
+              fail "duplicate method name #{handler_method_name}" if method_defined?(handler_method_name)
+
+              define_method(handler_method_name, &handler)
+              instance_method(handler_method_name)
+            ensure
+              undef_method(handler_method_name)
+            end
+
             message_router.register_matchers(
               *message_matchers,
-              block,
+              unbound_method,
             )
 
             opts.each do |name, value|
@@ -113,7 +123,9 @@ module Sequent
             if Sequent.logger.debug?
               Sequent.logger.debug("[MessageHandler] Handler #{self.class} handling #{message.class}")
             end
-            instance_exec(message, &handler)
+
+            args = handler.arity == 0 ? [] : [message]
+            handler.bind_call(self, *args)
           end
         end
       end

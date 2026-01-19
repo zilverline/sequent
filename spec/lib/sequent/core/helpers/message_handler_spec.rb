@@ -153,11 +153,15 @@ describe Sequent::Core::Helpers::MessageHandler do
   describe '.message_mapping' do
     subject { MyHandler.message_mapping }
 
-    it 'returns a mapping of message classes to handlers' do
-      expect(subject).to eq(
-        MessageHandlerEvent => Set[MyHandler::FIRST_HANDLER, MyHandler::LAST_HANDLER],
-        MessageHandlerEventOtherEvent => Set[MyHandler::FIRST_HANDLER],
+    it 'returns a mapping of message classes to unbound methods' do
+      expect(subject.keys).to eq(
+        [
+          MessageHandlerEvent,
+          MessageHandlerEventOtherEvent,
+        ],
       )
+      expect(subject[MessageHandlerEvent].size).to eq(2)
+      expect(subject[MessageHandlerEventOtherEvent].size).to eq(1)
     end
 
     context 'given a non-class/module argument' do
@@ -209,6 +213,38 @@ describe Sequent::Core::Helpers::MessageHandler do
           expect { subject }.to raise_error(ArgumentError, "Arguments to 'on' must be unique, duplicates: a, b")
         end
       end
+    end
+  end
+
+  describe 'handlers that use `return`' do
+    class HandlerWithReturn
+      include Sequent::Core::Helpers::MessageHandler
+
+      attr_reader :first_block_called, :second_block_called, :last_block_called
+
+      on MessageHandlerEvent do
+        @first_block_called = true
+        return
+      end
+
+      on MessageHandlerEvent do |_event|
+        @second_block_called = true
+        next
+      end
+
+      on MessageHandlerEvent do
+        @last_block_called = true
+      end
+    end
+
+    let(:handler) { HandlerWithReturn.new }
+
+    it 'should call subsequent handlers when a handler uses `return` or `next`' do
+      handler.handle_message(MessageHandlerEvent.new)
+
+      expect(handler.first_block_called).to be_truthy
+      expect(handler.second_block_called).to be_truthy
+      expect(handler.last_block_called).to be_truthy
     end
   end
 end
