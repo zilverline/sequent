@@ -47,12 +47,19 @@ module Sequent
 
             message_matchers = args.map { |arg| MessageMatchers::ArgumentCoercer.coerce_argument(arg) }
 
-            handler_method_name = "__sequent_handler_#{handler.object_id}"
-            define_method(handler_method_name, &handler)
+            unbound_method = begin
+              handler_method_name = :"__sequent_handler_#{handler.object_id}"
+              fail "duplicate method name #{handler_method_name}" if method_defined?(handler_method_name)
+
+              define_method(handler_method_name, &handler)
+              instance_method(handler_method_name)
+            ensure
+              undef_method(handler_method_name)
+            end
 
             message_router.register_matchers(
               *message_matchers,
-              instance_method(handler_method_name),
+              unbound_method,
             )
 
             opts.each do |name, value|
