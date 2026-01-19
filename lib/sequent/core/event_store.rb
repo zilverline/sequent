@@ -102,9 +102,7 @@ module Sequent
       # @param &block Block that should be passed to handle the batches returned from this method
       def stream_events_for_aggregate(aggregate_id, load_until: nil, &block)
         stream = find_event_stream(aggregate_id)
-        fail ArgumentError, 'no stream found for this aggregate' if stream.blank?
-
-        has_events = false
+        fail ArgumentError, "no stream found for this aggregate #{aggregate_id}" if stream.blank?
 
         # PostgreSQLCursor::Cursor does not support bind parameters, so bind parameters manually instead.
         sql = ActiveRecord::Base.sanitize_sql_array(
@@ -118,12 +116,13 @@ module Sequent
           ],
         )
 
+        has_events = false
         PostgreSQLCursor::Cursor.new(sql, {connection: connection}).each_row do |event_hash|
           has_events = true
           event = deserialize_event(event_hash)
           block.call([stream, event])
         end
-        fail ArgumentError, 'no events for this aggregate' unless has_events
+        fail ArgumentError, "no events for aggregate #{aggregate_id}" unless has_events
       end
 
       def load_event(aggregate_id, sequence_number)

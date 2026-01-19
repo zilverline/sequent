@@ -196,6 +196,27 @@ describe Sequent::Core::EventStore do
       )
     end
 
+    it 'overwrites existing snapshot with newer version' do
+      event_store.store_snapshots([snapshot])
+
+      snapshot.created_at += 1
+
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.load_latest_snapshot(aggregate_id).created_at).to eq(snapshot.created_at)
+    end
+
+    it 'keeps existing snapshot when storing older snapshot' do
+      event_store.store_snapshots([snapshot])
+
+      original_created_at = snapshot.created_at
+      snapshot.created_at -= 1
+
+      event_store.store_snapshots([snapshot])
+
+      expect(event_store.load_latest_snapshot(aggregate_id).created_at).to eq(original_created_at)
+    end
+
     it 'can delete all snapshots' do
       event_store.store_snapshots([snapshot])
 
@@ -846,7 +867,7 @@ describe Sequent::Core::EventStore do
         it 'argument error for no events' do
           expect do |block|
             event_store.stream_events_for_aggregate(aggregate_id_1, load_until: frozen_time - 1.year, &block)
-          end.to raise_error(ArgumentError, 'no events for this aggregate')
+          end.to raise_error(ArgumentError, "no events for aggregate #{aggregate_id_1}")
         end
       end
 
