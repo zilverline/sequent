@@ -14,6 +14,7 @@ PATH
       parser (>= 2.6.5, < 3.4)
       pg (~> 1.2)
       postgresql_cursor (~> 0.6)
+      prism
       thread_safe (~> 0.3.6)
       tty-prompt (~> 0.23.1)
       tzinfo (>= 1.1)
