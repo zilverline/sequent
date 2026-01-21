@@ -48,12 +48,15 @@ module Sequent
       def event
         payload = serialize_json? ? Sequent::Core::Oj.strict_load(event_json) : event_json
         Class.const_get(event_type).deserialize_from_json(payload)
+      rescue NameError
+        # TODO
       end
 
       def event=(event)
         self.aggregate_id = event.aggregate_id
         self.sequence_number = event.sequence_number
         self.event_type = event.class.name
+        self.stream_name = event.class.stream_name
         self.created_at = event.created_at
         self.event_json = serialize_json? ? self.class.serialize_to_json(event) : event.attributes
 
