@@ -345,7 +345,7 @@ module Sequent
             uncommitted_events.map do |event|
               {
                 created_at: convert_timestamp(event.created_at.to_time),
-                event_type: event.class.name,
+                event_type: event.class.stream_name,
                 event_json: event,
               }
             end,

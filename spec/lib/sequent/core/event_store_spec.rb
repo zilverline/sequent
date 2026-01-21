@@ -6,6 +6,8 @@ require 'postgresql_cursor'
 
 describe Sequent::Core::EventStore do
   class MyEvent < Sequent::Core::Event
+    self.stream_name = 'MyGreatEvent'
+
     attrs data: String
   end
 
