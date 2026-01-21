@@ -2,8 +2,8 @@ PATH
   remote: ..
   specs:
     sequent (8.2.0)
-      activemodel (>= 7.2.1)
-      activerecord (>= 7.2.1)
+      activemodel (>= 7.2.1, < 8.1.0)
+      activerecord (>= 7.2.1, < 8.1.0)
       bcrypt (~> 3.1)
       csv (~> 3.3)
       gli (~> 2.22)
