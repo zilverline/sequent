@@ -2,8 +2,8 @@ PATH
   remote: ..
   specs:
     sequent (8.2.0)
-      activemodel (>= 7.2.1)
-      activerecord (>= 7.2.1)
+      activemodel (>= 7.2.1, < 8.1.0)
+      activerecord (>= 7.2.1, < 8.1.0)
       bcrypt (~> 3.1)
       csv (~> 3.3)
       gli (~> 2.22)
@@ -14,6 +14,7 @@ PATH
       parser (>= 2.6.5, < 3.4)
       pg (~> 1.2)
       postgresql_cursor (~> 0.6)
+      prism
       thread_safe (~> 0.3.6)
       tty-prompt (~> 0.23.1)
       tzinfo (>= 1.1)
@@ -158,4 +159,4 @@ DEPENDENCIES
   timecop (~> 0.9)
 
 BUNDLED WITH
-   2.5.22
+   2.3.13
