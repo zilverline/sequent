@@ -2,11 +2,15 @@
   <div class="masthead__inner-wrap">
     <div class="masthead__menu">
       <nav id="site-nav" class="greedy-nav">
-        <a class="site-title" href="{{ '/' | relative_url }}"><img width="50px"
-                                                                   height="50px"
-                                                                   style="margin-right: 10px"
-                                                                   src="/images/sequent.svg">{{
-          site.title }}</a>
+        <a class="site-title" href="{{ '/' | relative_url }}">
+          <img width="50px" height="50px" style="margin-right: 10px" src="/images/sequent.svg" />
+        </a>
+        <div class="site-title">
+          <a href="{{ '/' | relative_url }}">{{ site.title }}</a>
+          <a href="{{ site.github.repository_url }}/tree/{{ site.github.source.branch }}">
+            <small><strong>{{site.github.source.branch}}</strong> branch</small>
+          </a>
+        </div>
         <ul class="visible-links">
           {%- for link in site.data.navigation.main -%}
             {%- if link.url contains '://' -%}
