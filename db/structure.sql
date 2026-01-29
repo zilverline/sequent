@@ -477,7 +477,7 @@ BEGIN
       _events_partition_key
     ) ON CONFLICT (aggregate_id) DO NOTHING;
 
-    _current_partition_key = (SELECT events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id);
+    _current_partition_key = (SELECT events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id FOR NO KEY UPDATE);
     IF _current_partition_key <> _events_partition_key THEN
       INSERT INTO partition_key_changes AS row (aggregate_id, old_partition_key, new_partition_key)
       VALUES (_aggregate_id, _current_partition_key, _events_partition_key)
@@ -559,7 +559,7 @@ BEGIN
                              ORDER BY row->0->'aggregate_id', row->1->0->'event_json'->'sequence_number'
   LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
-    SELECT events_partition_key INTO STRICT _events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id;
+    SELECT events_partition_key INTO STRICT _events_partition_key FROM aggregates WHERE aggregate_id = _aggregate_id FOR NO KEY UPDATE;
 
     SELECT sequence_number
       INTO _last_sequence_number
@@ -695,8 +695,24 @@ CREATE PROCEDURE sequent_schema.update_unique_keys(IN _stream_records jsonb)
 DECLARE
   _aggregate jsonb;
   _aggregate_id aggregates.aggregate_id%TYPE;
+  _aggregate_version events.sequence_number%TYPE;
   _unique_keys jsonb;
 BEGIN
+  FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate ORDER BY aggregate->>'aggregate_id' LOOP
+    _aggregate_id = _aggregate->>'aggregate_id';
+    _aggregate_version = _aggregate->>'aggregate_version';
+    IF _aggregate_version <> (
+      SELECT e.sequence_number AS aggregate_version
+        FROM aggregates a LEFT JOIN events e ON (a.aggregate_id, a.events_partition_key) = (e.aggregate_id, e.partition_key)
+       WHERE a.aggregate_id = _aggregate_id
+       ORDER BY e.sequence_number DESC
+       LIMIT 1
+         FOR NO KEY UPDATE OF a
+    ) THEN
+      RAISE EXCEPTION 'update_unique_keys: aggregate version is not equal to latest event sequence number for aggregate %', _aggregate_id;
+    END IF;
+  END LOOP;
+
   FOR _aggregate IN SELECT aggregate FROM jsonb_array_elements(_stream_records) AS aggregate ORDER BY aggregate->>'aggregate_id' LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
     _unique_keys = COALESCE(_aggregate->'unique_keys', '{}'::jsonb);
@@ -1572,6 +1588,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260129130000'),
 ('20250815103000'),
 ('20250630113000'),
 ('20250601120000'),
