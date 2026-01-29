@@ -11,7 +11,6 @@ describe Sequent::Migrations::ProjectorsReplayer do
     Sequent::Core::ProjectorState.delete_all
 
     Sequent.configuration.event_handlers = [SingleRecordProjector.new]
-    Sequent.configuration.enable_projector_states = true
     Sequent.configuration.event_publisher = Sequent::Core::ActiveProjectorsEventPublisher.new
     Sequent.configuration.migrations_class = SpecMigrations
     SpecMigrations.version = 0

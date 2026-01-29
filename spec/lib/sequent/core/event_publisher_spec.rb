@@ -75,7 +75,6 @@ describe Sequent::Core::EventPublisher do
   context Sequent::Core::ActiveProjectorsEventPublisher do
     before do
       Sequent::Configuration.reset
-      Sequent.configuration.enable_projector_states = true
       Sequent.configuration.event_publisher = Sequent::Core::ActiveProjectorsEventPublisher.new
     end
     after { Sequent::Configuration.reset }
