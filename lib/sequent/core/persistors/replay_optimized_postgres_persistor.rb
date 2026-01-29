@@ -312,10 +312,6 @@ module Sequent
 
         def commit
           @record_store.each do |clazz, records|
-            @column_cache ||= {}
-            @column_cache[clazz.name] ||= clazz.columns.reduce({}) do |hash, column|
-              hash.merge({column.name => column})
-            end
             if records.size > @insert_with_csv_size
               csv = CSV.new(StringIO.new)
               column_names = clazz.column_names.reject { |name| name == 'id' }
@@ -364,11 +360,7 @@ module Sequent
         private
 
         def cast_value_to_column_type(clazz, column_name, record)
-          uncasted_value = ActiveModel::Attribute.from_database(
-            column_name,
-            record[column_name],
-            Sequent::ApplicationRecord.connection.lookup_cast_type_from_column(@column_cache[clazz.name][column_name]),
-          ).value_for_database
+          uncasted_value = clazz.type_for_attribute(column_name).serialize(record[column_name])
           Sequent::ApplicationRecord.connection.type_cast(uncasted_value)
         end
       end

@@ -21,10 +21,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - ruby-version: '3.4'
-            gemfile: 'ar_8_0'
           - ruby-version: '3.3'
             gemfile: 'ar_7_2'
+          - ruby-version: '3.4'
+            gemfile: 'ar_8_0'
+          - ruby-version: '4.0.1'
+            gemfile: 'ar_8_0'
+          - ruby-version: '4.0.1'
+            gemfile: 'ar_8_1'
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:

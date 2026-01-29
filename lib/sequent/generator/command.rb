@@ -4,7 +4,7 @@ require 'fileutils'
 require 'active_support'
 require 'active_support/core_ext/string'
 require 'erb'
-require 'parser/current'
+require_relative 'ruby_parser'
 
 class NoAggregateFound < StandardError; end
 
@@ -31,7 +31,7 @@ module Sequent
       private
 
       def append_command_handler
-        ast = Parser::CurrentRuby.parse(File.read("#{path_to_dir}/#{name_underscored}_command_handler.rb"))
+        ast = RubyParser.parse(File.read("#{path_to_dir}/#{name_underscored}_command_handler.rb"))
         target_cursor_position = find_target_cursor_position(ast)
 
         File.open("#{path_to_dir}/#{name_underscored}_command_handler.rb", 'r+') do |f|

@@ -39,6 +39,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'parser', '>= 2.6.5', '< 3.4'
   s.add_dependency 'pg', '~> 1.2'
   s.add_dependency 'postgresql_cursor', '~> 0.6'
+  s.add_dependency 'prism'
   s.add_dependency 'thread_safe', '~> 0.3.6'
   s.add_dependency 'tty-prompt', '~> 0.23.1'
   s.add_dependency 'tzinfo', '>= 1.1'
