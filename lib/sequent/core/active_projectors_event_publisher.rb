@@ -49,9 +49,6 @@ module Sequent
         version = handler.class.version
         return true if version.nil?
 
-        # Projector states are not enable so all projectors are considered active
-        return true unless Sequent.configuration.enable_projector_states
-
         projector_state = Projectors.projector_states[handler.class.name]
         return false if projector_state.nil?
 

@@ -29,9 +29,8 @@
   default version) while new code will only use snapshot version 2.
 
 - Also in preperation of rolling upgrades the enabled projectors are
-  now optionally tracked in the `projector_states` table. Use the
-  `enable_projector_states` configuration flag and
-  `ActiveProjectorsEventPublisher` as the `event_publisher` enable
+  now tracked in the `projector_states` table. Use the
+  `ActiveProjectorsEventPublisher` as the `event_publisher` to enable
   this feature.
 
   Only projectors that are active will process events during normal

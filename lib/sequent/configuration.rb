@@ -75,7 +75,6 @@ module Sequent
                   :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
-                  :enable_projector_states,
                   :projectors_replayer_after_prepare_hook,
                   :projectors_replayer_after_activate_hook
 
@@ -136,7 +135,6 @@ module Sequent
 
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
-      self.enable_projector_states = false
     end
 
     def versions_table_name=(table_name)
