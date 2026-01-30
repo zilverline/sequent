@@ -2,7 +2,6 @@
 
 require_relative 'helpers/copyable'
 require_relative 'helpers/attribute_support'
-require_relative 'helpers/uuid_helper'
 require_relative 'helpers/equal_support'
 require_relative 'helpers/param_support'
 require_relative 'helpers/mergable'
@@ -22,7 +21,6 @@ module Sequent
       include Sequent::Core::Helpers::Mergable
       include Sequent::Core::Helpers::ParamSupport
       include Sequent::Core::Helpers::EqualSupport
-      include Sequent::Core::Helpers::UuidHelper
       include Sequent::Core::Helpers::AttributeSupport
       include Sequent::Core::Helpers::Copyable
       include ActiveModel::Validations
