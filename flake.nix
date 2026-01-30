@@ -4,6 +4,7 @@
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
     devenv.inputs.nixpkgs.follows = "nixpkgs";
+    nixpkgs-ruby.url = "github:bobvanderlinden/nixpkgs-ruby";
   };
 
   nixConfig = {
@@ -11,7 +12,7 @@
     extra-substituters = "https://devenv.cachix.org";
   };
 
-  outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
+  outputs = { self, nixpkgs, devenv, systems, nixpkgs-ruby, ... } @ inputs:
     let
       forEachSystem = nixpkgs.lib.genAttrs (import systems);
     in
@@ -26,6 +27,7 @@
           let
             postgresPort = 6543;
             pkgs = nixpkgs.legacyPackages.${system};
+            ruby-pkgs = nixpkgs-ruby.packages.${system};
           in
           {
             default = devenv.lib.mkShell {
@@ -54,7 +56,7 @@
 
                   languages.ruby = {
                     enable = true;
-                    package = pkgs.ruby;
+                    package = ruby-pkgs."ruby-${nixpkgs.lib.strings.trim (builtins.readFile ./.ruby-version)}";
                   };
 
                   processes.jekyll.exec = ''
