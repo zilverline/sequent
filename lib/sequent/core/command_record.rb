@@ -66,13 +66,6 @@ module Sequent
       def origin_command
         parent_event&.parent_command&.origin_command || self
       end
-
-      # @deprecated
-      alias parent parent_event
-      # @deprecated
-      alias children child_events
-      # @deprecated
-      alias origin origin_command
     end
   end
 end
