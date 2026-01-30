@@ -108,11 +108,6 @@ module Sequent
       def origin_command
         parent_command&.origin_command
       end
-
-      # @deprecated
-      alias parent parent_command
-      alias children child_commands
-      alias origin origin_command
     end
   end
 end
