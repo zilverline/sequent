@@ -5,7 +5,6 @@ require_relative 'helpers/attribute_support'
 require_relative 'helpers/uuid_helper'
 require_relative 'helpers/equal_support'
 require_relative 'helpers/param_support'
-require_relative 'helpers/mergable'
 
 module Sequent
   module Core
@@ -19,7 +18,6 @@ module Sequent
     # BaseCommand uses `ActiveModel::Validations` for
     # validations
     class BaseCommand
-      include Sequent::Core::Helpers::Mergable
       include Sequent::Core::Helpers::ParamSupport
       include Sequent::Core::Helpers::EqualSupport
       include Sequent::Core::Helpers::UuidHelper
