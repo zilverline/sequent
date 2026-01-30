@@ -4,7 +4,8 @@ require 'active_model'
 
 module Sequent
   module Core
-    TypeConversionError = Class.new(RuntimeError)
+    class TypeConversionError < RuntimeError
+    end
 
     module Helpers
       # Will parse all values to the correct types.

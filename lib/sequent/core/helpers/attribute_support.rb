@@ -59,18 +59,18 @@ module Sequent
             args.each do |attribute, type|
               attr_accessor attribute
 
-              if included_modules.include?(Sequent::Core::Helpers::TypeConversionSupport)
+              if include?(Sequent::Core::Helpers::TypeConversionSupport)
                 Sequent::Core::Helpers::DefaultValidators.for(type).add_validations_for(self, attribute)
               end
 
               is_array = type.instance_of?(Sequent::Core::Helpers::ArrayWithType)
-              needs_validation = !is_array && included_modules.include?(ActiveModel::Validations) &&
-                                 type.included_modules.include?(Sequent::Core::Helpers::AttributeSupport)
+              needs_validation = !is_array && include?(ActiveModel::Validations) &&
+                                 type.include?(Sequent::Core::Helpers::AttributeSupport)
 
               associations << attribute if is_array || needs_validation
             end
 
-            if included_modules.include?(ActiveModel::Validations) && associations.present?
+            if include?(ActiveModel::Validations) && associations.present?
               validates_with Sequent::Core::Helpers::AssociationValidator, associations: associations
             end
             # Generate method that sets all defined attributes based on the attrs hash.

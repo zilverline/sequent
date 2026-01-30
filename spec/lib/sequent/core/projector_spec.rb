@@ -3,8 +3,10 @@
 require 'spec_helper'
 
 describe Sequent::Core::Projector do
-  MyProjectorTable = Class.new
-  MyProjectorEvent = Class.new(Sequent::Core::Event)
+  class MyProjectorTable
+  end
+  class MyProjectorEvent < Sequent::Core::Event
+  end
 
   it 'fails when missing managed_tables' do
     class TestProjector1 < Sequent::Core::Projector
@@ -16,7 +18,8 @@ describe Sequent::Core::Projector do
   end
 
   it "'fails when passing in a record_class to the persistor that isn't managed by this projector" do
-    MyOtherProjectorTable = Class.new
+    class MyOtherProjectorTable
+    end
     expect do
       Class
         .new(Sequent::Core::Projector) do

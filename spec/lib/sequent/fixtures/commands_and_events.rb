@@ -19,9 +19,12 @@ module Sequent
       attrs id_2: String
     end
 
-    Event1 = Class.new(Sequent::Event)
-    Event2 = Class.new(Sequent::Event)
-    Event3 = Class.new(Sequent::Event)
+    class Event1 < Sequent::Event
+    end
+    class Event2 < Sequent::Event
+    end
+    class Event3 < Sequent::Event
+    end
     Event4 = Class.new(Sequent::Event) do
       attrs name: String
     end

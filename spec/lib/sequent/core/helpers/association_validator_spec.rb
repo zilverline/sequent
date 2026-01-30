@@ -126,7 +126,8 @@ describe Sequent::Core::Helpers::AssociationValidator do
       validates :numbers, presence: true
     end
 
-    SubclassWithArray = Class.new(ValueObjectWithArray)
+    class SubclassWithArray < ValueObjectWithArray
+    end
 
     it 'can handle inherited array properties' do
       object = SubclassWithArray.new(numbers: (1..5).to_a)

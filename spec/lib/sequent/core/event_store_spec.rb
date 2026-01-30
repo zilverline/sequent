@@ -878,7 +878,8 @@ describe Sequent::Core::EventStore do
     class TestRecord; end
     class FailingHandler < Sequent::Core::Projector
       manages_tables TestRecord
-      Error = Class.new(RuntimeError)
+      class Error < RuntimeError
+      end
 
       on MyEvent do |_|
         fail Error, 'Handler error'
