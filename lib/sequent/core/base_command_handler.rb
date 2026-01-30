@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative 'helpers/message_handler'
-require_relative 'helpers/uuid_helper'
 
 module Sequent
   module Core
@@ -19,7 +18,6 @@ module Sequent
     #     end
     #   end
     class BaseCommandHandler
-      include Sequent::Core::Helpers::UuidHelper
       include Sequent::Core::Helpers::MessageHandler
       extend ActiveSupport::DescendantsTracker
 
