@@ -1,5 +1,13 @@
 # Changelog 9.x
 
+- Sequent now supports zero-downtime deployments (rolling
+  upgrades). To enable this feature you must use the
+  `ActiveProjectorsEventPublisher` to ensure events are only published
+  to active projectors with the correct projector version number. Rake
+  tasks are provided to prepare, replay, and activate projectors. See
+  https://sequent.io/docs/concepts/migrations.html for more
+  information.
+
 - Database connection management has been removed from Sequent and
   must be provided by the hosting application. This is done
   automatically by Rails and can be done using the
