@@ -9,9 +9,15 @@ module Sequent
       # view state will always be recreated anyway.
       #
       class NoTransactions
-        def transactional
-          yield
+        def transaction
+          yield ActiveRecord::Transaction::NULL_TRANSACTION
         end
+
+        # Deprecated alias
+        alias transactional transaction
+
+        def after_commit = yield
+        def after_rollback = nil
       end
     end
   end

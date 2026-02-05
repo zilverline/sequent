@@ -285,7 +285,7 @@ module Sequent
                 aggregate_type: args[:aggregate_type],
                 group_size: args[:group_size] || 100,
               ).each do |aggregate_ids|
-                Sequent.configuration.transaction_provider.transactional do
+                Sequent.configuration.transaction_provider.transaction do
                   aggregates = Sequent.configuration.aggregate_repository.load_aggregates(aggregate_ids)
                   Sequent.configuration.event_store.update_unique_keys(aggregates.map(&:event_stream))
                   count += aggregates.size
