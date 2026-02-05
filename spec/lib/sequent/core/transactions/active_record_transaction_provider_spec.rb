@@ -6,20 +6,20 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
   let(:provider) { Sequent::Core::Transactions::ActiveRecordTransactionProvider.new }
 
   it 'returns the block result' do
-    expect(provider.transactional { '10' }).to eq '10'
+    expect(provider.transaction { '10' }).to eq '10'
   end
 
   context 'with after_commit hooks' do
     it 'calls the after_commit hooks' do
       called = false
-      provider.transactional do
+      provider.transaction do
         provider.after_commit { called = true }
       end
       expect(called).to be_truthy
     end
     it 'still returns the result of the block' do
       called = false
-      result = provider.transactional do
+      result = provider.transaction do
         provider.after_commit { called = true }
         '11'
       end
@@ -28,8 +28,8 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
     end
     it 'only calls after_commit when the outermost transaction completes' do
       called = false
-      provider.transactional do
-        provider.transactional do
+      provider.transaction do
+        provider.transaction do
           provider.after_commit { called = true }
         end
         expect(called).to be_falsy
@@ -39,7 +39,7 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
     it 'does not call after_commit on rollback' do
       called = false
       begin
-        provider.transactional do
+        provider.transaction do
           provider.after_commit { called = true }
           fail 'rollback transaction'
         end
@@ -53,7 +53,7 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
     it 'calls the after_rollback hooks' do
       called = false
       begin
-        provider.transactional do
+        provider.transaction do
           provider.after_rollback { called = true }
           fail 'rollback transaction'
         end
@@ -64,8 +64,8 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
     it 'only calls after_rollback when the outermost transaction completes' do
       called = false
       begin
-        provider.transactional do
-          provider.transactional do
+        provider.transaction do
+          provider.transaction do
             provider.after_rollback { called = true }
           end
           throw 'rollback transaction'

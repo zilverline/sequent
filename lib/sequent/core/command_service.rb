@@ -44,7 +44,7 @@ module Sequent
 
       def process_commands(validation_context)
         Sequent::Util.skip_if_already_processing(:command_service_process_commands) do
-          transaction_provider.transactional do
+          transaction_provider.transaction do
             until command_queue.empty?
               command = command_queue.pop
               command_middleware.invoke(command) do

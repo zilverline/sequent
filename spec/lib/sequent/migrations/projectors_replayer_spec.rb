@@ -342,7 +342,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
   def exec_update(sql, binds = []) = ActiveRecord::Base.connection.exec_update(sql, 'update', binds)
   def query_schemas = exec_query('SELECT nspname FROM pg_namespace').map { |r| r['nspname'] }
 
-  def transaction(...) = Sequent.configuration.transaction_provider.transactional(...)
+  def transaction(...) = Sequent.configuration.transaction_provider.transaction(...)
 
   def in_replay_schema
     transaction do

@@ -11,7 +11,7 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
   end
   it 'fails when trying to write in a read only transaction' do
     expect do
-      subject.transactional do
+      subject.transaction do
         Sequent::ApplicationRecord.connection.execute('create table foos (id integer)')
       end
     end.to raise_error(ActiveRecord::StatementInvalid) do |e|
@@ -22,7 +22,7 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
 
   it 'should be able to do only read queries' do
     expect do
-      subject.transactional do
+      subject.transaction do
         Sequent::ApplicationRecord.connection.execute('select count(*) from command_records')
       end
     end.to_not raise_error
@@ -33,7 +33,7 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
       Sequent::ApplicationRecord.connection.execute('drop table if exists foos')
     end
     it 'is possible to write again' do
-      subject.transactional do
+      subject.transaction do
         Sequent::ApplicationRecord.connection.execute('show search_path')
       end
       Sequent::ApplicationRecord.connection.execute('create table foos (id integer)')
@@ -43,9 +43,9 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
   context 'nested transactions' do
     it 'fails when trying to write in a nested transaction' do
       expect do
-        subject.transactional do
+        subject.transaction do
           Sequent::ApplicationRecord.connection.execute('show search_path')
-          subject.transactional do
+          subject.transaction do
             Sequent::ApplicationRecord.connection.execute('create table foos (id integer)')
           end
         end
@@ -56,11 +56,11 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
     end
     it 'fails when trying to write in a nested nested transaction' do
       expect do
-        subject.transactional do
+        subject.transaction do
           Sequent::ApplicationRecord.connection.execute('show search_path')
-          subject.transactional do
+          subject.transaction do
             Sequent::ApplicationRecord.connection.execute('show search_path')
-            subject.transactional do
+            subject.transaction do
               Sequent::ApplicationRecord.connection.execute('create table foos (id integer)')
             end
           end
@@ -73,9 +73,9 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
 
     it 'fails when requiring a new inside a readonly' do
       expect do
-        subject.transactional do
+        subject.transaction do
           Sequent::ApplicationRecord.connection.execute('show search_path')
-          transaction_provider.transactional do
+          transaction_provider.transaction do
             Sequent::ApplicationRecord.connection.execute('create table foos (id integer)')
           end
         end
@@ -86,7 +86,7 @@ describe Sequent::Core::Transactions::ReadOnlyActiveRecordTransactionProvider do
     end
     it 'fails when opening a new ActiveRecord transaction directly in a readonly' do
       expect do
-        subject.transactional do
+        subject.transaction do
           Sequent::ApplicationRecord.connection.execute('show search_path')
           ActiveRecord::Base.transaction(requires_new: true) do
             Sequent::ApplicationRecord.connection.execute('create table foos (id integer)')
