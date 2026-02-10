@@ -22,9 +22,7 @@ module Sequent
         # Deprecated
         alias transactional transaction
 
-        def after_commit(&block) = @transaction_provider.after_commit(&block)
-
-        def after_rollback(&block) = @transaction_provider.after_rollback(&block)
+        delegate :after_commit, :after_rollback, to: :@transaction_provider
 
         private
 
