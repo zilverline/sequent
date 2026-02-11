@@ -16,6 +16,16 @@ module Sequent
 
       attrs aggregate_id: String, sequence_number: Integer, created_at: Time
 
+      class << self
+        def stream_name
+          @stream_name ||= self.class.name
+        end
+
+        def stream_name=(value)
+          @stream_name = value
+        end
+      end
+
       def initialize(args = {})
         update_all_attributes args
         fail 'Missing aggregate_id' unless @aggregate_id
