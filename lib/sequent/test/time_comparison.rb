@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+warn '[DEPRECATED] sequent/test/time_comparison monkey-patches standard time related classes'
+
 module Sequent
   module Test
     module DateTimePatches
