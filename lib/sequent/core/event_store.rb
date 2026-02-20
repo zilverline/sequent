@@ -10,24 +10,8 @@ require_relative 'snapshot_store'
 module Sequent
   module Core
     class AggregateKeyNotUniqueError < RuntimeError
-      attr_reader :aggregate_type, :aggregate_id
-
       def self.unique_key_error_message?(message)
-        message =~ /duplicate unique key value for aggregate/
-      end
-
-      def initialize(message)
-        super
-
-        match = message.match(
-          # rubocop:disable Layout/LineLength
-          /aggregate (\p{Upper}\p{Alnum}*(?:::\p{Upper}\p{Alnum}*)*) (\p{XDigit}{8}-\p{XDigit}{4}-\p{XDigit}{4}-\p{XDigit}{4}-\p{XDigit}{12})/,
-          # rubocop:enable Layout/LineLength
-        )
-        if match
-          @aggregate_type = match[1]
-          @aggregate_id = match[2]
-        end
+        message =~ /duplicate key value violates unique constraint \"aggregate_unique_keys_scope_key_key\"/
       end
     end
 

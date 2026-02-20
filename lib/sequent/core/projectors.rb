@@ -43,7 +43,7 @@ module Sequent
             .pluck(:name)
           return if unknown_active_projector_names.empty?
 
-          transaction_provider.transactional do
+          transaction_provider.transaction do
             ProjectorState
               .where.not(name: known_projector_classes.map(&:name))
               .update_all(active_version: nil)
@@ -89,7 +89,7 @@ module Sequent
           cached = Thread.current[PROJECTOR_STATES_KEY]
           return cached unless cached.nil?
 
-          transaction_provider.transactional do
+          transaction_provider.transaction do
             cleanup = -> { Thread.current[PROJECTOR_STATES_KEY] = nil }
             transaction_provider.after_commit(&cleanup)
             transaction_provider.after_rollback(&cleanup)
@@ -116,7 +116,7 @@ module Sequent
         def update_projector_state(rows)
           return if rows.empty?
 
-          transaction_provider.transactional do
+          transaction_provider.transaction do
             lock_projector_states_for_update
 
             ProjectorState.upsert_all(rows)

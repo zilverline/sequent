@@ -8,24 +8,21 @@ module Sequent
           @transaction_provider = transaction_provider
         end
 
-        def transactional(&block)
+        def transaction(&block)
           register_call
-          @transaction_provider.transactional do
+          @transaction_provider.transaction(requires_new: true) do |transaction|
             Sequent::ApplicationRecord.connection.execute('SET TRANSACTION READ ONLY')
-            block.call
-          ensure
-            deregister_call
-            reset_stack_size if stack_size == 0
+            block.call(transaction)
           end
+        ensure
+          deregister_call
+          reset_stack_size if stack_size == 0
         end
 
-        def after_commit(&block)
-          ActiveRecord::Base.current_transaction.after_commit(&block)
-        end
+        # Deprecated
+        alias transactional transaction
 
-        def after_rollback(&block)
-          ActiveRecord::Base.current_transaction.after_rollback(&block)
-        end
+        delegate :after_commit, :after_rollback, to: :@transaction_provider
 
         private
 

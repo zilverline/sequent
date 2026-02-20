@@ -172,7 +172,9 @@ describe Sequent::Core::AggregateRepository do
     end
 
     it 'should raise exception if a aggregate does not exists' do
-      expect { repository.ensure_exists(:foo, InvoiceCreatedEvent) }.to raise_exception NameError
+      allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([]).once
+
+      expect { repository.ensure_exists(aggregate.id, DummyAggregate) }.to raise_exception Sequent::Core::AggregateRepository::AggregateNotFound
     end
 
     it 'contains an aggregate' do
@@ -543,11 +545,8 @@ describe Sequent::Core::AggregateRepository do
 
         Sequent.aggregate_repository.add_aggregate(user_2)
 
-        expect { Sequent.aggregate_repository.commit(DummyCommand.new) }.to raise_error(
-          an_instance_of(Sequent::Core::AggregateKeyNotUniqueError)
-            .and(having_attributes(message: /#{user_id_2}/))
-            .and(having_attributes(message: /DummyAggregateWithoutEmail/)),
-        )
+        expect { Sequent.aggregate_repository.commit(DummyCommand.new) }
+          .to raise_error(Sequent::Core::AggregateKeyNotUniqueError)
       end
 
       it 'enforces key uniqueness with the same key scope across different aggregate types' do
@@ -569,13 +568,7 @@ describe Sequent::Core::AggregateRepository do
 
         expect do
           Sequent.configuration.event_store.update_unique_keys([user_b.event_stream])
-        end.to raise_error(
-          an_instance_of(Sequent::Core::AggregateKeyNotUniqueError)
-            .and(having_attributes(message: /#{user_id_2}/))
-            .and(having_attributes(message: /DummyAggregateWithoutEmail/))
-            .and(having_attributes(aggregate_type: 'DummyAggregateWithoutEmail'))
-            .and(having_attributes(aggregate_id: user_id_2)),
-        )
+        end.to raise_error(Sequent::Core::AggregateKeyNotUniqueError)
       end
     end
   end
