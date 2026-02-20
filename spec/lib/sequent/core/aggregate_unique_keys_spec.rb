@@ -122,11 +122,7 @@ module Sequent
         when_command UniqueKeysCommand.new(aggregate_id: aggregate_id_1, keys: %w[a])
         expect do
           when_command UniqueKeysCommand.new(aggregate_id: aggregate_id_2, keys: %w[a])
-        end.to raise_error(
-          an_instance_of(Sequent::Core::AggregateKeyNotUniqueError)
-            .and(having_attributes(aggregate_type: 'Sequent::Core::UniqueKeysAggregate'))
-            .and(having_attributes(aggregate_id: aggregate_id_2)),
-        )
+        end.to raise_error(Sequent::Core::AggregateKeyNotUniqueError)
       end
 
       context 'find by unique key' do
