@@ -734,6 +734,10 @@ BEGIN
        SET key = EXCLUDED.key
      WHERE target.key <> EXCLUDED.key;
   END LOOP;
+EXCEPTION
+  WHEN unique_violation THEN
+    RAISE unique_violation
+    USING MESSAGE = 'duplicate unique key value for aggregate ' || (_aggregate->>'aggregate_type') || ' ' || _aggregate_id || ' (' || SQLERRM || ')';
 END;
 $$;
 
@@ -1584,7 +1588,6 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20260220122600'),
 ('20260129130000'),
 ('20250815103000'),
 ('20250630113000'),
