@@ -569,7 +569,7 @@ BEGIN
      ORDER BY 1 DESC
      LIMIT 1;
 
-    SELECT MIN(event->'event_json'->>'sequence_number')
+    SELECT MIN((event->'event_json'->'sequence_number')::integer)
       INTO _next_sequence_number
       FROM jsonb_array_elements(_events) AS event;
 
@@ -1588,6 +1588,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260226121600'),
 ('20260129130000'),
 ('20250815103000'),
 ('20250630113000'),
