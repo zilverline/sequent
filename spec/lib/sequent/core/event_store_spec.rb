@@ -478,6 +478,36 @@ describe Sequent::Core::EventStore do
         )
       end.to raise_error(ActiveRecord::StatementInvalid)
     end
+
+    it 'https://github.com/zilverline/sequent/issues/514 is fixed' do
+      stream = Sequent::Core::EventStream.new(
+        aggregate_type: 'MyAggregate',
+        aggregate_id: Sequent.new_uuid,
+      )
+      events = (1..8).map { |i| MyEvent.new(aggregate_id:, sequence_number: i) }
+
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [
+          [stream, events],
+        ],
+      )
+
+      expect do
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [
+              stream,
+              [
+                MyEvent.new(aggregate_id:, sequence_number: 9),
+                MyEvent.new(aggregate_id:, sequence_number: 10),
+              ],
+            ],
+          ],
+        )
+      end.to change(Sequent::Core::EventRecord, :count).by(2)
+    end
   end
 
   describe '#permanently_delete_events' do
