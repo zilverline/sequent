@@ -187,7 +187,7 @@ module Sequent
       def ensure_valid!
         if self.class.managed_tables.nil?
           fail <<~EOS.chomp
-            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
+            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class}?
           EOS
         end
       end

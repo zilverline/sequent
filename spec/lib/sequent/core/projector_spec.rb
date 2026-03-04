@@ -39,12 +39,13 @@ describe Sequent::Core::Projector do
   context 'versioning' do
     let(:parent_projector_class) do
       Class.new(Sequent::Core::Projector) do
+        manages_no_tables
         self.version = 3
       end
     end
 
     it 'should default to 1 if not specified' do
-      projector_class = Class.new(Sequent::Core::Projector)
+      projector_class = Class.new(Sequent::Core::Projector) { manages_no_tables }
 
       expect(projector_class.version).to eq(1)
     end
