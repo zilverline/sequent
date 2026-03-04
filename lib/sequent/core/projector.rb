@@ -28,7 +28,7 @@ module Sequent
       end
 
       def self.projectors
-        Sequent.configuration.event_handlers.select { |x| x.is_a? Migratable }.map(&:class)
+        Sequent.configuration.event_handlers.grep(Migratable).map(&:class)
       end
 
       def self.included(host_class)

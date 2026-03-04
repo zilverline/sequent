@@ -30,7 +30,7 @@ module Sequent
 
       def ensure_no_unknown_active_projectors!(event_handlers)
         registered_projectors = event_handlers
-          .select { |x| x.is_a?(Projector) }
+          .grep(Projector)
           .map { |x| x.class.name }
         activated_projectors = Projectors.projector_states
           .values

@@ -342,3 +342,6 @@ Style/CollectionQuerying:
   Enabled: true
 Lint/AmbiguousRange:
   Enabled: true
+
+Style/OneClassPerFile:
+  Enabled: false
