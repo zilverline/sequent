@@ -33,7 +33,7 @@ module Sequent
           # ```
           def unique_key(scope, *attributes, **kwargs)
             fail ArgumentError, "'#{scope}' is not a symbol" unless scope.is_a?(Symbol)
-            fail ArgumentError, 'attributes must be symbols' unless attributes.all? { |attr| attr.is_a?(Symbol) }
+            fail ArgumentError, 'attributes must be symbols' unless attributes.all?(Symbol)
 
             @unique_key_definitions ||= {}
 

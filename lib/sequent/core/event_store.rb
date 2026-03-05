@@ -267,7 +267,7 @@ module Sequent
       end
 
       def update_unique_keys(event_streams)
-        fail ArgumentError, 'array of stream records expected' unless event_streams.all? { |x| x.is_a?(EventStream) }
+        fail ArgumentError, 'array of stream records expected' unless event_streams.all?(EventStream)
 
         call_procedure(connection, 'update_unique_keys', [event_streams.to_json])
       rescue ActiveRecord::RecordNotUnique => e

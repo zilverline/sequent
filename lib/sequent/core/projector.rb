@@ -28,7 +28,7 @@ module Sequent
       end
 
       def self.projectors
-        Sequent.configuration.event_handlers.select { |x| x.is_a? Migratable }.map(&:class)
+        Sequent.configuration.event_handlers.grep(Migratable).map(&:class)
       end
 
       def self.included(host_class)
@@ -187,7 +187,7 @@ module Sequent
       def ensure_valid!
         if self.class.managed_tables.nil?
           fail <<~EOS.chomp
-            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class.name}?
+            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class}?
           EOS
         end
       end
