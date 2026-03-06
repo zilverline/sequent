@@ -107,6 +107,12 @@ module Sequent
         @persistor = persistor
       end
 
+      def self.on(*args, **opts, &block)
+        fail ArgumentError, 'only type based event handlers are allowed for projectors' unless args.all?(Class)
+
+        super
+      end
+
       def self.replay_persistor
         nil
       end
