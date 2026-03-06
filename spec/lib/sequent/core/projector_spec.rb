@@ -8,6 +8,18 @@ describe Sequent::Core::Projector do
   class MyProjectorEvent < Sequent::Core::Event
   end
 
+  it 'fails when non-type based event handler is present' do
+    expect do
+      Class.new(Sequent::Core::Projector) do
+        manages_no_tables
+        self.skip_autoregister = true
+
+        on is_a(String) do
+        end
+      end
+    end.to raise_error(ArgumentError, 'only type based event handlers are allowed for projectors')
+  end
+
   it 'fails when missing managed_tables' do
     class TestProjector1 < Sequent::Core::Projector
       self.skip_autoregister = true
