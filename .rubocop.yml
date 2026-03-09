@@ -20,6 +20,7 @@ AllCops:
     - '**/node_modules/**/*'
     - '**/vendor/**/*'
     - '**/.git/**/*'
+    - '.devenv/**/*'
     # sequent
     - 'db/sequent_schema.rb'
     - 'docs/**/*'
