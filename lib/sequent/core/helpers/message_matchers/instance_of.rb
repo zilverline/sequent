@@ -10,7 +10,7 @@ module Sequent
           end
 
           def to_s
-            expected_class
+            expected_class.to_s
           end
         end
       end
