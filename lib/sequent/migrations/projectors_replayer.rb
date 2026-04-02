@@ -95,6 +95,13 @@ module Sequent
             status = wait_thread.value
             fail "failed to create replay schema tables: #{output}" unless status.success?
           end
+        end
+
+        # Start new transaction to ensure replay schema is visible after running pg_dump and psql.
+        with_locked_state do
+          verify_state 'preparing for replay can only be performed when', 'created'
+
+          Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
 
           @state.index_definitions = query_index_definitions
           @state.table_cluster_indexes = query_table_cluster_indexes
@@ -102,8 +109,6 @@ module Sequent
           drop_indexes_not_needed_for_replay
 
           Sequent.configuration.projectors_replayer_after_prepare_hook&.call
-
-          Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
 
           @state.state = 'prepared'
           @state.save!

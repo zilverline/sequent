@@ -76,6 +76,7 @@ describe Sequent::Core::EventPublisher do
     before do
       Sequent::Configuration.reset
       Sequent.configuration.event_publisher = Sequent::Core::ActiveProjectorsEventPublisher.new
+      Sequent.configuration.update_projector_states_timeout = 0.01.seconds
     end
     after { Sequent::Configuration.reset }
 
@@ -125,11 +126,11 @@ describe Sequent::Core::EventPublisher do
     end
 
     context 'projector activation' do
-      def set_lock_timeout = ActiveRecord::Base.connection.execute("SET lock_timeout TO '10ms'")
+      def set_reader_lock_timeout = ActiveRecord::Base.connection.execute("SET LOCAL lock_timeout TO '10ms'")
       def update_projector_states = Sequent::Core::Projectors.register_active_projectors!([Sequent::Core::Projector])
       def read_projector_states = Sequent::Core::Projectors.projector_states
 
-      it 'waits for project state updates before reading' do
+      it 'waits for projector state updates before reading' do
         reader_lock_attempted = Queue.new
         writer_locked = Queue.new
         writer = Thread.new do
@@ -144,7 +145,7 @@ describe Sequent::Core::EventPublisher do
         reader = Thread.new do
           ActiveRecord::Base.transaction do
             writer_locked.deq
-            set_lock_timeout
+            set_reader_lock_timeout
             read_projector_states
             false
           rescue ActiveRecord::LockWaitTimeout
@@ -173,7 +174,6 @@ describe Sequent::Core::EventPublisher do
         writer = Thread.new do
           ActiveRecord::Base.transaction do
             reader_locked.deq
-            set_lock_timeout
             update_projector_states
           rescue ActiveRecord::LockWaitTimeout
             true
