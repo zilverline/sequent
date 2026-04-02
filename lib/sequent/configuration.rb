@@ -77,7 +77,7 @@ module Sequent
                   :aggregate_snapshot_versions,
                   :projectors_replayer_after_prepare_hook,
                   :projectors_replayer_after_activate_hook,
-                  :projector_replayer_total_lock_timeout
+                  :projectors_replayer_total_lock_timeout
 
     attr_reader :migrations_class,
                 :versions_table_name
@@ -137,7 +137,7 @@ module Sequent
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
 
-      self.projector_replayer_total_lock_timeout = 10.seconds
+      self.projectors_replayer_total_lock_timeout = 10.seconds
     end
 
     def versions_table_name=(table_name)

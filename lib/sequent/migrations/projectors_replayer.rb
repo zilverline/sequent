@@ -312,7 +312,7 @@ module Sequent
       end
 
       def lock_view_schema_tables_for_exclusive_access(
-        total_lock_timeout: Sequent.configuration.projector_replayer_total_lock_timeout
+        total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout
       )
         relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
         return if relations.empty?

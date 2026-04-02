@@ -115,7 +115,7 @@ module Sequent
 
         def update_projector_state(
           rows,
-          total_lock_timeout: Sequent.configuration.projector_replayer_total_lock_timeout
+          total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout
         )
           return if rows.empty?
 

@@ -76,7 +76,7 @@ describe Sequent::Core::EventPublisher do
     before do
       Sequent::Configuration.reset
       Sequent.configuration.event_publisher = Sequent::Core::ActiveProjectorsEventPublisher.new
-      Sequent.configuration.projector_replayer_total_lock_timeout = 0.01.seconds
+      Sequent.configuration.projectors_replayer_total_lock_timeout = 0.01.seconds
     end
     after { Sequent::Configuration.reset }
 
