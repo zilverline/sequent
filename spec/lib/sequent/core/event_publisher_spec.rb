@@ -186,7 +186,7 @@ describe Sequent::Core::EventPublisher do
         reader.join(0.5).value
       end
 
-      it 'allows readers to by-pass projector state update when lock cannot be acquired quickly' do
+      it 'allows readers to bypass projector state update when lock cannot be acquired quickly' do
         Sequent.configuration.projectors_replayer_total_lock_timeout = 1.seconds
 
         lock_order = Queue.new
@@ -232,11 +232,11 @@ describe Sequent::Core::EventPublisher do
           end
         end
 
-        reader1.join(1)
-        reader2.join(1)
-        writer.join(1)
+        expect(reader1.join(1)).to be_present
+        expect(reader2.join(1)).to be_present
+        expect(writer.join(1)).to be_present
 
-        # Reader2 should by-pass the writer, even though the writer attempted to lock the table
+        # Reader2 should bypass the writer, even though the writer attempted to lock the table
         # before reader2
         expect(lock_order.deq).to eq('reader1')
         expect(lock_order.deq).to eq('reader2')
