@@ -185,6 +185,63 @@ describe Sequent::Core::EventPublisher do
         writer_lock_attempted << 'writer finished'
         reader.join(0.5).value
       end
+
+      it 'allows readers to by-pass projector state update when lock cannot be acquired quickly' do
+        Sequent.configuration.projectors_replayer_total_lock_timeout = 1.seconds
+
+        lock_order = Queue.new
+
+        start_writer = Queue.new
+        start_reader2 = Queue.new
+        stop_reader1 = Queue.new
+
+        reader1 = Thread.new do
+          ActiveRecord::Base.transaction do
+            read_projector_states
+            lock_order << 'reader1'
+
+            start_writer << 'locked states for reading 1'
+
+            stop_reader1.deq
+          end
+        end
+
+        writer = Thread.new do
+          ActiveRecord::Base.transaction do
+            start_writer.deq
+
+            start_reader2 << 'starting to lock for writing'
+
+            update_projector_states
+            lock_order << 'writer'
+          end
+        end
+
+        reader2 = Thread.new do
+          ActiveRecord::Base.transaction do
+            start_reader2.deq
+
+            # Give the writer some time to execute the exclusive lock table statement, which will
+            # block since reader1 has a share lock already.
+            sleep 0.1
+
+            read_projector_states
+            lock_order << 'reader2'
+
+            stop_reader1 << 'locked states for reading 2'
+          end
+        end
+
+        reader1.join(1)
+        reader2.join(1)
+        writer.join(1)
+
+        # Reader2 should by-pass the writer, even though the writer attempted to lock the table
+        # before reader2
+        expect(lock_order.deq).to eq('reader1')
+        expect(lock_order.deq).to eq('reader2')
+        expect(lock_order.deq).to eq('writer')
+      end
     end
   end
 end
