@@ -76,6 +76,7 @@ describe Sequent::Core::EventPublisher do
     before do
       Sequent::Configuration.reset
       Sequent.configuration.event_publisher = Sequent::Core::ActiveProjectorsEventPublisher.new
+      Sequent.configuration.projectors_replayer_total_lock_timeout = 0.01.seconds
     end
     after { Sequent::Configuration.reset }
 
@@ -125,11 +126,11 @@ describe Sequent::Core::EventPublisher do
     end
 
     context 'projector activation' do
-      def set_lock_timeout = ActiveRecord::Base.connection.execute("SET lock_timeout TO '10ms'")
+      def set_reader_lock_timeout = ActiveRecord::Base.connection.execute("SET LOCAL lock_timeout TO '10ms'")
       def update_projector_states = Sequent::Core::Projectors.register_active_projectors!([Sequent::Core::Projector])
       def read_projector_states = Sequent::Core::Projectors.projector_states
 
-      it 'waits for project state updates before reading' do
+      it 'waits for projector state updates before reading' do
         reader_lock_attempted = Queue.new
         writer_locked = Queue.new
         writer = Thread.new do
@@ -144,7 +145,7 @@ describe Sequent::Core::EventPublisher do
         reader = Thread.new do
           ActiveRecord::Base.transaction do
             writer_locked.deq
-            set_lock_timeout
+            set_reader_lock_timeout
             read_projector_states
             false
           rescue ActiveRecord::LockWaitTimeout
@@ -173,7 +174,6 @@ describe Sequent::Core::EventPublisher do
         writer = Thread.new do
           ActiveRecord::Base.transaction do
             reader_locked.deq
-            set_lock_timeout
             update_projector_states
           rescue ActiveRecord::LockWaitTimeout
             true
@@ -184,6 +184,69 @@ describe Sequent::Core::EventPublisher do
       ensure
         writer_lock_attempted << 'writer finished'
         reader.join(0.5).value
+      end
+
+      it 'allows readers to bypass projector state update when lock cannot be acquired quickly' do
+        Sequent.configuration.projectors_replayer_total_lock_timeout = 1.seconds
+
+        lock_order = Queue.new
+
+        start_writer = Queue.new
+        start_reader2 = Queue.new
+        stop_reader1 = Queue.new
+
+        reader1 = Thread.new do
+          ActiveRecord::Base.transaction do
+            read_projector_states
+            lock_order << 'reader1'
+
+            start_writer << 'locked states for reading 1'
+
+            stop_reader1.deq
+
+            true
+          end
+        end
+
+        writer = Thread.new do
+          ActiveRecord::Base.transaction do
+            start_writer.deq
+
+            start_reader2 << 'starting to lock for writing'
+
+            update_projector_states
+            lock_order << 'writer'
+
+            true
+          end
+        end
+
+        reader2 = Thread.new do
+          ActiveRecord::Base.transaction do
+            start_reader2.deq
+
+            # Give the writer some time to execute the exclusive lock table statement, which will
+            # block since reader1 has a share lock already.
+            sleep 0.1
+
+            read_projector_states
+            lock_order << 'reader2'
+
+            stop_reader1 << 'locked states for reading 2'
+
+            true
+          end
+        end
+
+        expect(reader1.join(1)&.value).to be_present
+        expect(reader2.join(1)&.value).to be_present
+        expect(writer.join(1)&.value).to be_present
+
+        # Reader2 should bypass the writer, even though the writer attempted to lock the table
+        # before reader2
+        expect(lock_order.deq(true)).to eq('reader1')
+        expect(lock_order.deq(true)).to eq('reader2')
+        expect(lock_order.deq(true)).to eq('writer')
       end
     end
   end

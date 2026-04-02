@@ -95,6 +95,13 @@ module Sequent
             status = wait_thread.value
             fail "failed to create replay schema tables: #{output}" unless status.success?
           end
+        end
+
+        # Start new transaction to ensure replay schema is visible after running pg_dump and psql.
+        with_locked_state do
+          verify_state 'preparing for replay can only be performed when', 'created'
+
+          Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
 
           @state.index_definitions = query_index_definitions
           @state.table_cluster_indexes = query_table_cluster_indexes
@@ -102,8 +109,6 @@ module Sequent
           drop_indexes_not_needed_for_replay
 
           Sequent.configuration.projectors_replayer_after_prepare_hook&.call
-
-          Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
 
           @state.state = 'prepared'
           @state.save!
@@ -225,8 +230,6 @@ module Sequent
           verify_state 'going live can only be performed when', 'optimized'
           verify_replaying_projector_versions
 
-          exec_update("SET LOCAL lock_timeout TO '1s'")
-
           Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
 
           lock_view_schema_tables_for_exclusive_access
@@ -308,10 +311,24 @@ module Sequent
         end
       end
 
-      def lock_view_schema_tables_for_exclusive_access
-        Sequent::Support::Database.with_search_path(view_schema_name) do
-          relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
-          exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+      def lock_view_schema_tables_for_exclusive_access(
+        total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout
+      )
+        relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
+        return if relations.empty?
+
+        stop_trying_at = total_lock_timeout.from_now
+        begin
+          Sequent.configuration.transaction_provider.transaction(requires_new: true) do
+            Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
+              Sequent::Support::Database.with_search_path(view_schema_name) do
+                log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+              end
+            end
+          end
+        rescue ActiveRecord::LockWaitTimeout
+          retry if stop_trying_at.future?
+          raise
         end
       end
 

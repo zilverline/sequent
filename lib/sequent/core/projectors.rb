@@ -113,13 +113,25 @@ module Sequent
           Sequent.configuration.transaction_provider
         end
 
-        def update_projector_state(rows)
+        def update_projector_state(
+          rows,
+          total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout
+        )
           return if rows.empty?
 
-          transaction_provider.transaction do
-            lock_projector_states_for_update
-
-            ProjectorState.upsert_all(rows)
+          stop_trying_at = total_lock_timeout.from_now
+          begin
+            transaction_provider.transaction(requires_new: true) do
+              # Only try to lock for a short time to avoid blocking running projectors if the lock is already
+              # held by some (long running) transaction.
+              Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
+                lock_projector_states_for_update
+                ProjectorState.upsert_all(rows)
+              end
+            end
+          rescue ActiveRecord::LockWaitTimeout
+            retry if stop_trying_at.future?
+            raise
           end
         end
       end

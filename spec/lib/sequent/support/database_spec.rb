@@ -58,7 +58,7 @@ describe Sequent::Support::Database do
 
       it 'changes the search path' do
         Sequent::Support::Database.with_search_path('foo') do
-          expect(ActiveRecord::Base.connection.select_value("SELECT current_setting('search_path')")).to eq('foo')
+          expect(ActiveRecord::Base.connection.select_value("SELECT current_setting('search_path')")).to eq('"foo"')
         end
       end
 

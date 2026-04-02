@@ -48,13 +48,22 @@ module Sequent
         execute_sql "DROP SCHEMA IF EXISTS #{schema_name} CASCADE"
       end
 
-      def self.with_search_path(*search_path)
-        old_search_path = connection.select_value("SELECT current_setting('search_path')")
+      def self.with_search_path(*search_path, local: false, &block)
+        value = search_path.map(&connection.method(:quote_schema_name)).join(', ')
+        with_parameter('search_path', value, local:, &block)
+      end
+
+      def self.with_lock_timeout(timeout, local: true, &block) = with_parameter('lock_timeout', timeout, local:, &block)
+
+      def self.with_parameter(parameter, value, local:, &block)
+        saved_value = connection.select_value('SELECT current_setting($1)', 'current_setting', [parameter])
+        connection.exec_update('SELECT set_config($1, $2, $3)', 'set_config', [parameter, value, local])
+        block.call
+      ensure
         begin
-          connection.exec_update("SET search_path TO #{search_path.join(', ')}", 'with_search_path')
-          yield
-        ensure
-          connection.exec_update("SET search_path TO #{old_search_path}", 'with_search_path')
+          connection.exec_update('SELECT set_config($1, $2, $3)', 'set_config', [parameter, saved_value, local])
+        rescue ActiveRecord::StatementInvalid
+          # Ignore since the transaction might be in a bad state and we want to propagate the original exception
         end
       end
 
