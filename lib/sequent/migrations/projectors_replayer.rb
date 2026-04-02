@@ -230,8 +230,6 @@ module Sequent
           verify_state 'going live can only be performed when', 'optimized'
           verify_replaying_projector_versions
 
-          exec_update("SET LOCAL lock_timeout TO '1s'")
-
           Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
 
           lock_view_schema_tables_for_exclusive_access
@@ -313,10 +311,24 @@ module Sequent
         end
       end
 
-      def lock_view_schema_tables_for_exclusive_access
-        Sequent::Support::Database.with_search_path(view_schema_name) do
-          relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
-          exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+      def lock_view_schema_tables_for_exclusive_access(
+        total_lock_timeout: Sequent.configuration.projector_replayer_total_lock_timeout
+      )
+        relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
+        return if relations.empty?
+
+        stop_trying_at = total_lock_timeout.from_now
+        begin
+          Sequent.configuration.transaction_provider.transaction(requires_new: true) do
+            exec_update("SET LOCAL lock_timeout TO '100ms'")
+
+            Sequent::Support::Database.with_search_path(view_schema_name) do
+              log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+            end
+          end
+        rescue ActiveRecord::LockWaitTimeout
+          retry if stop_trying_at.future?
+          raise
         end
       end
 
