@@ -203,6 +203,8 @@ describe Sequent::Core::EventPublisher do
             start_writer << 'locked states for reading 1'
 
             stop_reader1.deq
+
+            true
           end
         end
 
@@ -214,6 +216,8 @@ describe Sequent::Core::EventPublisher do
 
             update_projector_states
             lock_order << 'writer'
+
+            true
           end
         end
 
@@ -229,12 +233,14 @@ describe Sequent::Core::EventPublisher do
             lock_order << 'reader2'
 
             stop_reader1 << 'locked states for reading 2'
+
+            true
           end
         end
 
-        expect(reader1.join(1)).to be_present
-        expect(reader2.join(1)).to be_present
-        expect(writer.join(1)).to be_present
+        expect(reader1.join(1)&.value).to be_present
+        expect(reader2.join(1)&.value).to be_present
+        expect(writer.join(1)&.value).to be_present
 
         # Reader2 should bypass the writer, even though the writer attempted to lock the table
         # before reader2
