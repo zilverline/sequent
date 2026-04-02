@@ -238,9 +238,9 @@ describe Sequent::Core::EventPublisher do
 
         # Reader2 should bypass the writer, even though the writer attempted to lock the table
         # before reader2
-        expect(lock_order.deq).to eq('reader1')
-        expect(lock_order.deq).to eq('reader2')
-        expect(lock_order.deq).to eq('writer')
+        expect(lock_order.deq(true)).to eq('reader1')
+        expect(lock_order.deq(true)).to eq('reader2')
+        expect(lock_order.deq(true)).to eq('writer')
       end
     end
   end
