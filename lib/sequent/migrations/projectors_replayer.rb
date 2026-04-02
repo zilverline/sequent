@@ -320,10 +320,10 @@ module Sequent
         stop_trying_at = total_lock_timeout.from_now
         begin
           Sequent.configuration.transaction_provider.transaction(requires_new: true) do
-            exec_update("SET LOCAL lock_timeout TO '100ms'")
-
-            Sequent::Support::Database.with_search_path(view_schema_name) do
-              log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+            Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
+              Sequent::Support::Database.with_search_path(view_schema_name) do
+                log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+              end
             end
           end
         rescue ActiveRecord::LockWaitTimeout

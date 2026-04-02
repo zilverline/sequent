@@ -124,11 +124,10 @@ module Sequent
             transaction_provider.transaction(requires_new: true) do
               # Only try to lock for a short time to avoid blocking running projectors if the lock is already
               # held by some (long running) transaction.
-              connection.exec_update("SET LOCAL lock_timeout TO '100ms'")
-
-              lock_projector_states_for_update
-
-              ProjectorState.upsert_all(rows)
+              Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
+                lock_projector_states_for_update
+                ProjectorState.upsert_all(rows)
+              end
             end
           rescue ActiveRecord::LockWaitTimeout
             retry if stop_trying_at.future?
