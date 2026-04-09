@@ -235,7 +235,11 @@ module Sequent
         SQL
 
         endpoints = boundaries.map { |group| Grouper::GroupEndpoint.new(group['partition_key'], group['aggregate_id']) }
-        groups = [nil, *endpoints, nil].each_cons(2).filter_map { |lower, upper| lower...upper if lower != upper }
+        groups = if endpoints.empty?
+                   [nil...nil]
+                 else
+                   [nil, *endpoints, nil].each_cons(2).filter_map { |lower, upper| lower...upper if lower != upper }
+                 end
 
         [estimated_event_count, groups]
       end
