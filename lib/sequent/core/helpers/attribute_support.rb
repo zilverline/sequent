@@ -123,8 +123,18 @@ EOS
           end
 
           def upcast(&block)
+            fail 'block is required' unless block
+
             @upcasters ||= []
             @upcasters.push(block)
+          end
+
+          def upcast!(hash)
+            return if @upcasters.nil?
+
+            @upcasters.each do |upcaster|
+              upcaster.call(hash)
+            end
           end
 
           private
@@ -137,14 +147,6 @@ EOS
               .reduce(merged_types) do |memo, mod|
                 memo.merge(mod.types)
               end
-          end
-
-          def upcast!(hash)
-            return if @upcasters.nil?
-
-            @upcasters.each do |upcaster|
-              upcaster.call(hash)
-            end
           end
 
           def validate_attrs!(args)
