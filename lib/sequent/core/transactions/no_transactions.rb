@@ -16,6 +16,7 @@ module Sequent
         # Deprecated alias
         alias transactional transaction
 
+        def before_commit = yield
         def after_commit = yield
         def after_rollback = nil
       end
