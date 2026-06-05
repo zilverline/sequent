@@ -10,7 +10,12 @@ describe Sequent::Core::EventStore do
   end
 
   class MyAggregate < Sequent::Core::AggregateRoot
-    enable_snapshots version: 42
+    enable_snapshots version: 42, default_threshold: 1
+
+    def event = apply(MyEvent, data: 123)
+
+    on MyEvent do
+    end
   end
 
   let(:event_store) { Sequent.configuration.event_store }
@@ -79,24 +84,14 @@ describe Sequent::Core::EventStore do
     end
 
     it 'can mark aggregates for snapshotting when storing new events' do
+      aggregate.event # Generate an event so the snapshot is outdated
+
       event_store.commit_events(
         Sequent::Core::Command.new(aggregate_id: aggregate_id),
         [
           [
-            Sequent::Core::EventStream.new(
-              aggregate_type: 'MyAggregate',
-              aggregate_id: aggregate_id,
-              snapshot_outdated_at: Time.now,
-              snapshot_version: MyAggregate.snapshot_version,
-            ),
-            [
-              MyEvent.new(
-                aggregate_id: aggregate_id,
-                sequence_number: 2,
-                created_at: Time.parse('2024-02-30T01:10:12Z'),
-                data: "another event\n",
-              ),
-            ],
+            aggregate.event_stream,
+            aggregate.uncommitted_events,
           ],
         ],
       )

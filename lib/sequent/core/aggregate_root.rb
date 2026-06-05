@@ -120,6 +120,7 @@ module Sequent
           aggregate_id: id,
           events_partition_key: events_partition_key,
           snapshot_outdated_at: snapshot_outdated? ? Time.now : nil,
+          snapshot_version: self.class.snapshot_version,
           unique_keys:,
         )
       end
