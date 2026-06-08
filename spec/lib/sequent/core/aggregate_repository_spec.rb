@@ -360,6 +360,10 @@ describe Sequent::Core::AggregateRepository do
 
             expect(aggregates_1[0]).to equal(aggregates_2[0])
             expect(aggregates_1[1]).to equal(aggregates_2[1])
+
+            # Contains does not query the event store since they are in the identiy map already
+            expect(repository.contains_aggregate?(aggregate.id)).to be_present
+            expect(repository.contains_aggregate?(aggregate_2.id)).to be_present
           end
 
           it 'fails if one of the aggregates in the identity map is not of the correct type' do
