@@ -137,10 +137,7 @@ module Sequent
 
       ##
       # Returns whether the event store has an aggregate with the given id
-      def contains_aggregate?(aggregate_id)
-        Sequent.configuration.event_store.stream_exists?(aggregate_id) &&
-          Sequent.configuration.event_store.events_exists?(aggregate_id)
-      end
+      def contains_aggregate?(aggregate_id) = Sequent.configuration.event_store.stream_exists?(aggregate_id)
 
       # Gets all uncommitted_events from the 'registered' aggregates
       # and stores them in the event store.

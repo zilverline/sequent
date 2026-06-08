@@ -158,12 +158,19 @@ module Sequent
       end
 
       def stream_exists?(aggregate_id)
-        Sequent.configuration.stream_record_class.exists?(aggregate_id: aggregate_id)
+        Sequent.configuration.event_record_class.with_connection do |c|
+          c.select_value(<<~SQL, 'stream_exists?', [aggregate_id]) || false
+            SELECT true
+              FROM #{Internal::PartitionedAggregate.quoted_table_name} a
+              JOIN #{Internal::PartitionedEvent.quoted_table_name} e
+                ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
+             WHERE a.aggregate_id = $1
+             LIMIT 1
+          SQL
+        end
       end
 
-      def events_exists?(aggregate_id)
-        Sequent.configuration.event_record_class.exists?(aggregate_id: aggregate_id)
-      end
+      def events_exists?(aggregate_id) = stream_exists?(aggregate_id)
 
       ##
       # Replays all events on an `EventRecord` cursor from the given block.

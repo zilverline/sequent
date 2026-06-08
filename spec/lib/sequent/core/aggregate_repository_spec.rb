@@ -179,7 +179,6 @@ describe Sequent::Core::AggregateRepository do
 
     it 'contains an aggregate' do
       allow(event_store).to receive(:stream_exists?).with(aggregate.id).and_return(true)
-      allow(event_store).to receive(:events_exists?).with(aggregate.id).and_return(true)
 
       expect(repository.contains_aggregate?(aggregate.id)).to eq(true)
     end
