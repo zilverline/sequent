@@ -232,6 +232,12 @@ describe Sequent::Core::AggregateRepository do
             repository.load_aggregates([aggregate.id])
           end.to raise_error Sequent::Core::AggregateRepository::AggregateNotFound
         end
+
+        it 'returns nil when nothing is found' do
+          allow(event_store).to receive(:load_events_for_aggregates).with([aggregate.id]).and_return([]).once
+
+          expect(repository.find_aggregate(aggregate.id)).to be_nil
+        end
       end
 
       context 'with aggregates in the event store' do
@@ -262,6 +268,14 @@ describe Sequent::Core::AggregateRepository do
 
           expect(aggregates[1].event_stream).to eq aggregate_2.event_stream
           expect(aggregates[1].loaded_events).to eq(events_2)
+        end
+
+        it 'can find an existing aggregate' do
+          allow(event_store).to receive(:load_events_for_aggregates)
+            .with([aggregate.id])
+            .and_return([aggregate_stream_with_events]).once
+
+          expect(repository.find_aggregate(aggregate.id)).to be_present
         end
 
         it 'raises error even if only one aggregate cannot be found' do
@@ -361,7 +375,7 @@ describe Sequent::Core::AggregateRepository do
             expect(aggregates_1[0]).to equal(aggregates_2[0])
             expect(aggregates_1[1]).to equal(aggregates_2[1])
 
-            # Contains does not query the event store since they are in the identiy map already
+            # Contains does not query the event store since they are in the identity map already
             expect(repository.contains_aggregate?(aggregate.id)).to be_present
             expect(repository.contains_aggregate?(aggregate_2.id)).to be_present
           end
