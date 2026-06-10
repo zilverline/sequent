@@ -51,6 +51,12 @@ module Sequent
         !load_aggregate(aggregate_id, clazz).nil?
       end
 
+      def find_aggregate(aggregate_id, clazz = nil)
+        load_aggregate(aggregate_id, clazz)
+      rescue AggregateNotFound
+        nil
+      end
+
       # Loads aggregate by given id and class
       # Returns the one in the current Unit Of Work otherwise loads it from history.
       def load_aggregate(aggregate_id, clazz = nil)
@@ -136,10 +142,9 @@ module Sequent
       end
 
       ##
-      # Returns whether the event store has an aggregate with the given id
+      # Returns whether the aggregate exists (added to the aggregate repository or committed to the event store)
       def contains_aggregate?(aggregate_id)
-        Sequent.configuration.event_store.stream_exists?(aggregate_id) &&
-          Sequent.configuration.event_store.events_exists?(aggregate_id)
+        aggregates.key?(aggregate_id) || Sequent.configuration.event_store.stream_exists?(aggregate_id)
       end
 
       # Gets all uncommitted_events from the 'registered' aggregates
