@@ -59,7 +59,7 @@ module Sequent
                       )
           SELECT s.aggregate_id,
                  s.snapshot_sequence_number_high_water_mark,
-                 s.snapshot_outdated_at,
+                 COALESCE(s.snapshot_outdated_at, NOW()),
                  ($1::jsonb->(t.type))::integer
             FROM existing_versions s
             JOIN aggregates a ON s.aggregate_id = a.aggregate_id
