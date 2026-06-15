@@ -28,11 +28,35 @@ describe Sequent::Core::Helpers::MessageHandler do
 
   let(:handler) { MyHandler.new }
 
-  it 'executes all defined blocks' do
-    handler.handle_message(MessageHandlerEvent.new)
+  context '#handles_message' do
+    it 'executes all defined blocks' do
+      handler.handle_message(MessageHandlerEvent.new)
 
-    expect(handler.first_block_called).to be_truthy
-    expect(handler.last_block_called).to be_truthy
+      expect(handler.first_block_called).to be_truthy
+      expect(handler.last_block_called).to be_truthy
+    end
+
+    it 'silently ignores any unknown message' do
+      handler.handle_message(BaseMessageHandlerEvent.new)
+
+      expect(handler.first_block_called).to be_falsey
+      expect(handler.last_block_called).to be_falsey
+    end
+  end
+
+  context '#handles_message!' do
+    it 'executes all defined blocks' do
+      handler.handle_message!(MessageHandlerEvent.new)
+
+      expect(handler.first_block_called).to be_truthy
+      expect(handler.last_block_called).to be_truthy
+    end
+
+    it 'fails on unknown messages' do
+      expect do
+        handler.handle_message!(BaseMessageHandlerEvent.new)
+      end.to raise_error(Sequent::Core::Helpers::MessageHandler::UnhandledMessageError)
+    end
   end
 
   describe 'options' do

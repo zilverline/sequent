@@ -41,6 +41,8 @@ module Sequent
       # The order of which handler block is executed first is not guaranteed.
       #
       module MessageHandler
+        class UnhandledMessageError < RuntimeError; end
+
         module ClassMethods
           def on(*args, **opts, &handler)
             OnArgumentsValidator.validate_arguments!(*args)
@@ -116,6 +118,15 @@ module Sequent
         def handle_message(message)
           handlers = self.class.message_router.match_message(message)
           dispatch_message(message, handlers) unless handlers.empty?
+        end
+
+        # Like `handle_message` but fails with a `UnhandledMessageError` if
+        # there are no handlers matching `message`.
+        def handle_message!(message)
+          handlers = self.class.message_router.match_message(message)
+          fail UnhandledMessageError, "#{self.class}: no handlers defined for #{message.class}" if handlers.empty?
+
+          dispatch_message(message, handlers)
         end
 
         def dispatch_message(message, handlers)
