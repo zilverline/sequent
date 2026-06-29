@@ -103,7 +103,7 @@ module Sequent
           end
 
           def add(record)
-            @indexes.map do |field, index|
+            @indexes.each do |field, index|
               key = Persistors.normalize_symbols(record[field]).freeze
               records = index[key] || (index[key] = Set.new.compare_by_identity)
               records << record
@@ -112,7 +112,7 @@ module Sequent
           end
 
           def remove(record)
-            @indexes.map do |field, index|
+            @indexes.each do |field, index|
               key = @reverse_indexes[field].delete(record)
               remaining = index[key]&.delete(record)
               index.delete(key) if remaining&.empty?
@@ -321,13 +321,16 @@ module Sequent
                 end
               end
 
-              conn = Sequent::ApplicationRecord.connection.raw_connection
               copy_data = StringIO.new(csv.string)
-              conn.transaction do
-                conn.copy_data("COPY #{clazz.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
-                  while (out = copy_data.read(CHUNK_SIZE))
-                    conn.put_copy_data(out)
-                  end
+              clazz.transaction do
+                clazz.with_connection do |conn|
+                  conn
+                    .raw_connection
+                    .copy_data("COPY #{clazz.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
+                      while (out = copy_data.read(CHUNK_SIZE))
+                        conn.raw_connection.put_copy_data(out)
+                      end
+                    end
                 end
               end
             else
