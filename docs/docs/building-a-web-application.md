@@ -330,7 +330,7 @@ require_relative 'app/projectors/author_projector'
 To migrate the database, run:
 
 ```bash
-bundle exec rake db:migrate
+bundle exec rake sequent:db:migrate
 ```
 
 To backfill the new projection using the already existing events stop your app and run:
