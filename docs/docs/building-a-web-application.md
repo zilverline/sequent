@@ -168,6 +168,10 @@ Create `boot.rb`:
 ```ruby
 ENV['SEQUENT_ENV'] ||= 'development'
 
+require './blog'
+
+Sequent::Support::Database.connect!(ENV['SEQUENT_ENV'])
+
 require './app/web'
 ```
 
