@@ -175,6 +175,7 @@ module Sequent
         event = build_event(event, params) if event.is_a?(Class)
         apply_event(event)
         @uncommitted_events << event
+        Sequent.configuration.observers.each { |observer| observer.handle_message(event) }
       end
 
       # Only apply the event if one of the attributes of the event changed
