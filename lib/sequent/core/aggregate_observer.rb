@@ -11,7 +11,7 @@ module Sequent
     #
     # Example usage:
     #
-    #   class MyObserver < Sequent::Core::Observer
+    #   class MyObserver < Sequent::Core::AggregateObserver
     #     on BankAccountCredited do |event|
     #       bank_account =
     #         Sequent.aggregate_repository.load_aggregate(event.aggregate_id)
@@ -19,13 +19,13 @@ module Sequent
     #       ledger.record_credit(bank_account, event.amount)
     #     end
     #
-    # Compared to workflows observers are part of the domain and can
+    # Compared to workflows an observer is part of the domain and can
     # directly invoke methods which may generate new events. But they
-    # cannot use any view projectors or external systems.
+    # cannot use any view projections or external systems.
     #
     # Use (async) workflows if the view schema or external systems
     # need to be accessed and execute commands based on the results.
-    class Observer
+    class AggregateObserver
       include Helpers::MessageHandler
       extend ActiveSupport::DescendantsTracker
 
@@ -35,16 +35,16 @@ module Sequent
     end
 
     #
-    # Utility class containing all subclasses of Observer.
+    # Utility class containing all subclasses of AggregateObserver.
     #
-    class Observers
+    class AggregateObservers
       class << self
-        def observers
-          Sequent::Observers.descendants
+        def aggregate_observers
+          AggregateObserver.descendants
         end
 
         def all
-          workflows
+          aggregate_observers
         end
       end
     end

@@ -5,7 +5,7 @@ require_relative 'core/event'
 require_relative 'core/command'
 require_relative 'core/base_command_handler'
 require_relative 'core/aggregate_root'
-require_relative 'core/observer'
+require_relative 'core/aggregate_observer'
 require_relative 'core/projector'
 require_relative 'core/workflow'
 require_relative 'core/value_object'
@@ -83,7 +83,7 @@ module Sequent
   Command = Sequent::Core::Command
   CommandHandler = Sequent::Core::BaseCommandHandler
   AggregateRoot = Sequent::Core::AggregateRoot
-  Observer = Sequent::Core::Observer
+  AggregateObserver = Sequent::Core::AggregateObserver
   Projector = Sequent::Core::Projector
   Workflow = Sequent::Core::Workflow
   ValueObject = Sequent::Core::ValueObject

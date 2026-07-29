@@ -58,7 +58,7 @@ module Sequent
                   :command_filters,
                   :command_middleware,
                   :event_handlers,
-                  :observers,
+                  :aggregate_observers,
                   :uuid_generator,
                   :disable_event_handlers,
                   :logger,
@@ -102,7 +102,7 @@ module Sequent
       self.command_handlers = []
       self.command_filters = []
       self.event_handlers = []
-      self.observers = []
+      self.aggregate_observers = []
       self.command_middleware = Sequent::Core::Middleware::Chain.new
 
       self.aggregate_repository = Sequent::Core::AggregateRepository.new
@@ -192,9 +192,11 @@ module Sequent
         self.class.instance.event_handlers << workflow_class.new
       end
 
-      for_each_autoregisterable_descenant_of(Sequent::Observer) do |observer_class|
-        Sequent.logger.debug("[Configuration] Autoregistering Observer #{observer_class}") if Sequent.logger.debug?
-        self.class.instance.observers << observer_class.new
+      for_each_autoregisterable_descenant_of(Sequent::AggregateObserver) do |observer_class|
+        if Sequent.logger.debug?
+          Sequent.logger.debug("[Configuration] Autoregistering AggregateObserver #{observer_class}")
+        end
+        self.class.instance.aggregate_observers << observer_class.new
       end
 
       self.class.instance.command_handlers.map(&:class).tally.each do |(clazz, count)|
@@ -209,8 +211,10 @@ module Sequent
         end
       end
 
-      self.class.instance.observers.map(&:class).tally.each do |(clazz, count)|
-        fail "Observer #{clazz} is registered #{count} times. An Observer can only be registered once" if count > 1
+      self.class.instance.aggregate_observers.map(&:class).tally.each do |(clazz, count)|
+        if count > 1
+          fail "Observer #{clazz} is registered #{count} times. An AggregateObserver can only be registered once"
+        end
       end
     end
 
