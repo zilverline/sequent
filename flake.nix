@@ -81,6 +81,7 @@
                   packages = with pkgs; [
                     libffi
                     libyaml
+                    openssl
                     pkg-config
                     postgresql
                   ];
