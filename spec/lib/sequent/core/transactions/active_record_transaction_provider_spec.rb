@@ -9,6 +9,35 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
     expect(provider.transaction { '10' }).to eq '10'
   end
 
+  context 'with before_commit hooks' do
+    it 'calls the before_commit hooks' do
+      called = false
+      provider.transaction do
+        provider.before_commit { called = true }
+      end
+      expect(called).to be_truthy
+    end
+    it 'still returns the result of the block' do
+      called = false
+      result = provider.transaction do
+        provider.before_commit { called = true }
+        '11'
+      end
+      expect(called).to be_truthy
+      expect(result).to eq('11')
+    end
+    it 'only calls before_commit when the outermost transaction completes' do
+      called = false
+      provider.transaction do
+        provider.transaction do
+          provider.before_commit { called = true }
+        end
+        expect(called).to be_falsy
+      end
+      expect(called).to be_truthy
+    end
+  end
+
   context 'with after_commit hooks' do
     it 'calls the after_commit hooks' do
       called = false

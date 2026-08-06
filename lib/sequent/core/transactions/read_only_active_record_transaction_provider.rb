@@ -22,7 +22,7 @@ module Sequent
         # Deprecated
         alias transactional transaction
 
-        delegate :after_commit, :after_rollback, to: :@transaction_provider
+        delegate :before_commit, :after_commit, :after_rollback, to: :@transaction_provider
 
         private
 
