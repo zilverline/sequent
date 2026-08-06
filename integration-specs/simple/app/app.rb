@@ -29,6 +29,12 @@ class ManualProjector < Sequent::Projector
   self.skip_autoregister = true
 end
 
+class FirstAggregateObserver < Sequent::AggregateObserver
+end
+
+class SecondAggregateObserver < Sequent::AggregateObserver
+end
+
 # Workflows
 class BaseWorkflow < Sequent::Workflow
   self.abstract_class = true

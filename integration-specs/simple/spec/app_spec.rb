@@ -28,6 +28,16 @@ describe 'app' do
     end
   end
 
+  context 'registering aggregate observers' do
+    let(:aggregate_observer_classes) { Sequent.configuration.aggregate_observers.map(&:class).sort_by(&:name) }
+    it 'autoregisters' do
+      expect(aggregate_observer_classes).to eq [
+        FirstAggregateObserver,
+        SecondAggregateObserver,
+      ]
+    end
+  end
+
   context 'with a monkey patched Rails module' do
     before do
       module Rails; end
