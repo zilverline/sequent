@@ -2,12 +2,18 @@
 
 require 'spec_helper'
 
-describe Sequent::Core::AggregateRoot do
-  let(:aggregate_id) { 'identifier' }
+RSpec.configure do |config|
+  config.include Sequent::Test::CommandHandlerHelpers
+end
 
-  class TestEvent < Sequent::Core::Event
+describe Sequent::Core::AggregateRoot do
+  let(:aggregate_id) { Sequent.new_uuid }
+
+  class AggregateRootSpecTestEvent < Sequent::Core::Event
     attrs field: String, organization_id: String
   end
+
+  class AnotherEvent < Sequent::Core::Event; end
 
   class TestAggregateRoot < Sequent::Core::AggregateRoot
     attr_accessor :test_event_count
@@ -19,14 +25,14 @@ describe Sequent::Core::AggregateRoot do
     end
 
     def generate_event
-      apply TestEvent, field: 'value'
+      apply AggregateRootSpecTestEvent, field: 'value'
     end
 
     def event_count
       @event_count ||= 0
     end
 
-    on TestEvent do |_|
+    on AggregateRootSpecTestEvent do |_|
       @event_count = event_count + 1
     end
   end
@@ -34,12 +40,12 @@ describe Sequent::Core::AggregateRoot do
   let(:subject) { TestAggregateRoot.new(aggregate_id:, organization_id: 'foo') }
 
   it 'has an aggregate id' do
-    expect(subject.id).to eq 'identifier'
+    expect(subject.id).to eq aggregate_id
   end
 
   it 'generates events with the aggregate_id set' do
     subject.generate_event
-    expect(subject.uncommitted_events[0].aggregate_id).to eq 'identifier'
+    expect(subject.uncommitted_events[0].aggregate_id).to eq aggregate_id
   end
 
   it 'generates sequence numbers starting with 1' do
@@ -57,7 +63,7 @@ describe Sequent::Core::AggregateRoot do
   it 'starts sequence numberings based on history' do
     subject = TestAggregateRoot.load_from_history :stream,
                                                   [
-                                                    TestEvent.new(
+                                                    AggregateRootSpecTestEvent.new(
                                                       aggregate_id: 'historical_id',
                                                       sequence_number: 1,
                                                       organization_id: 'foo',
@@ -80,7 +86,7 @@ describe Sequent::Core::AggregateRoot do
   end
 
   it 'has a nice to_s for readability' do
-    expect(subject.to_s).to eq 'TestAggregateRoot: identifier'
+    expect(subject.to_s).to eq "TestAggregateRoot: #{aggregate_id}"
   end
 
   context 'snapshotting' do
@@ -174,15 +180,20 @@ describe Sequent::Core::AggregateRoot do
   end
 
   context 'observers' do
-    class AggregateRootSpecTestObserver
+    class AggregateRootSpecTestObserver < Sequent::AggregateObserver
       attr_reader :messages
 
       def initialize
         @messages = []
       end
 
-      def handle_message(message)
-        @messages << message
+      on AggregateRootSpecTestEvent do |event|
+        @messages << event
+      end
+
+      on AnotherEvent do |event|
+        aggregate = Sequent.aggregate_repository.load_aggregate(event.aggregate_id, TestAggregateRoot)
+        aggregate.generate_event
       end
     end
 
@@ -196,7 +207,7 @@ describe Sequent::Core::AggregateRoot do
       subject.generate_event
 
       expect(test_observer.messages).to contain_exactly(
-        be_a(TestEvent).and(
+        be_a(AggregateRootSpecTestEvent).and(
           have_attributes(
             aggregate_id:,
             sequence_number: 1,
@@ -204,6 +215,12 @@ describe Sequent::Core::AggregateRoot do
           ),
         ),
       )
+    end
+
+    it 'supports when/then syntax' do
+      given_events AggregateRootSpecTestEvent.new(aggregate_id:, sequence_number: 1, field: 'value')
+      when_event_observed AnotherEvent.new(aggregate_id:, sequence_number: 1)
+      then_events AggregateRootSpecTestEvent.new(aggregate_id:, sequence_number: 2, field: 'value')
     end
   end
 end

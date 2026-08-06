@@ -6,6 +6,10 @@ module Statusable
   end
 end
 
+class TestEvent < Sequent::Event
+  attrs field: String
+end
+
 class NameSet < Sequent::Event
   attrs first_name: String, last_name: String
 end

@@ -182,6 +182,12 @@ module Sequent
         Sequent.configuration.command_service.execute_commands command
       end
 
+      def when_event_observed(event)
+        @helpers_events_position_mark = Sequent.configuration.event_store.position_mark
+        Sequent.configuration.aggregate_observers.each { |observer| observer.handle_message(event) }
+        Sequent.aggregate_repository.commit(Sequent::Core::BaseCommand.new)
+      end
+
       def then_events(*expected_events)
         expected_events = expected_events.flatten(1)
 
