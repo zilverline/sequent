@@ -3,6 +3,8 @@
 require 'spec_helper'
 
 describe Sequent::Core::AggregateRoot do
+  let(:aggregate_id) { 'identifier' }
+
   class TestEvent < Sequent::Core::Event
     attrs field: String, organization_id: String
   end
@@ -29,7 +31,7 @@ describe Sequent::Core::AggregateRoot do
     end
   end
 
-  let(:subject) { TestAggregateRoot.new(aggregate_id: 'identifier', organization_id: 'foo') }
+  let(:subject) { TestAggregateRoot.new(aggregate_id:, organization_id: 'foo') }
 
   it 'has an aggregate id' do
     expect(subject.id).to eq 'identifier'
@@ -168,6 +170,40 @@ describe Sequent::Core::AggregateRoot do
       expect do
         subject.set_name_with_unknown_event_attribute
       end.to raise_error(Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError)
+    end
+  end
+
+  context 'observers' do
+    class AggregateRootSpecTestObserver
+      attr_reader :messages
+
+      def initialize
+        @messages = []
+      end
+
+      def handle_message(message)
+        @messages << message
+      end
+    end
+
+    let(:test_observer) { AggregateRootSpecTestObserver.new }
+
+    before do
+      Sequent.configuration.aggregate_observers << test_observer
+    end
+
+    it 'immediately invokes any registered domain observers' do
+      subject.generate_event
+
+      expect(test_observer.messages).to contain_exactly(
+        be_a(TestEvent).and(
+          have_attributes(
+            aggregate_id:,
+            sequence_number: 1,
+            field: 'value',
+          ),
+        ),
+      )
     end
   end
 end

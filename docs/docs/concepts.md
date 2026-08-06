@@ -43,6 +43,7 @@ This is the general approach for making use of Sequent. Please explore all conce
 - [Configuration](concepts/configuration.html)
 - [Projectors](concepts/projector.html)
 - [Workflow](concepts/workflow.html)
+- [AggregateObserver](concepts/aggregate-observer.html)
 - [Migrations](concepts/migrations.html)
 
 ## In depth details

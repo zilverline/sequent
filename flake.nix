@@ -79,6 +79,7 @@
 
                   # https://devenv.sh/reference/options/
                   packages = with pkgs; [
+                    libffi
                     libyaml
                     pkg-config
                     postgresql

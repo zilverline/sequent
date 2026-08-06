@@ -58,6 +58,7 @@ module Sequent
                   :command_filters,
                   :command_middleware,
                   :event_handlers,
+                  :aggregate_observers,
                   :uuid_generator,
                   :disable_event_handlers,
                   :logger,
@@ -101,6 +102,7 @@ module Sequent
       self.command_handlers = []
       self.command_filters = []
       self.event_handlers = []
+      self.aggregate_observers = []
       self.command_middleware = Sequent::Core::Middleware::Chain.new
 
       self.aggregate_repository = Sequent::Core::AggregateRepository.new
@@ -190,6 +192,14 @@ module Sequent
         self.class.instance.event_handlers << workflow_class.new
       end
 
+      self.class.instance.aggregate_observers ||= []
+      for_each_autoregisterable_descenant_of(Sequent::AggregateObserver) do |observer_class|
+        if Sequent.logger.debug?
+          Sequent.logger.debug("[Configuration] Autoregistering AggregateObserver #{observer_class}")
+        end
+        self.class.instance.aggregate_observers << observer_class.new
+      end
+
       self.class.instance.command_handlers.map(&:class).tally.each do |(clazz, count)|
         if count > 1
           fail "CommandHandler #{clazz} is registered #{count} times. A CommandHandler can only be registered once"
@@ -199,6 +209,12 @@ module Sequent
       self.class.instance.event_handlers.map(&:class).tally.each do |(clazz, count)|
         if count > 1
           fail "EventHandler #{clazz} is registered #{count} times. An EventHandler can only be registered once"
+        end
+      end
+
+      self.class.instance.aggregate_observers.map(&:class).tally.each do |(clazz, count)|
+        if count > 1
+          fail "Observer #{clazz} is registered #{count} times. An AggregateObserver can only be registered once"
         end
       end
     end
