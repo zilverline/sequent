@@ -48,6 +48,8 @@ docs:
         url: /docs/concepts/value-object.html
       - title: Workflow
         url: /docs/concepts/workflow.html
+      - title: AggregateObserver
+        url: /docs/concepts/aggregate-observer.html
       - title: Validations
         url: /docs/concepts/validations.html
       - title: Migrations
