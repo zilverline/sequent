@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative 'helpers/message_handler'
-require_relative 'current_event'
 
 module Sequent
   module Core

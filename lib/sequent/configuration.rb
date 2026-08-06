@@ -192,6 +192,7 @@ module Sequent
         self.class.instance.event_handlers << workflow_class.new
       end
 
+      self.class.instance.aggregate_observers ||= []
       for_each_autoregisterable_descenant_of(Sequent::AggregateObserver) do |observer_class|
         if Sequent.logger.debug?
           Sequent.logger.debug("[Configuration] Autoregistering AggregateObserver #{observer_class}")
