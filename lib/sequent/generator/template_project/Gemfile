@@ -11,8 +11,7 @@ gem 'csv'
 # ActiveSupport supports json 3.
 gem 'json', '~> 2'
 gem 'rake'
-gem 'sequent', git: 'https://github.com/zilverline/sequent.git', ref: 'background-projector-replay-documentation'
-# gem 'sequent', '~> 8'
+gem 'sequent', '~> 8'
 
 group :test do
   gem 'database_cleaner'
