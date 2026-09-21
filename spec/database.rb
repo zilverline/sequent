@@ -16,6 +16,12 @@ module Database
           schema_search_path: "public,#{Sequent.configuration.view_schema_name}," \
                               "#{Sequent.configuration.event_store_schema_name}",
           advisory_locks: false,
+          # Replays fork worker processes that each open their own connection.
+          # libpq negotiates GSSAPI by default (`gssencmode=prefer`) and macOS's
+          # GSS framework is not fork-safe, so the forked child dies with a
+          # SIGSEGV in `_os_log_preferences_refresh`, or with an Objective-C
+          # `initialize` fork-safety abort.
+          gssencmode: 'disable',
         },
       ).stringify_keys
     end

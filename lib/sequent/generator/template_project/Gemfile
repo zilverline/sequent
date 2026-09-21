@@ -4,9 +4,14 @@ source 'https://rubygems.org'
 ruby file: '.ruby-version'
 
 gem 'csv'
+# ActiveSupport 8.1 decodes JSON with `JSON.parse(json, options)`, passing the
+# options as a positional Hash. The `json` gem dropped support for that in 3.0,
+# so reading any jsonb column (`replay_states.index_definitions`, for example)
+# raises `ArgumentError: wrong number of arguments`. Drop this constraint once
+# ActiveSupport supports json 3.
+gem 'json', '~> 2'
 gem 'rake'
-gem 'sequent', git: 'https://github.com/zilverline/sequent.git', ref: 'background-projector-replay-documentation'
-# gem 'sequent', '~> 8'
+gem 'sequent', '~> 8'
 
 group :test do
   gem 'database_cleaner'

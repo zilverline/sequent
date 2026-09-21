@@ -80,6 +80,11 @@ describe Sequent::Generator::Project do
         export BUNDLE_GEMFILE=./Gemfile
         export PGUSER=sequent
         export PGPASSWORD=sequent
+        # The replay tasks fork worker processes that each open their own
+        # connection. libpq defaults to `gssencmode=prefer`, and macOS's GSS
+        # framework is not fork-safe, so the child crashes while negotiating
+        # (SIGSEGV in `_os_log_preferences_refresh`). We do not use GSSAPI here.
+        export PGGSSENCMODE=disable
 
         ruby_version=$(ruby -v | awk '{print $2}' | grep -o '^[0-9.]*')
         echo "$ruby_version" > .ruby-version
