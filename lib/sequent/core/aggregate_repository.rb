@@ -136,8 +136,17 @@ module Sequent
         end
       end
 
+      ##
+      # Loads the aggregate with +key+ as its unique key in +scope+, or returns +nil+.
+      #
+      # Aggregates in this repository are matched on their current unique keys, so one added but not yet committed is
+      # found, and one whose key changed since it was loaded is only found by its new key.
       def find_aggregate_by_unique_key(scope, key, clazz = nil)
-        aggregate_id = Sequent.configuration.event_store.find_aggregate_id_by_unique_key(scope, key)
+        key = Helpers::UniqueKeys.normalize(key)
+        aggregate_id = in_memory_unique_keys(scope).find { |_, in_memory_key| in_memory_key == key }&.first
+        aggregate_id ||= Sequent.configuration.event_store.find_aggregate_id_by_unique_key(scope, key).then do |id|
+          id unless aggregates.key?(id)
+        end
         load_aggregate(aggregate_id, clazz) if aggregate_id
       end
 
@@ -153,10 +162,16 @@ module Sequent
       #     key[:period] <= '2024-06'
       #   end
       #
+      # Aggregates in this repository are matched on their current unique keys, as in +find_aggregate_by_unique_key+.
+      #
       # Returns an empty array when none match. If +clazz+ is given and one of the aggregates is not of the correct
       # type a +TypeError+ is raised.
       def find_aggregates_by_unique_key_containing(scope, partial_key, clazz = nil, &filter)
-        keys = Sequent.configuration.event_store.find_unique_keys_containing(scope, partial_key)
+        partial = Helpers::UniqueKeys.normalize(partial_key)
+        stored = Sequent.configuration.event_store.find_unique_keys_containing(scope, partial_key)
+          .reject { |aggregate_id, _| aggregates.key?(aggregate_id) }
+        in_memory = in_memory_unique_keys(scope).select { |_, key| Helpers::UniqueKeys.contains?(key, partial) }
+        keys = stored.merge(in_memory).sort.to_h
         keys = keys.select { |_, key| filter.call(key) } if filter
         load_aggregates(keys.keys, clazz)
       end
@@ -208,6 +223,14 @@ module Sequent
 
       def aggregates
         Thread.current[AGGREGATES_KEY] ||= {}
+      end
+
+      # @return [Hash<String, Object>] the normalized key in +scope+ of each aggregate in this repository that has one
+      def in_memory_unique_keys(scope)
+        aggregates.each_with_object({}) do |(aggregate_id, aggregate), keys|
+          _, key = aggregate.unique_keys.find { |key_scope, _| key_scope.to_s == scope.to_s }
+          keys[aggregate_id] = Helpers::UniqueKeys.normalize(key) unless key.nil?
+        end
       end
 
       def store_events(command, streams_with_events)

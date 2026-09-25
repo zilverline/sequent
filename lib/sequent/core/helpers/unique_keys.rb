@@ -75,6 +75,21 @@ module Sequent
         def self.included(host_class)
           host_class.extend(ClassMethods)
         end
+
+        # A key as the database stores and returns it: through JSON, with symbolized names.
+        def self.normalize(key) = JSON.parse(key.to_json, symbolize_names: true)
+
+        # Mirrors PostgreSQL's jsonb @> on normalized keys.
+        def self.contains?(value, partial)
+          case partial
+          when Hash
+            value.is_a?(Hash) && partial.all? { |name, part| value.key?(name) && contains?(value[name], part) }
+          when Array
+            value.is_a?(Array) && partial.all? { |part| value.any? { |element| contains?(element, part) } }
+          else
+            value == partial
+          end
+        end
       end
     end
   end

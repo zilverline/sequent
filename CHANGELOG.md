@@ -76,6 +76,12 @@
   which the migration creates in the event store schema; `btree_gin` is
   a trusted extension, so the database owner can create it.
 
+- `AggregateRepository#find_aggregate_by_unique_key` and
+  `#find_aggregates_by_unique_key_containing` also match the
+  aggregates in the repository on their current unique keys. An
+  aggregate that is added but not yet committed is now found, and one
+  whose key changed since it was loaded is only found by its new key.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.

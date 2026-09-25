@@ -87,12 +87,11 @@ module Sequent
         end
 
         def find_unique_keys_containing(scope, partial_key)
-          partial = JSON.parse(partial_key.to_json)
+          partial = Sequent::Core::Helpers::UniqueKeys.normalize(partial_key)
           @unique_keys
-            .select do |(key_scope, key), _|
-              key_scope.to_s == scope.to_s && contains?(JSON.parse(key.to_json), partial)
-            end
-            .to_h { |(_, key), aggregate_id| [aggregate_id, JSON.parse(key.to_json, symbolize_names: true)] }
+            .select { |(key_scope, _), _| key_scope.to_s == scope.to_s }
+            .to_h { |(_, key), aggregate_id| [aggregate_id, Sequent::Core::Helpers::UniqueKeys.normalize(key)] }
+            .select { |_, key| Sequent::Core::Helpers::UniqueKeys.contains?(key, partial) }
             .sort
             .to_h
         end
@@ -163,18 +162,6 @@ module Sequent
         def deserialize_events(events)
           events.map do |type, json|
             Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
-          end
-        end
-
-        # Mirrors PostgreSQL's jsonb @> on parsed JSON.
-        def contains?(value, partial)
-          case partial
-          when Hash
-            value.is_a?(Hash) && partial.all? { |key, part| value.key?(key) && contains?(value[key], part) }
-          when Array
-            value.is_a?(Array) && partial.all? { |part| value.any? { |element| contains?(element, part) } }
-          else
-            value == partial
           end
         end
       end
