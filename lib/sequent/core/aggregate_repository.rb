@@ -142,8 +142,8 @@ module Sequent
       # Aggregates in this repository are matched on their current unique keys, so one added but not yet committed is
       # found, and one whose key changed since it was loaded is only found by its new key.
       def find_aggregate_by_unique_key(scope, key, clazz = nil)
-        key = Helpers::UniqueKeys.normalize(key)
-        aggregate_id = in_memory_unique_keys(scope).find { |_, in_memory_key| in_memory_key == key }&.first
+        normalized_key = Helpers::UniqueKeys.normalize(key)
+        aggregate_id = in_memory_unique_keys(scope).find { |_, in_memory_key| in_memory_key == normalized_key }&.first
         aggregate_id ||= Sequent.configuration.event_store.find_aggregate_id_by_unique_key(scope, key).then do |id|
           id unless aggregates.key?(id)
         end

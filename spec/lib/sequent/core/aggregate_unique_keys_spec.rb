@@ -71,6 +71,20 @@ module Sequent
       end
     end
 
+    class DatedKeyEvent < Sequent::Core::Event
+      attrs date: Date
+    end
+
+    class DatedKeyAggregate < Sequent::Core::AggregateRoot
+      attr_reader :date
+
+      unique_key :dated_key, :date
+
+      on DatedKeyEvent do |event|
+        @date = event.date
+      end
+    end
+
     class UniqueKeysCommandHandler < Sequent::Core::BaseCommandHandler
       on UniqueKeysCommand do |command|
         aggregate = repository.load_aggregate(command.aggregate_id)
@@ -194,6 +208,16 @@ module Sequent
             expect(repository.find_aggregate_by_unique_key(:a, 'a')).to be_nil
             expect(repository.find_aggregate_by_unique_key(:c, 'c')).to be(aggregate)
           end
+        end
+
+        it 'finds an aggregate by a key holding a date' do
+          given_events DatedKeyEvent.new(aggregate_id: aggregate_id_2, sequence_number: 1, date: Date.new(2024, 1, 1))
+
+          aggregate = Sequent.configuration.aggregate_repository.find_aggregate_by_unique_key(
+            :dated_key,
+            {date: Date.new(2024, 1, 1)},
+          )
+          expect(aggregate&.id).to eq(aggregate_id_2)
         end
 
         it 'returns nil if not found' do
