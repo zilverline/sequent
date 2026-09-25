@@ -142,6 +142,26 @@ module Sequent
       end
 
       ##
+      # Loads all aggregates with a unique key in +scope+ that contains +partial_key+, as PostgreSQL's jsonb +@>+
+      # operator decides: a key <tt>{employee_id: 'e1', period: '2024-01'}</tt> is found by
+      # <tt>{employee_id: 'e1'}</tt>.
+      #
+      # When a block is given it receives each matching key, parsed from JSON with symbolized names, and only the
+      # aggregates for which it returns true are loaded:
+      #
+      #   find_aggregates_by_unique_key_containing(:employee_period, {employee_id: 'e1'}) do |key|
+      #     key[:period] <= '2024-06'
+      #   end
+      #
+      # Returns an empty array when none match. If +clazz+ is given and one of the aggregates is not of the correct
+      # type a +TypeError+ is raised.
+      def find_aggregates_by_unique_key_containing(scope, partial_key, clazz = nil, &filter)
+        keys = Sequent.configuration.event_store.find_unique_keys_containing(scope, partial_key)
+        keys = keys.select { |_, key| filter.call(key) } if filter
+        load_aggregates(keys.keys, clazz)
+      end
+
+      ##
       # Returns whether the aggregate exists (added to the aggregate repository or committed to the event store)
       def contains_aggregate?(aggregate_id)
         aggregates.key?(aggregate_id) || Sequent.configuration.event_store.stream_exists?(aggregate_id)

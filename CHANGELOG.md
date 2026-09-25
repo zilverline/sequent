@@ -62,6 +62,20 @@
   online migrations, take old code offline, run offline migrations,
   start running the new code) will keep working as is.
 
+- `AggregateRepository#find_aggregates_by_unique_key_containing(scope,
+  partial_key, clazz = nil)` loads every aggregate whose unique key in
+  `scope` contains `partial_key`, using PostgreSQL's jsonb `@>`: a key
+  `{employee_id: 'e1', period: '2024-01'}` is found by `{employee_id:
+  'e1'}`. An optional block receives each matching key and decides
+  which aggregates are loaded, for conditions a containment check
+  cannot express. A GIN index on the scope and key makes the lookup
+  efficient; copy the migration at
+  `db/migrate/20260925120000_sequent_index_aggregate_unique_keys_by_scope_and_key.rb`
+  to create it. The index is built concurrently, so it does not block
+  writes. It needs the `btree_gin` extension for the scope column,
+  which the migration creates in the event store schema; `btree_gin` is
+  a trusted extension, so the database owner can create it.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.

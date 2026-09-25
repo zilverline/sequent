@@ -47,6 +47,21 @@ module Sequent
       end
     end
 
+    class EmployeePeriodEvent < Sequent::Core::Event
+      attrs employee_id: String, period: String
+    end
+
+    class EmployeePeriodAggregate < Sequent::Core::AggregateRoot
+      attr_reader :employee_id, :period
+
+      unique_key :employee_period, :employee_id, :period
+
+      on EmployeePeriodEvent do |event|
+        @employee_id = event.employee_id
+        @period = event.period
+      end
+    end
+
     class UniqueKeysCommandHandler < Sequent::Core::BaseCommandHandler
       on UniqueKeysCommand do |command|
         aggregate = repository.load_aggregate(command.aggregate_id)
@@ -154,6 +169,74 @@ module Sequent
             'c',
           )
           expect(aggregate).to be_nil
+        end
+      end
+
+      context 'find by unique key containing' do
+        let(:aggregate_id_3) { Sequent.new_uuid }
+        let(:repository) { Sequent.configuration.aggregate_repository }
+
+        def employee_period(aggregate_id, employee_id, period)
+          EmployeePeriodEvent.new(aggregate_id:, sequence_number: 1, employee_id:, period:)
+        end
+
+        before do
+          given_events(
+            employee_period(aggregate_id_1, 'e1', '2024-01'),
+            employee_period(aggregate_id_2, 'e1', '2024-02'),
+            employee_period(aggregate_id_3, 'e2', '2024-01'),
+          )
+        end
+
+        it 'finds every aggregate whose key contains the given part' do
+          aggregates = repository.find_aggregates_by_unique_key_containing(:employee_period, {employee_id: 'e1'})
+
+          expect(aggregates.map(&:id)).to contain_exactly(aggregate_id_1, aggregate_id_2)
+        end
+
+        it 'matches on every attribute of the given part' do
+          aggregates = repository.find_aggregates_by_unique_key_containing(
+            :employee_period,
+            {employee_id: 'e1', period: '2024-02'},
+          )
+
+          expect(aggregates.map(&:id)).to eq([aggregate_id_2])
+        end
+
+        it 'loads only the aggregates whose key the block accepts' do
+          before_february = ->(key) { key[:period] <= '2024-01' }
+          aggregates = repository.find_aggregates_by_unique_key_containing(
+            :employee_period,
+            {employee_id: 'e1'},
+            &before_february
+          )
+
+          expect(aggregates.map(&:id)).to eq([aggregate_id_1])
+        end
+
+        it 'returns the matching keys by aggregate id' do
+          expect(event_store.find_unique_keys_containing(:employee_period, {employee_id: 'e1'})).to eq(
+            aggregate_id_1 => {employee_id: 'e1', period: '2024-01'},
+            aggregate_id_2 => {employee_id: 'e1', period: '2024-02'},
+          )
+        end
+
+        it 'returns no aggregates when none match' do
+          expect(repository.find_aggregates_by_unique_key_containing(:employee_period, {employee_id: 'e3'})).to eq([])
+        end
+
+        it 'only searches the given scope' do
+          expect(repository.find_aggregates_by_unique_key_containing(:other_scope, {employee_id: 'e1'})).to eq([])
+        end
+
+        it 'checks the type of the aggregates it finds' do
+          expect do
+            repository.find_aggregates_by_unique_key_containing(
+              :employee_period,
+              {employee_id: 'e1'},
+              UniqueKeysAggregate,
+            )
+          end.to raise_error(TypeError)
         end
       end
 
