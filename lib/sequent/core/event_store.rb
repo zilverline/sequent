@@ -226,6 +226,17 @@ module Sequent
         )
       end
 
+      # @return [Hash<String, Object>] the matching keys by aggregate id, parsed from JSON with symbolized names
+      def find_unique_keys_containing(scope, partial_key)
+        connection.select_rows(
+          <<~SQL,
+            SELECT aggregate_id, key FROM aggregate_unique_keys WHERE scope = $1 AND key @> $2::jsonb ORDER BY aggregate_id
+          SQL
+          'find_unique_keys_containing',
+          [scope, partial_key.to_json],
+        ).to_h { |aggregate_id, key| [aggregate_id, JSON.parse(key, symbolize_names: true)] }
+      end
+
       def position_mark
         connection.exec_query('SELECT pg_current_snapshot()::text AS mark')[0]['mark']
       end
