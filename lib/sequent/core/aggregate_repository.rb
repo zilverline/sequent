@@ -164,14 +164,14 @@ module Sequent
       #
       # Aggregates in this repository are matched on their current unique keys, as in +find_aggregate_by_unique_key+.
       #
-      # Returns an empty array when none match. If +clazz+ is given and one of the aggregates is not of the correct
-      # type a +TypeError+ is raised.
+      # Returns the aggregates in no particular order, or an empty array when none match. If +clazz+ is given and one of
+      # the aggregates is not of the correct type a +TypeError+ is raised.
       def find_aggregates_by_unique_key_containing(scope, partial_key, clazz = nil, &filter)
         partial = Helpers::UniqueKeys.normalize(partial_key)
         stored = Sequent.configuration.event_store.find_unique_keys_containing(scope, partial_key)
           .reject { |aggregate_id, _| aggregates.key?(aggregate_id) }
         in_memory = in_memory_unique_keys(scope).select { |_, key| Helpers::UniqueKeys.contains?(key, partial) }
-        keys = stored.merge(in_memory).sort.to_h
+        keys = stored.merge(in_memory)
         keys = keys.select { |_, key| filter.call(key) } if filter
         load_aggregates(keys.keys, clazz)
       end

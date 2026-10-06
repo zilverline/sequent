@@ -230,7 +230,7 @@ module Sequent
       def find_unique_keys_containing(scope, partial_key)
         connection.select_rows(
           <<~SQL,
-            SELECT aggregate_id, key FROM aggregate_unique_keys WHERE scope = $1 AND key @> $2::jsonb ORDER BY aggregate_id
+            SELECT aggregate_id, key FROM aggregate_unique_keys WHERE scope = $1 AND key @> $2::jsonb
           SQL
           'find_unique_keys_containing',
           [scope, partial_key.to_json],

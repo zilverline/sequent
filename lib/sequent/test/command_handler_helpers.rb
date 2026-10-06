@@ -92,8 +92,6 @@ module Sequent
             .select { |(key_scope, _), _| key_scope.to_s == scope.to_s }
             .to_h { |(_, key), aggregate_id| [aggregate_id, Sequent::Core::Helpers::UniqueKeys.normalize(key)] }
             .select { |_, key| Sequent::Core::Helpers::UniqueKeys.contains?(key, partial) }
-            .sort
-            .to_h
         end
 
         def commit_events(_, streams_with_events)
