@@ -85,6 +85,20 @@ module Sequent
       end
     end
 
+    class TagsEvent < Sequent::Core::Event
+      attrs tags: array(String)
+    end
+
+    class TagsAggregate < Sequent::Core::AggregateRoot
+      def unique_keys
+        {tags: @tags}
+      end
+
+      on TagsEvent do |event|
+        @tags = event.tags
+      end
+    end
+
     class UniqueKeysCommandHandler < Sequent::Core::BaseCommandHandler
       on UniqueKeysCommand do |command|
         aggregate = repository.load_aggregate(command.aggregate_id)
@@ -319,6 +333,34 @@ module Sequent
 
         it 'only searches the given scope' do
           expect(repository.find_aggregates_by_unique_key_containing(:other_scope, {employee_id: 'e1'})).to eq([])
+        end
+
+        context 'with an array as key' do
+          before do
+            given_events(TagsEvent.new(aggregate_id:, sequence_number: 1, tags: %w[red green]))
+          end
+
+          it 'finds it by one of its elements' do
+            expect(repository.find_aggregates_by_unique_key_containing(:tags, 'green').map(&:id)).to eq([aggregate_id])
+          end
+
+          it 'finds it by some of its elements' do
+            aggregates = repository.find_aggregates_by_unique_key_containing(:tags, %w[green])
+
+            expect(aggregates.map(&:id)).to eq([aggregate_id])
+          end
+
+          it 'does not find it by another value' do
+            expect(repository.find_aggregates_by_unique_key_containing(:tags, 'blue')).to eq([])
+          end
+
+          it 'finds it by one of its elements while it is in the repository' do
+            repository.load_aggregate(aggregate_id)
+
+            expect(repository.find_aggregates_by_unique_key_containing(:tags, 'green').map(&:id)).to eq([aggregate_id])
+          ensure
+            repository.clear
+          end
         end
 
         it 'checks the type of the aggregates it finds' do

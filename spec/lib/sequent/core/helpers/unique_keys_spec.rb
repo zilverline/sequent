@@ -57,6 +57,31 @@ module Sequent
             expect(subject.unique_keys).to_not include(:user_email)
           end
         end
+
+        describe '.contains?' do
+          # Each case was checked against PostgreSQL's jsonb @>.
+          {
+            [{a: 1, b: 2}, {a: 1}] => true,
+            [{a: 1}, {a: 1, b: 2}] => false,
+            [{a: {b: 1, c: 2}}, {a: {b: 1}}] => true,
+            [{a: [1, 2]}, {a: [2]}] => true,
+            [{a: [1, 2]}, {a: 2}] => false,
+            [[1, 2], [2]] => true,
+            [[1, [2, 3]], [[3]]] => true,
+            [[1, [2, 3]], [3]] => false,
+            [%w[a b], 'b'] => true,
+            [%w[a b], 'c'] => false,
+            [[%w[a b]], 'b'] => false,
+            [[1, 2], 2.0] => true,
+            %w[a a] => true,
+            [{a: 1}, {}] => true,
+            [{a: 1}, []] => false,
+          }.each do |(value, partial), contained|
+            it "#{contained ? 'finds' : 'does not find'} #{partial.to_json} in #{value.to_json}" do
+              expect(UniqueKeys.contains?(value, partial)).to be(contained)
+            end
+          end
+        end
       end
     end
   end

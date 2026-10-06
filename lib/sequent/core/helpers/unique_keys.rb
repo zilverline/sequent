@@ -79,17 +79,26 @@ module Sequent
         # A key as the database stores and returns it: through JSON, with symbolized names.
         def self.normalize(key) = JSON.parse(key.to_json, symbolize_names: true)
 
-        # Mirrors PostgreSQL's jsonb @> on normalized keys.
+        # Mirrors PostgreSQL's jsonb @> on normalized keys, including its one exception to structural matching: an array
+        # at the top level contains a primitive value that is one of its elements.
         def self.contains?(value, partial)
+          return value.include?(partial) if value.is_a?(Array) && !partial.is_a?(Hash) && !partial.is_a?(Array)
+
+          contains_structurally?(value, partial)
+        end
+
+        def self.contains_structurally?(value, partial)
           case partial
           when Hash
-            value.is_a?(Hash) && partial.all? { |name, part| value.key?(name) && contains?(value[name], part) }
+            value.is_a?(Hash) &&
+              partial.all? { |name, part| value.key?(name) && contains_structurally?(value[name], part) }
           when Array
-            value.is_a?(Array) && partial.all? { |part| value.any? { |element| contains?(element, part) } }
+            value.is_a?(Array) && partial.all? { |part| value.any? { |element| contains_structurally?(element, part) } }
           else
             value == partial
           end
         end
+        private_class_method :contains_structurally?
       end
     end
   end
