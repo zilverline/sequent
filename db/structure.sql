@@ -17,6 +17,20 @@ CREATE SCHEMA sequent_schema;
 
 
 --
+-- Name: btree_gin; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS btree_gin WITH SCHEMA sequent_schema;
+
+
+--
+-- Name: EXTENSION btree_gin; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION btree_gin IS 'support for indexing common datatypes in GIN';
+
+
+--
 -- Name: aggregate_event_type; Type: TYPE; Schema: sequent_schema; Owner: -
 --
 
@@ -1332,6 +1346,13 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 
 
 --
+-- Name: aggregate_unique_keys_scope_key_idx; Type: INDEX; Schema: sequent_schema; Owner: -
+--
+
+CREATE INDEX aggregate_unique_keys_scope_key_idx ON sequent_schema.aggregate_unique_keys USING gin (scope, key jsonb_path_ops);
+
+
+--
 -- Name: aggregates_aggregate_type_id_idx; Type: INDEX; Schema: sequent_schema; Owner: -
 --
 
@@ -1592,6 +1613,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260925120000'),
 ('20260610094300'),
 ('20260226121600'),
 ('20260129130000'),
