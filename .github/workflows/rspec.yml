@@ -17,7 +17,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include:
@@ -25,9 +25,9 @@ jobs:
             gemfile: 'ar_7_2'
           - ruby-version: '3.4'
             gemfile: 'ar_8_0'
-          - ruby-version: '4.0.1'
+          - ruby-version: '4.0'
             gemfile: 'ar_8_0'
-          - ruby-version: '4.0.1'
+          - ruby-version: '4.0'
             gemfile: 'ar_8_1'
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
@@ -67,7 +67,7 @@ jobs:
           reporter: github-pr-check
 
   integration_simple:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -85,7 +85,7 @@ jobs:
   integration_rails:
     env:
       POSTGRES_DB: sequent_integration_test_db
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     services:
       postgres:
         image: postgres:14
