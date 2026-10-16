@@ -134,8 +134,9 @@ Any `StandardError` raised is passed to the `aggregate_invariant_violation_handl
 [configuration](configuration.html), together with the AggregateRoot and the phase, `:load` or `:commit`. By default
 it raises a `Sequent::Core::AggregateInvariantViolationError` with the `aggregate_type`, `aggregate_id` and `phase`,
 and the raised error as its `cause`.
-`invariants!` only checks the state and must not apply events: the repository has already chosen which
-AggregateRoots to commit when it calls `invariants!`, so an event applied there is not reliably stored.
+`invariants!` only checks the state and must not apply events. On commit it is called after the uncommitted events
+are cleared, and the repository raises a `Sequent::Core::AggregateRepository::InvariantsAppliedEvents` when the
+AggregateRoot has uncommitted events after `invariants!`.
 
 ## Deleting an AggregateRoot
 

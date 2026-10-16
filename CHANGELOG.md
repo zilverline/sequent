@@ -8,7 +8,8 @@
   `:commit`, to the configurable `aggregate_invariant_violation_handler`,
   which by default raises an `AggregateInvariantViolationError` with
   the aggregate type, id and phase and the original exception as its
-  cause.
+  cause. An `InvariantsAppliedEvents` is raised when `invariants!`
+  applies events.
 
 - Sequent now supports zero-downtime deployments (rolling
   upgrades). To enable this feature you must use the

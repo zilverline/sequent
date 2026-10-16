@@ -43,6 +43,13 @@ module Sequent
 
       class HasUncommittedEvents < StandardError; end
 
+      class InvariantsAppliedEvents < StandardError
+        def initialize(aggregate)
+          event_types = aggregate.uncommitted_events.map { |event| event.class.name }.uniq
+          super("#{aggregate} applied #{event_types.join(', ')} in invariants!")
+        end
+      end
+
       # Adds the given aggregate to the repository (or unit of work).
       #
       # Only when +commit+ is called all aggregates in the unit of work are 'processed'
@@ -215,12 +222,11 @@ module Sequent
         updated_aggregates = aggregates.values.reject { |x| x.uncommitted_events.empty? }
         return if updated_aggregates.empty?
 
-        updated_aggregates.each { |aggregate| check_invariants(aggregate, :commit) }
-
         streams_with_events = updated_aggregates.map do |aggregate|
           [aggregate.event_stream, aggregate.uncommitted_events]
         end
         updated_aggregates.each(&:clear_events)
+        updated_aggregates.each { |aggregate| check_invariants(aggregate, :commit) }
         store_events command, streams_with_events
       end
 
@@ -253,9 +259,12 @@ module Sequent
       end
 
       def check_invariants(aggregate, phase)
-        aggregate.invariants!
-      rescue StandardError => e
-        Sequent.configuration.aggregate_invariant_violation_handler.call(aggregate, e, phase)
+        begin
+          aggregate.invariants!
+        rescue StandardError => e
+          Sequent.configuration.aggregate_invariant_violation_handler.call(aggregate, e, phase)
+        end
+        fail InvariantsAppliedEvents, aggregate unless aggregate.uncommitted_events.empty?
       end
 
       def store_events(command, streams_with_events)

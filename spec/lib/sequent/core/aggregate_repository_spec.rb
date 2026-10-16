@@ -461,6 +461,23 @@ describe Sequent::Core::AggregateRepository do
         end
       end
 
+      class DummyAggregateApplyingInInvariants < Sequent::Core::AggregateRoot
+        def initialize(id)
+          super
+          apply DummyCreated
+        end
+
+        def invariants!
+          apply DummyPinged
+        end
+
+        on DummyCreated do
+        end
+
+        on DummyPinged do
+        end
+      end
+
       let(:aggregate) { DummyAggregateWithInvariants.new(Sequent.new_uuid) }
 
       def store_broken_aggregate
@@ -549,6 +566,29 @@ describe Sequent::Core::AggregateRepository do
         loaded = repository.load_aggregate(aggregate.id)
 
         expect(violations).to match([[loaded, an_instance_of(InvariantViolated), :load]])
+      end
+
+      it 'raises when invariants! applies an event on commit and stores no events' do
+        applying = DummyAggregateApplyingInInvariants.new(Sequent.new_uuid)
+        repository.add_aggregate(applying)
+
+        expect { repository.commit(DummyCommand.new) }.to raise_error(
+          Sequent::Core::AggregateRepository::InvariantsAppliedEvents,
+          "DummyAggregateApplyingInInvariants: #{applying.id} applied DummyPinged in invariants!",
+        )
+        expect(Sequent.configuration.event_store.stream_exists?(applying.id)).to be_falsey
+      end
+
+      it 'raises when invariants! applies an event on load' do
+        applying = DummyAggregateApplyingInInvariants.new(Sequent.new_uuid)
+        Sequent.configuration.event_store.commit_events(
+          DummyCommand.new,
+          [[applying.event_stream, applying.uncommitted_events]],
+        )
+
+        expect { repository.load_aggregate(applying.id) }.to raise_error(
+          Sequent::Core::AggregateRepository::InvariantsAppliedEvents,
+        )
       end
     end
 
