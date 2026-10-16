@@ -39,6 +39,10 @@ module Sequent
 
     DEFAULT_ERROR_LOCALE_RESOLVER = -> { I18n.locale || :en }
 
+    DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER = ->(aggregate, exception, phase) do
+      fail Sequent::Core::AggregateInvariantViolationError.new(aggregate, exception, phase), cause: exception
+    end
+
     DEFAULT_TIME_PRECISION = ActiveSupport::JSON::Encoding.time_precision
 
     DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS = proc do |clazz|
@@ -76,6 +80,7 @@ module Sequent
                   :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
+                  :aggregate_invariant_violation_handler,
                   :projectors_replayer_after_prepare_hook,
                   :projectors_replayer_after_activate_hook,
                   :projectors_replayer_total_lock_timeout
@@ -138,6 +143,7 @@ module Sequent
 
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
+      self.aggregate_invariant_violation_handler = DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER
 
       self.projectors_replayer_total_lock_timeout = 10.seconds
     end

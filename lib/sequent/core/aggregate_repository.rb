@@ -2,6 +2,17 @@
 
 module Sequent
   module Core
+    class AggregateInvariantViolationError < RuntimeError
+      attr_reader :aggregate_type, :aggregate_id, :phase
+
+      def initialize(aggregate, exception, phase)
+        @aggregate_type = aggregate.class.name
+        @aggregate_id = aggregate.id
+        @phase = phase
+        super("Invariant violated by aggregate #{aggregate_type} #{aggregate_id} on #{phase}: #{exception.message}")
+      end
+    end
+
     # Repository for aggregates.
     #
     # Implements the Unit-Of-Work and Identity-Map patterns
@@ -31,6 +42,13 @@ module Sequent
       end
 
       class HasUncommittedEvents < StandardError; end
+
+      class InvariantsAppliedEvents < StandardError
+        def initialize(aggregate)
+          event_types = aggregate.uncommitted_events.map { |event| event.class.name }.uniq
+          super("#{aggregate} applied #{event_types.join(', ')} in invariants!")
+        end
+      end
 
       # Adds the given aggregate to the repository (or unit of work).
       #
@@ -101,6 +119,9 @@ module Sequent
       # Note: This will load all the aggregates in memory, so querying 100s of aggregates
       # with 100s of events could cause memory issues.
       #
+      # Aggregates loaded from the event store are checked with +invariants!+, see
+      # +Sequent::Configuration#aggregate_invariant_violation_handler+.
+      #
       # Returns all aggregates or raises +AggregateNotFound+
       # If +clazz+ is given and one of the aggregates is not of the correct type
       # a +TypeError+ is raised.
@@ -117,7 +138,7 @@ module Sequent
 
         result += Sequent.configuration.event_store.load_events_for_aggregates(query_ids).map do |stream, events|
           aggregate_class = Class.const_get(stream.aggregate_type)
-          aggregate_class.load_from_history(stream, events)
+          aggregate_class.load_from_history(stream, events).tap { |aggregate| check_invariants(aggregate, :load) }
         end
 
         if result.count != unique_ids.count
@@ -189,6 +210,9 @@ module Sequent
       # of the different AggregateRoot's. So Events are stored
       # (and therefore published) in order in which they are `apply`-ed per AggregateRoot.
       #
+      # Before the events are stored each updated aggregate is checked with +invariants!+, see
+      # +Sequent::Configuration#aggregate_invariant_violation_handler+.
+      #
       # The command is 'attached' for traceability purpose so we can see
       # which command resulted in which events.
       #
@@ -202,6 +226,7 @@ module Sequent
           [aggregate.event_stream, aggregate.uncommitted_events]
         end
         updated_aggregates.each(&:clear_events)
+        updated_aggregates.each { |aggregate| check_invariants(aggregate, :commit) }
         store_events command, streams_with_events
       end
 
@@ -231,6 +256,15 @@ module Sequent
           _, key = aggregate.unique_keys.find { |key_scope, _| key_scope.to_s == scope.to_s }
           keys[aggregate_id] = Helpers::UniqueKeys.normalize(key) unless key.nil?
         end
+      end
+
+      def check_invariants(aggregate, phase)
+        begin
+          aggregate.invariants!
+        rescue StandardError => e
+          Sequent.configuration.aggregate_invariant_violation_handler.call(aggregate, e, phase)
+        end
+        fail InvariantsAppliedEvents, aggregate unless aggregate.uncommitted_events.empty?
       end
 
       def store_events(command, streams_with_events)
