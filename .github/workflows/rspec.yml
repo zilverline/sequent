@@ -33,7 +33,7 @@ jobs:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:
       postgres:
-        image: postgres:14
+        image: postgres:16.13
         env:
           POSTGRES_USER: sequent
           POSTGRES_PASSWORD: sequent
@@ -53,6 +53,11 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-16
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
       - name: Setup database
         run: |
           bundle exec rake sequent:db:drop sequent:db:create
@@ -88,7 +93,7 @@ jobs:
     runs-on: ubuntu-26.04
     services:
       postgres:
-        image: postgres:14
+        image: postgres:16.13
         env:
           POSTGRES_USER: sequent
           POSTGRES_PASSWORD: sequent
@@ -109,6 +114,11 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
           working-directory: 'integration-specs/rails-app'
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-16
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
       - name: Run integration tests rails-app
         run: |
           cd integration-specs/rails-app

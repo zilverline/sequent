@@ -1,5 +1,7 @@
 # Changelog 9.x
 
+- Sequent requires PostgreSQL 16.13 or later.
+
 - The `AggregateRepository` calls `invariants!` on an aggregate
   after loading it from the event store and before committing its
   uncommitted events. `AggregateRoot#invariants!` does nothing; an
