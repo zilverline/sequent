@@ -36,6 +36,16 @@ describe Sequent::Core::Transactions::ActiveRecordTransactionProvider do
       end
       expect(called).to be_truthy
     end
+    it 'does not call before_commit on rollback' do
+      called = false
+      expect do
+        provider.transaction do
+          provider.before_commit { called = true }
+          fail 'rollback transaction'
+        end
+      end.to raise_error(RuntimeError, 'rollback transaction')
+      expect(called).to be_falsy
+    end
   end
 
   context 'with after_commit hooks' do
