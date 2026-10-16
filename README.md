@@ -51,6 +51,7 @@ BUNDLE_GEMFILE=gemfiles/ar_7_0.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_7_1.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_7_2.gemfile bundle update sequent --conservative
 BUNDLE_GEMFILE=gemfiles/ar_8_0.gemfile bundle update sequent --conservative
+BUNDLE_GEMFILE=gemfiles/ar_8_1.gemfile bundle update sequent --conservative
 ```
 
 ## Running the specs
