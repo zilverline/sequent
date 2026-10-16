@@ -33,6 +33,12 @@ jobs:
             gemfile: 'ar_8_0'
           - ruby-version: '3.1'
             gemfile: 'ar_8_1'
+          - ruby-version: '3.4'
+            gemfile: 'ar_6_0'
+          - ruby-version: '3.4'
+            gemfile: 'ar_6_1'
+          - ruby-version: '3.4'
+            gemfile: 'ar_7_0'
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/${{ matrix.gemfile }}.gemfile
     services:
