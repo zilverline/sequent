@@ -113,6 +113,29 @@ In the event handling block you will **only set the new state**.
 When you think of this from an event sourced point of view, it makes sense.
 Domain logic can change over time, but that should not affect existing Events.
 
+## Checking invariants
+
+An AggregateRoot can override the `invariants!` method, which does nothing by default, to raise when its state is
+invalid:
+
+```ruby
+class User < Sequent::AggregateRoot
+  # rest of code omitted...
+
+  def invariants!
+    fail "User #{id} has no name" if @name.blank?
+  end
+end
+```
+
+The [AggregateRepository](aggregate-repository.html) calls it after loading the AggregateRoot from the event store,
+and when committing an AggregateRoot that has uncommitted events, before these events are stored.
+Any `StandardError` raised is passed to the `aggregate_invariant_violation_handler` of the
+[configuration](configuration.html), together with the AggregateRoot and the phase, `:load` or `:commit`. By default
+it raises a `Sequent::Core::AggregateInvariantViolationError` with the `aggregate_type`, `aggregate_id` and `phase`,
+and the raised error as its `cause`.
+Since the uncommitted events are collected before `invariants!` is called, it must not apply events.
+
 ## Deleting an AggregateRoot
 
 Deleting an AggregateRoot is basically the same as changing one. You define a method that calls an Event, and in the Event handler change the state:

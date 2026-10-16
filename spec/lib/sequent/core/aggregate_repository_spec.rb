@@ -433,6 +433,125 @@ describe Sequent::Core::AggregateRepository do
     let(:repository) { Sequent.configuration.aggregate_repository }
     let(:aggregate) { DummyAggregate3.new(Sequent.new_uuid) }
 
+    context 'invariants!' do
+      class InvariantViolated < StandardError; end
+      class DummyInvariantBroken < Sequent::Core::Event; end
+      class DummyAggregateWithInvariants < Sequent::Core::AggregateRoot
+        attr_reader :invariant_checks
+
+        def initialize(id)
+          super
+          apply DummyCreated
+        end
+
+        def break_invariant
+          apply DummyInvariantBroken
+        end
+
+        def invariants!
+          @invariant_checks = (@invariant_checks || 0) + 1
+          fail InvariantViolated, id if @broken
+        end
+
+        on DummyCreated do
+        end
+
+        on DummyInvariantBroken do
+          @broken = true
+        end
+      end
+
+      let(:aggregate) { DummyAggregateWithInvariants.new(Sequent.new_uuid) }
+
+      def store_broken_aggregate
+        aggregate.break_invariant
+        Sequent.configuration.aggregate_invariant_violation_handler = ->(_aggregate, _exception, _phase) {}
+        repository.add_aggregate(aggregate)
+        repository.commit(DummyCommand.new)
+        repository.clear
+        Sequent.configuration.aggregate_invariant_violation_handler =
+          Sequent::Configuration::DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER
+      end
+
+      it 'checks an aggregate with uncommitted events on commit' do
+        repository.add_aggregate(aggregate)
+        repository.commit(DummyCommand.new)
+
+        expect(aggregate.invariant_checks).to eq(1)
+      end
+
+      it 'does not check an aggregate without uncommitted events on commit' do
+        repository.add_aggregate(aggregate)
+        repository.commit(DummyCommand.new)
+        repository.commit(DummyCommand.new)
+
+        expect(aggregate.invariant_checks).to eq(1)
+      end
+
+      it 'checks an aggregate loaded from the event store' do
+        repository.add_aggregate(aggregate)
+        repository.commit(DummyCommand.new)
+        repository.clear
+
+        expect(repository.load_aggregate(aggregate.id).invariant_checks).to eq(1)
+      end
+
+      it 'does not check an aggregate loaded from the unit of work' do
+        repository.add_aggregate(aggregate)
+        repository.commit(DummyCommand.new)
+        repository.clear
+        repository.load_aggregate(aggregate.id)
+
+        expect(repository.load_aggregate(aggregate.id).invariant_checks).to eq(1)
+      end
+
+      it 'raises a violation on commit and stores no events by default' do
+        aggregate.break_invariant
+        repository.add_aggregate(aggregate)
+
+        expect { repository.commit(DummyCommand.new) }.to raise_error(
+          an_instance_of(Sequent::Core::AggregateInvariantViolationError)
+            .and(having_attributes(aggregate_type: 'DummyAggregateWithInvariants', aggregate_id: aggregate.id))
+            .and(having_attributes(phase: :commit, cause: an_instance_of(InvariantViolated))),
+        )
+        expect(Sequent.configuration.event_store.stream_exists?(aggregate.id)).to be_falsey
+      end
+
+      it 'raises a violation on load by default' do
+        store_broken_aggregate
+
+        expect { repository.load_aggregate(aggregate.id) }.to raise_error(
+          Sequent::Core::AggregateInvariantViolationError,
+          "Invariant violated by aggregate DummyAggregateWithInvariants #{aggregate.id} on load: #{aggregate.id}",
+        )
+      end
+
+      it 'passes a violation on commit to the configured handler' do
+        violations = []
+        Sequent.configuration.aggregate_invariant_violation_handler = ->(aggregate, exception, phase) do
+          violations << [aggregate, exception, phase]
+        end
+        aggregate.break_invariant
+        repository.add_aggregate(aggregate)
+        repository.commit(DummyCommand.new)
+
+        expect(violations).to match([[aggregate, an_instance_of(InvariantViolated), :commit]])
+        expect(Sequent.configuration.event_store.stream_exists?(aggregate.id)).to be_truthy
+      end
+
+      it 'passes a violation on load to the configured handler' do
+        store_broken_aggregate
+        violations = []
+        Sequent.configuration.aggregate_invariant_violation_handler = ->(aggregate, exception, phase) do
+          violations << [aggregate, exception, phase]
+        end
+
+        loaded = repository.load_aggregate(aggregate.id)
+
+        expect(violations).to match([[loaded, an_instance_of(InvariantViolated), :load]])
+      end
+    end
+
     context '#load_aggregate_for_snapshotting' do
       it 'loads the aggregate' do
         dummy_aggregate = DummyAggregate3.new(Sequent.new_uuid)

@@ -114,6 +114,10 @@ module Sequent
         "#{self.class.name}: #{@id}"
       end
 
+      # Override to raise when the state of this aggregate is invalid. The AggregateRepository calls it after loading
+      # the aggregate from the event store and before committing its uncommitted events.
+      def invariants!; end
+
       def event_stream
         EventStream.new(
           aggregate_type: self.class.name,

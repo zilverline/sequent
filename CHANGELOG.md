@@ -1,5 +1,15 @@
 # Changelog 9.x
 
+- The `AggregateRepository` calls `invariants!` on an aggregate
+  after loading it from the event store and before committing its
+  uncommitted events. `AggregateRoot#invariants!` does nothing; an
+  aggregate overrides it to check its state. An exception raised by
+  `invariants!` is passed, with the aggregate and `:load` or
+  `:commit`, to the configurable `aggregate_invariant_violation_handler`,
+  which by default raises an `AggregateInvariantViolationError` with
+  the aggregate type, id and phase and the original exception as its
+  cause.
+
 - Sequent now supports zero-downtime deployments (rolling
   upgrades). To enable this feature you must use the
   `ActiveProjectorsEventPublisher` to ensure events are only published
