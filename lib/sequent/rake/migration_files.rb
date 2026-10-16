@@ -7,7 +7,7 @@ module Sequent
 
       def copy(to)
         FileUtils.mkdir_p(to)
-        now = Time.current.strftime('%Y%m%d%H%M%S')
+        now = Time.current
         current_entries = current_migration_files(to)
 
         Dir
@@ -23,7 +23,7 @@ module Sequent
               _timestamp, *file_parts = file.split('_')
               next if current_entries.include?(file_parts.join('_'))
 
-              file_name = [(now.to_i + index).to_s, *file_parts].join('_')
+              file_name = [(now + index).strftime('%Y%m%d%H%M%S'), *file_parts].join('_')
               destination_file_name = File.join(to, file_name)
               FileUtils.cp(full_file_name, destination_file_name, preserve: true, verbose: true)
             end
