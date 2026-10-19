@@ -224,35 +224,42 @@ CREATE FUNCTION sequent_schema.load_events(_aggregate_ids jsonb, _use_snapshots 
     AS $$
 DECLARE
   _aggregate_id aggregates.aggregate_id%TYPE;
+  _aggregate_type aggregate_types.type%TYPE;
+  _events_partition_key aggregates.events_partition_key%TYPE;
 BEGIN
   FOR _aggregate_id IN SELECT * FROM jsonb_array_elements_text(_aggregate_ids) LOOP
-    -- Use a single query to avoid race condition with UPDATEs to the events partition key
-    -- in case transaction isolation level is lower than repeatable read (the default of
-    -- PostgreSQL is read committed).
+    -- Changing the events partition key updates a key referenced by the events, which needs a
+    -- FOR UPDATE lock on the aggregate. FOR KEY SHARE blocks that change until the events are
+    -- loaded, without waiting for transactions that only append events (FOR NO KEY UPDATE).
+    SELECT aggregate_types.type, aggregates.events_partition_key
+      INTO _aggregate_type, _events_partition_key
+      FROM aggregates
+      JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
+     WHERE aggregate_id = _aggregate_id
+       FOR KEY SHARE OF aggregates;
+
+    CONTINUE WHEN NOT FOUND;
+
     RETURN QUERY WITH
-      aggregate AS MATERIALIZED (
-        SELECT aggregate_types.type, aggregate_id, events_partition_key
-          FROM aggregates
-          JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
-         WHERE aggregate_id = _aggregate_id
-      ),
       snapshot AS MATERIALIZED (
         SELECT s.*
-          FROM snapshot_records s JOIN aggregate ON s.aggregate_id = aggregate.aggregate_id
+          FROM snapshot_records s
          WHERE _use_snapshots
            AND s.aggregate_id = _aggregate_id
            AND (_until IS NULL OR created_at < _until)
-           AND snapshot_version = COALESCE((_snapshot_version_by_type->(aggregate.type))::integer, 1)
+           AND snapshot_version = COALESCE((_snapshot_version_by_type->_aggregate_type)::integer, 1)
          ORDER BY s.sequence_number DESC LIMIT 1
       )
-    SELECT a.*, 0 AS sequence_number, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s
+    SELECT _aggregate_type, _aggregate_id, _events_partition_key, 0 AS sequence_number, s.snapshot_type, s.snapshot_json
+      FROM snapshot s
     UNION ALL
-    SELECT a.*, e.sequence_number, event_types.type, enrich_event_json(e)
-       FROM aggregate a
-       JOIN events e ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
-       JOIN event_types ON e.event_type_id = event_types.id
-      WHERE e.sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
-        AND (_until IS NULL OR e.created_at < _until)
+    SELECT _aggregate_type, _aggregate_id, _events_partition_key, e.sequence_number, event_types.type, enrich_event_json(e)
+      FROM events e
+      JOIN event_types ON e.event_type_id = event_types.id
+     WHERE e.partition_key = _events_partition_key
+       AND e.aggregate_id = _aggregate_id
+       AND e.sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
+       AND (_until IS NULL OR e.created_at < _until)
     ORDER BY sequence_number ASC;
   END LOOP;
 END;
@@ -1613,6 +1620,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261019170000'),
 ('20260925120000'),
 ('20260610094300'),
 ('20260226121600'),

@@ -1,5 +1,12 @@
 # Changelog 9.x
 
+- `load_events` looks up an aggregate's events partition key first,
+  locking the aggregate `FOR KEY SHARE`, and then queries the events
+  with that key as a parameter. A custom plan can now prune the
+  events partitions while planning. Applying partition key changes
+  skips aggregates that another transaction has locked instead of
+  waiting for them.
+
 - Sequent requires PostgreSQL 16.13 or later.
 
 - The `AggregateRepository` calls `invariants!` on an aggregate

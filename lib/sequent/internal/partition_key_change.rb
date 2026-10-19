@@ -36,7 +36,12 @@ module Sequent
               end
             end
 
-            change = PartitionKeyChange.lock('FOR UPDATE SKIP LOCKED').first
+            # Also lock the aggregate, skipping one that a transaction is loading or appending events to
+            # instead of waiting for it.
+            change = PartitionKeyChange
+              .joins(:partitioned_aggregate)
+              .lock('FOR UPDATE OF partition_key_changes, aggregates SKIP LOCKED')
+              .first
             return count unless change
 
             count += 1

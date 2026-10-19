@@ -93,6 +93,34 @@ module Sequent
           expect(events.size).to eq(2)
           expect(events).to all(have_attributes(partition_key: updated_events_partition_key))
         end
+
+        it 'skips an aggregate whose events another transaction is loading' do
+          loading = Queue.new
+          finish_loading = Queue.new
+          loader = Thread.new do
+            ActiveRecord::Base.connection_pool.with_connection do |connection|
+              connection.transaction do
+                connection.select_all(
+                  "SELECT * FROM load_events(#{connection.quote([aggregate_id].to_json)}::jsonb)",
+                )
+                loading << true
+                finish_loading.pop
+              end
+            end
+          end
+          loading.pop
+
+          expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(0)
+          expect(PartitionKeyChange.find_by(aggregate_id:)).to be_present
+
+          finish_loading << true
+          loader.join
+
+          expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(1)
+        ensure
+          finish_loading << true
+          loader&.join
+        end
       end
     end
   end
