@@ -175,7 +175,7 @@ PARTITION BY RANGE (partition_key);
 --
 
 CREATE FUNCTION sequent_schema.enrich_event_json(event sequent_schema.events) RETURNS jsonb
-    LANGUAGE plpgsql STRICT
+    LANGUAGE plpgsql STABLE STRICT
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
@@ -219,7 +219,7 @@ $$;
 --
 
 CREATE FUNCTION sequent_schema.load_events(_aggregate_ids jsonb, _use_snapshots boolean DEFAULT true, _until timestamp with time zone DEFAULT NULL::timestamp with time zone, _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS SETOF sequent_schema.aggregate_event_type
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
@@ -228,15 +228,11 @@ DECLARE
   _events_partition_key aggregates.events_partition_key%TYPE;
 BEGIN
   FOR _aggregate_id IN SELECT * FROM jsonb_array_elements_text(_aggregate_ids) LOOP
-    -- Changing the events partition key updates a key referenced by the events, which needs a
-    -- FOR UPDATE lock on the aggregate. FOR KEY SHARE blocks that change until the events are
-    -- loaded, without waiting for transactions that only append events (FOR NO KEY UPDATE).
     SELECT aggregate_types.type, aggregates.events_partition_key
       INTO _aggregate_type, _events_partition_key
       FROM aggregates
       JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
-     WHERE aggregate_id = _aggregate_id
-       FOR KEY SHARE OF aggregates;
+     WHERE aggregate_id = _aggregate_id;
 
     CONTINUE WHEN NOT FOUND;
 

@@ -94,32 +94,48 @@ module Sequent
           expect(events).to all(have_attributes(partition_key: updated_events_partition_key))
         end
 
-        it 'skips an aggregate whose events another transaction is loading' do
-          loading = Queue.new
-          finish_loading = Queue.new
-          loader = Thread.new do
+        def while_another_transaction_runs(sql)
+          started = Queue.new
+          finish = Queue.new
+          other = Thread.new do
             ActiveRecord::Base.connection_pool.with_connection do |connection|
               connection.transaction do
-                connection.select_all(
-                  "SELECT * FROM load_events(#{connection.quote([aggregate_id].to_json)}::jsonb)",
-                )
-                loading << true
-                finish_loading.pop
+                connection.execute(sql)
+                started << true
+                finish.pop
               end
             end
           end
-          loading.pop
+          started.pop
+          yield
+        ensure
+          finish << true
+          other&.join
+        end
 
-          expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(0)
-          expect(PartitionKeyChange.find_by(aggregate_id:)).to be_present
-
-          finish_loading << true
-          loader.join
+        it 'skips an aggregate that a command is appending events to' do
+          while_another_transaction_runs(
+            "SELECT 1 FROM aggregates WHERE aggregate_id = '#{aggregate_id}' FOR NO KEY UPDATE",
+          ) do
+            expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(0)
+            expect(PartitionKeyChange.find_by(aggregate_id:)).to be_present
+          end
 
           expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(1)
-        ensure
-          finish_loading << true
-          loader&.join
+        end
+
+        it 'loads the events while a partition key change is uncommitted' do
+          while_another_transaction_runs(
+            "UPDATE aggregates SET events_partition_key = '#{updated_events_partition_key}' " \
+            "WHERE aggregate_id = '#{aggregate_id}'",
+          ) do
+            ActiveRecord::Base.transaction do
+              ActiveRecord::Base.connection.execute("SET LOCAL statement_timeout = '5s'")
+              _, events = event_store.load_events(aggregate_id)
+
+              expect(events.map(&:sequence_number)).to eq([1, 2])
+            end
+          end
         end
       end
     end

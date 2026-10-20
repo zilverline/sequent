@@ -3,6 +3,7 @@
 class SequentLoadEventsByPartitionKey < ActiveRecord::Migration[7.2]
   def up
     Sequent::Support::Database.with_search_path(Sequent.configuration.event_store_schema_name) do
+      execute_sql_file 'enrich_event_json', version: 2
       execute_sql_file 'load_events', version: 3
     end
   end
@@ -10,6 +11,7 @@ class SequentLoadEventsByPartitionKey < ActiveRecord::Migration[7.2]
   def down
     Sequent::Support::Database.with_search_path(Sequent.configuration.event_store_schema_name) do
       execute_sql_file 'load_events', version: 2
+      execute_sql_file 'enrich_event_json', version: 1
     end
   end
 
