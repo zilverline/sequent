@@ -4,9 +4,13 @@
   then queries the events with that key as a parameter, so a custom
   plan can prune the events partitions while planning. It is now
   `STABLE`, which runs both queries against the same snapshot.
-  `enrich_event_json` is `STABLE` as well. Applying partition key
-  changes skips aggregates that another transaction has locked instead
-  of waiting for them.
+  `load_event` loads by partition key the same way. The other read-only
+  functions (`load_latest_snapshot`, `aggregates_that_need_snapshots`,
+  `enrich_event_json` and `enrich_command_json`) are `STABLE` too, and
+  the two `enrich_*` functions are `PARALLEL SAFE`, so queries over the
+  `event_records` and `command_records` views can use parallel workers.
+  Applying partition key changes skips aggregates that another
+  transaction has locked instead of waiting for them.
 
 - Sequent requires PostgreSQL 16.13 or later.
 
