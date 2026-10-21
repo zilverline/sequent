@@ -1,5 +1,20 @@
 # Changelog 9.x
 
+- `load_events` looks up an aggregate's events partition key first and
+  then queries the events with that key as a parameter, so a custom
+  plan can prune the events partitions while planning. It is now
+  `STABLE`, which runs both queries against the same snapshot. It
+  returns the snapshot and the events after it from separate
+  statements, so the events come straight from the index in sequence
+  number order instead of being sorted together with the snapshot.
+  `load_event` loads by partition key the same way. The other read-only
+  functions (`load_latest_snapshot`, `aggregates_that_need_snapshots`,
+  `enrich_event_json` and `enrich_command_json`) are `STABLE` too, and
+  the two `enrich_*` functions are `PARALLEL SAFE`, so queries over the
+  `event_records` and `command_records` views can use parallel workers.
+  Applying partition key changes skips aggregates that another
+  transaction has locked instead of waiting for them.
+
 - Sequent requires PostgreSQL 16.13 or later.
 
 - The `AggregateRepository` calls `invariants!` on an aggregate

@@ -93,6 +93,53 @@ module Sequent
           expect(events.size).to eq(2)
           expect(events).to all(have_attributes(partition_key: updated_events_partition_key))
         end
+
+        def while_another_transaction_runs(sql)
+          started = Queue.new
+          finish = Queue.new
+          other = Thread.new do
+            Thread.current.report_on_exception = false
+            ActiveRecord::Base.connection_pool.with_connection do |connection|
+              connection.transaction do
+                connection.execute(sql)
+                started << true
+                finish.pop
+              end
+            end
+          ensure
+            started << false
+          end
+          other.value unless started.pop
+          yield
+        ensure
+          finish << true
+          other&.join
+        end
+
+        it 'skips an aggregate that a command is appending events to' do
+          while_another_transaction_runs(
+            "SELECT 1 FROM aggregates WHERE aggregate_id = '#{aggregate_id}' FOR NO KEY UPDATE",
+          ) do
+            expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(0)
+            expect(PartitionKeyChange.find_by(aggregate_id:)).to be_present
+          end
+
+          expect(PartitionKeyChange.update_aggregate_partition_keys(limit: 10)).to eq(1)
+        end
+
+        it 'loads the events while a partition key change is uncommitted' do
+          while_another_transaction_runs(
+            "UPDATE aggregates SET events_partition_key = '#{updated_events_partition_key}' " \
+            "WHERE aggregate_id = '#{aggregate_id}'",
+          ) do
+            ActiveRecord::Base.transaction do
+              ActiveRecord::Base.connection.execute("SET LOCAL statement_timeout = '5s'")
+              _, events = event_store.load_events(aggregate_id)
+
+              expect(events.map(&:sequence_number)).to eq([1, 2])
+            end
+          end
+        end
       end
     end
   end

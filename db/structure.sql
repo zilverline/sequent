@@ -49,7 +49,7 @@ CREATE TYPE sequent_schema.aggregate_event_type AS (
 --
 
 CREATE FUNCTION sequent_schema.aggregates_that_need_snapshots(_last_aggregate_id uuid, _limit integer, _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS TABLE(aggregate_id uuid)
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
@@ -136,7 +136,7 @@ PARTITION BY RANGE (id);
 --
 
 CREATE FUNCTION sequent_schema.enrich_command_json(command sequent_schema.commands) RETURNS jsonb
-    LANGUAGE plpgsql STRICT
+    LANGUAGE plpgsql STABLE STRICT PARALLEL SAFE
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
@@ -175,7 +175,7 @@ PARTITION BY RANGE (partition_key);
 --
 
 CREATE FUNCTION sequent_schema.enrich_event_json(event sequent_schema.events) RETURNS jsonb
-    LANGUAGE plpgsql STRICT
+    LANGUAGE plpgsql STABLE STRICT PARALLEL SAFE
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
@@ -194,21 +194,28 @@ $$;
 --
 
 CREATE FUNCTION sequent_schema.load_event(_aggregate_id uuid, _sequence_number integer) RETURNS SETOF sequent_schema.aggregate_event_type
-    LANGUAGE plpgsql STRICT
+    LANGUAGE plpgsql STABLE STRICT
     SET search_path TO 'sequent_schema'
     AS $$
+DECLARE
+  _aggregate_type aggregate_types.type%TYPE;
+  _events_partition_key aggregates.events_partition_key%TYPE;
 BEGIN
-  RETURN QUERY SELECT aggregate_types.type,
-         a.aggregate_id,
-         a.events_partition_key,
-         e.sequence_number,
-         event_types.type,
-         enrich_event_json(e)
-    FROM aggregates a
-        INNER JOIN events e ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
-        INNER JOIN aggregate_types ON a.aggregate_type_id = aggregate_types.id
-        INNER JOIN event_types ON e.event_type_id = event_types.id
-   WHERE a.aggregate_id = _aggregate_id
+  SELECT aggregate_types.type, aggregates.events_partition_key
+    INTO _aggregate_type, _events_partition_key
+    FROM aggregates
+    JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
+   WHERE aggregate_id = _aggregate_id;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY SELECT _aggregate_type, _aggregate_id, _events_partition_key, e.sequence_number, event_types.type, enrich_event_json(e)
+    FROM events e
+    JOIN event_types ON e.event_type_id = event_types.id
+   WHERE e.partition_key = _events_partition_key
+     AND e.aggregate_id = _aggregate_id
      AND e.sequence_number = _sequence_number;
 END;
 $$;
@@ -219,41 +226,56 @@ $$;
 --
 
 CREATE FUNCTION sequent_schema.load_events(_aggregate_ids jsonb, _use_snapshots boolean DEFAULT true, _until timestamp with time zone DEFAULT NULL::timestamp with time zone, _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS SETOF sequent_schema.aggregate_event_type
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql STABLE
     SET search_path TO 'sequent_schema'
     AS $$
 DECLARE
   _aggregate_id aggregates.aggregate_id%TYPE;
+  _aggregate_type aggregate_types.type%TYPE;
+  _events_partition_key aggregates.events_partition_key%TYPE;
+  _snapshot_sequence_number snapshot_records.sequence_number%TYPE;
+  _snapshot_type snapshot_records.snapshot_type%TYPE;
+  _snapshot_json snapshot_records.snapshot_json%TYPE;
 BEGIN
   FOR _aggregate_id IN SELECT * FROM jsonb_array_elements_text(_aggregate_ids) LOOP
-    -- Use a single query to avoid race condition with UPDATEs to the events partition key
-    -- in case transaction isolation level is lower than repeatable read (the default of
-    -- PostgreSQL is read committed).
-    RETURN QUERY WITH
-      aggregate AS MATERIALIZED (
-        SELECT aggregate_types.type, aggregate_id, events_partition_key
-          FROM aggregates
-          JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
-         WHERE aggregate_id = _aggregate_id
-      ),
-      snapshot AS MATERIALIZED (
-        SELECT s.*
-          FROM snapshot_records s JOIN aggregate ON s.aggregate_id = aggregate.aggregate_id
-         WHERE _use_snapshots
-           AND s.aggregate_id = _aggregate_id
-           AND (_until IS NULL OR created_at < _until)
-           AND snapshot_version = COALESCE((_snapshot_version_by_type->(aggregate.type))::integer, 1)
-         ORDER BY s.sequence_number DESC LIMIT 1
-      )
-    SELECT a.*, 0 AS sequence_number, s.snapshot_type, s.snapshot_json FROM aggregate a, snapshot s
-    UNION ALL
-    SELECT a.*, e.sequence_number, event_types.type, enrich_event_json(e)
-       FROM aggregate a
-       JOIN events e ON (a.events_partition_key, a.aggregate_id) = (e.partition_key, e.aggregate_id)
-       JOIN event_types ON e.event_type_id = event_types.id
-      WHERE e.sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
-        AND (_until IS NULL OR e.created_at < _until)
-    ORDER BY sequence_number ASC;
+    SELECT aggregate_types.type, aggregates.events_partition_key
+      INTO _aggregate_type, _events_partition_key
+      FROM aggregates
+      JOIN aggregate_types ON aggregate_type_id = aggregate_types.id
+     WHERE aggregate_id = _aggregate_id;
+
+    CONTINUE WHEN NOT FOUND;
+
+    _snapshot_sequence_number := 0;
+    IF _use_snapshots THEN
+      SELECT s.sequence_number, s.snapshot_type, s.snapshot_json
+        INTO _snapshot_sequence_number, _snapshot_type, _snapshot_json
+        FROM snapshot_records s
+       WHERE s.aggregate_id = _aggregate_id
+         AND (_until IS NULL OR s.created_at < _until)
+         AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>_aggregate_type)::integer, 1)
+       ORDER BY s.sequence_number DESC
+       LIMIT 1;
+
+      IF FOUND THEN
+        RETURN NEXT (_aggregate_type, _aggregate_id, _events_partition_key, 0, _snapshot_type, _snapshot_json)::aggregate_event_type;
+      ELSE
+        _snapshot_sequence_number := 0;
+      END IF;
+    END IF;
+
+    -- The scalar subquery keeps the events in index order; a join with event_types lets a generic plan
+    -- choose a hash join, which then needs a sort.
+    RETURN QUERY
+    SELECT _aggregate_type, _aggregate_id, _events_partition_key, e.sequence_number,
+           (SELECT event_types.type FROM event_types WHERE event_types.id = e.event_type_id),
+           enrich_event_json(e)
+      FROM events e
+     WHERE e.partition_key = _events_partition_key
+       AND e.aggregate_id = _aggregate_id
+       AND e.sequence_number >= _snapshot_sequence_number
+       AND (_until IS NULL OR e.created_at < _until)
+     ORDER BY e.sequence_number ASC;
   END LOOP;
 END;
 $$;
@@ -264,7 +286,7 @@ $$;
 --
 
 CREATE FUNCTION sequent_schema.load_latest_snapshot(_aggregate_id uuid, _snapshot_version_by_type jsonb DEFAULT '{}'::jsonb) RETURNS sequent_schema.aggregate_event_type
-    LANGUAGE sql
+    LANGUAGE sql STABLE
     SET search_path TO 'sequent_schema'
     AS $$
   SELECT t.type,
@@ -1613,6 +1635,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261019170000'),
 ('20260925120000'),
 ('20260610094300'),
 ('20260226121600'),
