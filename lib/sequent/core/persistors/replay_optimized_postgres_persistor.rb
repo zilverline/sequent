@@ -115,7 +115,7 @@ module Sequent
             @indexes.each do |field, index|
               key = @reverse_indexes[field].delete(record)
               remaining = index[key]&.delete(record)
-              index.delete(key) if remaining&.empty?
+              index.delete(key) if remaining && remaining.empty?
             end
           end
 

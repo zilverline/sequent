@@ -7,11 +7,10 @@ describe Sequent::Configuration do
 
   context Sequent::Core::BaseCommandHandler do
     class SpecHandler < Sequent::Core::BaseCommandHandler
-      # rubocop:disable Lint/UselessMethodDefinition
+      # rubocop:disable-next Lint/UselessMethodDefinition
       def repository
         super
       end
-      # rubocop:enable Lint/UselessMethodDefinition
     end
     let(:spec_handler) { SpecHandler.new }
 

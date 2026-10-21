@@ -43,12 +43,11 @@ module Sequent
           @events = []
         end
 
-        # rubocop:disable Style/MissingRespondToMissing
+        # rubocop:disable-next Style/MissingRespondToMissing
         def method_missing(name, *args, &block)
           args = prepare_arguments(args)
           @events << FactoryBot.build(name, *args, &block)
         end
-        # rubocop:enable Style/MissingRespondToMissing
 
         private
 

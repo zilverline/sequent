@@ -32,6 +32,7 @@ RSpec.configure do |c|
 
     Timecop.return
     Sequent::Configuration.reset
+    Sequent.aggregate_repository.clear
 
     Sequent::Support::Database.disconnect!
     ActiveRecord::Base.configurations = {env => Database.test_config}

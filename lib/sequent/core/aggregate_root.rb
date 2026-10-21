@@ -62,9 +62,8 @@ module Sequent
             fail "incompatible snapshot version #{first.snapshot_version}, expected #{snapshot_version}"
           end
 
-          # rubocop:disable Security/MarshalLoad
+          # rubocop:disable-next Security/MarshalLoad
           aggregate_root = Marshal.load(Base64.decode64(first.data))
-          # rubocop:enable Security/MarshalLoad
           aggregate_root.latest_snapshot_sequence_number = first.sequence_number
           rest.each { |x| aggregate_root.apply_event(x) }
         else

@@ -20,9 +20,8 @@ module Sequent
         super
 
         match = message.match(
-          # rubocop:disable Layout/LineLength
+          # rubocop:disable-next Layout/LineLength
           /aggregate (\p{Upper}\p{Alnum}*(?:::\p{Upper}\p{Alnum}*)*) (\p{XDigit}{8}-\p{XDigit}{4}-\p{XDigit}{4}-\p{XDigit}{4}-\p{XDigit}{12})/,
-          # rubocop:enable Layout/LineLength
         )
         if match
           @aggregate_type = match[1]
