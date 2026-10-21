@@ -18,6 +18,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -47,9 +49,9 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
@@ -66,18 +68,21 @@ jobs:
 
   rubocop:
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      checks: write
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/ar_8_1.gemfile
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: '4.0'
           bundler-cache: true
       - name: rubocop
-        uses: reviewdog/action-rubocop@v2
+        uses: reviewdog/action-rubocop@b6d5e953a5fc0bf3ab65254e77730ea2174d6d6d # v2.22.0
         with:
           skip_install: true
           use_bundler: true
@@ -86,11 +91,13 @@ jobs:
 
   integration_simple:
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: '3.2'
           bundler-cache: true
@@ -104,6 +111,8 @@ jobs:
     env:
       POSTGRES_DB: sequent_integration_test_db
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16.13
@@ -120,9 +129,9 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: '3.2'
           bundler-cache: true
