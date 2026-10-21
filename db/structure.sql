@@ -233,6 +233,9 @@ DECLARE
   _aggregate_id aggregates.aggregate_id%TYPE;
   _aggregate_type aggregate_types.type%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
+  _snapshot_sequence_number snapshot_records.sequence_number%TYPE;
+  _snapshot_type snapshot_records.snapshot_type%TYPE;
+  _snapshot_json snapshot_records.snapshot_json%TYPE;
 BEGIN
   FOR _aggregate_id IN SELECT * FROM jsonb_array_elements_text(_aggregate_ids) LOOP
     SELECT aggregate_types.type, aggregates.events_partition_key
@@ -243,27 +246,36 @@ BEGIN
 
     CONTINUE WHEN NOT FOUND;
 
-    RETURN QUERY WITH
-      snapshot AS MATERIALIZED (
-        SELECT s.*
-          FROM snapshot_records s
-         WHERE _use_snapshots
-           AND s.aggregate_id = _aggregate_id
-           AND (_until IS NULL OR created_at < _until)
-           AND snapshot_version = COALESCE((_snapshot_version_by_type->_aggregate_type)::integer, 1)
-         ORDER BY s.sequence_number DESC LIMIT 1
-      )
-    SELECT _aggregate_type, _aggregate_id, _events_partition_key, 0 AS sequence_number, s.snapshot_type, s.snapshot_json
-      FROM snapshot s
-    UNION ALL
-    SELECT _aggregate_type, _aggregate_id, _events_partition_key, e.sequence_number, event_types.type, enrich_event_json(e)
+    _snapshot_sequence_number := 0;
+    IF _use_snapshots THEN
+      SELECT s.sequence_number, s.snapshot_type, s.snapshot_json
+        INTO _snapshot_sequence_number, _snapshot_type, _snapshot_json
+        FROM snapshot_records s
+       WHERE s.aggregate_id = _aggregate_id
+         AND (_until IS NULL OR s.created_at < _until)
+         AND s.snapshot_version = COALESCE((_snapshot_version_by_type->_aggregate_type)::integer, 1)
+       ORDER BY s.sequence_number DESC
+       LIMIT 1;
+
+      IF FOUND THEN
+        RETURN NEXT (_aggregate_type, _aggregate_id, _events_partition_key, 0, _snapshot_type, _snapshot_json)::aggregate_event_type;
+      ELSE
+        _snapshot_sequence_number := 0;
+      END IF;
+    END IF;
+
+    -- The scalar subquery keeps the events in index order; a join with event_types lets a generic plan
+    -- choose a hash join, which then needs a sort.
+    RETURN QUERY
+    SELECT _aggregate_type, _aggregate_id, _events_partition_key, e.sequence_number,
+           (SELECT event_types.type FROM event_types WHERE event_types.id = e.event_type_id),
+           enrich_event_json(e)
       FROM events e
-      JOIN event_types ON e.event_type_id = event_types.id
      WHERE e.partition_key = _events_partition_key
        AND e.aggregate_id = _aggregate_id
-       AND e.sequence_number >= COALESCE((SELECT sequence_number FROM snapshot), 0)
+       AND e.sequence_number >= _snapshot_sequence_number
        AND (_until IS NULL OR e.created_at < _until)
-    ORDER BY sequence_number ASC;
+     ORDER BY e.sequence_number ASC;
   END LOOP;
 END;
 $$;
