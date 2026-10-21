@@ -98,6 +98,7 @@ module Sequent
           started = Queue.new
           finish = Queue.new
           other = Thread.new do
+            Thread.current.report_on_exception = false
             ActiveRecord::Base.connection_pool.with_connection do |connection|
               connection.transaction do
                 connection.execute(sql)
@@ -105,8 +106,10 @@ module Sequent
                 finish.pop
               end
             end
+          ensure
+            started << false
           end
-          started.pop
+          other.value unless started.pop
           yield
         ensure
           finish << true
