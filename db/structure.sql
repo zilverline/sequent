@@ -253,7 +253,7 @@ BEGIN
         FROM snapshot_records s
        WHERE s.aggregate_id = _aggregate_id
          AND (_until IS NULL OR s.created_at < _until)
-         AND s.snapshot_version = COALESCE((_snapshot_version_by_type->_aggregate_type)::integer, 1)
+         AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>_aggregate_type)::integer, 1)
        ORDER BY s.sequence_number DESC
        LIMIT 1;
 
