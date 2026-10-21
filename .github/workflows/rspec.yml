@@ -63,11 +63,24 @@ jobs:
           bundle exec rake sequent:db:drop sequent:db:create
       - name: Run tests
         run: bundle exec rspec --order random
+
+  rubocop:
+    runs-on: ubuntu-26.04
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/ar_8_1.gemfile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
       - name: rubocop
         uses: reviewdog/action-rubocop@v2
         with:
-          rubocop_version: gemfile
-          rubocop_extensions: ''
+          skip_install: true
+          use_bundler: true
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-check
 

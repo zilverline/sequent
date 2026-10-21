@@ -537,11 +537,10 @@ module Sequent
 
       private
 
-      # rubocop:disable Naming/MemoizedInstanceVariableName
+      # rubocop:disable-next Naming/MemoizedInstanceVariableName
       def ensure_sequent_env_set!
         @env ||= Sequent.env || fail('SEQUENT_ENV not set')
       end
-      # rubocop:enable Naming/MemoizedInstanceVariableName
 
       def show_replay_state(replay_state)
         next_actions = case replay_state.state

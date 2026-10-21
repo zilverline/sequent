@@ -20,12 +20,11 @@ module Sequent
           end
 
           def to_s
-            # rubocop:disable Layout/LineEndStringConcatenationIndentation
+            # rubocop:disable-next Layout/LineEndStringConcatenationIndentation
             'has_attrs(' \
               "#{MessageMatchers::ArgumentSerializer.serialize_value(message_matcher)}, " \
               "#{AttrMatchers::ArgumentSerializer.serialize_value(expected_attrs)}" \
             ')'
-            # rubocop:enable Layout/LineEndStringConcatenationIndentation
           end
 
           private

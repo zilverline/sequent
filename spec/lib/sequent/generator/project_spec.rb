@@ -100,9 +100,8 @@ describe Sequent::Generator::Project do
         bundle exec rspec spec
       SCRIPT
 
-      # rubocop:disable Style/SpecialGlobalVars
+      # rubocop:disable-next Style/SpecialGlobalVars
       expect($?.to_i).to eq(0)
-      # rubocop:enable Style/SpecialGlobalVars
     end
   end
 end
