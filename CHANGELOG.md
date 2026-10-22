@@ -1,5 +1,12 @@
 # Changelog 9.x
 
+- Replaying projectors keeps the extended statistics objects
+  (`CREATE STATISTICS`) of the managed tables. They are copied to the
+  replay schema when preparing, so `ANALYZE` fills them before
+  activation, and moved along with their tables when activating.
+  Before, `pg_dump --table` left them out of the replay schema and
+  `ALTER TABLE ... SET SCHEMA` left them behind on the archived tables.
+
 - `load_events` looks up an aggregate's events partition key first and
   then queries the events with that key as a parameter, so a custom
   plan can prune the events partitions while planning. It is now

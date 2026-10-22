@@ -33,6 +33,8 @@ module Sequent
 
       attr_reader :projector_classes, :managed_tables, :state
 
+      STATISTICS_KINDS = {'d' => 'ndistinct', 'f' => 'dependencies', 'm' => 'mcv'}.freeze
+
       def_delegators :connection, :exec_update, :exec_query, :quote_column_name, :quote_string, :quote_table_name
 
       def initialize(state:)
@@ -102,6 +104,8 @@ module Sequent
           verify_state 'preparing for replay can only be performed when', 'created'
 
           Sequent::Core::Projectors.register_replaying_projectors!(projector_classes)
+
+          copy_statistics_objects_to_replay_schema
 
           @state.index_definitions = query_index_definitions
           @state.table_cluster_indexes = query_table_cluster_indexes
@@ -341,9 +345,16 @@ module Sequent
         managed_relations(from_schema_name).each do |table_name|
           tables = [table_name, *query_partition_names(from_schema_name, table_name)]
           tables.each do |name|
+            # Moving a table leaves its extended statistics objects behind in the old schema.
+            statistics_names = query_statistics_objects(from_schema_name, name).pluck('name')
             log_and_exec_update(<<~SQL, 'move_table')
               ALTER TABLE IF EXISTS #{quote_table_name(from_schema_name)}.#{quote_table_name(name)} SET SCHEMA #{quote_table_name(to_schema_name)}
             SQL
+            statistics_names.each do |statistics_name|
+              log_and_exec_update(<<~SQL, 'move_statistics')
+                ALTER STATISTICS #{quote_table_name(from_schema_name)}.#{quote_table_name(statistics_name)} SET SCHEMA #{quote_table_name(to_schema_name)}
+              SQL
+            end
           end
         end
       end
@@ -511,6 +522,44 @@ module Sequent
             'analyze table',
           )
         end
+      end
+
+      # `pg_dump --table` does not dump the extended statistics objects of a table, so they are copied separately.
+      def copy_statistics_objects_to_replay_schema
+        managed_relations(view_schema_name).each do |relation_name|
+          [relation_name, *query_partition_names(view_schema_name, relation_name)].each do |table_name|
+            query_statistics_objects(view_schema_name, table_name).each do |statistics|
+              name = "#{quoted_replay_schema_name}.#{quote_table_name(statistics['name'])}"
+              kinds = statistics['kinds'].chars.filter_map { |kind| STATISTICS_KINDS[kind] }
+              log_and_exec_update(<<~SQL, 'create_statistics')
+                CREATE STATISTICS #{name} #{"(#{kinds.join(', ')})" if kinds.any?}
+                    ON #{statistics['columns']}
+                  FROM #{quoted_replay_schema_name}.#{quote_table_name(table_name)}
+              SQL
+
+              target = statistics['statistics_target']
+              if target.present? && target.to_i >= 0
+                log_and_exec_update("ALTER STATISTICS #{name} SET STATISTICS #{target.to_i}", 'set_statistics_target')
+              end
+            end
+          end
+        end
+      end
+
+      def query_statistics_objects(schema_name, table_name)
+        exec_query(<<~SQL, 'statistics objects', [schema_name, table_name]).to_a
+          SELECT s.stxname AS name,
+                 array_to_string(s.stxkind, '') AS kinds,
+                 pg_catalog.pg_get_statisticsobjdef_columns(s.oid) AS columns,
+                 s.stxstattarget AS statistics_target
+            FROM pg_catalog.pg_statistic_ext s
+            JOIN pg_catalog.pg_class c ON c.oid = s.stxrelid
+            JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
+           WHERE ns.nspname = $1
+             AND c.relname = $2
+             AND s.stxnamespace = ns.oid
+           ORDER BY s.stxname
+        SQL
       end
 
       def query_partition_names(schema_name, parent_table_name)
