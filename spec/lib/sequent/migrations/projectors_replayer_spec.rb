@@ -363,6 +363,14 @@ describe Sequent::Migrations::ProjectorsReplayer do
       expect { subject.activate! }
         .to raise_error(/outside their schema \(public\.single_records_public_stat on single_records_p2\)/)
       expect(replay_state).to have_attributes(state: 'optimized')
+
+      exec_update('ALTER STATISTICS public.single_records_public_stat SET SCHEMA view_schema')
+      subject.activate!
+
+      expect(statistics_objects('view_schema')).to include(
+        ['single_records_public_stat', 'view_schema.single_records_p2', 'dfm', -1, 'aggregate_id, name'],
+      )
+      expect(statistics_objects('archive_schema').map(&:first)).to include('single_records_public_stat')
     end
 
     def replay!

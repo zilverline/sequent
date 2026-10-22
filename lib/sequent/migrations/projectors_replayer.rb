@@ -578,8 +578,8 @@ module Sequent
              'publication first, and resynchronize the subscribers after the replay'
       end
 
-      # Statistics objects are copied and moved within their table's schema. One in another schema would stay
-      # behind on the archived table, so the replayed table would silently lose it.
+      # Statistics objects are moved along with their tables only within the table's schema. One in another schema
+      # would stay behind on the archived table, and its copy in the replay schema would be dropped with that schema.
       def verify_statistics_objects_in_table_schema
         misplaced = query_statistics_objects(view_schema_name)
           .reject { |statistics| statistics['schema_name'] == view_schema_name }
@@ -587,14 +587,12 @@ module Sequent
 
         listed = misplaced.map { |row| "#{row['schema_name']}.#{row['name']} on #{row['table_name']}" }.join(', ')
         fail "cannot replay tables with extended statistics objects outside their schema (#{listed}): " \
-             "recreate them in #{view_schema_name}"
+             "move them with ALTER STATISTICS ... SET SCHEMA #{view_schema_name}"
       end
 
       # `pg_dump --table` does not dump the extended statistics objects of a table, so they are copied separately.
       def copy_statistics_objects_to_replay_schema
         query_statistics_objects(view_schema_name).each do |statistics|
-          next unless statistics['schema_name'] == view_schema_name
-
           name = "#{quoted_replay_schema_name}.#{quote_table_name(statistics['name'])}"
           kinds = statistics['kinds'].chars.filter_map { |kind| STATISTICS_KINDS[kind] }
           log_and_exec_update(<<~SQL, 'create_statistics')
