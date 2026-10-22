@@ -345,7 +345,24 @@ describe Sequent::Migrations::ProjectorsReplayer do
       exec_update(<<~SQL)
         CREATE STATISTICS view_schema.single_records_p1_stat ON name, lower(name) FROM view_schema.single_records_p1
       SQL
+      # ANALYZE builds no extended statistics for an empty table, and the aggregate ids decide the partition.
       insert_events(5)
+      insert_events(1) until %w[single_records_p1 single_records_p2].all? do |partition|
+        select_value("SELECT EXISTS (SELECT FROM view_schema.#{partition})")
+      end
+    end
+
+    it 'refuses to activate when a statistics object is outside its table schema' do
+      exec_update(<<~SQL)
+        CREATE STATISTICS public.single_records_public_stat ON aggregate_id, name FROM view_schema.single_records_p2
+      SQL
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      expect { subject.activate! }
+        .to raise_error(/outside their schema \(public\.single_records_public_stat on single_records_p2\)/)
+      expect(replay_state).to have_attributes(state: 'optimized')
     end
 
     def replay!
@@ -426,6 +443,20 @@ describe Sequent::Migrations::ProjectorsReplayer do
       subject.activate!
 
       expect(replay_state).to have_attributes(state: 'live')
+    end
+
+    it 'checks the publications after locking the tables' do
+      insert_events(5)
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      allow(subject).to receive(:lock_view_schema_tables_for_exclusive_access).and_wrap_original do |original|
+        exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_p2')
+        original.call
+      end
+
+      expect { subject.activate! }.to raise_error(/single_records_p2 in replayer_spec_publication/)
     end
 
     it 'replays tables published through their schema' do
