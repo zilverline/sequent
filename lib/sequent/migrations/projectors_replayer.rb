@@ -233,6 +233,7 @@ module Sequent
         with_locked_state do
           verify_state 'going live can only be performed when', 'optimized'
           verify_replaying_projector_versions
+          verify_no_managed_tables_published_by_name
 
           Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
 
@@ -522,6 +523,31 @@ module Sequent
             'analyze table',
           )
         end
+      end
+
+      # A publication that lists a table by name keeps the archived table after activation, so the replayed
+      # table would silently not be published. Copying the membership would not help: subscribers keep the
+      # old rows and need to resynchronize the table anyway. Publications for all tables or for the view
+      # schema include the replayed tables by themselves.
+      def verify_no_managed_tables_published_by_name
+        relations = managed_relations(view_schema_name).flat_map do |relation_name|
+          [relation_name, *query_partition_names(view_schema_name, relation_name)]
+        end
+        published = exec_query(<<~SQL, 'published tables', [view_schema_name]).to_a
+          SELECT p.pubname AS publication_name, c.relname AS table_name
+            FROM pg_catalog.pg_publication_rel pr
+            JOIN pg_catalog.pg_publication p ON p.oid = pr.prpubid
+            JOIN pg_catalog.pg_class c ON c.oid = pr.prrelid
+            JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
+           WHERE ns.nspname = $1
+           ORDER BY 1, 2
+        SQL
+        published = published.select { |row| relations.include?(row['table_name']) }
+        return if published.empty?
+
+        listed = published.map { |row| "#{row['table_name']} in #{row['publication_name']}" }.join(', ')
+        fail "cannot replay tables that a publication lists by name (#{listed}): remove them from the " \
+             'publication first, and resynchronize the subscribers after the replay'
       end
 
       # `pg_dump --table` does not dump the extended statistics objects of a table, so they are copied separately.

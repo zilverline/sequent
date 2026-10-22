@@ -393,6 +393,54 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
+  context 'publications' do
+    after do
+      exec_update('DROP PUBLICATION IF EXISTS replayer_spec_publication')
+    end
+
+    it 'replays but refuses to activate when a publication lists a managed table by name' do
+      exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_p1')
+      insert_events(5)
+
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      expect { subject.activate! }
+        .to raise_error(/publication lists by name \(single_records_p1 in replayer_spec_publication\)/)
+      expect(replay_state).to have_attributes(state: 'optimized')
+    end
+
+    it 'activates once the managed table is removed from the publication' do
+      insert_events(5)
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_base_table')
+
+      expect { subject.activate! }.to raise_error(/single_records_base_table in replayer_spec_publication/)
+      expect(replay_state).to have_attributes(state: 'optimized')
+
+      exec_update('DROP PUBLICATION replayer_spec_publication')
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+    end
+
+    it 'replays tables published through their schema' do
+      exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLES IN SCHEMA view_schema')
+      insert_events(5)
+
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+    end
+  end
+
   def statistics_objects(schema)
     exec_query(<<~SQL, [schema]).rows
       SELECT s.stxname, tn.nspname || '.' || t.relname, array_to_string(s.stxkind, ''), s.stxstattarget,
