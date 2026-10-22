@@ -6,9 +6,9 @@
   activation, and moved along with their tables when activating.
   Before, `pg_dump --table` left them out of the replay schema and
   `ALTER TABLE ... SET SCHEMA` left them behind on the archived tables.
-  Activating fails when a statistics object on a managed table lives in
-  another schema than its table; move it to the view schema with
-  `ALTER STATISTICS ... SET SCHEMA`.
+  Preparing and activating fail when a statistics object on a managed
+  table lives outside the view schema; drop it and recreate it in the
+  view schema before preparing the replay, or after activating it.
 
 - Activating a replay fails when a publication lists a managed table
   by name (`CREATE PUBLICATION ... FOR TABLE`). The publication would

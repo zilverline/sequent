@@ -352,25 +352,33 @@ describe Sequent::Migrations::ProjectorsReplayer do
       end
     end
 
-    it 'refuses to activate when a statistics object is outside its table schema' do
+    def create_statistics_outside_view_schema
       exec_update(<<~SQL)
         CREATE STATISTICS public.single_records_public_stat ON aggregate_id, name FROM view_schema.single_records_p2
       SQL
+    end
+
+    it 'refuses to prepare when a statistics object is outside the view schema' do
+      create_statistics_outside_view_schema
+
+      expect { subject.prepare_for_replay }
+        .to raise_error(/outside the view_schema schema \(public\.single_records_public_stat on single_records_p2\)/)
+      expect(query_schemas).to_not include('replay_schema')
+    end
+
+    it 'refuses to activate when a statistics object outside the view schema was created during the replay' do
       subject.prepare_for_replay
       subject.perform_initial_replay
       subject.prepare_for_activation!
+      create_statistics_outside_view_schema
 
-      expect { subject.activate! }
-        .to raise_error(/outside their schema \(public\.single_records_public_stat on single_records_p2\)/)
+      expect { subject.activate! }.to raise_error(/public\.single_records_public_stat on single_records_p2/)
       expect(replay_state).to have_attributes(state: 'optimized')
 
-      exec_update('ALTER STATISTICS public.single_records_public_stat SET SCHEMA view_schema')
+      exec_update('DROP STATISTICS public.single_records_public_stat')
       subject.activate!
 
-      expect(statistics_objects('view_schema')).to include(
-        ['single_records_public_stat', 'view_schema.single_records_p2', 'dfm', -1, 'aggregate_id, name'],
-      )
-      expect(statistics_objects('archive_schema').map(&:first)).to include('single_records_public_stat')
+      expect(replay_state).to have_attributes(state: 'live')
     end
 
     def replay!

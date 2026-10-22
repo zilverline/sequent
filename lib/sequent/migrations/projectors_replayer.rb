@@ -67,6 +67,7 @@ module Sequent
 
         with_locked_state do
           verify_state 'preparing for replay can only be performed when', 'created'
+          verify_statistics_objects_in_view_schema
 
           log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_replay_schema_name} CASCADE")
           log_and_exec_update("CREATE SCHEMA #{quoted_replay_schema_name}")
@@ -241,7 +242,7 @@ module Sequent
           # Checked after locking: adding a table to a publication or creating statistics on it waits for
           # these locks, so nothing can change in between.
           verify_no_managed_tables_published_by_name
-          verify_statistics_objects_in_table_schema
+          verify_statistics_objects_in_view_schema
 
           event_types = projector_classes.flat_map { |p| p.message_mapping.keys }.uniq.map(&:name)
           event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
@@ -578,21 +579,24 @@ module Sequent
              'publication first, and resynchronize the subscribers after the replay'
       end
 
-      # Statistics objects are moved along with their tables only within the table's schema. One in another schema
-      # would stay behind on the archived table, and its copy in the replay schema would be dropped with that schema.
-      def verify_statistics_objects_in_table_schema
+      # Only statistics objects in the view schema are copied and moved along with their tables. One in another
+      # schema would stay behind on the archived table, so the replayed table would silently lose it.
+      def verify_statistics_objects_in_view_schema
         misplaced = query_statistics_objects(view_schema_name)
           .reject { |statistics| statistics['schema_name'] == view_schema_name }
         return if misplaced.empty?
 
         listed = misplaced.map { |row| "#{row['schema_name']}.#{row['name']} on #{row['table_name']}" }.join(', ')
-        fail "cannot replay tables with extended statistics objects outside their schema (#{listed}): " \
-             "move them with ALTER STATISTICS ... SET SCHEMA #{view_schema_name}"
+        fail "cannot replay tables with extended statistics objects outside the #{view_schema_name} schema " \
+             "(#{listed}): drop them and recreate them in #{view_schema_name} before preparing the replay, " \
+             'or after activating it'
       end
 
       # `pg_dump --table` does not dump the extended statistics objects of a table, so they are copied separately.
       def copy_statistics_objects_to_replay_schema
         query_statistics_objects(view_schema_name).each do |statistics|
+          next unless statistics['schema_name'] == view_schema_name
+
           name = "#{quoted_replay_schema_name}.#{quote_table_name(statistics['name'])}"
           kinds = statistics['kinds'].chars.filter_map { |kind| STATISTICS_KINDS[kind] }
           log_and_exec_update(<<~SQL, 'create_statistics')
