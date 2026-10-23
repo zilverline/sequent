@@ -265,6 +265,63 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
+
+      context 'when all records are deleted again' do
+        let(:insert_csv_size) { 50 }
+
+        it 'commits nothing' do
+          persistor.create_record(ReplayOptimizedPostgresTest, values)
+          persistor.delete_all_records(ReplayOptimizedPostgresTest, name: 'ben')
+
+          expect { persistor.commit }.not_to(change { ReplayOptimizedPostgresTest.count })
+        end
+      end
+    end
+
+    context 'storing values' do
+      let(:insert_csv_size) { 50 }
+      let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
+
+      it 'quotes the table and column names' do
+        Sequent::ApplicationRecord.connection.execute(
+          'ALTER TABLE replay_optimized_postgres_tests ADD COLUMN "order" integer',
+        )
+        ReplayOptimizedPostgresTest.reset_column_information
+
+        persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ben', order: 1, created_at:})
+        persistor.commit
+
+        expect(ReplayOptimizedPostgresTest.pluck(:name, :order)).to eq [['ben', 1]]
+      ensure
+        ReplayOptimizedPostgresTest.reset_column_information
+      end
+
+      it 'stores all values of all records' do
+        persistor.create_records(
+          ReplayOptimizedPostgresTest,
+          [
+            {name: 'bén, "quoted"', initials: %w[b j], created_at:},
+            {name: nil, initials: [], created_at:},
+          ],
+        )
+        persistor.commit
+
+        expect(ReplayOptimizedPostgresTest.order(:name).pluck(:name, :initials, :created_at, :updated_at)).to eq [
+          ['bén, "quoted"', %w[b j], created_at, created_at],
+          [nil, [], created_at, created_at],
+        ]
+      end
+
+      it 'commits as part of the current transaction' do
+        persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ben', created_at:})
+
+        Sequent::ApplicationRecord.transaction do
+          persistor.commit
+          fail ActiveRecord::Rollback
+        end
+
+        expect(ReplayOptimizedPostgresTest.count).to eq 0
+      end
     end
   end
 

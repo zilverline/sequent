@@ -149,6 +149,14 @@
   aggregate that is added but not yet committed is now found, and one
   whose key changed since it was loaded is only found by its new key.
 
+- `ReplayOptimizedPostgresPersistor#commit` loads the records of each
+  table using a single `COPY` statement, also for small numbers of
+  records that used to be inserted using one `INSERT` statement per
+  record. The type of each column is now looked up once per table
+  instead of for every value, which roughly halves the time spent
+  converting the values. The `insert_with_csv_size` argument is no
+  longer used and is deprecated.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.
