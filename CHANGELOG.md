@@ -128,13 +128,13 @@
   aggregate that is added but not yet committed is now found, and one
   whose key changed since it was loaded is only found by its new key.
 
-- `ReplayOptimizedPostgresPersistor#commit` inserts up to
-  `insert_with_csv_size` records of a table using a single multi-row
-  `INSERT` statement (`insert_all!`) instead of one statement per
-  record. Larger numbers of records are still loaded using `COPY`, but
-  the type of each column is now looked up once per table instead of
-  for every value, which roughly halves the time spent converting the
-  values.
+- `ReplayOptimizedPostgresPersistor#commit` loads the records of each
+  table using a single `COPY` statement, also for small numbers of
+  records that used to be inserted using one `INSERT` statement per
+  record. The type of each column is now looked up once per table
+  instead of for every value, which roughly halves the time spent
+  converting the values. The `insert_with_csv_size` argument is no
+  longer used and is deprecated.
 
 # Changelog 8.2.1
 

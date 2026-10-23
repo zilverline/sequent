@@ -11,8 +11,7 @@ module Sequent
       #
       # The ReplayOptimizedPostgresPersistor is optimized for bulk loading records in a Postgres database.
       #
-      # Depending on the amount of records it uses CSV import, otherwise the records are inserted
-      # using a single multi-row INSERT statement per table.
+      # The records are loaded into the database using a single COPY statement per table.
       #
       # Rebuilding the view state (or projection) of an aggregate typically consists
       # of an initial insert and then many updates and maybe a delete.
@@ -22,8 +21,6 @@ module Sequent
       # E.g. 1 insert, 6 updates is only a single insert using this Persistor.
       #
       # After lot of experimenting this turned out to be the fastest way to to bulk inserts in the database.
-      # You can tweak the amount of records in the CSV via +insert_with_csv_size+ before
-      # it flushes to the database to gain (or loose) speed.
       #
       # It is highly recommended to create +indices+ on the in memory +record_store+ to speed up the processing.
       # By default all records are indexed by +aggregate_id+ if they have such a property.
@@ -63,9 +60,10 @@ module Sequent
         # @deprecated use RecordStore::Index
         Index = RecordStore::Index
 
+        # @deprecated records are always loaded using COPY
         attr_accessor :insert_with_csv_size
 
-        # +insert_with_csv_size+ number of records to insert in a single batch
+        # +insert_with_csv_size+ is ignored, records are always loaded using COPY
         #
         # +indices+ Hash of indices to create in memory. Greatly speeds up the replaying.
         #   Key corresponds to the name of the 'Record'
@@ -180,12 +178,7 @@ module Sequent
           @store.each do |record_class, records|
             next if records.empty?
 
-            column_names = record_class.column_names.reject { |name| name == 'id' }
-            if records.size > @insert_with_csv_size
-              copy_records(record_class, column_names, records)
-            else
-              insert_records(record_class, column_names, records)
-            end
+            copy_records(record_class, records)
           end
         ensure
           clear
@@ -197,12 +190,8 @@ module Sequent
 
         private
 
-        def insert_records(record_class, column_names, records)
-          rows = records.map { |record| column_names.index_with { |column_name| record[column_name] } }
-          record_class.unscoped.insert_all!(rows, returning: false, record_timestamps: false)
-        end
-
-        def copy_records(record_class, column_names, records)
+        def copy_records(record_class, records)
+          column_names = record_class.column_names.reject { |name| name == 'id' }
           column_types = column_names.index_with { |column_name| record_class.type_for_attribute(column_name) }
           record_class.with_connection do |conn|
             csv = CSV.new(StringIO.new)
@@ -213,15 +202,13 @@ module Sequent
             end
 
             copy_data = StringIO.new(csv.string)
-            record_class.transaction do
-              conn
-                .raw_connection
-                .copy_data("COPY #{record_class.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
-                  while (out = copy_data.read(CHUNK_SIZE))
-                    conn.raw_connection.put_copy_data(out)
-                  end
+            conn
+              .raw_connection
+              .copy_data("COPY #{record_class.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
+                while (out = copy_data.read(CHUNK_SIZE))
+                  conn.raw_connection.put_copy_data(out)
                 end
-            end
+              end
           end
         end
       end

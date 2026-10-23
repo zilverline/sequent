@@ -278,26 +278,35 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
     end
 
-    {'csv' => 0, 'batch inserts' => 50}.each do |description, size|
-      context "storing values using #{description}" do
-        let(:insert_csv_size) { size }
-        let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
+    context 'storing values' do
+      let(:insert_csv_size) { 50 }
+      let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
 
-        it 'stores all values of all records' do
-          persistor.create_records(
-            ReplayOptimizedPostgresTest,
-            [
-              {name: 'bén, "quoted"', initials: %w[b j], created_at:},
-              {name: nil, initials: [], created_at:},
-            ],
-          )
+      it 'stores all values of all records' do
+        persistor.create_records(
+          ReplayOptimizedPostgresTest,
+          [
+            {name: 'bén, "quoted"', initials: %w[b j], created_at:},
+            {name: nil, initials: [], created_at:},
+          ],
+        )
+        persistor.commit
+
+        expect(ReplayOptimizedPostgresTest.order(:name).pluck(:name, :initials, :created_at, :updated_at)).to eq [
+          ['bén, "quoted"', %w[b j], created_at, created_at],
+          [nil, [], created_at, created_at],
+        ]
+      end
+
+      it 'commits as part of the current transaction' do
+        persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ben', created_at:})
+
+        Sequent::ApplicationRecord.transaction do
           persistor.commit
-
-          expect(ReplayOptimizedPostgresTest.order(:name).pluck(:name, :initials, :created_at, :updated_at)).to eq [
-            ['bén, "quoted"', %w[b j], created_at, created_at],
-            [nil, [], created_at, created_at],
-          ]
+          fail ActiveRecord::Rollback
         end
+
+        expect(ReplayOptimizedPostgresTest.count).to eq 0
       end
     end
   end
