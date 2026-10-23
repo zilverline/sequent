@@ -11,8 +11,8 @@ module Sequent
       #
       # The ReplayOptimizedPostgresPersistor is optimized for bulk loading records in a Postgres database.
       #
-      # Depending on the amount of records it uses CSV import, otherwise statements are batched
-      # using normal sql.
+      # Depending on the amount of records it uses CSV import, otherwise the records are inserted
+      # using a single multi-row INSERT statement per table.
       #
       # Rebuilding the view state (or projection) of an aggregate typically consists
       # of an initial insert and then many updates and maybe a delete.
@@ -177,44 +177,14 @@ module Sequent
         end
 
         def commit
-          @store.each do |clazz, records|
-            if records.size > @insert_with_csv_size
-              csv = CSV.new(StringIO.new)
-              column_names = clazz.column_names.reject { |name| name == 'id' }
-              records.each do |record|
-                csv << column_names.map do |column_name|
-                  cast_value_to_column_type(clazz, column_name, record)
-                end
-              end
+          @store.each do |record_class, records|
+            next if records.empty?
 
-              copy_data = StringIO.new(csv.string)
-              clazz.transaction do
-                clazz.with_connection do |conn|
-                  conn
-                    .raw_connection
-                    .copy_data("COPY #{clazz.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
-                      while (out = copy_data.read(CHUNK_SIZE))
-                        conn.raw_connection.put_copy_data(out)
-                      end
-                    end
-                end
-              end
+            column_names = record_class.column_names.reject { |name| name == 'id' }
+            if records.size > @insert_with_csv_size
+              copy_records(record_class, column_names, records)
             else
-              clazz.unscoped do
-                inserts = []
-                column_names = clazz.column_names.reject { |name| name == 'id' }
-                prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(',')
-                records.each do |record|
-                  values = column_names.map do |column_name|
-                    cast_value_to_column_type(clazz, column_name, record)
-                  end
-                  inserts << values
-                end
-                sql = %{insert into #{clazz.table_name} (#{column_names.join(',')}) values (#{prepared_values})}
-                inserts.each do |insert|
-                  clazz.connection.raw_connection.async_exec(sql, insert)
-                end
-              end
+              insert_records(record_class, column_names, records)
             end
           end
         ensure
@@ -227,9 +197,32 @@ module Sequent
 
         private
 
-        def cast_value_to_column_type(clazz, column_name, record)
-          uncasted_value = clazz.type_for_attribute(column_name).serialize(record[column_name])
-          Sequent::ApplicationRecord.connection.type_cast(uncasted_value)
+        def insert_records(record_class, column_names, records)
+          rows = records.map { |record| column_names.index_with { |column_name| record[column_name] } }
+          record_class.unscoped.insert_all!(rows, returning: false, record_timestamps: false)
+        end
+
+        def copy_records(record_class, column_names, records)
+          column_types = column_names.index_with { |column_name| record_class.type_for_attribute(column_name) }
+          record_class.with_connection do |conn|
+            csv = CSV.new(StringIO.new)
+            records.each do |record|
+              csv << column_types.map do |column_name, type|
+                conn.type_cast(type.serialize(record[column_name]))
+              end
+            end
+
+            copy_data = StringIO.new(csv.string)
+            record_class.transaction do
+              conn
+                .raw_connection
+                .copy_data("COPY #{record_class.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
+                  while (out = copy_data.read(CHUNK_SIZE))
+                    conn.raw_connection.put_copy_data(out)
+                  end
+                end
+            end
+          end
         end
       end
     end

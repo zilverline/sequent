@@ -265,6 +265,40 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
+
+      context 'when all records are deleted again' do
+        let(:insert_csv_size) { 50 }
+
+        it 'commits nothing' do
+          persistor.create_record(ReplayOptimizedPostgresTest, values)
+          persistor.delete_all_records(ReplayOptimizedPostgresTest, name: 'ben')
+
+          expect { persistor.commit }.not_to(change { ReplayOptimizedPostgresTest.count })
+        end
+      end
+    end
+
+    {'csv' => 0, 'batch inserts' => 50}.each do |description, size|
+      context "storing values using #{description}" do
+        let(:insert_csv_size) { size }
+        let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
+
+        it 'stores all values of all records' do
+          persistor.create_records(
+            ReplayOptimizedPostgresTest,
+            [
+              {name: 'bén, "quoted"', initials: %w[b j], created_at:},
+              {name: nil, initials: [], created_at:},
+            ],
+          )
+          persistor.commit
+
+          expect(ReplayOptimizedPostgresTest.order(:name).pluck(:name, :initials, :created_at, :updated_at)).to eq [
+            ['bén, "quoted"', %w[b j], created_at, created_at],
+            [nil, [], created_at, created_at],
+          ]
+        end
+      end
     end
   end
 
