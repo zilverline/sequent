@@ -337,9 +337,11 @@ module Sequent
             end
 
             copy_data = StringIO.new(csv.string)
+            quoted_column_names = column_names.map { |column_name| conn.quote_column_name(column_name) }
+            copy = "COPY #{record_class.quoted_table_name} (#{quoted_column_names.join(',')}) FROM STDIN WITH csv"
             conn
               .raw_connection
-              .copy_data("COPY #{record_class.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
+              .copy_data(copy) do
                 while (out = copy_data.read(CHUNK_SIZE))
                   conn.raw_connection.put_copy_data(out)
                 end

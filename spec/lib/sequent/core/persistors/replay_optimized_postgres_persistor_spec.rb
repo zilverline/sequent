@@ -282,6 +282,20 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       let(:insert_csv_size) { 50 }
       let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
 
+      it 'quotes the table and column names' do
+        Sequent::ApplicationRecord.connection.execute(
+          'ALTER TABLE replay_optimized_postgres_tests ADD COLUMN "order" integer',
+        )
+        ReplayOptimizedPostgresTest.reset_column_information
+
+        persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ben', order: 1, created_at:})
+        persistor.commit
+
+        expect(ReplayOptimizedPostgresTest.pluck(:name, :order)).to eq [['ben', 1]]
+      ensure
+        ReplayOptimizedPostgresTest.reset_column_information
+      end
+
       it 'stores all values of all records' do
         persistor.create_records(
           ReplayOptimizedPostgresTest,
