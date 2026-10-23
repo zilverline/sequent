@@ -131,10 +131,13 @@
 - `ReplayOptimizedPostgresPersistor#commit` loads the records of each
   table using a single `COPY` statement, also for small numbers of
   records that used to be inserted using one `INSERT` statement per
-  record. The type of each column is now looked up once per table
-  instead of for every value, which roughly halves the time spent
-  converting the values. The `insert_with_csv_size` argument is no
-  longer used and is deprecated.
+  record. Values that already have the Ruby class of their column type
+  (integers, decimals, dates, timestamps, booleans and strings) are
+  encoded by the C encoders of the `pg` gem instead of being
+  serialized by ActiveRecord, which makes committing about four times
+  as fast. All other values are still serialized by ActiveRecord, so
+  the stored values do not change. The `insert_with_csv_size` argument
+  is no longer used and is deprecated.
 
 # Changelog 8.2.1
 

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require 'csv'
 require_relative 'persistor'
 
 module Sequent
@@ -10,7 +9,9 @@ module Sequent
       #
       # The ReplayOptimizedPostgresPersistor is optimized for bulk loading records in a Postgres database.
       #
-      # The records are loaded into the database using a single COPY statement per table.
+      # The records are loaded into the database using a single COPY statement per table. The values are encoded
+      # for the COPY by the C encoders of the pg gem when they already have the Ruby class of their column type, and
+      # are serialized by ActiveRecord otherwise.
       #
       # Rebuilding the view state (or projection) of an aggregate typically consists
       # of an initial insert and then many updates and maybe a delete.
@@ -52,6 +53,7 @@ module Sequent
       class ReplayOptimizedPostgresPersistor
         include Persistor
 
+        # @deprecated no longer used
         CHUNK_SIZE = 1024
 
         attr_reader :record_store
@@ -325,27 +327,88 @@ module Sequent
 
         private
 
+        # A column of a COPY, with the encoder for its values. Values for which +native+ returns true are encoded
+        # by the encoder as is, all other values are serialized by ActiveRecord first.
+        CopyColumn = Data.define(:name, :position, :type, :encoder, :native)
+
         def copy_records(record_class, records)
-          column_names = record_class.column_names.reject { |name| name == 'id' }
-          column_types = column_names.index_with { |column_name| record_class.type_for_attribute(column_name) }
+          columns = copy_columns(record_class)
           record_class.with_connection do |conn|
-            csv = CSV.new(StringIO.new)
-            records.each do |record|
-              csv << column_types.map do |column_name, type|
-                conn.type_cast(type.serialize(record[column_name]))
+            raw_connection = conn.raw_connection
+            encoder = PG::TextEncoder::CopyRow.new(type_map: PG::TypeMapByColumn.new(columns.map(&:encoder)))
+            quoted_column_names = columns.map { |column| conn.quote_column_name(column.name) }
+            copy = "COPY #{record_class.quoted_table_name} (#{quoted_column_names.join(',')}) FROM STDIN"
+
+            raw_connection.copy_data(copy, encoder) do
+              records.each do |record|
+                values = record.to_a
+                raw_connection.put_copy_data(
+                  columns.map do |column|
+                    value = values[column.position]
+                    if value.nil? || column.native&.call(value)
+                      value
+                    else
+                      conn.type_cast(column.type.serialize(value))
+                    end
+                  end,
+                )
               end
             end
+          end
+        end
 
-            copy_data = StringIO.new(csv.string)
-            quoted_column_names = column_names.map { |column_name| conn.quote_column_name(column_name) }
-            copy = "COPY #{record_class.quoted_table_name} (#{quoted_column_names.join(',')}) FROM STDIN WITH csv"
-            conn
-              .raw_connection
-              .copy_data(copy) do
-                while (out = copy_data.read(CHUNK_SIZE))
-                  conn.raw_connection.put_copy_data(out)
-                end
-              end
+        def copy_columns(record_class)
+          record_class.column_names.each_with_index.filter_map do |name, position|
+            next if name == 'id'
+
+            type = record_class.type_for_attribute(name)
+            encoder, native = copy_encoder(type)
+            CopyColumn.new(name:, position:, type:, encoder:, native:)
+          end
+        end
+
+        # Returns the encoder for the values of a column of +type+, and a lambda that returns whether a value can be
+        # encoded as is. This is only the case for values that have the Ruby class the encoder expects, and that
+        # ActiveRecord would not change. So for example floats are not encoded as is in a numeric column, since
+        # ActiveRecord converts them using its own precision, and times only when they do not have more fractional
+        # digits than the column, since ActiveRecord truncates them while the database rounds them. Values of all
+        # other types, like json and arrays, are always serialized by ActiveRecord, which also ensures that types
+        # decorating these types (like enums) are serialized like ActiveRecord does.
+        #
+        # The values serialized by ActiveRecord are integers for integer columns, and strings for all other columns,
+        # which the encoders send as is.
+        def copy_encoder(type)
+          oid = ActiveRecord::ConnectionAdapters::PostgreSQL::OID
+          case type.class.name
+          when ActiveModel::Type::Integer.name
+            [PG::TextEncoder::Integer.new, ->(value) { value.is_a?(::Integer) }]
+          when oid::Decimal.name
+            [PG::TextEncoder::Numeric.new, ->(value) { value.is_a?(::BigDecimal) || value.is_a?(::Integer) }]
+          when oid::Date.name
+            [PG::TextEncoder::Date.new, ->(value) { value.instance_of?(::Date) }]
+          when oid::Timestamp.name
+            return [PG::TextEncoder::String.new, nil] unless ActiveRecord.default_timezone == :utc
+
+            truncated_digits = 10**(9 - (type.precision || 6))
+            [
+              PG::TextEncoder::TimestampUtc.new,
+              ->(value) {
+                value.instance_of?(::Time) && (value.nsec % truncated_digits).zero?
+              },
+            ]
+          when ActiveModel::Type::Boolean.name
+            [PG::TextEncoder::Boolean.new, ->(value) { [true, false].include?(value) }]
+          when ActiveModel::Type::String.name
+            [PG::TextEncoder::String.new, ->(value) { value.is_a?(::String) }]
+          when oid::Uuid.name
+            [
+              PG::TextEncoder::String.new,
+              ->(value) {
+                value.is_a?(::String) && oid::Uuid::ACCEPTABLE_UUID.match?(value)
+              },
+            ]
+          else
+            [PG::TextEncoder::String.new, nil]
           end
         end
       end

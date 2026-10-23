@@ -278,6 +278,115 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
     end
 
+    context 'storing values of all column types' do
+      class ReplayOptimizedPostgresTypesTest < Sequent::ApplicationRecord
+        enum :status, {draft: 0, sent: 1}
+      end
+
+      let(:insert_csv_size) { 50 }
+      let(:record_class) { ReplayOptimizedPostgresTypesTest }
+      let(:uuid) { Sequent.new_uuid }
+      let(:columns) do
+        %i[number amount day at flag label identifier tags data status]
+      end
+
+      before do
+        Sequent::ApplicationRecord.connection.execute(<<~SQL)
+          CREATE TABLE replay_optimized_postgres_types_tests (
+            id bigserial PRIMARY KEY,
+            number integer,
+            amount numeric(12, 2),
+            day date,
+            at timestamp without time zone,
+            flag boolean,
+            label character varying,
+            identifier uuid,
+            tags character varying[],
+            data jsonb,
+            status integer
+          )
+        SQL
+        record_class.reset_column_information
+      end
+
+      after do
+        record_class.reset_column_information
+      end
+
+      def stored(values)
+        persistor.create_record(record_class, values)
+        persistor.commit
+        record_class.pluck(*columns).sole
+      end
+
+      it 'stores values that have the type of their column' do
+        expect(
+          stored(
+            number: 3,
+            amount: BigDecimal('1.255'),
+            day: Date.new(2026, 1, 2),
+            at: Time.utc(2026, 1, 2, 3, 4, 5, 123_456),
+            flag: true,
+            label: "tab\t, backslash \\, newline \n and quote \"",
+            identifier: uuid,
+            tags: %w[a b],
+            data: {'k' => 1},
+            status: 'sent',
+          ),
+        ).to eq [
+          3,
+          BigDecimal('1.26'),
+          Date.new(2026, 1, 2),
+          Time.utc(2026, 1, 2, 3, 4, 5, 123_456),
+          true,
+          "tab\t, backslash \\, newline \n and quote \"",
+          uuid,
+          %w[a b],
+          {'k' => 1},
+          'sent',
+        ]
+      end
+
+      it 'stores values of other types like ActiveRecord' do
+        expect(
+          stored(
+            number: '4',
+            amount: 2.5,
+            day: '2026-01-03',
+            at: Time.utc(2026, 1, 2, 3, 4, 5, 123_456.789r),
+            flag: 'false',
+            label: :symbol,
+            identifier: uuid.upcase,
+            tags: [:a, 1],
+            data: {k: BigDecimal('1.5')},
+            status: 1,
+          ),
+        ).to eq [
+          4,
+          BigDecimal('2.5'),
+          Date.new(2026, 1, 3),
+          Time.utc(2026, 1, 2, 3, 4, 5, 123_456),
+          false,
+          'symbol',
+          uuid,
+          %w[a 1],
+          {'k' => '1.5'},
+          'sent',
+        ]
+      end
+
+      it 'stores times in other time zones in UTC' do
+        expect(stored(at: Time.new(2026, 1, 2, 4, 4, 5, '+01:00')).fetch(3)).to eq Time.utc(2026, 1, 2, 3, 4, 5)
+        record_class.delete_all
+        expect(stored(at: DateTime.new(2026, 1, 2, 4, 4, 5, '+01:00')).fetch(3)).to eq Time.utc(2026, 1, 2, 3, 4, 5)
+      end
+
+      it 'stores NULL for nil and for values that cannot be cast' do
+        expect(stored(number: nil, identifier: 'not a uuid', label: nil, tags: nil, data: nil))
+          .to eq [nil] * columns.size
+      end
+    end
+
     context 'storing values' do
       let(:insert_csv_size) { 50 }
       let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
