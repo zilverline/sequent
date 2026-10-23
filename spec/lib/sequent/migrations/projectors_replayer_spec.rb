@@ -335,6 +335,177 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
+  context 'extended statistics' do
+    before do
+      exec_update(<<~SQL)
+        CREATE STATISTICS view_schema.single_records_base_table_stat (dependencies)
+          ON aggregate_id, name FROM view_schema.single_records_base_table
+      SQL
+      exec_update('ALTER STATISTICS view_schema.single_records_base_table_stat SET STATISTICS 500')
+      exec_update(<<~SQL)
+        CREATE STATISTICS view_schema.single_records_p1_stat ON name, lower(name) FROM view_schema.single_records_p1
+      SQL
+      # ANALYZE builds no extended statistics for an empty table, and the aggregate ids decide the partition.
+      insert_events(5)
+      insert_events(1) until %w[single_records_p1 single_records_p2].all? do |partition|
+        select_value("SELECT EXISTS (SELECT FROM view_schema.#{partition})")
+      end
+    end
+
+    def create_statistics_outside_view_schema
+      exec_update(<<~SQL)
+        CREATE STATISTICS public.single_records_public_stat ON aggregate_id, name FROM view_schema.single_records_p2
+      SQL
+    end
+
+    it 'refuses to prepare when a statistics object is outside the view schema' do
+      create_statistics_outside_view_schema
+
+      expect { subject.prepare_for_replay }
+        .to raise_error(/outside the view_schema schema \(public\.single_records_public_stat on single_records_p2\)/)
+      expect(query_schemas).to_not include('replay_schema')
+    end
+
+    it 'refuses to activate when a statistics object outside the view schema was created during the replay' do
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+      create_statistics_outside_view_schema
+
+      expect { subject.activate! }.to raise_error(/public\.single_records_public_stat on single_records_p2/)
+      expect(replay_state).to have_attributes(state: 'optimized')
+
+      exec_update('DROP STATISTICS public.single_records_public_stat')
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+    end
+
+    def replay!
+      replayer = Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:)
+      replayer.prepare_for_replay
+      replayer.perform_initial_replay
+      replayer.prepare_for_activation!
+      replayer.activate!
+    end
+
+    it 'copies them to the replay schema' do
+      subject.prepare_for_replay
+
+      expect(statistics_objects('replay_schema')).to contain_exactly(
+        ['single_records_base_table_stat', 'replay_schema.single_records_base_table', 'f', 500, 'aggregate_id, name'],
+        ['single_records_p1_stat', 'replay_schema.single_records_p1', 'dfme', -1, 'name, lower(name)'],
+      )
+    end
+
+    it 'moves them along with the tables when activating' do
+      replay!
+
+      expect(statistics_objects('view_schema')).to contain_exactly(
+        ['single_records_base_table_stat', 'view_schema.single_records_base_table', 'f', 500, 'aggregate_id, name'],
+        ['single_records_p1_stat', 'view_schema.single_records_p1', 'dfme', -1, 'name, lower(name)'],
+      )
+      expect(statistics_objects('archive_schema')).to contain_exactly(
+        ['single_records_base_table_stat', 'archive_schema.single_records_base_table', 'f', 500, 'aggregate_id, name'],
+        ['single_records_p1_stat', 'archive_schema.single_records_p1', 'dfme', -1, 'name, lower(name)'],
+      )
+      expect(analyzed_statistics('view_schema')).to contain_exactly(
+        'single_records_base_table_stat',
+        'single_records_p1_stat',
+      )
+    end
+
+    it 'keeps them over repeated replays' do
+      replay!
+      replay!
+
+      expect(statistics_objects('view_schema').map(&:first)).to contain_exactly(
+        'single_records_base_table_stat',
+        'single_records_p1_stat',
+      )
+    end
+  end
+
+  context 'publications' do
+    after do
+      exec_update('DROP PUBLICATION IF EXISTS replayer_spec_publication')
+    end
+
+    it 'replays but refuses to activate when a publication lists a managed table by name' do
+      exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_p1')
+      insert_events(5)
+
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      expect { subject.activate! }
+        .to raise_error(/publication lists by name \(single_records_p1 in replayer_spec_publication\)/)
+      expect(replay_state).to have_attributes(state: 'optimized')
+    end
+
+    it 'activates once the managed table is removed from the publication' do
+      insert_events(5)
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_base_table')
+
+      expect { subject.activate! }.to raise_error(/single_records_base_table in replayer_spec_publication/)
+      expect(replay_state).to have_attributes(state: 'optimized')
+
+      exec_update('DROP PUBLICATION replayer_spec_publication')
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+    end
+
+    it 'checks the publications after locking the tables' do
+      insert_events(5)
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+
+      allow(subject).to receive(:lock_view_schema_tables_for_exclusive_access).and_wrap_original do |original|
+        exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_p2')
+        original.call
+      end
+
+      expect { subject.activate! }.to raise_error(/single_records_p2 in replayer_spec_publication/)
+    end
+
+    it 'replays tables published through their schema' do
+      exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLES IN SCHEMA view_schema')
+      insert_events(5)
+
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+    end
+  end
+
+  def statistics_objects(schema)
+    exec_query(<<~SQL, [schema]).rows
+      SELECT s.stxname, tn.nspname || '.' || t.relname, array_to_string(s.stxkind, ''), s.stxstattarget,
+             pg_get_statisticsobjdef_columns(s.oid)
+        FROM pg_statistic_ext s
+        JOIN pg_namespace sn ON sn.oid = s.stxnamespace
+        JOIN pg_class t ON t.oid = s.stxrelid
+        JOIN pg_namespace tn ON tn.oid = t.relnamespace
+       WHERE sn.nspname = $1
+    SQL
+  end
+
+  def analyzed_statistics(schema)
+    exec_query(<<~SQL, [schema]).rows.flatten.uniq
+      SELECT statistics_name FROM pg_stats_ext WHERE statistics_schemaname = $1
+    SQL
+  end
+
   def record_count(schema) = select_value("SELECT COUNT(*) FROM #{schema}.single_records")
 
   def select_value(sql, binds = []) = ActiveRecord::Base.connection.select_value(sql, 'query', binds)

@@ -1,5 +1,23 @@
 # Changelog 9.x
 
+- Replaying projectors keeps the extended statistics objects
+  (`CREATE STATISTICS`) of the managed tables. They are copied to the
+  replay schema when preparing, so `ANALYZE` fills them before
+  activation, and moved along with their tables when activating.
+  Before, `pg_dump --table` left them out of the replay schema and
+  `ALTER TABLE ... SET SCHEMA` left them behind on the archived tables.
+  Preparing and activating fail when a statistics object on a managed
+  table lives outside the view schema; drop it and recreate it in the
+  view schema before preparing the replay, or after activating it.
+
+- Activating a replay fails when a publication lists a managed table
+  by name (`CREATE PUBLICATION ... FOR TABLE`). The publication would
+  keep the archived table and silently stop publishing the replayed
+  one. Remove the table from the publication before activating, and
+  resynchronize the subscribers afterwards.
+  Publications `FOR ALL TABLES` or `FOR TABLES IN SCHEMA` include the
+  replayed tables by themselves.
+
 - `load_events` looks up an aggregate's events partition key first and
   then queries the events with that key as a parameter, so a custom
   plan can prune the events partitions while planning. It is now
