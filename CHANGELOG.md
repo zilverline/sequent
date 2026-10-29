@@ -35,6 +35,16 @@
   `commit` methods are deprecated aliases. Custom persistors must
   implement `flush` instead of `commit`.
 
+- A new `BufferedPersistor` buffers the changes of a projector and
+  writes them to the database when it is flushed, combining
+  statements where this cannot change the outcome: records created in
+  the same table are inserted with a single statement, and updates of
+  the same records (with an identical where clause) are combined into
+  a single update. It only supports `create_record`, `create_records`,
+  `update_all_records` and `delete_all_records`. Like the
+  `ReplayOptimizedPostgresPersistor`, the created records are structs
+  with all columns of the record class.
+
 - Replaying projectors keeps the extended statistics objects
   (`CREATE STATISTICS`) of the managed tables. They are copied to the
   replay schema when preparing, so `ANALYZE` fills them before

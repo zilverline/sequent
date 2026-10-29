@@ -286,10 +286,18 @@ describe 'Persistors storing values' do
       it 'stores created_at as updated_at' do
         persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:})
         persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}])
-        persistor.create_or_update_record(PersistorValuesRecord, {name: 'c'}, created_at) { |_| }
         persistor.flush
 
-        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 3
+        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 2
+      end
+
+      unless except.include?(:create_or_update_record)
+        it 'stores created_at as updated_at when create_or_update_record creates a record' do
+          persistor.create_or_update_record(PersistorValuesRecord, {name: 'a'}, created_at) { |_| }
+          persistor.flush
+
+          expect(PersistorValuesRecord.pluck(:created_at, :updated_at)).to eq [[created_at, created_at]]
+        end
       end
 
       it 'stores a given updated_at' do
@@ -342,6 +350,13 @@ describe 'Persistors storing values' do
 
       expect(PersistorNormalizedTypesRecord.pluck(:label)).to eq [nil]
     end
+  end
+
+  context Sequent::Core::Persistors::BufferedPersistor do
+    let(:persistor) { Sequent::Core::Persistors::BufferedPersistor.new }
+
+    # The BufferedPersistor does not support create_or_update_record, since it does not read records.
+    it_behaves_like 'a persistor storing values', except: [:create_or_update_record]
   end
 
   context Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
