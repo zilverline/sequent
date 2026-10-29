@@ -271,4 +271,110 @@ describe Sequent::Core::Helpers::MessageHandler do
       expect(handler.last_block_called).to be_truthy
     end
   end
+
+  context 'hooks' do
+    class HookedHandler
+      include Sequent::Core::Helpers::MessageHandler
+
+      attr_reader :log
+
+      def initialize
+        @log = []
+      end
+
+      before_handler { |messages| @log << [:before, messages.size] }
+      around_handler :around_method
+      around_handler do |messages, handler|
+        @log << [:around_block_start, messages.size]
+        handler.call
+        @log << :around_block_end
+      end
+      after_handler { |messages| @log << [:after, messages.size] }
+
+      on MessageHandlerEvent do |_event|
+        @log << :handler
+      end
+
+      private
+
+      def around_method(messages)
+        @log << [:around_method_start, messages.size]
+        yield
+        @log << :around_method_end
+      end
+    end
+
+    # Inherits the hooks, but not the handler blocks.
+    class SkippingHookedHandler < HookedHandler
+      around_handler { |_messages, handler| handler.call unless @skip }
+
+      attr_writer :skip
+
+      on MessageHandlerEvent do |_event|
+        @log << :handler
+      end
+    end
+
+    let(:handler) { HookedHandler.new }
+
+    it 'runs the hooks around each invocation of a handler block, in order' do
+      handler.handle_message(MessageHandlerEvent.new)
+
+      expect(handler.log).to eq [
+        [:before, 1],
+        [:around_method_start, 1],
+        [:around_block_start, 1],
+        :handler,
+        :around_block_end,
+        :around_method_end,
+        [:after, 1],
+      ]
+    end
+
+    it 'does not run the hooks when no handler block is invoked' do
+      handler.handle_message(BaseMessageHandlerEvent.new)
+
+      expect(handler.log).to be_empty
+    end
+
+    it 'runs the hooks when a subclass overrides dispatch_message' do
+      overriding_handler = Class.new(HookedHandler) do
+        on MessageHandlerEvent do |_event|
+          @log << :handler
+        end
+
+        def dispatch_message(message, handlers)
+          @log << :dispatch
+          super
+        end
+      end.new
+
+      overriding_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(overriding_handler.log.first(2)).to eq [:dispatch, [:before, 1]]
+      expect(overriding_handler.log).to include :handler
+    end
+
+    it 'inherits the hooks, and skips the handler block when an around hook does not continue' do
+      skipping_handler = SkippingHookedHandler.new
+      skipping_handler.skip = true
+
+      skipping_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(skipping_handler.log).to eq [
+        [:before, 1],
+        [:around_method_start, 1],
+        [:around_block_start, 1],
+        :around_block_end,
+        :around_method_end,
+        [:after, 1],
+      ]
+      expect(HookedHandler.handler_hooks[:around].size).to eq 2
+    end
+
+    it 'requires either a method name or a block' do
+      expect { Class.new(HookedHandler) { before_handler } }.to raise_error ArgumentError
+      expect { Class.new(HookedHandler) { before_handler(:foo) { nil } } }.to raise_error ArgumentError
+    end
+  end
 end

@@ -1,5 +1,26 @@
 # Changelog 9.x
 
+- Message handlers (like projectors and workflows) support hooks that
+  run before, after or around each invocation of a handler block, for
+  example to add instrumentation. The hooks are only run when a handler
+  block is invoked, receive the messages it handles, and are inherited
+  by subclasses:
+
+  ```ruby
+  class ApplicationProjector < Sequent::Projector
+    self.abstract_class = true
+
+    around_handler :instrument
+
+    def instrument(messages)
+      Instrumenter.instrument("#{messages.first.class}.#{self.class}") { yield }
+    end
+  end
+  ```
+
+  An `around_handler` hook skips the handler block by not continuing.
+  Prefer these hooks over overriding `dispatch_message`.
+
 - Replaying projectors keeps the extended statistics objects
   (`CREATE STATISTICS`) of the managed tables. They are copied to the
   replay schema when preparing, so `ANALYZE` fills them before
