@@ -1,5 +1,9 @@
 # Changelog 9.x
 
+- `Persistor#commit` and `Projector#commit` are renamed to `flush`.
+  `commit` is a deprecated alias. Custom persistors must implement
+  `flush`.
+
 - Message handlers (like projectors and workflows) support hooks that
   run before, after or around each invocation of a handler block, for
   example to add instrumentation. The hooks are only run when a handler
