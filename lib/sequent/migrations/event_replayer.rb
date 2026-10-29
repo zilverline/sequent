@@ -111,10 +111,10 @@ module Sequent
           on_progress:,
         )
 
-        replay_persistor.commit
+        replay_persistor.flush
 
         # Also commit all specific declared replay persistors on projectors.
-        Sequent.configuration.event_handlers.select { |e| e.class.replay_persistor }.each(&:commit)
+        Sequent.configuration.event_handlers.select { |e| e.class.replay_persistor }.each(&:flush)
       end
 
       def on_progress

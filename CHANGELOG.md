@@ -31,6 +31,10 @@
   An `around_handler` hook skips the handler block by not continuing.
   Prefer these hooks over overriding `dispatch_message`.
 
+- `Persistor#commit` and `Projector#commit` are renamed to `flush`. The
+  `commit` methods are deprecated aliases. Custom persistors must
+  implement `flush` instead of `commit`.
+
 - Replaying projectors keeps the extended statistics objects
   (`CREATE STATISTICS`) of the managed tables. They are copied to the
   replay schema when preparing, so `ANALYZE` fills them before
