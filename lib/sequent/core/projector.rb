@@ -28,7 +28,7 @@ module Sequent
       end
 
       def self.projectors
-        Sequent.configuration.event_handlers.grep(Migratable).map(&:class)
+        Sequent.configuration.event_handler_classes.select { |handler_class| handler_class.include?(Migratable) }
       end
 
       def self.included(host_class)
@@ -102,10 +102,34 @@ module Sequent
         attr_accessor :abstract_class, :skip_autoregister
       end
 
-      def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
+      def initialize(persistor = default_persistor)
         ensure_valid!
         @persistor = persistor
       end
+
+      ##
+      # The persistor of a projector that is created without a persistor. Override this method to use
+      # another persistor.
+      def default_persistor
+        Sequent::Core::Persistors::ActiveRecordPersistor.new
+      end
+
+      ##
+      # The phase in which this projector handles events, see +StagedEventPublisher.with_phases+.
+      # Either +:inline+ (the default) to handle each event in turn, or +:bulk+ to handle all
+      # events of a commit at once, before the +inline+ projectors and workflows:
+      #
+      #   class MyProjector < Sequent::Projector
+      #     self.phase = :bulk
+      #
+      #     on_batch MyEvent do |events|
+      #       create_records(MyRecord, events.map { |event| {aggregate_id: event.aggregate_id} })
+      #     end
+      #   end
+      #
+      # Do not use a deferred phase like +before_commit+ for a projector, since the command handlers
+      # of the next commands use its projections.
+      class_attribute :phase, instance_writer: false, default: :inline
 
       def self.on(*args, **opts, &block)
         ensure_type_based_handler!(args)
@@ -124,6 +148,14 @@ module Sequent
 
       def self.replay_persistor
         nil
+      end
+
+      def self.ensure_valid!
+        if managed_tables.nil?
+          fail <<~EOS.chomp
+            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self}?
+          EOS
+        end
       end
 
       def_delegators :@persistor, :execute_sql, :flush
@@ -205,11 +237,7 @@ module Sequent
       end
 
       def ensure_valid!
-        if self.class.managed_tables.nil?
-          fail <<~EOS.chomp
-            A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class}?
-          EOS
-        end
+        self.class.ensure_valid!
       end
     end
   end

@@ -55,8 +55,11 @@ module Sequent
       # A batch handler block is called with consecutive matching messages, in the order in which they
       # were published. The messages are always handled in order: a batch is handled as soon as a
       # message is handled by other handler blocks, and for a single message the batch handler blocks
-      # are called before the +on+ handler blocks. When a single message is handled using
-      # +handle_message+, the batch handler blocks are called with a batch containing only that message.
+      # are called before the +on+ handler blocks. In the +bulk+ and
+      # +before_commit+ phases (see +StagedEventPublisher.with_phases+) the event publisher passes all
+      # events of a command (or of a whole transaction) in one batch. In the +inline+ phase, and when a
+      # single message is handled using +handle_message+, the batch handler blocks are called with a
+      # batch containing only that message.
       #
       # Hooks can run code before, after or around each invocation of a handler block, for example to
       # add instrumentation. They are only run when a handler block is invoked, and receive the

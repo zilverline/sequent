@@ -112,7 +112,7 @@ module Sequent
         ->(events, error) do
           fail error if error.is_a?(Sequent::Core::ProjectorMigrationError)
 
-          fail Sequent::Core::EventPublisher::PublishEventError.new(projector.class, events.first)
+          fail Sequent::Core::PublishEventError.new(projector.class, events.first)
         end
       end
 

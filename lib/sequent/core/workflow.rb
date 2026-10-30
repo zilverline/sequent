@@ -13,6 +13,23 @@ module Sequent
         attr_accessor :abstract_class, :skip_autoregister
       end
 
+      ##
+      # The phase in which this workflow handles events, see +StagedEventPublisher.with_phases+.
+      # Either +:inline+ (the default) to handle the events of each command right away, or
+      # +:before_commit+ to handle the events of all commands at once when no more commands are
+      # queued:
+      #
+      #   class MyWorkflow < Sequent::Workflow
+      #     self.phase = :before_commit
+      #
+      #     on_batch MyEvent do |events|
+      #       execute_commands MyBatchCommand.new(aggregate_ids: events.map(&:aggregate_id).uniq)
+      #     end
+      #   end
+      #
+      # Do not use the +bulk+ phase for a workflow, since it runs before the +inline+ projectors.
+      class_attribute :phase, instance_writer: false, default: :inline
+
       def self.on(*args, **opts, &block)
         decorated_block = ->(event) do
           begin
