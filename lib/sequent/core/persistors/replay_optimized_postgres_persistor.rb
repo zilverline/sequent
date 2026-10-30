@@ -13,6 +13,11 @@ module Sequent
       # for the COPY by the C encoders of the pg gem when they already have the Ruby class of their column type, and
       # are serialized by ActiveRecord otherwise.
       #
+      # A column without a value whose default the database computes, like a serial column or a default of +now()+,
+      # is left out of the COPY, so the database computes its value. When only some records have a value for such a
+      # column, the records are loaded using a COPY per set of columns. All other columns without a value are loaded
+      # as NULL.
+      #
       # Rebuilding the view state (or projection) of an aggregate typically consists
       # of an initial insert and then many updates and maybe a delete.
       # With a normal Persistor (like ActiveRecordPersistor) each action is executed to the database.
@@ -77,6 +82,15 @@ module Sequent
           end
           def hash
             object_id.hash
+          end
+
+          # Marks a computed +column+ as updated, so it is not left out of the COPY when it was updated to nil.
+          def updated!(column)
+            (@updated_columns ||= Set.new) << column
+          end
+
+          def updated?(column)
+            @updated_columns&.include?(column) || false
           end
         end
 
@@ -184,12 +198,15 @@ module Sequent
           @record_defaults = Hash.new do |h, record_class|
             h[record_class] = record_class.column_defaults.symbolize_keys
           end
+          @computed_columns = Hash.new do |h, record_class|
+            h[record_class] = record_class.columns.select(&:auto_populated?).map { |column| column.name.to_sym }
+          end
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at=)
-          yield record if block_given?
+          track_updated_columns(record_class, record) { yield record } if block_given?
           @record_index[record_class].update(record)
           update_sequence_number = if options.key?(:update_sequence_number)
                                      options[:update_sequence_number]
@@ -220,8 +237,12 @@ module Sequent
 
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
-          record ||= create_record(record_class, values.merge(created_at: created_at))
-          yield record if block_given?
+          if record
+            track_updated_columns(record_class, record) { yield record } if block_given?
+          else
+            record = create_record(record_class, values.merge(created_at: created_at))
+            yield record if block_given?
+          end
           @record_index[record_class].update(record)
           record
         end
@@ -255,6 +276,7 @@ module Sequent
           find_records(record_class, where_clause).each do |record|
             updates.each_pair do |k, v|
               record[k] = v
+              record.updated!(k.to_sym) if @computed_columns[record_class].include?(k.to_sym)
             end
             @record_index[record_class].update(record)
           end
@@ -263,14 +285,14 @@ module Sequent
         def do_with_records(record_class, where_clause)
           records = find_records(record_class, where_clause)
           records.each do |record|
-            yield record
+            track_updated_columns(record_class, record) { yield record }
             @record_index[record_class].update(record)
           end
         end
 
         def do_with_record(record_class, where_clause)
           record = get_record!(record_class, where_clause)
-          yield record
+          track_updated_columns(record_class, record) { yield record }
           @record_index[record_class].update(record)
         end
 
@@ -327,13 +349,41 @@ module Sequent
 
         private
 
+        # Marks the computed columns of the +record+ that the block changes as updated. Like ActiveRecord, a column set
+        # to the value it already had (like nil to nil) is not changed.
+        def track_updated_columns(record_class, record)
+          computed_columns = @computed_columns[record_class]
+          return yield if computed_columns.empty?
+
+          before = computed_columns.map { |column| record[column] }
+          yield
+          computed_columns.each_with_index do |column, index|
+            record.updated!(column) unless before[index].equal?(record[column])
+          end
+        end
+
         # A column of a COPY, with the encoder for its values. Values for which +native+ returns true, and nil when
         # the column has +native+, are encoded by the encoder as is, all other values are serialized by ActiveRecord
-        # first.
-        CopyColumn = Data.define(:name, :position, :type, :encoder, :native)
+        # first. A +computed+ column has a default that the database computes.
+        CopyColumn = Data.define(:name, :position, :type, :encoder, :native, :computed)
 
         def copy_records(record_class, records)
           columns = copy_columns(record_class)
+          computed_columns = columns.select(&:computed)
+          # Leaves out the computed columns without a value, so the database computes them, like ActiveRecord does when
+          # creating a record. A computed column updated to nil is NULL, like when ActiveRecord updates a record.
+          records
+            .group_by do |record|
+              computed_columns.select do |column|
+                record[column.position].nil? && !record.updated?(column.name.to_sym)
+              end
+            end
+            .each do |omitted_columns, same_columns_records|
+              copy(record_class, columns - omitted_columns, same_columns_records)
+            end
+        end
+
+        def copy(record_class, columns, records)
           record_class.with_connection do |conn|
             raw_connection = conn.raw_connection
             encoder = PG::TextEncoder::CopyRow.new(type_map: PG::TypeMapByColumn.new(columns.map(&:encoder)))
@@ -359,12 +409,11 @@ module Sequent
         end
 
         def copy_columns(record_class)
-          record_class.column_names.each_with_index.filter_map do |name, position|
-            next if name == 'id'
-
+          record_class.column_names.each_with_index.map do |name, position|
             type = record_class.type_for_attribute(name)
             encoder, native = copy_encoder(type)
-            CopyColumn.new(name:, position:, type:, encoder:, native:)
+            computed = record_class.columns_hash[name].auto_populated?
+            CopyColumn.new(name:, position:, type:, encoder:, native:, computed:)
           end
         end
 

@@ -160,6 +160,15 @@
   the stored values do not change. The `insert_with_csv_size` argument
   is no longer used and is deprecated.
 
+  A column without a value whose default the database computes (like a
+  serial column, including `id`, or a default of `now()`) is left out
+  of the `COPY`, so the database computes its value, like ActiveRecord
+  does. Before, these columns were loaded as `NULL`, except for `id`,
+  which was always left out, also when it had a value. A computed column
+  updated to `nil` by the persistor is loaded as `NULL`, like ActiveRecord
+  updates it. Specs check that the persistors store the same values,
+  and document where they differ, like on views.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.

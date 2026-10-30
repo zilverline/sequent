@@ -254,6 +254,86 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
     end
 
+    context 'columns without a value' do
+      class ReplayOptimizedPostgresDefaultsTest < Sequent::ApplicationRecord; end
+
+      let(:record_class) { ReplayOptimizedPostgresDefaultsTest }
+
+      before do
+        Sequent::ApplicationRecord.connection.execute(<<~SQL)
+          CREATE TABLE replay_optimized_postgres_defaults_tests (
+            id bigserial PRIMARY KEY,
+            serialid bigserial NOT NULL,
+            name character varying,
+            status character varying DEFAULT 'new',
+            created_at timestamp with time zone NOT NULL DEFAULT now(),
+            token uuid DEFAULT gen_random_uuid()
+          )
+        SQL
+        record_class.reset_column_information
+      end
+
+      after do
+        record_class.reset_column_information
+      end
+
+      it 'loads the database defaults of the computed columns without a value' do
+        persistor.create_record(record_class, name: 'a')
+        persistor.create_record(record_class, name: 'b', created_at: Time.utc(2026, 1, 1))
+        persistor.commit
+
+        rows = record_class.order(:name).pluck(:name, :serialid, :status, :created_at)
+        expect(rows.map(&:second)).to all(be_present)
+        expect(rows.map(&:third)).to eq %w[new new]
+        expect(rows.first.fourth).to be_present
+        expect(rows.second.fourth).to eq Time.utc(2026, 1, 1)
+      end
+
+      it 'loads the value of a computed column that has a value' do
+        persistor.create_record(record_class, name: 'a', serialid: 100)
+        persistor.create_record(record_class, name: 'b')
+        persistor.commit
+
+        expect(record_class.order(:name).pluck(:name, :serialid).first).to eq ['a', 100]
+        expect(record_class.where(name: 'b').pluck(:serialid).sole).to be_present
+      end
+
+      it 'loads NULL for the other columns without a value' do
+        persistor.create_record(record_class, name: 'a', status: nil)
+        persistor.create_record(record_class, name: 'b')
+        persistor.commit
+
+        expect(record_class.order(:name).pluck(:name, :status)).to eq [['a', nil], %w[b new]]
+        expect(record_class.where(name: 'a').pluck(:serialid, :created_at).sole).to all(be_present)
+      end
+
+      it 'loads the database default for a computed column given nil' do
+        persistor.create_record(record_class, name: 'a', token: nil)
+        persistor.commit
+
+        expect(record_class.where(name: 'a').pluck(:token).sole).to be_present
+      end
+
+      it 'loads NULL for a computed column updated to nil' do
+        persistor.create_record(record_class, name: 'a', token: Sequent.new_uuid)
+        persistor.create_record(record_class, name: 'b', token: Sequent.new_uuid)
+        persistor.update_all_records(record_class, {name: 'a'}, {token: nil})
+        persistor.do_with_record(record_class, {name: 'b'}) { |record| record.token = nil }
+        persistor.commit
+
+        expect(record_class.order(:name).pluck(:token)).to eq [nil, nil]
+      end
+
+      it 'loads the value a block gives a computed column' do
+        persistor.create_record(record_class, name: 'a') { |record| record.serialid = 100 }
+        persistor.create_record(record_class, name: 'b')
+        persistor.do_with_record(record_class, {name: 'b'}) { |record| record.serialid = 200 }
+        persistor.commit
+
+        expect(record_class.order(:name).pluck(:serialid)).to eq [100, 200]
+      end
+    end
+
     context 'storing values of all column types' do
       class ReplayOptimizedPostgresTypesTest < Sequent::ApplicationRecord
         enum :status, {draft: 0, sent: 1}
