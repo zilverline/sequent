@@ -412,6 +412,25 @@ describe Sequent::Core::Helpers::MessageHandler do
       expect(rescuing_handler.log).to include(:rescued)
     end
 
+    it 'allows passing the handler to code that yields arguments' do
+      yielding_handler = Class.new(HookedHandler) do
+        around_handler { |_messages, handler| yield_payload(&handler) }
+        around_handler :yield_payload
+
+        on MessageHandlerEvent do |_event|
+          @log << :handler
+        end
+
+        def yield_payload(*)
+          yield :payload
+        end
+      end.new
+
+      yielding_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(yielding_handler.log).to include(:handler)
+    end
+
     it 'requires either a method name or a block' do
       expect { Class.new(HookedHandler) { before_handler } }.to raise_error ArgumentError
       expect { Class.new(HookedHandler) { before_handler(:foo) { nil } } }.to raise_error ArgumentError

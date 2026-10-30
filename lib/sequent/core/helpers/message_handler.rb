@@ -226,7 +226,8 @@ module Sequent
         def call_around_handler_hooks(around_hooks, index, messages, &handler)
           return handler.call if index == around_hooks.size
 
-          continue = -> { call_around_handler_hooks(around_hooks, index + 1, messages, &handler) }
+          # A proc, not a lambda, so it can be passed to code that yields arguments to the block.
+          continue = proc { call_around_handler_hooks(around_hooks, index + 1, messages, &handler) }
           hook = around_hooks[index]
           if hook.is_a?(Proc)
             instance_exec(messages, continue, &hook)
