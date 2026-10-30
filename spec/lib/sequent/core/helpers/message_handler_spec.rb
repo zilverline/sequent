@@ -271,4 +271,195 @@ describe Sequent::Core::Helpers::MessageHandler do
       expect(handler.last_block_called).to be_truthy
     end
   end
+
+  context 'hooks' do
+    class HookedHandler
+      include Sequent::Core::Helpers::MessageHandler
+
+      attr_reader :log
+
+      def initialize
+        @log = []
+      end
+
+      before_handler { |messages| @log << [:before, messages.size] }
+      around_handler :around_method
+      around_handler do |messages, handler|
+        @log << [:around_block_start, messages.size]
+        handler.call
+        @log << :around_block_end
+      end
+      after_handler { |messages| @log << [:after, messages.size] }
+
+      on MessageHandlerEvent do |_event|
+        @log << :handler
+      end
+
+      private
+
+      def around_method(messages)
+        @log << [:around_method_start, messages.size]
+        yield
+        @log << :around_method_end
+      end
+    end
+
+    # Inherits the hooks, but not the handler blocks.
+    class SkippingHookedHandler < HookedHandler
+      around_handler { |_messages, handler| handler.call unless @skip }
+
+      attr_writer :skip
+
+      on MessageHandlerEvent do |_event|
+        @log << :handler
+      end
+    end
+
+    let(:handler) { HookedHandler.new }
+
+    it 'runs the hooks around each invocation of a handler block, in order' do
+      handler.handle_message(MessageHandlerEvent.new)
+
+      expect(handler.log).to eq [
+        [:before, 1],
+        [:around_method_start, 1],
+        [:around_block_start, 1],
+        :handler,
+        :around_block_end,
+        :around_method_end,
+        [:after, 1],
+      ]
+    end
+
+    it 'does not run the hooks when no handler block is invoked' do
+      handler.handle_message(BaseMessageHandlerEvent.new)
+
+      expect(handler.log).to be_empty
+    end
+
+    it 'runs the hooks when a subclass overrides dispatch_message' do
+      overriding_handler = Class.new(HookedHandler) do
+        on MessageHandlerEvent do |_event|
+          @log << :handler
+        end
+
+        def dispatch_message(message, handlers)
+          @log << :dispatch
+          super
+        end
+      end.new
+
+      overriding_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(overriding_handler.log.first(2)).to eq [:dispatch, [:before, 1]]
+      expect(overriding_handler.log).to include :handler
+    end
+
+    it 'inherits the hooks, and skips the handler block when an around hook does not continue' do
+      skipping_handler = SkippingHookedHandler.new
+      skipping_handler.skip = true
+
+      skipping_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(skipping_handler.log).to eq [
+        [:before, 1],
+        [:around_method_start, 1],
+        [:around_block_start, 1],
+        :around_block_end,
+        :around_method_end,
+        [:after, 1],
+      ]
+      expect(HookedHandler.handler_hooks[:around].size).to eq 2
+    end
+
+    it 'invokes the handler blocks of a class without hooks directly' do
+      plain_handler = MyHandler.new
+      expect(plain_handler).not_to receive(:with_handler_hooks)
+
+      plain_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(plain_handler.first_block_called).to be_truthy
+    end
+
+    it 'does not run the after hooks when the handler block fails' do
+      failing_handler = Class.new(HookedHandler) do
+        on MessageHandlerEvent do |_event|
+          fail 'handler failed'
+        end
+      end.new
+
+      expect { failing_handler.handle_message(MessageHandlerEvent.new) }.to raise_error 'handler failed'
+
+      expect(failing_handler.log).not_to include([:after, 1])
+    end
+
+    it 'runs the after hooks when an around hook rescues the failure of the handler block' do
+      rescuing_handler = Class.new(HookedHandler) do
+        around_handler do |_messages, handler|
+          handler.call
+        rescue StandardError
+          @log << :rescued
+        end
+
+        on MessageHandlerEvent do |_event|
+          fail 'handler failed'
+        end
+      end.new
+
+      rescuing_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(rescuing_handler.log.last(2)).to eq [:around_method_end, [:after, 1]]
+      expect(rescuing_handler.log).to include(:rescued)
+    end
+
+    it 'allows passing the handler to code that yields arguments' do
+      yielding_handler = Class.new(HookedHandler) do
+        around_handler { |_messages, handler| yield_payload(&handler) }
+        around_handler :yield_payload
+
+        on MessageHandlerEvent do |_event|
+          @log << :handler
+        end
+
+        def yield_payload(*)
+          yield :payload
+        end
+      end.new
+
+      yielding_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(yielding_handler.log).to include(:handler)
+    end
+
+    it 'runs the hooks added to a superclass after a subclass added its own hooks' do
+      parent = Class.new do
+        include Sequent::Core::Helpers::MessageHandler
+
+        attr_reader :log
+
+        def initialize
+          @log = []
+        end
+      end
+      child = Class.new(parent) do
+        before_handler { |_messages| @log << :child }
+
+        on MessageHandlerEvent do |_event|
+          @log << :handler
+        end
+      end
+      parent.before_handler { |_messages| @log << :parent }
+
+      handler = child.new
+      handler.handle_message(MessageHandlerEvent.new)
+
+      expect(handler.log).to eq %i[parent child handler]
+      expect(Class.new(MyHandler).handler_hooks).to be Sequent::Core::Helpers::MessageHandler::NO_HOOKS
+    end
+
+    it 'requires either a method name or a block' do
+      expect { Class.new(HookedHandler) { before_handler } }.to raise_error ArgumentError
+      expect { Class.new(HookedHandler) { before_handler(:foo) { nil } } }.to raise_error ArgumentError
+    end
+  end
 end

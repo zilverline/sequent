@@ -40,8 +40,47 @@ module Sequent
       #
       # The order of which handler block is executed first is not guaranteed.
       #
+      # Hooks can run code before, after or around each invocation of a handler block, for example to
+      # add instrumentation. They are only run when a handler block is invoked, and receive the
+      # messages the handler block handles (an array containing the single message it handles):
+      #
+      #   class MyProjector < Sequent::Projector
+      #     before_handler { |messages| ... }
+      #     after_handler { |messages| ... }
+      #
+      #     # An around hook continues by calling the handler, or skips the handler block by not
+      #     # calling it.
+      #     around_handler { |messages, handler| handler.call unless skip?(messages) }
+      #
+      #     # A hook can also be a method. An around hook method continues by yielding.
+      #     around_handler :instrument
+      #
+      #     def instrument(messages)
+      #       Instrumenter.instrument(messages.first.class.name) { yield }
+      #     end
+      #   end
+      #
+      # The before hooks run in the order in which they are declared, then the around hooks (the first
+      # declared hook is the outermost), the handler block and the after hooks. Like ActiveModel
+      # callbacks, the after hooks do not run when an exception propagates from the handler block or the
+      # around hooks. An around hook that rescues the exception, or skips the handler block, completes
+      # the invocation, so the after hooks do run then. Hooks are inherited by subclasses.
+      #
       module MessageHandler
         class UnhandledMessageError < RuntimeError; end
+
+        NO_HOOKS = {before: [].freeze, around: [].freeze, after: [].freeze}.freeze
+
+        @handler_hooks_version = 0
+
+        class << self
+          # Incremented whenever a hook is added, so the classes recombine their inherited hooks.
+          attr_reader :handler_hooks_version
+
+          def handler_hooks_changed!
+            @handler_hooks_version += 1
+          end
+        end
 
         module ClassMethods
           def on(*args, **opts, &handler)
@@ -69,6 +108,28 @@ module Sequent
             end
           end
 
+          ##
+          # Registers a hook that runs before each invocation of a handler block. Either a method name
+          # or a block, which receive the messages the handler block handles.
+          def before_handler(method_name = nil, &block)
+            add_handler_hook(:before, method_name, block)
+          end
+
+          ##
+          # Registers a hook that runs after each successful invocation of a handler block. Either a
+          # method name or a block, which receive the messages the handler block handles.
+          def after_handler(method_name = nil, &block)
+            add_handler_hook(:after, method_name, block)
+          end
+
+          ##
+          # Registers a hook that runs around each invocation of a handler block. Either a method name,
+          # which receives the messages the handler block handles and continues by yielding, or a block,
+          # which receives these messages and the handler and continues by calling the handler.
+          def around_handler(method_name = nil, &block)
+            add_handler_hook(:around, method_name, block)
+          end
+
           def option(name, &block)
             option_registry.register_option(name, block)
           end
@@ -83,6 +144,40 @@ module Sequent
 
           def message_router
             @message_router ||= MessageRouter.new
+          end
+
+          ##
+          # The hooks of this class, including the hooks inherited from its superclasses, also when these
+          # are added after this class added its own hooks.
+          def handler_hooks
+            version = MessageHandler.handler_hooks_version
+            return @handler_hooks if @handler_hooks_version == version
+
+            @handler_hooks = combine_handler_hooks
+            @handler_hooks_version = version
+            @handler_hooks
+          end
+
+          private
+
+          def add_handler_hook(kind, method_name, block)
+            if method_name.nil? == block.nil?
+              fail ArgumentError, "#{kind}_handler requires either a method name or a block"
+            end
+
+            own_hooks = @own_handler_hooks || NO_HOOKS
+            @own_handler_hooks = own_hooks.merge(kind => [*own_hooks[kind], method_name || block].freeze).freeze
+            MessageHandler.handler_hooks_changed!
+          end
+
+          # The hooks of the superclass followed by the hooks of this class, or +NO_HOOKS+ when there are
+          # none at all.
+          def combine_handler_hooks
+            inherited = superclass.respond_to?(:handler_hooks) ? superclass.handler_hooks : NO_HOOKS
+            return inherited if @own_handler_hooks.nil?
+            return @own_handler_hooks if inherited.equal?(NO_HOOKS)
+
+            inherited.to_h { |kind, hooks| [kind, (hooks + @own_handler_hooks[kind]).freeze] }.freeze
           end
         end
 
@@ -130,13 +225,47 @@ module Sequent
         end
 
         def dispatch_message(message, handlers)
+          hooks = self.class.handler_hooks
           handlers.each do |handler|
             if Sequent.logger.debug?
               Sequent.logger.debug("[MessageHandler] Handler #{self.class} handling #{message.class}")
             end
 
             args = handler.arity == 0 ? [] : [message]
-            handler.bind_call(self, *args)
+            if hooks.equal?(NO_HOOKS)
+              handler.bind_call(self, *args)
+            else
+              with_handler_hooks(hooks, [message]) { handler.bind_call(self, *args) }
+            end
+          end
+        end
+
+        private
+
+        def with_handler_hooks(hooks, messages, &handler)
+          hooks[:before].each { |hook| call_handler_hook(hook, messages) }
+          call_around_handler_hooks(hooks[:around], 0, messages, &handler)
+          hooks[:after].each { |hook| call_handler_hook(hook, messages) }
+        end
+
+        def call_handler_hook(hook, messages)
+          if hook.is_a?(Proc)
+            instance_exec(messages, &hook)
+          else
+            send(hook, messages)
+          end
+        end
+
+        def call_around_handler_hooks(around_hooks, index, messages, &handler)
+          return handler.call if index == around_hooks.size
+
+          # A proc, not a lambda, so it can be passed to code that yields arguments to the block.
+          continue = proc { call_around_handler_hooks(around_hooks, index + 1, messages, &handler) }
+          hook = around_hooks[index]
+          if hook.is_a?(Proc)
+            instance_exec(messages, continue, &hook)
+          else
+            send(hook, messages, &continue)
           end
         end
       end
