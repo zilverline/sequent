@@ -14,11 +14,19 @@ module Sequent
       private
 
       def process_events(event_handlers, events)
-        instantiate_event_handlers(event_handlers, events).each do |handler|
-          handler.handle_messages(events, on_error: publish_event_error_handler(handler))
-          next unless instantiated_projector?(event_handlers, handler)
+        plan = Helpers::DispatchPlan.new(event_handlers)
+        event_handlers.each do |event_handler|
+          with_publish_event_error(event_handler, events.first) do
+            next unless plan.handles_any?(event_handler, events)
 
-          with_publish_event_error(handler, events.last) { handler.flush }
+            handler = event_handler.is_a?(Class) ? instantiate_event_handler(event_handler) : event_handler
+            handler.handle_messages(events, on_error: publish_event_error_handler(handler)) do |event|
+              plan.handler_blocks(event, event_handler)
+            end
+            next unless event_handler.is_a?(Class) && handler.is_a?(Projector)
+
+            with_publish_event_error(handler, events.last) { handler.flush }
+          end
         end
       end
     end

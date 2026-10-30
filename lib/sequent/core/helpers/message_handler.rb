@@ -257,10 +257,20 @@ module Sequent
         #
         # @return the number of handler blocks invoked.
         def handle_message(message, on_error: nil)
-          # A class without batch handler blocks handles a single message without a batch.
-          return handle_messages([message], on_error:) if self.class.batch_handlers?
+          handle_matched_message(message, match_handlers(message), on_error:)
+        end
 
-          invoke_handlers(message, match_handlers(message), on_error)
+        ##
+        # Handles the +message+ using the given +handlers+, the handler blocks that match it (see
+        # +MessageRouter#match_message+), so an event publisher that already matched the message does not match it
+        # again.
+        #
+        # @return the number of handler blocks invoked.
+        def handle_matched_message(message, handlers, on_error: nil)
+          # A class without batch handler blocks handles a single message without a batch.
+          return handle_messages([message], on_error:) { handlers } if self.class.batch_handlers?
+
+          invoke_handlers(message, handlers, on_error)
         end
 
         ##
@@ -270,11 +280,16 @@ module Sequent
         # @param on_error called with the messages and the error when a handler block (or one of its
         #   hooks) fails to handle these messages, for example to raise an error that tells which
         #   message failed. The error is raised as is when +on_error+ returns, or when it is +nil+.
+        # @yield an optional block that returns the handler blocks that match a message, for an event
+        #   publisher that already matched the messages.
         # @return the number of handler blocks invoked, where a batch handler block invoked with a batch
         #   of messages counts once.
         def handle_messages(messages, on_error: nil)
+          matched = block_given?
           unless self.class.batch_handlers?
-            return messages.sum { |message| invoke_handlers(message, match_handlers(message), on_error) }
+            return messages.sum do |message|
+              invoke_handlers(message, matched ? yield(message) : match_handlers(message), on_error)
+            end
           end
 
           count = 0
@@ -282,7 +297,7 @@ module Sequent
           batch_handlers = Set.new
 
           messages.each do |message|
-            handlers = match_handlers(message)
+            handlers = matched ? yield(message) : match_handlers(message)
             message_batch_handlers = handlers.grep(BatchHandler).to_set
             individual_handlers = handlers.grep_v(BatchHandler)
 

@@ -17,26 +17,44 @@ module Sequent
       private
 
       def process_events(event_handlers, events)
-        projectors, other_handlers = instantiate_event_handlers(event_handlers, events)
-          .partition { |handler| handler.is_a?(Projector) }
-        ordered_handlers = projectors + other_handlers
-        events.each { |event| process_event(ordered_handlers, event) }
+        projectors, other_handlers = event_handlers.partition do |event_handler|
+          Helpers::EventHandlers.handler_class(event_handler) < Projector
+        end
+        plan = Helpers::DispatchPlan.new(projectors + other_handlers)
+        instances = {}
+        events.each { |event| process_event(plan, event, instances) }
 
-        projectors.each do |projector|
-          next unless instantiated_projector?(event_handlers, projector)
-
-          with_publish_event_error(projector, events.last) { projector.flush }
+        instances.each_value do |handler|
+          with_publish_event_error(handler, events.last) { handler.flush } if handler.is_a?(Projector)
         end
       end
 
-      def process_event(event_handlers, event)
+      # Dispatches the +event+ to the event handlers of the +plan+ that handle it, instantiating the event handler
+      # classes in +instances+ when these handle their first event.
+      def process_event(plan, event, instances)
         fail ArgumentError, 'event is required' if event.nil?
 
         Sequent.logger.debug("[InlineEventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
 
-        event_handlers.each do |handler|
-          with_publish_event_error(handler, event) { handler.handle_message(event) }
+        plan.entries(event).each do |entry|
+          with_publish_event_error(entry.event_handler, event) do
+            match = entry.for_event(event)
+            next unless match
+
+            handler = event_handler_instance(match.event_handler, instances)
+            if match.handler_blocks
+              handler.handle_matched_message(event, match.handler_blocks)
+            else
+              handler.handle_message(event)
+            end
+          end
         end
+      end
+
+      def event_handler_instance(event_handler, instances)
+        return event_handler unless event_handler.is_a?(Class)
+
+        instances[event_handler] ||= instantiate_event_handler(event_handler)
       end
     end
   end
