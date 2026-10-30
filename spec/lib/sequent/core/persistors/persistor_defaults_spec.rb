@@ -82,6 +82,23 @@ describe 'Persistors storing columns without a value' do
       expect(stored('a', :serialid, :status)).to eq [100, 'x']
     end
 
+    it 'stores the database default for an empty string in a column with a computed default' do
+      persistor.create_record(record_class, name: 'a', serialid: '')
+      persistor.commit
+
+      expect(stored('a', :serialid)).to be_present
+    end
+
+    unless except.include?(:nil_to_nil_update)
+      it 'stores NULL for a computed column without a value set to nil by do_with_record' do
+        persistor.create_record(record_class, name: 'a')
+        persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
+        persistor.commit
+
+        expect(stored('a', :token)).to be_nil
+      end
+    end
+
     it 'stores the database default for an explicit nil in a column with a computed default' do
       persistor.create_record(record_class, name: 'a', token: nil)
       persistor.commit
@@ -161,7 +178,18 @@ describe 'Persistors storing columns without a value' do
     context 'on a table' do
       let(:record_class) { PersistorDefaultsRecord }
 
-      it_behaves_like 'a persistor storing columns without a value'
+      it_behaves_like 'a persistor storing columns without a value', except: [:nil_to_nil_update]
+
+      # Known difference: the record is not created yet, so the computed column has no value that is set to nil, and
+      # the database still computes it. ActiveRecord inserts the computed value when creating the record, and stores
+      # NULL when the record is updated.
+      it 'stores the database default for a computed column without a value set to nil by do_with_record' do
+        persistor.create_record(record_class, name: 'a')
+        persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
+        persistor.commit
+
+        expect(stored('a', :token)).to be_present
+      end
     end
 
     context 'on a view' do

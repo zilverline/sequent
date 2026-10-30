@@ -244,6 +244,26 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         end
       end
 
+      context 'when the records of a table need more than one COPY' do
+        before do
+          Sequent::ApplicationRecord.connection.execute(<<~SQL)
+            ALTER TABLE replay_optimized_postgres_tests ADD COLUMN id bigserial,
+              ADD CONSTRAINT replay_optimized_postgres_tests_name CHECK (name <> 'fail')
+          SQL
+          ReplayOptimizedPostgresTest.reset_column_information
+        end
+
+        after { ReplayOptimizedPostgresTest.reset_column_information }
+
+        it 'loads none of the records when one fails' do
+          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ok'})
+          persistor.create_record(ReplayOptimizedPostgresTest, {id: 10, name: 'fail'})
+
+          expect { persistor.commit }.to raise_error(PG::CheckViolation)
+          expect(ReplayOptimizedPostgresTest.count).to eq 0
+        end
+      end
+
       context 'when all records are deleted again' do
         it 'commits nothing' do
           persistor.create_record(ReplayOptimizedPostgresTest, values)

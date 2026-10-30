@@ -365,6 +365,10 @@ module Sequent
         # Marks the computed columns of the +record+ that the block updates to nil, so these are loaded as NULL. Like
         # ActiveRecord, a column set to the value it already had (like nil to nil) is not changed. Only computed
         # columns with a value can be updated to nil, and these usually do not have a value during a replay.
+        #
+        # Known difference: a computed column without a value that a block sets to nil is not changed, so the database
+        # still computes it. ActiveRecord would have inserted the computed value when creating the record, and stores
+        # NULL when the record is updated.
         def track_updated_columns(record_class, record)
           computed_columns = @computed_columns[record_class]
           return yield if computed_columns.all? { |column| record[column].nil? }
@@ -388,18 +392,28 @@ module Sequent
           # creating a record. A computed column updated to nil is NULL, like when ActiveRecord updates a record. The
           # records are grouped by a bit mask of the columns to leave out, to avoid allocations per record.
           computed_names = computed_columns.map { |column| column.name.to_sym }
-          records
-            .group_by do |record|
-              omitted = 0
-              computed_columns.each_with_index do |column, index|
-                omitted |= 1 << index if record[column.position].nil? && !record.updated?(computed_names[index])
+          groups = records.group_by do |record|
+            omitted = 0
+            computed_columns.each_with_index do |column, index|
+              if without_value?(column, record[column.position]) && !record.updated?(computed_names[index])
+                omitted |= 1 << index
               end
-              omitted
             end
-            .each do |omitted, same_columns_records|
+            omitted
+          end
+
+          # The records of a table are loaded atomically, also when these need more than one COPY.
+          record_class.transaction do
+            groups.each do |omitted, same_columns_records|
               omitted_columns = computed_columns.select.with_index { |_, index| omitted[index] == 1 }
               copy(record_class, columns - omitted_columns, same_columns_records)
             end
+          end
+        end
+
+        # Whether the +value+ of a +column+ is nil after casting, like an empty string in an integer column.
+        def without_value?(column, value)
+          value.nil? || (!column.native&.call(value) && column.type.serialize(value).nil?)
         end
 
         def copy(record_class, columns, records)

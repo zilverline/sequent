@@ -326,6 +326,16 @@ describe 'Persistors storing values' do
 
     it_behaves_like 'a persistor storing values', except: %i[normalized_without_value]
 
+    it 'stores records with and without created_at using create_records without record timestamps' do
+      PersistorValuesRecord.record_timestamps = false
+      created_at = Time.utc(2026, 1, 2)
+      persistor.create_records(PersistorValuesRecord, [{name: 'a', created_at: nil}, {name: 'b', created_at:}])
+
+      expect(PersistorValuesRecord.order(:name).pluck(:created_at)).to eq [nil, created_at]
+    ensure
+      PersistorValuesRecord.record_timestamps = true
+    end
+
     # ActiveRecord only normalizes the values assigned to a record.
     it 'stores NULL for a column normalized when nil without a value' do
       persistor.create_record(PersistorNormalizedTypesRecord, number: 1)
