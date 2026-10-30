@@ -283,14 +283,30 @@ describe 'Persistors storing values' do
         ]
       end
 
-      unless except.include?(:updated_at)
-        it 'stores created_at as updated_at' do
-          persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:})
-          persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}])
-          persistor.commit
+      it 'stores created_at as updated_at' do
+        persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:})
+        persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}])
+        persistor.create_or_update_record(PersistorValuesRecord, {name: 'c'}, created_at) { |_| }
+        persistor.commit
 
-          expect(PersistorValuesRecord.pluck(:updated_at)).to eq [created_at, created_at]
-        end
+        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 3
+      end
+
+      it 'stores a given updated_at' do
+        updated_at = created_at + 1
+        persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:, updated_at:})
+        persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:, updated_at:}])
+        persistor.commit
+
+        expect(PersistorValuesRecord.pluck(:updated_at)).to eq [updated_at, updated_at]
+      end
+
+      it 'stores the current time as the timestamps without created_at, like ActiveRecord' do
+        persistor.create_record(PersistorValuesRecord, {name: 'a'})
+        persistor.create_records(PersistorValuesRecord, [{name: 'b'}])
+        persistor.commit
+
+        expect(PersistorValuesRecord.pluck(:created_at, :updated_at).flatten).to all(be_within(1.minute).of(Time.now))
       end
 
       it 'stores the records in the current transaction' do
@@ -308,21 +324,13 @@ describe 'Persistors storing values' do
   context Sequent::Core::Persistors::ActiveRecordPersistor do
     let(:persistor) { Sequent::Core::Persistors::ActiveRecordPersistor.new }
 
-    it_behaves_like 'a persistor storing values', except: %i[updated_at normalized_without_value]
+    it_behaves_like 'a persistor storing values', except: %i[normalized_without_value]
 
     # ActiveRecord only normalizes the values assigned to a record.
     it 'stores NULL for a column normalized when nil without a value' do
       persistor.create_record(PersistorNormalizedTypesRecord, number: 1)
 
       expect(PersistorNormalizedTypesRecord.pluck(:label)).to eq [nil]
-    end
-
-    # The persistor does not set updated_at when creating a record, so ActiveRecord sets it to the current time.
-    it 'stores the current time as updated_at' do
-      persistor.create_record(PersistorValuesRecord, {name: 'a', created_at: Time.utc(2026, 1, 2)})
-      persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at: Time.utc(2026, 1, 2)}])
-
-      expect(PersistorValuesRecord.pluck(:updated_at)).to all(be_within(1.minute).of(Time.now))
     end
   end
 

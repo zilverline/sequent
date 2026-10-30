@@ -45,14 +45,17 @@ module Sequent
         end
 
         def create_records(record_class, array_of_value_hashes)
-          record_class.unscoped.insert_all!(array_of_value_hashes, returning: false)
+          record_class.unscoped.insert_all!(
+            array_of_value_hashes.map { |values| with_updated_at(record_class, values) },
+            returning: false,
+          )
         end
 
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
           unless record
+            values = values.merge(created_at:) if record_class.column_names.include?('created_at')
             record = new_record(record_class, values)
-            record.created_at = created_at if record.respond_to?(:created_at)
           end
           yield record
           record.save!
@@ -115,7 +118,17 @@ module Sequent
         private
 
         def new_record(record_class, values)
-          record_class.unscoped.new(values)
+          record_class.unscoped.new(with_updated_at(record_class, values))
+        end
+
+        # Uses +created_at+ as +updated_at+ when only +created_at+ is given, like the other persistors, so the
+        # timestamps are the time of the event instead of the time the record is created by ActiveRecord.
+        def with_updated_at(record_class, values)
+          created_at = values[:created_at] || values['created_at']
+          return values if created_at.nil? || values.key?(:updated_at) || values.key?('updated_at')
+          return values unless record_class.column_names.include?('updated_at')
+
+          values.merge(updated_at: created_at)
         end
       end
     end

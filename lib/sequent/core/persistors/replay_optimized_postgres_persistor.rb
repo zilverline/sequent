@@ -198,6 +198,10 @@ module Sequent
           @record_defaults = Hash.new do |h, record_class|
             h[record_class] = record_class.column_defaults.symbolize_keys
           end
+          @timestamp_columns = Hash.new do |h, record_class|
+            h[record_class] =
+              record_class.record_timestamps ? record_class.all_timestamp_attributes_in_model.map(&:to_sym) : []
+          end
           @computed_columns = Hash.new do |h, record_class|
             h[record_class] = record_class.columns.select(&:auto_populated?).map { |column| column.name.to_sym }
           end
@@ -221,9 +225,10 @@ module Sequent
           @record_defaults[record_class].each do |column, default|
             record[column] = default unless values.include? column
           end
-          record.updated_at = values[:created_at] if record.respond_to?(:updated_at)
+          record.updated_at = values[:created_at] if record.respond_to?(:updated_at) && !values.include?(:updated_at)
 
           yield record if block_given?
+          touch_timestamps(record_class, record)
 
           @record_store[record_class] << record
           @record_index[record_class].add(record)
@@ -348,6 +353,14 @@ module Sequent
         end
 
         private
+
+        # Sets the timestamps without a value to the current time, like ActiveRecord does when creating a record.
+        def touch_timestamps(record_class, record)
+          now = nil
+          @timestamp_columns[record_class].each do |column|
+            record[column] ||= (now ||= record_class.current_time_from_proper_timezone)
+          end
+        end
 
         # Marks the computed columns of the +record+ that the block changes as updated. Like ActiveRecord, a column set
         # to the value it already had (like nil to nil) is not changed.

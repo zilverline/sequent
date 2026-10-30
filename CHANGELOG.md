@@ -169,6 +169,16 @@
   updates it. Specs check that the persistors store the same values,
   and document where they differ, like on views.
 
+- The `ActiveRecordPersistor` stores `created_at` as `updated_at` when
+  creating a record with only `created_at`, like the
+  `ReplayOptimizedPostgresPersistor` already did. Before, ActiveRecord
+  set `updated_at` to the current time, so replaying a projector changed
+  the `updated_at` of its records. The `ReplayOptimizedPostgresPersistor`
+  no longer replaces a given `updated_at` with `created_at`, and sets the
+  timestamps without a value to the current time when creating a record
+  (if `record_timestamps` is enabled), like ActiveRecord does, instead of
+  loading them as `NULL`.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.
