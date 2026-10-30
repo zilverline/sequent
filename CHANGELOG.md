@@ -68,10 +68,14 @@
   events has no effect anymore. `EventPublisher::PublishEventError` is
   `Sequent::Core::PublishEventError`.
 
-- Autoregistration registers the event handler classes, which get a new
-  instance for every batch of events they handle. Code that looks for
-  instances in `Sequent.configuration.event_handlers` must use
-  `event_handler_classes` instead.
+- Projectors and workflows have a `lifetime`: `:singleton` registers a
+  single instance, as before, and `:batch` registers the class, which
+  gets a new instance for every batch of events, like a controller for
+  every request. `bulk` event handlers have the `:batch` lifetime by
+  default. Autoregistration fails on a registration that does not match
+  the lifetime. Code that looks for instances in
+  `Sequent.configuration.event_handlers` must use `event_handler_classes`
+  instead.
 
 - Message handlers (like projectors and workflows) support hooks that
   run before, after or around each invocation of a handler block, for
