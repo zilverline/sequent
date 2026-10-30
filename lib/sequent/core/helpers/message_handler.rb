@@ -62,7 +62,8 @@ module Sequent
       #
       # The before hooks run in the order in which they are declared, then the around hooks (the first
       # declared hook is the outermost), the handler block and the after hooks. The after hooks do not
-      # run when the handler block fails. Hooks are inherited by subclasses.
+      # run when the handler block fails, even when an around hook rescues the failure. Hooks are
+      # inherited by subclasses.
       #
       module MessageHandler
         class UnhandledMessageError < RuntimeError; end
@@ -190,26 +191,37 @@ module Sequent
         end
 
         def dispatch_message(message, handlers)
+          hooks = self.class.handler_hooks
           handlers.each do |handler|
             if Sequent.logger.debug?
               Sequent.logger.debug("[MessageHandler] Handler #{self.class} handling #{message.class}")
             end
 
-            with_handler_hooks([message]) do
-              args = handler.arity == 0 ? [] : [message]
+            args = handler.arity == 0 ? [] : [message]
+            if hooks.equal?(NO_HOOKS)
               handler.bind_call(self, *args)
+            else
+              with_handler_hooks(hooks, [message]) { handler.bind_call(self, *args) }
             end
           end
         end
 
         private
 
-        def with_handler_hooks(messages, &handler)
-          hooks = self.class.handler_hooks
-          return yield if hooks.equal?(NO_HOOKS)
-
+        def with_handler_hooks(hooks, messages)
           hooks[:before].each { |hook| call_handler_hook(hook, messages) }
-          call_around_handler_hooks(hooks[:around], 0, messages, &handler)
+
+          invoked = false
+          succeeded = false
+          call_around_handler_hooks(hooks[:around], 0, messages) do
+            invoked = true
+            yield
+            succeeded = true
+          end
+          # The after hooks only run when the handler block did not fail, even when an around hook rescued
+          # its failure. They do run when an around hook skipped the handler block.
+          return if invoked && !succeeded
+
           hooks[:after].each { |hook| call_handler_hook(hook, messages) }
         end
 

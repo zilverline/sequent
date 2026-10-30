@@ -372,6 +372,34 @@ describe Sequent::Core::Helpers::MessageHandler do
       expect(HookedHandler.handler_hooks[:around].size).to eq 2
     end
 
+    it 'invokes the handler blocks of a class without hooks directly' do
+      plain_handler = MyHandler.new
+      expect(plain_handler).not_to receive(:with_handler_hooks)
+
+      plain_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(plain_handler.first_block_called).to be_truthy
+    end
+
+    it 'does not run the after hooks when the handler block fails, even when an around hook rescues it' do
+      rescuing_handler = Class.new(HookedHandler) do
+        around_handler do |_messages, handler|
+          handler.call
+        rescue StandardError
+          @log << :rescued
+        end
+
+        on MessageHandlerEvent do |_event|
+          fail 'handler failed'
+        end
+      end.new
+
+      rescuing_handler.handle_message(MessageHandlerEvent.new)
+
+      expect(rescuing_handler.log).to include(:rescued)
+      expect(rescuing_handler.log).not_to include([:after, 1])
+    end
+
     it 'requires either a method name or a block' do
       expect { Class.new(HookedHandler) { before_handler } }.to raise_error ArgumentError
       expect { Class.new(HookedHandler) { before_handler(:foo) { nil } } }.to raise_error ArgumentError
