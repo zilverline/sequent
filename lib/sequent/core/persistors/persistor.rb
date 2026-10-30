@@ -81,9 +81,15 @@ module Sequent
           fail 'Method not supported in this persistor'
         end
 
-        # Hook to implement for instance the persistor batches statements
-        def commit
+        # Hook to write the changes that the persistor batches, for instance after handling a batch of
+        # events or replaying events.
+        def flush
           fail 'Method not supported in this persistor'
+        end
+
+        # @deprecated Use +flush+ instead.
+        def commit
+          flush
         end
       end
     end

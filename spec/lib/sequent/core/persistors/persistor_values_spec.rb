@@ -52,7 +52,7 @@ describe 'Persistors storing values' do
 
       def stored(values)
         persistor.create_record(record_class, values)
-        persistor.commit
+        persistor.flush
         record_class.pluck(*columns).sole
       end
 
@@ -123,7 +123,7 @@ describe 'Persistors storing values' do
 
         def stored_text(column, values)
           persistor.create_record(record_class, values)
-          persistor.commit
+          persistor.flush
           Sequent::ApplicationRecord.connection.select_value(
             "SELECT #{column}::text FROM persistor_types_records",
           )
@@ -260,7 +260,7 @@ describe 'Persistors storing values' do
         PersistorValuesRecord.reset_column_information
 
         persistor.create_record(PersistorValuesRecord, {name: 'ben', order: 1, created_at:})
-        persistor.commit
+        persistor.flush
 
         expect(PersistorValuesRecord.pluck(:name, :order)).to eq [['ben', 1]]
       ensure
@@ -275,7 +275,7 @@ describe 'Persistors storing values' do
             {name: nil, initials: [], created_at:},
           ],
         )
-        persistor.commit
+        persistor.flush
 
         expect(PersistorValuesRecord.order(:name).pluck(:name, :initials, :created_at)).to eq [
           ['bén, "quoted"', %w[b j], created_at],
@@ -287,7 +287,7 @@ describe 'Persistors storing values' do
         persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:})
         persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}])
         persistor.create_or_update_record(PersistorValuesRecord, {name: 'c'}, created_at) { |_| }
-        persistor.commit
+        persistor.flush
 
         expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 3
       end
@@ -296,7 +296,7 @@ describe 'Persistors storing values' do
         updated_at = created_at + 1
         persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:, updated_at:})
         persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:, updated_at:}])
-        persistor.commit
+        persistor.flush
 
         expect(PersistorValuesRecord.pluck(:updated_at)).to eq [updated_at, updated_at]
       end
@@ -304,7 +304,7 @@ describe 'Persistors storing values' do
       it 'stores the current time as the timestamps without created_at, like ActiveRecord' do
         persistor.create_record(PersistorValuesRecord, {name: 'a'})
         persistor.create_records(PersistorValuesRecord, [{name: 'b'}])
-        persistor.commit
+        persistor.flush
 
         expect(PersistorValuesRecord.pluck(:created_at, :updated_at).flatten).to all(be_within(1.minute).of(Time.now))
       end
@@ -312,7 +312,7 @@ describe 'Persistors storing values' do
       it 'stores the records in the current transaction' do
         Sequent::ApplicationRecord.transaction do
           persistor.create_record(PersistorValuesRecord, {name: 'ben', created_at:})
-          persistor.commit
+          persistor.flush
           fail ActiveRecord::Rollback
         end
 
