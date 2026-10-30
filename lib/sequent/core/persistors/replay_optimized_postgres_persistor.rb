@@ -84,7 +84,7 @@ module Sequent
             object_id.hash
           end
 
-          # Marks a computed +column+ as updated, so it is not left out of the COPY when it was updated to nil.
+          # Marks a computed +column+ as updated to nil, so it is not left out of the COPY.
           def updated!(column)
             (@updated_columns ||= Set.new) << column
           end
@@ -281,7 +281,7 @@ module Sequent
           find_records(record_class, where_clause).each do |record|
             updates.each_pair do |k, v|
               record[k] = v
-              record.updated!(k.to_sym) if @computed_columns[record_class].include?(k.to_sym)
+              record.updated!(k.to_sym) if v.nil? && @computed_columns[record_class].include?(k.to_sym)
             end
             @record_index[record_class].update(record)
           end
@@ -362,17 +362,16 @@ module Sequent
           end
         end
 
-        # Marks the computed columns of the +record+ that the block changes as updated. Like ActiveRecord, a column set
-        # to the value it already had (like nil to nil) is not changed.
+        # Marks the computed columns of the +record+ that the block updates to nil, so these are loaded as NULL. Like
+        # ActiveRecord, a column set to the value it already had (like nil to nil) is not changed. Only computed
+        # columns with a value can be updated to nil, and these usually do not have a value during a replay.
         def track_updated_columns(record_class, record)
           computed_columns = @computed_columns[record_class]
-          return yield if computed_columns.empty?
+          return yield if computed_columns.all? { |column| record[column].nil? }
 
-          before = computed_columns.map { |column| record[column] }
+          columns_with_value = computed_columns.reject { |column| record[column].nil? }
           yield
-          computed_columns.each_with_index do |column, index|
-            record.updated!(column) unless before[index].equal?(record[column])
-          end
+          columns_with_value.each { |column| record.updated!(column) if record[column].nil? }
         end
 
         # A column of a COPY, with the encoder for its values. Values for which +native+ returns true, and nil when
@@ -383,15 +382,22 @@ module Sequent
         def copy_records(record_class, records)
           columns = copy_columns(record_class)
           computed_columns = columns.select(&:computed)
+          return copy(record_class, columns, records) if computed_columns.empty?
+
           # Leaves out the computed columns without a value, so the database computes them, like ActiveRecord does when
-          # creating a record. A computed column updated to nil is NULL, like when ActiveRecord updates a record.
+          # creating a record. A computed column updated to nil is NULL, like when ActiveRecord updates a record. The
+          # records are grouped by a bit mask of the columns to leave out, to avoid allocations per record.
+          computed_names = computed_columns.map { |column| column.name.to_sym }
           records
             .group_by do |record|
-              computed_columns.select do |column|
-                record[column.position].nil? && !record.updated?(column.name.to_sym)
+              omitted = 0
+              computed_columns.each_with_index do |column, index|
+                omitted |= 1 << index if record[column.position].nil? && !record.updated?(computed_names[index])
               end
+              omitted
             end
-            .each do |omitted_columns, same_columns_records|
+            .each do |omitted, same_columns_records|
+              omitted_columns = computed_columns.select.with_index { |_, index| omitted[index] == 1 }
               copy(record_class, columns - omitted_columns, same_columns_records)
             end
         end
