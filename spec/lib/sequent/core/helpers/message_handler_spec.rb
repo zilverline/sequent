@@ -381,7 +381,19 @@ describe Sequent::Core::Helpers::MessageHandler do
       expect(plain_handler.first_block_called).to be_truthy
     end
 
-    it 'does not run the after hooks when the handler block fails, even when an around hook rescues it' do
+    it 'does not run the after hooks when the handler block fails' do
+      failing_handler = Class.new(HookedHandler) do
+        on MessageHandlerEvent do |_event|
+          fail 'handler failed'
+        end
+      end.new
+
+      expect { failing_handler.handle_message(MessageHandlerEvent.new) }.to raise_error 'handler failed'
+
+      expect(failing_handler.log).not_to include([:after, 1])
+    end
+
+    it 'runs the after hooks when an around hook rescues the failure of the handler block' do
       rescuing_handler = Class.new(HookedHandler) do
         around_handler do |_messages, handler|
           handler.call
@@ -396,8 +408,8 @@ describe Sequent::Core::Helpers::MessageHandler do
 
       rescuing_handler.handle_message(MessageHandlerEvent.new)
 
+      expect(rescuing_handler.log.last(2)).to eq [:around_method_end, [:after, 1]]
       expect(rescuing_handler.log).to include(:rescued)
-      expect(rescuing_handler.log).not_to include([:after, 1])
     end
 
     it 'requires either a method name or a block' do

@@ -61,9 +61,10 @@ module Sequent
       #   end
       #
       # The before hooks run in the order in which they are declared, then the around hooks (the first
-      # declared hook is the outermost), the handler block and the after hooks. The after hooks do not
-      # run when the handler block fails, even when an around hook rescues the failure. Hooks are
-      # inherited by subclasses.
+      # declared hook is the outermost), the handler block and the after hooks. Like ActiveModel
+      # callbacks, the after hooks do not run when an exception propagates from the handler block or the
+      # around hooks. An around hook that rescues the exception, or skips the handler block, completes
+      # the invocation, so the after hooks do run then. Hooks are inherited by subclasses.
       #
       module MessageHandler
         class UnhandledMessageError < RuntimeError; end
@@ -208,20 +209,9 @@ module Sequent
 
         private
 
-        def with_handler_hooks(hooks, messages)
+        def with_handler_hooks(hooks, messages, &handler)
           hooks[:before].each { |hook| call_handler_hook(hook, messages) }
-
-          invoked = false
-          succeeded = false
-          call_around_handler_hooks(hooks[:around], 0, messages) do
-            invoked = true
-            yield
-            succeeded = true
-          end
-          # The after hooks only run when the handler block did not fail, even when an around hook rescued
-          # its failure. They do run when an around hook skipped the handler block.
-          return if invoked && !succeeded
-
+          call_around_handler_hooks(hooks[:around], 0, messages, &handler)
           hooks[:after].each { |hook| call_handler_hook(hook, messages) }
         end
 
