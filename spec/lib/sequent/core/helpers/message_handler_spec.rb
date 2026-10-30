@@ -431,6 +431,32 @@ describe Sequent::Core::Helpers::MessageHandler do
       expect(yielding_handler.log).to include(:handler)
     end
 
+    it 'runs the hooks added to a superclass after a subclass added its own hooks' do
+      parent = Class.new do
+        include Sequent::Core::Helpers::MessageHandler
+
+        attr_reader :log
+
+        def initialize
+          @log = []
+        end
+      end
+      child = Class.new(parent) do
+        before_handler { |_messages| @log << :child }
+
+        on MessageHandlerEvent do |_event|
+          @log << :handler
+        end
+      end
+      parent.before_handler { |_messages| @log << :parent }
+
+      handler = child.new
+      handler.handle_message(MessageHandlerEvent.new)
+
+      expect(handler.log).to eq %i[parent child handler]
+      expect(Class.new(MyHandler).handler_hooks).to be Sequent::Core::Helpers::MessageHandler::NO_HOOKS
+    end
+
     it 'requires either a method name or a block' do
       expect { Class.new(HookedHandler) { before_handler } }.to raise_error ArgumentError
       expect { Class.new(HookedHandler) { before_handler(:foo) { nil } } }.to raise_error ArgumentError

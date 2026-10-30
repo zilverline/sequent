@@ -71,6 +71,17 @@ module Sequent
 
         NO_HOOKS = {before: [].freeze, around: [].freeze, after: [].freeze}.freeze
 
+        @handler_hooks_version = 0
+
+        class << self
+          # Incremented whenever a hook is added, so the classes recombine their inherited hooks.
+          attr_reader :handler_hooks_version
+
+          def handler_hooks_changed!
+            @handler_hooks_version += 1
+          end
+        end
+
         module ClassMethods
           def on(*args, **opts, &handler)
             OnArgumentsValidator.validate_arguments!(*args)
@@ -135,6 +146,18 @@ module Sequent
             @message_router ||= MessageRouter.new
           end
 
+          ##
+          # The hooks of this class, including the hooks inherited from its superclasses, also when these
+          # are added after this class added its own hooks.
+          def handler_hooks
+            version = MessageHandler.handler_hooks_version
+            return @handler_hooks if @handler_hooks_version == version
+
+            @handler_hooks = combine_handler_hooks
+            @handler_hooks_version = version
+            @handler_hooks
+          end
+
           private
 
           def add_handler_hook(kind, method_name, block)
@@ -142,8 +165,19 @@ module Sequent
               fail ArgumentError, "#{kind}_handler requires either a method name or a block"
             end
 
-            hooks = handler_hooks
-            self.handler_hooks = hooks.merge(kind => [*hooks[kind], method_name || block].freeze).freeze
+            own_hooks = @own_handler_hooks || NO_HOOKS
+            @own_handler_hooks = own_hooks.merge(kind => [*own_hooks[kind], method_name || block].freeze).freeze
+            MessageHandler.handler_hooks_changed!
+          end
+
+          # The hooks of the superclass followed by the hooks of this class, or +NO_HOOKS+ when there are
+          # none at all.
+          def combine_handler_hooks
+            inherited = superclass.respond_to?(:handler_hooks) ? superclass.handler_hooks : NO_HOOKS
+            return inherited if @own_handler_hooks.nil?
+            return @own_handler_hooks if inherited.equal?(NO_HOOKS)
+
+            inherited.to_h { |kind, hooks| [kind, (hooks + @own_handler_hooks[kind]).freeze] }.freeze
           end
         end
 
@@ -174,7 +208,6 @@ module Sequent
           host_class.extend(AttrMatchers)
 
           host_class.class_attribute :option_registry, default: MessageHandlerOptionRegistry.new
-          host_class.class_attribute :handler_hooks, default: NO_HOOKS, instance_accessor: false
         end
 
         def handle_message(message)
