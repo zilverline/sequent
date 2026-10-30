@@ -272,6 +272,33 @@ describe Sequent::Migrations::ProjectorsReplayer do
         expect(record_count('archive_schema')).to eq(initial_event_count + 10)
       end
 
+      it 'flushes the offline replay persistor used by the projectors when replaying incrementally' do
+        persistor_class = Class.new(Sequent::Core::Persistors::ActiveRecordPersistor) do
+          class << self
+            attr_accessor :used, :flushed
+          end
+
+          def create_record(...)
+            self.class.used << self
+            super
+          end
+
+          def flush
+            self.class.flushed << self
+            super
+          end
+        end
+        persistor_class.used = Set.new.compare_by_identity
+        persistor_class.flushed = Set.new.compare_by_identity
+        Sequent.configuration.offline_replay_persistor_class = persistor_class
+        insert_events(10)
+
+        subject.activate!
+
+        expect(persistor_class.used).not_to be_empty
+        expect(persistor_class.flushed).to be_superset(persistor_class.used)
+      end
+
       it 'blocks projectors during activation so no events are missed or duplicated' do
         insert_events(1000)
 

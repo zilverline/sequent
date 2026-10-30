@@ -1036,6 +1036,20 @@ describe Sequent::Core::EventStore do
       expect(replay_counter.replay_count).to eq(Sequent::Core::EventRecord.count)
     end
 
+    it 'yields the events of each block instead of publishing them when a block is given' do
+      replay_counter = ReplayCounter.new
+      Sequent.configuration.event_handlers << replay_counter
+      block_sizes = []
+
+      event_store.replay_events_from_cursor(get_events: get_events, block_size: 2, on_progress: proc {}) do |events|
+        block_sizes << events.size
+      end
+
+      expect(block_sizes.sum).to eq(Sequent::Core::EventRecord.count)
+      expect(block_sizes.max).to eq 2
+      expect(replay_counter.replay_count).to eq 0
+    end
+
     it 'reports progress for each block' do
       progress = 0
       progress_reported_count = 0

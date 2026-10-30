@@ -4,6 +4,24 @@
   `commit` is a deprecated alias. Custom persistors must implement
   `flush`.
 
+- Replaying passes the replayed events directly to the projectors
+  instead of using an event publisher, so it no longer depends on
+  `disable_event_handlers`. `EventStore#replay_events_from_cursor`
+  takes a block that receives the events of each block.
+
+  Breaking for subclasses of the replayers: `with_sequent_config` is
+  removed, and `replay_events` takes the projectors instead of the
+  replay persistor. Create these using `replay_projectors`:
+
+  ```ruby
+  projectors = replay_projectors(replay_persistor, projector_classes)
+  replay_events(get_events, projectors, &on_progress)
+  ```
+
+- Bug: activating a replay flushed another instance of the
+  `offline_replay_persistor_class` than the one the projectors used,
+  losing the changes of persistors that buffer them.
+
 - Message handlers (like projectors and workflows) support hooks that
   run before, after or around each invocation of a handler block, for
   example to add instrumentation. The hooks are only run when a handler
