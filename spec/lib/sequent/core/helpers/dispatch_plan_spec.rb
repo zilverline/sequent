@@ -65,7 +65,7 @@ class DispatchPlanOverridingHandler < Sequent::Core::Workflow
   end
 end
 
-describe Sequent::Core::DispatchPlan do
+describe Sequent::Core::Helpers::DispatchPlan do
   let(:projector) { DispatchPlanProjector.new }
   let(:workflow) { DispatchPlanWorkflow.new }
   let(:event_handlers) { [projector, workflow] }

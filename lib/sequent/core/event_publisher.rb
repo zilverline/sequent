@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'dispatch_plan'
+require_relative 'helpers/dispatch_plan'
 
 module Sequent
   module Core
@@ -60,12 +60,12 @@ module Sequent
       end
 
       def process_events(event_handlers, events)
-        plan = DispatchPlan.new(event_handlers)
+        plan = Helpers::DispatchPlan.new(event_handlers)
         events.each { |event| process_event(event_handlers, event, plan:) }
       end
 
       # Dispatches the +event+ to the +event_handlers+ that handle it, using the +plan+ of the batch of events.
-      def process_event(event_handlers, event, plan: DispatchPlan.new(event_handlers))
+      def process_event(event_handlers, event, plan: Helpers::DispatchPlan.new(event_handlers))
         fail ArgumentError, 'event is required' if event.nil?
 
         Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
