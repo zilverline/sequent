@@ -1,5 +1,15 @@
 # Changelog 9.x
 
+- The `EventPublisher` matches every event handler at most once per
+  event, and the event handlers that only match events by their class
+  (like all projectors) once per event class in the events it
+  publishes, and dispatches the events to the matched handler blocks.
+  With 100 projectors this makes dispatching events about six times as
+  fast. Event handlers that override `handle_message`, or are not
+  message handlers, still get every event using `handle_message`.
+  `MessageRouter#match_message` returns a frozen empty set when no
+  handler matches.
+
 - Message handlers (like projectors and workflows) support hooks that
   run before, after or around each invocation of a handler block, for
   example to add instrumentation. The hooks are only run when a handler

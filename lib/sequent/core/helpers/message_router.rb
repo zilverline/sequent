@@ -7,6 +7,8 @@ module Sequent
   module Core
     module Helpers
       class MessageRouter
+        EMPTY_HANDLERS = Set.new.freeze
+
         attr_reader :routes, :instanceof_routes
 
         def initialize
@@ -32,15 +34,15 @@ module Sequent
         end
 
         ##
-        # Returns a set of handlers that match the given message, or an empty set when none match.
+        # Returns a set of handlers that match the given message, or an empty (frozen) set when none match.
         #
         def match_message(message)
-          result = Set.new
-          result.merge(@instanceof_routes[message.class]) if @instanceof_routes.include?(message.class)
+          instanceof_handlers = @instanceof_routes[message.class]
+          result = Set.new(instanceof_handlers) if instanceof_handlers
           @routes.each do |matcher, handlers|
-            result.merge(handlers) if matcher.matches_message?(message)
+            (result ||= Set.new).merge(handlers) if matcher.matches_message?(message)
           end
-          result
+          result || EMPTY_HANDLERS
         end
 
         ##

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'dispatch_plan'
+
 module Sequent
   module Core
     class ProjectorMigrationError < RuntimeError; end
@@ -58,20 +60,22 @@ module Sequent
       end
 
       def process_events(event_handlers, events)
-        events.each { |event| process_event(event_handlers, event) }
+        plan = DispatchPlan.new(event_handlers)
+        events.each { |event| process_event(event_handlers, event, plan:) }
       end
 
-      def process_event(event_handlers, event)
+      # Dispatches the +event+ to the +event_handlers+ that handle it, using the +plan+ of the batch of events.
+      def process_event(event_handlers, event, plan: DispatchPlan.new(event_handlers))
         fail ArgumentError, 'event is required' if event.nil?
 
         Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
 
-        event_handlers.each do |handler|
-          handler.handle_message(event)
+        plan.matches(event).each do |match|
+          match.dispatch(event)
         rescue ProjectorMigrationError
           raise
         rescue StandardError
-          raise PublishEventError.new(handler.class, event)
+          raise PublishEventError.new(match.event_handler.class, event)
         end
       end
 
