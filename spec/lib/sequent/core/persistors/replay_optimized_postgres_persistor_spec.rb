@@ -186,7 +186,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       )
     end
     let(:database) { Sequent::Support::Database.new }
-    let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(insert_csv_size) }
+    let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
 
     before do
       Sequent::Support::Database.create!(db_config)
@@ -214,8 +214,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       Sequent::ApplicationRecord.connection.execute('drop table if exists replay_optimized_postgres_tests')
     end
 
-    context 'csv' do
-      let(:insert_csv_size) { 0 }
+    context 'with records' do
       let(:values) { {name: 'bén', initials: ['björ'], created_at: DateTime.now} }
 
       context 'values as with_indifferent_access' do
@@ -244,25 +243,33 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(10_000)
         end
       end
-    end
 
-    context 'batch inserts' do
-      let(:insert_csv_size) { 1 }
-      let(:values) { {name: 'ben', initials: ['b'], created_at: DateTime.now} }
+      context 'when the records of a table need more than one COPY' do
+        before do
+          Sequent::ApplicationRecord.connection.execute(<<~SQL)
+            ALTER TABLE replay_optimized_postgres_tests ADD COLUMN id bigserial,
+              ADD CONSTRAINT replay_optimized_postgres_tests_name CHECK (name <> 'fail')
+          SQL
+          ReplayOptimizedPostgresTest.reset_column_information
+        end
 
-      context 'values as with_indifferent_access' do
-        it 'commits a persistor' do
-          persistor.create_record(ReplayOptimizedPostgresTest, values.with_indifferent_access)
+        after { ReplayOptimizedPostgresTest.reset_column_information }
 
-          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
+        it 'loads none of the records when one fails' do
+          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ok'})
+          persistor.create_record(ReplayOptimizedPostgresTest, {id: 10, name: 'fail'})
+
+          expect { persistor.commit }.to raise_error(PG::CheckViolation)
+          expect(ReplayOptimizedPostgresTest.count).to eq 0
         end
       end
 
-      context 'values as normal hashes' do
-        it 'commits a persistor' do
+      context 'when all records are deleted again' do
+        it 'commits nothing' do
           persistor.create_record(ReplayOptimizedPostgresTest, values)
+          persistor.delete_all_records(ReplayOptimizedPostgresTest, name: 'bén')
 
-          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
+          expect { persistor.commit }.not_to(change { ReplayOptimizedPostgresTest.count })
         end
       end
     end

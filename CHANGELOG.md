@@ -149,6 +149,38 @@
   aggregate that is added but not yet committed is now found, and one
   whose key changed since it was loaded is only found by its new key.
 
+- `ReplayOptimizedPostgresPersistor#commit` loads the records of each
+  table using `COPY`, also for small numbers of records that used to be
+  inserted using one `INSERT` statement per record. Values that already
+  have the Ruby class of their column type (integers, decimals, dates,
+  timestamps, booleans and strings) are encoded by the C encoders of the
+  `pg` gem instead of being serialized by ActiveRecord, which makes
+  committing about four times as fast. All other values are still
+  serialized by ActiveRecord, so the stored values do not change. The
+  `insert_with_csv_size` argument is no longer used and is deprecated.
+
+  A column without a value whose default the database computes (like a
+  serial column, including `id`, or a default of `now()`) is left out of
+  the `COPY`, so the database computes its value, like ActiveRecord
+  does. Records that leave out different columns are loaded using a
+  `COPY` per set of columns, in a single transaction per table; usually
+  all records of a table leave out the same columns. Before, these
+  columns were loaded as `NULL`, except for `id`, which was always left
+  out, also when it had a value. A computed column updated to `nil` by
+  the persistor is loaded as `NULL`, like ActiveRecord updates it. Specs
+  check that the persistors store the same values, and document where
+  they differ, like on views.
+
+- The `ActiveRecordPersistor` stores `created_at` as `updated_at` when
+  creating a record with only `created_at`, like the
+  `ReplayOptimizedPostgresPersistor` already did. Before, ActiveRecord
+  set `updated_at` to the current time, so replaying a projector changed
+  the `updated_at` of its records. The `ReplayOptimizedPostgresPersistor`
+  no longer replaces a given `updated_at` with `created_at`, and sets the
+  timestamps without a value to the current time when creating a record
+  (if `record_timestamps` is enabled), like ActiveRecord does, instead of
+  loading them as `NULL`.
+
 # Changelog 8.2.1
 
 - Bug: Fix resetting column information and table_name when using Single Table Inheritance.

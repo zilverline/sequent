@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require 'csv'
 require_relative 'persistor'
 
 module Sequent
@@ -10,8 +9,14 @@ module Sequent
       #
       # The ReplayOptimizedPostgresPersistor is optimized for bulk loading records in a Postgres database.
       #
-      # Depending on the amount of records it uses CSV import, otherwise statements are batched
-      # using normal sql.
+      # The records are loaded into the database using a single COPY statement per table. The values are encoded
+      # for the COPY by the C encoders of the pg gem when they already have the Ruby class of their column type, and
+      # are serialized by ActiveRecord otherwise.
+      #
+      # A column without a value whose default the database computes, like a serial column or a default of +now()+,
+      # is left out of the COPY, so the database computes its value. When only some records have a value for such a
+      # column, the records are loaded using a COPY per set of columns. All other columns without a value are loaded
+      # as NULL.
       #
       # Rebuilding the view state (or projection) of an aggregate typically consists
       # of an initial insert and then many updates and maybe a delete.
@@ -21,8 +26,6 @@ module Sequent
       # E.g. 1 insert, 6 updates is only a single insert using this Persistor.
       #
       # After lot of experimenting this turned out to be the fastest way to to bulk inserts in the database.
-      # You can tweak the amount of records in the CSV via +insert_with_csv_size+ before
-      # it flushes to the database to gain (or loose) speed.
       #
       # It is highly recommended to create +indices+ on the in memory +record_store+ to speed up the processing.
       # By default all records are indexed by +aggregate_id+ if they have such a property.
@@ -55,9 +58,11 @@ module Sequent
       class ReplayOptimizedPostgresPersistor
         include Persistor
 
+        # @deprecated no longer used
         CHUNK_SIZE = 1024
 
         attr_reader :record_store
+        # @deprecated records are always loaded using COPY
         attr_accessor :insert_with_csv_size
 
         # We create a struct on the fly to represent an in-memory record.
@@ -77,6 +82,15 @@ module Sequent
           end
           def hash
             object_id.hash
+          end
+
+          # Marks a computed +column+ as updated to nil, so it is not left out of the COPY.
+          def updated!(column)
+            (@updated_columns ||= Set.new) << column
+          end
+
+          def updated?(column)
+            @updated_columns&.include?(column) || false
           end
         end
 
@@ -163,12 +177,12 @@ module Sequent
           end
         end
 
-        # +insert_with_csv_size+ number of records to insert in a single batch
+        # +insert_with_csv_size+ is ignored, records are always loaded using COPY
         #
         # +indices+ Hash of indices to create in memory. Greatly speeds up the replaying.
         #   Key corresponds to the name of the 'Record'
         #   Values contains list of lists on which columns to index.
-        #   E.g. [[:first_index_column], [:another_index, :with_to_columns]]
+        #   E.g. [[:first_index_column], [:another_index, :with_two_columns]]
         def initialize(insert_with_csv_size = 50, indices = {}, default_indexed_columns = [:aggregate_id])
           @insert_with_csv_size = insert_with_csv_size
           @record_store = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
@@ -184,12 +198,19 @@ module Sequent
           @record_defaults = Hash.new do |h, record_class|
             h[record_class] = record_class.column_defaults.symbolize_keys
           end
+          @timestamp_columns = Hash.new do |h, record_class|
+            h[record_class] =
+              record_class.record_timestamps ? record_class.all_timestamp_attributes_in_model.map(&:to_sym) : []
+          end
+          @computed_columns = Hash.new do |h, record_class|
+            h[record_class] = record_class.columns.select(&:auto_populated?).map { |column| column.name.to_sym }
+          end
         end
 
         def update_record(record_class, event, where_clause = {aggregate_id: event.aggregate_id}, options = {})
           record = get_record!(record_class, where_clause)
           record.updated_at = event.created_at if record.respond_to?(:updated_at=)
-          yield record if block_given?
+          track_updated_columns(record_class, record) { yield record } if block_given?
           @record_index[record_class].update(record)
           update_sequence_number = if options.key?(:update_sequence_number)
                                      options[:update_sequence_number]
@@ -204,9 +225,10 @@ module Sequent
           @record_defaults[record_class].each do |column, default|
             record[column] = default unless values.include? column
           end
-          record.updated_at = values[:created_at] if record.respond_to?(:updated_at)
+          record.updated_at = values[:created_at] if record.respond_to?(:updated_at) && !values.include?(:updated_at)
 
           yield record if block_given?
+          touch_timestamps(record_class, record)
 
           @record_store[record_class] << record
           @record_index[record_class].add(record)
@@ -220,8 +242,12 @@ module Sequent
 
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
-          record ||= create_record(record_class, values.merge(created_at: created_at))
-          yield record if block_given?
+          if record
+            track_updated_columns(record_class, record) { yield record } if block_given?
+          else
+            record = create_record(record_class, values.merge(created_at: created_at))
+            yield record if block_given?
+          end
           @record_index[record_class].update(record)
           record
         end
@@ -255,6 +281,7 @@ module Sequent
           find_records(record_class, where_clause).each do |record|
             updates.each_pair do |k, v|
               record[k] = v
+              record.updated!(k.to_sym) if v.nil? && @computed_columns[record_class].include?(k.to_sym)
             end
             @record_index[record_class].update(record)
           end
@@ -263,14 +290,14 @@ module Sequent
         def do_with_records(record_class, where_clause)
           records = find_records(record_class, where_clause)
           records.each do |record|
-            yield record
+            track_updated_columns(record_class, record) { yield record }
             @record_index[record_class].update(record)
           end
         end
 
         def do_with_record(record_class, where_clause)
           record = get_record!(record_class, where_clause)
-          yield record
+          track_updated_columns(record_class, record) { yield record }
           @record_index[record_class].update(record)
         end
 
@@ -311,45 +338,10 @@ module Sequent
         end
 
         def commit
-          @record_store.each do |clazz, records|
-            if records.size > @insert_with_csv_size
-              csv = CSV.new(StringIO.new)
-              column_names = clazz.column_names.reject { |name| name == 'id' }
-              records.each do |record|
-                csv << column_names.map do |column_name|
-                  cast_value_to_column_type(clazz, column_name, record)
-                end
-              end
+          @record_store.each do |record_class, records|
+            next if records.empty?
 
-              copy_data = StringIO.new(csv.string)
-              clazz.transaction do
-                clazz.with_connection do |conn|
-                  conn
-                    .raw_connection
-                    .copy_data("COPY #{clazz.table_name} (#{column_names.join(',')}) FROM STDIN WITH csv") do
-                      while (out = copy_data.read(CHUNK_SIZE))
-                        conn.raw_connection.put_copy_data(out)
-                      end
-                    end
-                end
-              end
-            else
-              clazz.unscoped do
-                inserts = []
-                column_names = clazz.column_names.reject { |name| name == 'id' }
-                prepared_values = (1..column_names.size).map { |i| "$#{i}" }.join(',')
-                records.each do |record|
-                  values = column_names.map do |column_name|
-                    cast_value_to_column_type(clazz, column_name, record)
-                  end
-                  inserts << values
-                end
-                sql = %{insert into #{clazz.table_name} (#{column_names.join(',')}) values (#{prepared_values})}
-                inserts.each do |insert|
-                  clazz.connection.raw_connection.async_exec(sql, insert)
-                end
-              end
-            end
+            copy_records(record_class, records)
           end
         ensure
           clear
@@ -362,9 +354,152 @@ module Sequent
 
         private
 
-        def cast_value_to_column_type(clazz, column_name, record)
-          uncasted_value = clazz.type_for_attribute(column_name).serialize(record[column_name])
-          Sequent::ApplicationRecord.connection.type_cast(uncasted_value)
+        # Sets the timestamps without a value to the current time, like ActiveRecord does when creating a record.
+        def touch_timestamps(record_class, record)
+          now = nil
+          @timestamp_columns[record_class].each do |column|
+            record[column] ||= (now ||= record_class.current_time_from_proper_timezone)
+          end
+        end
+
+        # Marks the computed columns of the +record+ that the block updates to nil, so these are loaded as NULL. Like
+        # ActiveRecord, a column set to the value it already had (like nil to nil) is not changed. Only computed
+        # columns with a value can be updated to nil, and these usually do not have a value during a replay.
+        #
+        # Known difference: a computed column without a value that a block sets to nil is not changed, so the database
+        # still computes it. ActiveRecord would have inserted the computed value when creating the record, and stores
+        # NULL when the record is updated.
+        def track_updated_columns(record_class, record)
+          computed_columns = @computed_columns[record_class]
+          return yield if computed_columns.all? { |column| record[column].nil? }
+
+          columns_with_value = computed_columns.reject { |column| record[column].nil? }
+          yield
+          columns_with_value.each { |column| record.updated!(column) if record[column].nil? }
+        end
+
+        # A column of a COPY, with the encoder for its values. Values for which +native+ returns true, and nil when
+        # the column has +native+, are encoded by the encoder as is, all other values are serialized by ActiveRecord
+        # first. A +computed+ column has a default that the database computes.
+        CopyColumn = Data.define(:name, :position, :type, :encoder, :native, :computed)
+
+        def copy_records(record_class, records)
+          columns = copy_columns(record_class)
+          computed_columns = columns.select(&:computed)
+          return copy(record_class, columns, records) if computed_columns.empty?
+
+          # Leaves out the computed columns without a value, so the database computes them, like ActiveRecord does when
+          # creating a record. A computed column updated to nil is NULL, like when ActiveRecord updates a record. The
+          # records are grouped by a bit mask of the columns to leave out, to avoid allocations per record.
+          computed_names = computed_columns.map { |column| column.name.to_sym }
+          groups = records.group_by do |record|
+            omitted = 0
+            computed_columns.each_with_index do |column, index|
+              if without_value?(column, record[column.position]) && !record.updated?(computed_names[index])
+                omitted |= 1 << index
+              end
+            end
+            omitted
+          end
+
+          # The records of a table are loaded atomically, also when these need more than one COPY.
+          record_class.transaction do
+            groups.each do |omitted, same_columns_records|
+              omitted_columns = computed_columns.select.with_index { |_, index| omitted[index] == 1 }
+              copy(record_class, columns - omitted_columns, same_columns_records)
+            end
+          end
+        end
+
+        # Whether the +value+ of a +column+ is nil after casting, like an empty string in an integer column.
+        def without_value?(column, value)
+          value.nil? || (!column.native&.call(value) && column.type.serialize(value).nil?)
+        end
+
+        def copy(record_class, columns, records)
+          record_class.with_connection do |conn|
+            raw_connection = conn.raw_connection
+            encoder = PG::TextEncoder::CopyRow.new(type_map: PG::TypeMapByColumn.new(columns.map(&:encoder)))
+            quoted_column_names = columns.map { |column| conn.quote_column_name(column.name) }
+            copy = "COPY #{record_class.quoted_table_name} (#{quoted_column_names.join(',')}) FROM STDIN"
+
+            raw_connection.copy_data(copy, encoder) do
+              records.each do |record|
+                values = record.to_a
+                raw_connection.put_copy_data(
+                  columns.map do |column|
+                    value = values[column.position]
+                    if column.native && (value.nil? || column.native.call(value))
+                      value
+                    else
+                      conn.type_cast(column.type.serialize(value))
+                    end
+                  end,
+                )
+              end
+            end
+          end
+        end
+
+        def copy_columns(record_class)
+          record_class.column_names.each_with_index.map do |name, position|
+            type = record_class.type_for_attribute(name)
+            encoder, native = copy_encoder(type)
+            computed = record_class.columns_hash[name].auto_populated?
+            CopyColumn.new(name:, position:, type:, encoder:, native:, computed:)
+          end
+        end
+
+        # Returns the encoder for the values of a column of +type+, and a lambda that returns whether a value can be
+        # encoded as is. This is only the case for values that have the Ruby class the encoder expects, and that
+        # ActiveRecord would not change. So for example floats are not encoded as is in a numeric column, since
+        # ActiveRecord converts them using its own precision, decimals only when they do not have more decimals than
+        # the column, since ActiveRecord rounds them using the rounding mode of BigDecimal, and times only when they
+        # do not have more fractional digits than the column, since ActiveRecord truncates them while the database
+        # rounds them. Values of all other types, like json and arrays, are always serialized by ActiveRecord, which
+        # also ensures that types decorating these types (like enums) are serialized like ActiveRecord does.
+        #
+        # The values serialized by ActiveRecord are integers for integer columns, and strings for all other columns,
+        # which the encoders send as is.
+        def copy_encoder(type)
+          oid = ActiveRecord::ConnectionAdapters::PostgreSQL::OID
+          case type.class.name
+          when ActiveModel::Type::Integer.name
+            [PG::TextEncoder::Integer.new, ->(value) { value.is_a?(::Integer) }]
+          when oid::Decimal.name
+            scale = type.scale
+            [
+              PG::TextEncoder::Numeric.new,
+              ->(value) {
+                value.is_a?(::Integer) || (value.is_a?(::BigDecimal) && (scale.nil? || value.scale <= scale))
+              },
+            ]
+          when oid::Date.name
+            [PG::TextEncoder::Date.new, ->(value) { value.instance_of?(::Date) }]
+          when oid::Timestamp.name
+            return [PG::TextEncoder::String.new, nil] unless ActiveRecord.default_timezone == :utc
+
+            truncated_digits = 10**(9 - (type.precision || 6))
+            [
+              PG::TextEncoder::TimestampUtc.new,
+              ->(value) {
+                value.instance_of?(::Time) && (value.nsec % truncated_digits).zero?
+              },
+            ]
+          when ActiveModel::Type::Boolean.name
+            [PG::TextEncoder::Boolean.new, ->(value) { [true, false].include?(value) }]
+          when ActiveModel::Type::String.name
+            [PG::TextEncoder::String.new, ->(value) { value.is_a?(::String) }]
+          when oid::Uuid.name
+            [
+              PG::TextEncoder::String.new,
+              ->(value) {
+                value.is_a?(::String) && oid::Uuid::ACCEPTABLE_UUID.match?(value)
+              },
+            ]
+          else
+            [PG::TextEncoder::String.new, nil]
+          end
         end
       end
 

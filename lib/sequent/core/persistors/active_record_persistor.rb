@@ -45,14 +45,18 @@ module Sequent
         end
 
         def create_records(record_class, array_of_value_hashes)
+          # Only when all records get an updated_at, since insert_all! requires all records to have the same columns.
+          if array_of_value_hashes.all? { |values| created_at_as_updated_at?(record_class, values) }
+            array_of_value_hashes = array_of_value_hashes.map { |values| with_updated_at(values) }
+          end
           record_class.unscoped.insert_all!(array_of_value_hashes, returning: false)
         end
 
         def create_or_update_record(record_class, values, created_at = Time.now)
           record = get_record(record_class, values)
           unless record
+            values = values.merge(created_at:) if record_class.column_names.include?('created_at')
             record = new_record(record_class, values)
-            record.created_at = created_at if record.respond_to?(:created_at)
           end
           yield record
           record.save!
@@ -115,7 +119,19 @@ module Sequent
         private
 
         def new_record(record_class, values)
+          values = with_updated_at(values) if created_at_as_updated_at?(record_class, values)
           record_class.unscoped.new(values)
+        end
+
+        # Uses +created_at+ as +updated_at+ when only +created_at+ is given, like the other persistors, so the
+        # timestamps are the time of the event instead of the time the record is created by ActiveRecord.
+        def created_at_as_updated_at?(record_class, values)
+          (values[:created_at] || values['created_at']) && !values.key?(:updated_at) && !values.key?('updated_at') &&
+            record_class.column_names.include?('updated_at')
+        end
+
+        def with_updated_at(values)
+          values.merge(updated_at: values[:created_at] || values['created_at'])
         end
       end
     end
