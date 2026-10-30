@@ -22,6 +22,20 @@
   `offline_replay_persistor_class` than the one the projectors used,
   losing the changes of persistors that buffer them.
 
+- Message handlers can handle a batch of messages at once using
+  `on_batch`. `handle_messages` passes consecutive matching messages to
+  these handlers as one batch, in order with the `on` handlers, also
+  for each block of replayed events.
+  `handle_message` and `handle_messages` return the number of handler
+  blocks invoked and take an `on_error` callable. `dispatch_message` is
+  removed: use the handler hooks instead.
+
+  ```ruby
+  on_batch PostAdded do |events|
+    create_records(PostRecord, events.map { |event| {aggregate_id: event.aggregate_id} })
+  end
+  ```
+
 - Message handlers (like projectors and workflows) support hooks that
   run before, after or around each invocation of a handler block, for
   example to add instrumentation. The hooks are only run when a handler

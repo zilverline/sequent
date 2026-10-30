@@ -99,20 +99,20 @@ module Sequent
           block_size: 1000,
           on_progress:,
         ) do |events|
-          projectors.each { |projector| replay_events_to(projector, events) }
+          projectors.each do |projector|
+            projector.handle_messages(events, on_error: replay_error_handler(projector))
+          end
         end
 
         projectors.each(&:flush)
       end
 
-      # Replays the +events+ to the +projector+, raising an error that tells which event failed.
-      def replay_events_to(projector, events)
-        events.each do |event|
-          projector.handle_message(event)
-        rescue Sequent::Core::ProjectorMigrationError
-          raise
-        rescue StandardError
-          raise Sequent::Core::EventPublisher::PublishEventError.new(projector.class, event)
+      # Raises an error that tells which event the +projector+ failed to replay.
+      def replay_error_handler(projector)
+        ->(events, error) do
+          fail error if error.is_a?(Sequent::Core::ProjectorMigrationError)
+
+          fail Sequent::Core::EventPublisher::PublishEventError.new(projector.class, events.first)
         end
       end
 

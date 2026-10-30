@@ -272,6 +272,111 @@ describe Sequent::Core::Helpers::MessageHandler do
     end
   end
 
+  context 'with batch handlers' do
+    class MyBatchHandler
+      include Sequent::Core::Helpers::MessageHandler
+
+      attr_reader :log
+
+      def initialize
+        @log = []
+      end
+
+      on_batch MessageHandlerEvent do |events|
+        @log << [:batch, events.size]
+      end
+
+      on MessageHandlerEvent, MessageHandlerEventOtherEvent do |event|
+        @log << [:individual, event.class]
+      end
+    end
+
+    let(:handler) { MyBatchHandler.new }
+    let(:event) { MessageHandlerEvent.new }
+    let(:other_event) { MessageHandlerEventOtherEvent.new(aggregate_id: '2', sequence_number: 1) }
+
+    it 'handles the batch handlers like other handlers' do
+      expect(MyBatchHandler.batch_handlers?).to be_truthy
+      expect(MyHandler.batch_handlers?).to be_falsey
+      expect(MyBatchHandler.handles_message?(event)).to be_truthy
+      expect(MyBatchHandler.message_mapping.keys).to contain_exactly(MessageHandlerEvent, MessageHandlerEventOtherEvent)
+    end
+
+    it 'calls the batch handlers with a batch of one message when handling a single message' do
+      handler.handle_message(event)
+
+      expect(handler.log).to eq [[:batch, 1], [:individual, MessageHandlerEvent]]
+    end
+
+    it 'handles the messages in order, calling the batch handlers before the other handlers of a message' do
+      handler.handle_messages([event, other_event, event])
+
+      expect(handler.log).to eq [
+        [:batch, 1],
+        [:individual, MessageHandlerEvent],
+        [:individual, MessageHandlerEventOtherEvent],
+        [:batch, 1],
+        [:individual, MessageHandlerEvent],
+      ]
+    end
+
+    context 'with consecutive messages for the same batch handlers' do
+      class MyOrderedBatchHandler
+        include Sequent::Core::Helpers::MessageHandler
+
+        attr_reader :log
+
+        def initialize
+          @log = []
+        end
+
+        on_batch MessageHandlerEvent do |events|
+          @log << [:batch, events.size]
+        end
+
+        on_batch MessageHandlerEvent, MessageHandlerEventOtherEvent do |events|
+          @log << [:other_batch, events.size]
+        end
+
+        on BaseMessageHandlerEvent do |_event|
+          @log << [:individual]
+        end
+      end
+
+      let(:handler) { MyOrderedBatchHandler.new }
+      let(:base_event) { BaseMessageHandlerEvent.new }
+
+      it 'handles these messages in a single batch until a message is handled by other handlers' do
+        handler.handle_messages([event, event, other_event, other_event, base_event, event])
+
+        expect(handler.log).to eq [
+          [:batch, 2],
+          [:other_batch, 2],
+          [:other_batch, 2],
+          [:individual],
+          [:batch, 1],
+          [:other_batch, 1],
+        ]
+      end
+    end
+  end
+
+  context 'return value' do
+    it 'returns the number of handler blocks invoked' do
+      expect(MyHandler.new.handle_message(MessageHandlerEvent.new)).to eq 2
+      expect(MyHandler.new.handle_message(BaseMessageHandlerEvent.new)).to eq 0
+      expect(MyHandler.new.handle_messages([MessageHandlerEvent.new, MessageHandlerEvent.new])).to eq 4
+      expect(MyHandler.new.handle_message!(MessageHandlerEvent.new)).to eq 2
+    end
+
+    it 'counts a batch handler invoked with a batch of messages once' do
+      event = MessageHandlerEvent.new
+      other_event = MessageHandlerEventOtherEvent.new(aggregate_id: '2', sequence_number: 1)
+
+      expect(MyOrderedBatchHandler.new.handle_messages([event, event, other_event])).to eq 3
+    end
+  end
+
   context 'hooks' do
     class HookedHandler
       include Sequent::Core::Helpers::MessageHandler
@@ -295,6 +400,10 @@ describe Sequent::Core::Helpers::MessageHandler do
         @log << :handler
       end
 
+      on_batch MessageHandlerEventOtherEvent do |events|
+        @log << [:batch_handler, events.size]
+      end
+
       private
 
       def around_method(messages)
@@ -316,6 +425,7 @@ describe Sequent::Core::Helpers::MessageHandler do
     end
 
     let(:handler) { HookedHandler.new }
+    let(:other_event) { MessageHandlerEventOtherEvent.new(aggregate_id: '2', sequence_number: 1) }
 
     it 'runs the hooks around each invocation of a handler block, in order' do
       handler.handle_message(MessageHandlerEvent.new)
@@ -331,36 +441,24 @@ describe Sequent::Core::Helpers::MessageHandler do
       ]
     end
 
+    it 'passes the batch of messages to the hooks of a batch handler block' do
+      handler.handle_messages([other_event, other_event])
+
+      expect(handler.log.first).to eq [:before, 2]
+      expect(handler.log).to include [:batch_handler, 2]
+    end
+
     it 'does not run the hooks when no handler block is invoked' do
       handler.handle_message(BaseMessageHandlerEvent.new)
 
       expect(handler.log).to be_empty
     end
 
-    it 'runs the hooks when a subclass overrides dispatch_message' do
-      overriding_handler = Class.new(HookedHandler) do
-        on MessageHandlerEvent do |_event|
-          @log << :handler
-        end
-
-        def dispatch_message(message, handlers)
-          @log << :dispatch
-          super
-        end
-      end.new
-
-      overriding_handler.handle_message(MessageHandlerEvent.new)
-
-      expect(overriding_handler.log.first(2)).to eq [:dispatch, [:before, 1]]
-      expect(overriding_handler.log).to include :handler
-    end
-
     it 'inherits the hooks, and skips the handler block when an around hook does not continue' do
       skipping_handler = SkippingHookedHandler.new
       skipping_handler.skip = true
 
-      skipping_handler.handle_message(MessageHandlerEvent.new)
-
+      expect(skipping_handler.handle_message(MessageHandlerEvent.new)).to eq 1
       expect(skipping_handler.log).to eq [
         [:before, 1],
         [:around_method_start, 1],
@@ -460,6 +558,54 @@ describe Sequent::Core::Helpers::MessageHandler do
     it 'requires either a method name or a block' do
       expect { Class.new(HookedHandler) { before_handler } }.to raise_error ArgumentError
       expect { Class.new(HookedHandler) { before_handler(:foo) { nil } } }.to raise_error ArgumentError
+    end
+  end
+
+  context 'on_error' do
+    class FailingHandlerEvent < Sequent::Event; end
+
+    class FailingHandler
+      include Sequent::Core::Helpers::MessageHandler
+
+      on FailingHandlerEvent do |event|
+        fail 'event failed' if event.sequence_number == 2
+      end
+
+      on_batch MessageHandlerEventOtherEvent do |_events|
+        fail 'batch failed'
+      end
+    end
+
+    let(:handler) { FailingHandler.new }
+    let(:events) { [1, 2, 3].map { |n| FailingHandlerEvent.new(aggregate_id: '1', sequence_number: n) } }
+    let(:other_events) { [1, 2].map { |n| MessageHandlerEventOtherEvent.new(aggregate_id: '2', sequence_number: n) } }
+
+    it 'is called with the message that failed, and raises the error when it returns' do
+      failed = []
+
+      expect do
+        handler.handle_messages(events, on_error: ->(messages, error) { failed << [messages, error.message] })
+      end.to raise_error 'event failed'
+
+      expect(failed).to eq [[[events[1]], 'event failed']]
+    end
+
+    it 'is called with the batch of messages that failed' do
+      failed = []
+
+      expect do
+        handler.handle_messages(other_events, on_error: ->(messages, _error) { failed << messages })
+      end.to raise_error 'batch failed'
+
+      expect(failed).to eq [other_events]
+    end
+
+    it 'can raise another error, caused by the error of the handler' do
+      on_error = ->(messages, _error) { fail "#{messages.first.sequence_number} failed" }
+
+      expect do
+        handler.handle_messages(events, on_error:)
+      end.to raise_error(RuntimeError, '2 failed') { |error| expect(error.cause.message).to eq 'event failed' }
     end
   end
 end

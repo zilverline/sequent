@@ -108,10 +108,19 @@ module Sequent
       end
 
       def self.on(*args, **opts, &block)
-        fail ArgumentError, 'only type based event handlers are allowed for projectors' unless args.all?(Class)
-
+        ensure_type_based_handler!(args)
         super
       end
+
+      def self.on_batch(*args, **opts, &block)
+        ensure_type_based_handler!(args)
+        super
+      end
+
+      def self.ensure_type_based_handler!(args)
+        fail ArgumentError, 'only type based event handlers are allowed for projectors' unless args.all?(Class)
+      end
+      private_class_method :ensure_type_based_handler!
 
       def self.replay_persistor
         nil
