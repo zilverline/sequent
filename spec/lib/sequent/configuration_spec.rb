@@ -59,6 +59,34 @@ describe Sequent::Configuration do
       end
     end
 
+    context 'with event handlers with the batch lifetime' do
+      let!(:singleton_projector_class) { Class.new(Sequent::Projector) { manages_no_tables } }
+      let!(:batch_projector_class) do
+        Class.new(Sequent::Projector) do
+          self.lifetime = :batch
+          manages_no_tables
+        end
+      end
+
+      it 'registers the class instead of an instance' do
+        Sequent.configure do |config|
+          config.event_handlers = []
+          config.enable_autoregistration = true
+        end
+        expect(Sequent.configuration.event_handlers).to include(batch_projector_class)
+        expect(Sequent.configuration.event_handlers.map(&:class)).to include(singleton_projector_class)
+      end
+
+      it 'fails when an instance is registered' do
+        expect do
+          Sequent.configure do |config|
+            config.enable_autoregistration = true
+            config.event_handlers = [batch_projector_class.new]
+          end
+        end.to raise_error(ArgumentError, /has the batch lifetime, so register the class/)
+      end
+    end
+
     context 'it fails when trying to register a command_handler twice' do
       let!(:command_handler_class) { Class.new(Sequent::CommandHandler) }
       it 'fails' do

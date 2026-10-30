@@ -35,6 +35,29 @@
   `commit` methods are deprecated aliases. Custom persistors must
   implement `flush` instead of `commit`.
 
+- Projectors and workflows have a `lifetime`. The default `:singleton`
+  registers a single instance that handles all events, like before. An
+  event handler with the `:batch` lifetime is registered as a class, and
+  the `EventPublisher` creates a new instance for every batch of events
+  it handles (the events of a `publish_events` call), like a controller
+  is created for every request. A projector with the `:batch` lifetime
+  can use a `BufferedPersistor`, which the `EventPublisher` flushes
+  after the batch, and before another event handler handles an event,
+  so it sees the changes:
+
+  ```ruby
+  class InvoiceProjector < Sequent::Projector
+    self.lifetime = :batch
+
+    def default_persistor = Sequent::Core::Persistors::BufferedPersistor.new
+  end
+  ```
+
+  Autoregistration registers the class or an instance depending on the
+  lifetime, and fails when an event handler is registered in a way that
+  does not match its lifetime, or when a registered projector instance
+  uses a `BufferedPersistor`, since nothing flushes it.
+
 - A new `BufferedPersistor` buffers the changes of a projector and
   writes them to the database when it is flushed, combining
   statements where this cannot change the outcome: records created in

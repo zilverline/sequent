@@ -30,7 +30,8 @@ module Sequent
           # The match for an +event+ of the class this match was determined for.
           def for_event(_event) = self
 
-          def dispatch(event)
+          # Dispatches the +event+ to the +event_handler+, or to the given instance of the event handler class.
+          def dispatch(event, event_handler = self.event_handler)
             if handler_blocks
               event_handler.dispatch_message(event, handler_blocks)
             else
@@ -77,7 +78,7 @@ module Sequent
 
         # The message router of the +event_handler+, or nil when it gets the events using +handle_message+.
         def message_router(event_handler)
-          handler_class = event_handler.class
+          handler_class = EventHandlers.handler_class(event_handler)
           @message_routers.fetch(handler_class) do
             @message_routers[handler_class] = (handler_class.message_router if dispatchable?(handler_class))
           end

@@ -59,23 +59,54 @@ module Sequent
         end
       end
 
+      # Handles the +events+ using the registered +event_handlers+. An event handler class (with the +batch+
+      # lifetime) gets a new instance for the events when it handles the first of them. The projectors instantiated
+      # for the events are flushed after handling the events, and before another event handler handles an event, so
+      # other event handlers see their changes.
       def process_events(event_handlers, events)
         plan = Helpers::DispatchPlan.new(event_handlers)
-        events.each { |event| process_event(event_handlers, event, plan:) }
+        batch_handlers = {}
+        events.each { |event| process_event(event_handlers, event, plan:, batch_handlers:) }
+        flush_projectors(batch_handlers, events.last)
       end
 
-      # Dispatches the +event+ to the +event_handlers+ that handle it, using the +plan+ of the batch of events.
-      def process_event(event_handlers, event, plan: Helpers::DispatchPlan.new(event_handlers))
+      # Dispatches the +event+ to the +event_handlers+ that handle it, using the +plan+ of the batch of events and the
+      # +batch_handlers+ instantiated for the batch so far.
+      def process_event(event_handlers, event, plan: Helpers::DispatchPlan.new(event_handlers), batch_handlers: {})
         fail ArgumentError, 'event is required' if event.nil?
 
         Sequent.logger.debug("[EventPublisher] Publishing event #{event.class}") if Sequent.logger.debug?
 
         plan.matches(event).each do |match|
-          match.dispatch(event)
+          event_handler = match.event_handler
+          if event_handler.is_a?(Class)
+            dispatch(match, event, batch_handlers[event_handler] ||= event_handler.new)
+          else
+            flush_projectors(batch_handlers, event) unless batch_handlers.empty?
+            dispatch(match, event, event_handler)
+          end
+        end
+      end
+
+      def dispatch(match, event, event_handler)
+        match.dispatch(event, event_handler)
+      rescue ProjectorMigrationError
+        raise
+      rescue StandardError
+        raise PublishEventError.new(event_handler.class, event)
+      end
+
+      # Flushes the changes of the instantiated projectors of the batch, which were made while handling the events
+      # up to the +event+.
+      def flush_projectors(batch_handlers, event)
+        batch_handlers.each_value do |event_handler|
+          next unless event_handler.is_a?(Projector) && event_handler.pending_changes?
+
+          event_handler.flush
         rescue ProjectorMigrationError
           raise
         rescue StandardError
-          raise PublishEventError.new(match.event_handler.class, event)
+          raise PublishEventError.new(event_handler.class, event)
         end
       end
 

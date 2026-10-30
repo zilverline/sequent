@@ -9,6 +9,10 @@ module Sequent
       include Helpers::MessageHandler
       extend ActiveSupport::DescendantsTracker
 
+      # The lifetime of the instances of this workflow, +:singleton+ (the default) or +:batch+, like the lifetime of a
+      # +Projector+.
+      class_attribute :lifetime, default: :singleton
+
       class << self
         attr_accessor :abstract_class, :skip_autoregister
       end

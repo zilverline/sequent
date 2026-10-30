@@ -29,9 +29,10 @@ module Sequent
       end
 
       def ensure_no_unknown_active_projectors!(event_handlers)
-        registered_projectors = event_handlers
-          .grep(Projector)
-          .map { |x| x.class.name }
+        registered_projectors = event_handlers.filter_map do |x|
+          handler_class = Helpers::EventHandlers.handler_class(x)
+          handler_class.name if handler_class < Projector
+        end
         activated_projectors = Projectors.projector_states
           .values
           .select { |s| s.active_version.present? || s.activating_version.present? }
@@ -44,18 +45,19 @@ module Sequent
       end
 
       def active?(handler)
-        return true unless handler.is_a?(Projector)
+        handler_class = Helpers::EventHandlers.handler_class(handler)
+        return true unless handler_class < Projector
 
-        version = handler.class.version
+        version = handler_class.version
         return true if version.nil?
 
-        projector_state = Projectors.projector_states[handler.class.name]
+        projector_state = Projectors.projector_states[handler_class.name]
         return false if projector_state.nil?
 
         if projector_state.activating_version.present?
           # Activating projectors are replaying the last remaining events before going live, so new events cannot be
           # processed until activation is completed.
-          fail ProjectorIsActivatingError, "projector #{handler.class} is currently activating"
+          fail ProjectorIsActivatingError, "projector #{handler_class} is currently activating"
         end
 
         # Projector is not yet active (probably just replaying)
@@ -67,7 +69,7 @@ module Sequent
         # A different projector version is active, so we cannot write new events since our projector version is not
         # compatible with the active version.
         fail DifferentProjectorVersionIsActiveError,
-             "projector #{handler.class} version #{version} does not match state #{projector_state}"
+             "projector #{handler_class} version #{version} does not match state #{projector_state}"
       end
     end
   end

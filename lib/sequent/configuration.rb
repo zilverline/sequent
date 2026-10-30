@@ -4,6 +4,7 @@ require_relative 'core/random_uuid_generator'
 require_relative 'core/base_command_handler'
 require_relative 'core/command'
 require_relative 'core/event_store'
+require_relative 'core/helpers/event_handlers'
 require_relative 'core/event_publisher'
 require_relative 'core/aggregate_snapshotter'
 require_relative 'core/command_service'
@@ -190,12 +191,12 @@ module Sequent
       self.class.instance.event_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::Projector) do |projector_class|
         Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}") if Sequent.logger.debug?
-        self.class.instance.event_handlers << projector_class.new
+        self.class.instance.event_handlers << Sequent::Core::Helpers::EventHandlers.registration(projector_class)
       end
 
       for_each_autoregisterable_descenant_of(Sequent::Workflow) do |workflow_class|
         Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}") if Sequent.logger.debug?
-        self.class.instance.event_handlers << workflow_class.new
+        self.class.instance.event_handlers << Sequent::Core::Helpers::EventHandlers.registration(workflow_class)
       end
 
       self.class.instance.aggregate_observers ||= []
@@ -212,7 +213,11 @@ module Sequent
         end
       end
 
-      self.class.instance.event_handlers.map(&:class).tally.each do |(clazz, count)|
+      Sequent::Core::Helpers::EventHandlers.ensure_valid!(self.class.instance.event_handlers)
+
+      self.class.instance.event_handlers.map do |event_handler|
+        Sequent::Core::Helpers::EventHandlers.handler_class(event_handler)
+      end.tally.each do |(clazz, count)|
         if count > 1
           fail "EventHandler #{clazz} is registered #{count} times. An EventHandler can only be registered once"
         end

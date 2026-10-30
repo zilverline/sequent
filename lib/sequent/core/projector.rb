@@ -28,7 +28,8 @@ module Sequent
       end
 
       def self.projectors
-        Sequent.configuration.event_handlers.grep(Migratable).map(&:class)
+        Sequent.configuration.event_handlers.map { |event_handler| Helpers::EventHandlers.handler_class(event_handler) }
+          .select { |handler_class| handler_class < Migratable }
       end
 
       def self.included(host_class)
@@ -81,11 +82,26 @@ module Sequent
     #
     #   create_record(LineItemRecord, invoice_id: invoice_record.aggregate_id)
     #
+    # A projector with the +batch+ lifetime gets a new instance for every batch of events, so
+    # it can buffer its changes using a +BufferedPersistor+, which combines the statements of the batch:
+    #
+    #   class InvoiceProjector < Sequent::Core::Projector
+    #     self.lifetime = :batch
+    #
+    #     def default_persistor = Sequent::Core::Persistors::BufferedPersistor.new
+    #   end
+    #
     class Projector
       extend Forwardable
       include Helpers::MessageHandler
       include Migratable
       extend ActiveSupport::DescendantsTracker
+
+      # The lifetime of the instances of this projector. With the default +:singleton+ lifetime a single instance is
+      # registered, which handles all events. With the +:batch+ lifetime the class is registered, and the
+      # +EventPublisher+ creates a new instance for every batch of events it handles, like a controller is created for
+      # every request, so the instance can keep state while handling the batch.
+      class_attribute :lifetime, default: :singleton
 
       class NotManagedByThisProjector < RuntimeError
         def initialize(record_class)
@@ -102,9 +118,21 @@ module Sequent
         attr_accessor :abstract_class, :skip_autoregister
       end
 
-      def initialize(persistor = Sequent::Core::Persistors::ActiveRecordPersistor.new)
+      attr_reader :persistor
+
+      def initialize(persistor = default_persistor)
         ensure_valid!
         @persistor = persistor
+      end
+
+      # The persistor of a projector created without a persistor.
+      def default_persistor
+        Sequent::Core::Persistors::ActiveRecordPersistor.new
+      end
+
+      # Whether the persistor has changes that are not written to the database until it is flushed.
+      def pending_changes?
+        @persistor.respond_to?(:pending_statements) && @persistor.pending_statements > 0
       end
 
       def self.on(*args, **opts, &block)
