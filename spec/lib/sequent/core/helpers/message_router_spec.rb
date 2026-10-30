@@ -26,6 +26,11 @@ describe Sequent::Core::Helpers::MessageRouter do
       it 'returns an empty set' do
         expect(subject).to eq(Set.new)
       end
+
+      it 'returns the same frozen empty set every time, so it does not allocate' do
+        expect(subject).to be_frozen
+        expect(message_router.match_message(message)).to equal(subject)
+      end
     end
 
     context 'given a registered IsA' do
@@ -41,6 +46,12 @@ describe Sequent::Core::Helpers::MessageRouter do
 
         it 'returns the registered handlers' do
           expect(subject).to eq(Set[handler])
+        end
+
+        it 'returns a copy of the registered handlers' do
+          subject << other_handler
+
+          expect(message_router.match_message(message)).to eq(Set[handler])
         end
 
         context 'and the message class is registered multiple times' do
