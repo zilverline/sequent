@@ -17,6 +17,18 @@ module Sequent
       # An event handler that handles an event, with the handler blocks that handle it, or +nil+ when the event is
       # passed to +handle_message+.
       Match = Data.define(:event_handler, :handler_blocks) do
+        # The match of the +event_handler+ for the +event+ using its +message_router+, or nil when it does not handle
+        # the event. Without a +message_router+ the event handler gets every event using +handle_message+.
+        def self.of(event_handler, message_router, event)
+          return new(event_handler, nil) if message_router.nil?
+
+          handler_blocks = message_router.match_message(event)
+          new(event_handler, handler_blocks) unless handler_blocks.empty?
+        end
+
+        # The match for an +event+ of the class this match was determined for.
+        def for_event(_event) = self
+
         def dispatch(event)
           if handler_blocks
             event_handler.dispatch_message(event, handler_blocks)
@@ -24,6 +36,13 @@ module Sequent
             event_handler.handle_message(event)
           end
         end
+      end
+
+      # An event handler that is matched for every event, since its matches do not only depend on the class of the
+      # event.
+      PerEventMatcher = Data.define(:event_handler, :message_router) do
+        # The match for the +event+, or nil when the event handler does not handle it.
+        def for_event(event) = Match.of(event_handler, message_router, event)
       end
 
       def initialize(event_handlers)
@@ -36,39 +55,23 @@ module Sequent
       # The matches of the event handlers that handle the +event+, in the order of the event handlers.
       def matches(event)
         entries, per_event = @entries_by_event_class[event.class] ||= entries_for_event_class(event)
-        return entries unless per_event
-
-        entries.filter_map do |entry|
-          next entry if entry.is_a?(Match)
-
-          match(entry, event)
-        end
+        per_event ? entries.filter_map { |entry| entry.for_event(event) } : entries
       end
 
       private
 
-      # The matches of the event handlers that only match events by their class, and the event handlers that are
-      # matched for every event, in the order of the event handlers. Also returns whether there are any of the latter.
+      # The matches of the event handlers that only match events by their class, and the matchers of the other event
+      # handlers, in the order of the event handlers. Also returns whether there are any of the latter.
       def entries_for_event_class(event)
-        per_event = false
         entries = @event_handlers.filter_map do |event_handler|
           message_router = message_router(event_handler)
           if message_router&.routes&.empty?
-            match(event_handler, event)
+            Match.of(event_handler, message_router, event)
           else
-            per_event = true
-            event_handler
+            PerEventMatcher.new(event_handler, message_router)
           end
         end
-        [entries.freeze, per_event]
-      end
-
-      def match(event_handler, event)
-        message_router = message_router(event_handler)
-        return Match.new(event_handler, nil) if message_router.nil?
-
-        handler_blocks = message_router.match_message(event)
-        Match.new(event_handler, handler_blocks) unless handler_blocks.empty?
+        [entries.freeze, entries.any?(PerEventMatcher)]
       end
 
       # The message router of the +event_handler+, or nil when it gets the events using +handle_message+.
