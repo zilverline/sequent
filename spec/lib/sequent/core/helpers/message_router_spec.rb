@@ -89,6 +89,27 @@ describe Sequent::Core::Helpers::MessageRouter do
       end
     end
 
+    context 'given a registered InstanceOf' do
+      let(:message) { MyMessage.new(attrs) }
+
+      before do
+        message_router.register_matchers(
+          Sequent::Core::Helpers::MessageMatchers::InstanceOf.new(MyMessage),
+          handler,
+        )
+      end
+
+      it 'returns the registered handlers' do
+        expect(subject).to eq(Set[handler])
+      end
+
+      it 'returns a copy of the registered handlers' do
+        subject << other_handler
+
+        expect(message_router.match_message(message)).to eq(Set[handler])
+      end
+    end
+
     context 'given a registered message module' do
       module MyModule; end
 
