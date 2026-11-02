@@ -63,7 +63,7 @@ module Sequent
       ##
       # Records which Projector's and Workflow's are executed
       #
-      class RecordingEventPublisher < Sequent::Core::EventPublisher
+      class RecordingEventPublisher < Sequent::Core::InlineEventPublisher
         attr_reader :projectors, :workflows
 
         def initialize(result)

@@ -43,6 +43,20 @@ describe Sequent::Configuration do
       expect(Sequent.configuration.command_handlers.map(&:class)).to include(command_handler_class)
     end
 
+    it 'fails on an event handler with a phase that the event publisher has no stage for' do
+      bulk_workflow_class = Class.new(Sequent::Workflow) do
+        self.skip_autoregister = true
+        self.phase = :later
+      end
+
+      expect do
+        Sequent.configure do |config|
+          config.event_handlers = [bulk_workflow_class]
+          config.enable_autoregistration = true
+        end
+      end.to raise_error(ArgumentError, /phase :later of .* is not one of the phases/)
+    end
+
     context 'it ignores abstract classes' do
       let!(:base_command_handler_class) do
         Class.new(Sequent::CommandHandler) do

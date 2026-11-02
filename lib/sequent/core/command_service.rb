@@ -45,10 +45,15 @@ module Sequent
       def process_commands(validation_context)
         Sequent::Util.skip_if_already_processing(:command_service_process_commands) do
           transaction_provider.transaction do
-            until command_queue.empty?
-              command = command_queue.pop
-              command_middleware.invoke(command) do
-                process_command(command, validation_context)
+            event_publisher.defer_events do
+              loop do
+                until command_queue.empty?
+                  command = command_queue.pop
+                  command_middleware.invoke(command) do
+                    process_command(command, validation_context)
+                  end
+                end
+                break unless event_publisher.handle_deferred_events
               end
             end
             Sequent::Util.done_processing(:command_service_process_commands)
@@ -83,6 +88,10 @@ module Sequent
 
       def event_store
         Sequent.configuration.event_store
+      end
+
+      def event_publisher
+        Sequent.configuration.event_publisher
       end
 
       def repository

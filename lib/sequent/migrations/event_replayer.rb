@@ -112,7 +112,7 @@ module Sequent
         rescue Sequent::Core::ProjectorMigrationError
           raise
         rescue StandardError
-          raise Sequent::Core::EventPublisher::PublishEventError.new(projector.class, event)
+          raise Sequent::Core::PublishEventError.new(projector.class, event)
         end
       end
 

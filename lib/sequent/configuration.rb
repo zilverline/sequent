@@ -4,6 +4,11 @@ require_relative 'core/random_uuid_generator'
 require_relative 'core/base_command_handler'
 require_relative 'core/command'
 require_relative 'core/event_store'
+require_relative 'core/helpers/event_handlers'
+require_relative 'core/helpers/event_handler_dispatch'
+require_relative 'core/inline_event_publisher'
+require_relative 'core/bulk_event_publisher'
+require_relative 'core/staged_event_publisher'
 require_relative 'core/event_publisher'
 require_relative 'core/aggregate_snapshotter'
 require_relative 'core/command_service'
@@ -118,7 +123,7 @@ module Sequent
       self.stream_record_class = Sequent::Core::StreamRecord
       self.transaction_provider = Sequent::Core::Transactions::ActiveRecordTransactionProvider.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
-      self.event_publisher = Sequent::Core::EventPublisher.new
+      self.event_publisher = Sequent::Core::StagedEventPublisher.with_phases
       self.disable_event_handlers = false
       self.versions_table_name = DEFAULT_VERSIONS_TABLE_NAME
       self.migration_sql_files_directory = DEFAULT_MIGRATION_SQL_FILES_DIRECTORY
@@ -190,12 +195,13 @@ module Sequent
       self.class.instance.event_handlers ||= []
       for_each_autoregisterable_descenant_of(Sequent::Projector) do |projector_class|
         Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}") if Sequent.logger.debug?
-        self.class.instance.event_handlers << projector_class.new
+        projector_class.ensure_valid!
+        self.class.instance.event_handlers << projector_class
       end
 
       for_each_autoregisterable_descenant_of(Sequent::Workflow) do |workflow_class|
         Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}") if Sequent.logger.debug?
-        self.class.instance.event_handlers << workflow_class.new
+        self.class.instance.event_handlers << workflow_class
       end
 
       self.class.instance.aggregate_observers ||= []
@@ -212,7 +218,11 @@ module Sequent
         end
       end
 
-      self.class.instance.event_handlers.map(&:class).tally.each do |(clazz, count)|
+      # Fails fast on an event handler with a phase that the event publisher has no stage for.
+      publisher = self.class.instance.event_publisher
+      publisher.ensure_valid_phases!(self.class.instance.event_handlers) if publisher.respond_to?(:ensure_valid_phases!)
+
+      self.class.instance.event_handler_classes.tally.each do |(clazz, count)|
         if count > 1
           fail "EventHandler #{clazz} is registered #{count} times. An EventHandler can only be registered once"
         end
@@ -223,6 +233,12 @@ module Sequent
           fail "Observer #{clazz} is registered #{count} times. An AggregateObserver can only be registered once"
         end
       end
+    end
+
+    ##
+    # The classes of the registered event handlers, which are either event handler classes or instances.
+    def event_handler_classes
+      event_handlers.map { |event_handler| Sequent::Core::Helpers::EventHandlers.handler_class(event_handler) }
     end
 
     private

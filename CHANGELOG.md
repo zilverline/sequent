@@ -31,6 +31,43 @@
   `offline_replay_persistor_class` than the one the projectors used,
   losing the changes of persistors that buffer them.
 
+- Events are published in phases, declared using `self.phase = ...`:
+  `bulk` projectors handle all events of a command at once, before the
+  `inline` phase; `inline` (the default) handles the events one at a
+  time, projectors before workflows; and `before_commit` workflows
+  handle the events of all commands in the transaction at once, after
+  the queued commands. Autoregistration fails on a phase without a
+  stage.
+
+  ```ruby
+  class PostIndexWorkflow < Sequent::Workflow
+    self.phase = :before_commit
+
+    on PostAdded do |event|
+      execute_commands IndexPost.new(aggregate_id: event.aggregate_id)
+    end
+  end
+  ```
+
+- The default event publisher is `StagedEventPublisher.with_phases`. A
+  `StagedEventPublisher` queues the events published while handling
+  events, and passes them to an `InlineEventPublisher` or
+  `BulkEventPublisher` stage per phase, either right away or, for the
+  deferred stages, when the `CommandService` has no more commands
+  queued (using the new `defer_events` and `handle_deferred_events`).
+
+- Breaking: the `ActiveProjectorsEventPublisher` wraps an event
+  publisher, like `ActiveProjectorsEventPublisher.new(StagedEventPublisher.with_phases)`;
+  subclasses that override `process_event` must move this to a stage.
+  The `EventPublisher` is deprecated, and overriding how it dispatches
+  events has no effect anymore. `EventPublisher::PublishEventError` is
+  `Sequent::Core::PublishEventError`.
+
+- Autoregistration registers the event handler classes, which get a new
+  instance for every batch of events they handle. Code that looks for
+  instances in `Sequent.configuration.event_handlers` must use
+  `event_handler_classes` instead.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle
