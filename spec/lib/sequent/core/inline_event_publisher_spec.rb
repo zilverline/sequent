@@ -80,6 +80,10 @@ describe Sequent::Core::InlineEventPublisher do
 
       attr_accessor :log
 
+      on_batch EventAdded do |events|
+        log << [:projector_batch, events.map(&:sequence_number)]
+      end
+
       on EventAdded do |event|
         log << [:projector, event.sequence_number]
       end
@@ -123,8 +127,10 @@ describe Sequent::Core::InlineEventPublisher do
       described_class.new.publish_events(events, event_handlers: [workflow, projector])
 
       expect(log).to eq [
+        [:projector_batch, [1]],
         [:projector, 1],
         [:workflow, 1],
+        [:projector_batch, [2]],
         [:projector, 2],
         [:workflow, 2],
       ]
@@ -199,7 +205,8 @@ describe Sequent::Core::InlineEventPublisher do
     it 'handles events in bulk using a projector instance with its own persistor' do
       Sequent::Core::BulkEventPublisher.new.publish_events(events, event_handlers: [projector])
 
-      expect(log).to eq [[:projector, 1], [:projector, 2]]
+      # The projector also handles each event individually, so the events are handled in order.
+      expect(log).to eq [[:projector_batch, [1]], [:projector, 1], [:projector_batch, [2]], [:projector, 2]]
     end
   end
 

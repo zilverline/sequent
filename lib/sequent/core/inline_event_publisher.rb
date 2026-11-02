@@ -7,7 +7,7 @@ module Sequent
     #
     # Publishes the events one at a time. For each event the projectors are invoked before the other
     # event handlers (like workflows), so these can use the projections updated by the event they are
-    # handling.
+    # handling. The batch handlers (see +MessageHandler#on_batch+) receive a batch of a single event.
     #
     # The projectors instantiated for the events are flushed after handling all events.
     #
@@ -43,7 +43,7 @@ module Sequent
 
             handler = event_handler_instance(match.event_handler, instances)
             if match.handler_blocks
-              handler.dispatch_message(event, match.handler_blocks)
+              handler.handle_matched_message(event, match.handler_blocks)
             else
               handler.handle_message(event)
             end

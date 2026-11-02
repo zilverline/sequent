@@ -306,8 +306,8 @@ describe Sequent::Core::StagedEventPublisher do
 
       attr_accessor :log
 
-      on PhasedTestEvent do |event|
-        log << [:before_commit, event.aggregate_id]
+      on_batch PhasedTestEvent do |events|
+        log << [:before_commit, events.map(&:aggregate_id)]
       end
     end
 
@@ -335,8 +335,21 @@ describe Sequent::Core::StagedEventPublisher do
       self.phase = :bulk
       manages_tables BulkTestRecord
 
-      on PhasedTestEvent do |event|
-        create_record(BulkTestRecord, aggregate_id: event.aggregate_id)
+      on_batch PhasedTestEvent do |events|
+        create_records(BulkTestRecord, events.map { |event| {aggregate_id: event.aggregate_id} })
+      end
+    end
+
+    class BatchInlineTestProjector < Sequent::Core::Projector
+      self.skip_autoregister = true
+      manages_tables BulkTestRecord
+
+      class << self
+        attr_accessor :batch_sizes
+      end
+
+      on_batch PhasedTestEvent do |events|
+        self.class.batch_sizes << events.size
       end
     end
 
@@ -381,8 +394,7 @@ describe Sequent::Core::StagedEventPublisher do
       expect(log).to eq [
         [:inline, aggregate_ids[0]],
         [:inline, aggregate_ids[1]],
-        [:before_commit, aggregate_ids[0]],
-        [:before_commit, aggregate_ids[1]],
+        [:before_commit, aggregate_ids],
       ]
     end
 
@@ -400,18 +412,34 @@ describe Sequent::Core::StagedEventPublisher do
         Sequent::ApplicationRecord.connection.execute('DROP TABLE bulk_test_records')
       end
 
-      it 'handles all events of a command in the bulk phase before the inline phase' do
+      it 'inserts the records of all events of a command using a single statement before the inline phase' do
         Sequent.configuration.event_handlers << BulkTestProjector << RecordCountingTestWorkflow
         RecordCountingTestWorkflow.counts = []
+        inserts = []
+        subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+          inserts << payload[:sql] if payload[:sql].include?('INSERT INTO "bulk_test_records"')
+        end
 
         Sequent.command_service.execute_commands(
           StartTwoPhasedTestCases.new(aggregate_id: Sequent.new_uuid),
           StartTwoPhasedTestCases.new(aggregate_id: Sequent.new_uuid),
         )
 
+        expect(inserts.size).to eq 2
         expect(BulkTestRecord.count).to eq 4
         # The inline workflow sees the records of all events of the command.
         expect(RecordCountingTestWorkflow.counts).to eq [2, 2, 4, 4]
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      it 'calls the batch handlers of an inline projector with one event at a time' do
+        Sequent.configuration.event_handlers << BatchInlineTestProjector
+        BatchInlineTestProjector.batch_sizes = []
+
+        Sequent.command_service.execute_commands StartTwoPhasedTestCases.new(aggregate_id: Sequent.new_uuid)
+
+        expect(BatchInlineTestProjector.batch_sizes).to eq [1, 1]
       end
     end
 

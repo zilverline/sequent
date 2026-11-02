@@ -22,8 +22,8 @@ module Sequent
       #   class MyWorkflow < Sequent::Workflow
       #     self.phase = :before_commit
       #
-      #     on MyEvent do |event|
-      #       execute_commands MyCommand.new(aggregate_id: event.aggregate_id)
+      #     on_batch MyEvent do |events|
+      #       execute_commands MyBatchCommand.new(aggregate_ids: events.map(&:aggregate_id).uniq)
       #     end
       #   end
       #

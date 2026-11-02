@@ -122,8 +122,8 @@ module Sequent
       #   class MyProjector < Sequent::Projector
       #     self.phase = :bulk
       #
-      #     on MyEvent do |event|
-      #       create_record(MyRecord, aggregate_id: event.aggregate_id)
+      #     on_batch MyEvent do |events|
+      #       create_records(MyRecord, events.map { |event| {aggregate_id: event.aggregate_id} })
       #     end
       #   end
       #
@@ -141,10 +141,19 @@ module Sequent
       class_attribute :lifetime, instance_writer: false, default: nil
 
       def self.on(*args, **opts, &block)
-        fail ArgumentError, 'only type based event handlers are allowed for projectors' unless args.all?(Class)
-
+        ensure_type_based_handler!(args)
         super
       end
+
+      def self.on_batch(*args, **opts, &block)
+        ensure_type_based_handler!(args)
+        super
+      end
+
+      def self.ensure_type_based_handler!(args)
+        fail ArgumentError, 'only type based event handlers are allowed for projectors' unless args.all?(Class)
+      end
+      private_class_method :ensure_type_based_handler!
 
       def self.replay_persistor
         nil

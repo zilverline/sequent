@@ -78,6 +78,21 @@
   Publishing 1,000 events to 100 projectors takes 7.5 ms instead of
   37 ms.
 
+- Message handlers can handle a batch of messages at once using
+  `on_batch`. `handle_messages` passes consecutive matching messages to
+  these handlers as one batch, in order with the `on` handlers. The
+  `bulk` and `before_commit` phases, and replaying, pass all their
+  events at once.
+  `handle_message` and `handle_messages` return the number of handler
+  blocks invoked and take an `on_error` callable. `dispatch_message` is
+  removed: use the handler hooks instead.
+
+  ```ruby
+  on_batch PostAdded do |events|
+    create_records(PostRecord, events.map { |event| {aggregate_id: event.aggregate_id} })
+  end
+  ```
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle
