@@ -1,32 +1,10 @@
 # Changelog 9.x
 
 - A record class that includes `Sequent::Core::ProjectionRecord` can
-  only be written by projectors. Saving, updating or destroying its
-  records fails with an `ActiveRecord::ReadOnlyRecord` error, and writing
-  them without instantiating them (like `insert_all` or `update_all`)
-  fails with a `ProjectionWrites::ForbiddenError`, unless writing them is
-  allowed using `Sequent::Core::ProjectionWrites.allow`. Executing
-  commands forbids it again, so command handlers and workflows cannot
-  write projections. Specs can allow writing for the setup of each
-  example:
-
-  ```ruby
-  config.around { |example| Sequent::Core::ProjectionWrites.allow { example.run } }
-  ```
-
-  Code that writes projection records using a persistor outside a
-  projector must do so in `Sequent::Core::ProjectionWrites.during_projection`.
-
-  Such a record class cannot have callbacks that run when writing
-  records, or validations, since these do not run when replaying:
-  creating a projector that manages it fails with a
-  `ProjectionRecord::WriteCallbacksError`. Callbacks that must be kept
-  anyway, like those added by a gem or by a new version of ActiveRecord
-  that Sequent does not recognize yet, can be allowed using
-  `allow_write_callbacks`, by method name, regular expression or
-  validator class; the callbacks ActiveRecord adds itself are allowed
-  by default. A module that includes `ProjectionRecord` for
-  other record classes must extend `ActiveSupport::Concern`.
+  only be written by projectors, unless writing is allowed using
+  `Sequent::Core::ProjectionWrites`, and cannot have write callbacks or
+  validations, since these do not run when replaying. See
+  [read-only records](https://www.sequent.io/docs/concepts/projector.html#read-only-records).
 
 - `Persistor#commit` and `Projector#commit` are renamed to `flush`.
   `commit` is a deprecated alias. Custom persistors must implement
