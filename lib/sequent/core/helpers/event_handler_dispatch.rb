@@ -79,32 +79,12 @@ module Sequent
           @publishing_key ||= :"#{self.class.name}_#{object_id}_publishing"
         end
 
-        # Instantiates the event handler classes that handle any of the +events+. Event handler
-        # instances are used as is.
-        def instantiate_event_handlers(event_handlers, events)
-          event_handlers.filter_map do |event_handler|
-            next event_handler unless event_handler.is_a?(Class)
-            next unless handles_any_event?(event_handler, events)
-
-            instantiate_event_handler(event_handler)
-          end
-        end
-
-        # Whether the +handler+ is a projector instantiated for the events, instead of a registered
-        # projector instance. The changes of such a projector are written by flushing it after it
-        # handled the events. A registered instance is flushed by its owner.
-        def instantiated_projector?(event_handlers, handler)
-          handler.is_a?(Projector) && event_handlers.none? { |event_handler| event_handler.equal?(handler) }
-        end
-
-        def handles_any_event?(handler_class, events)
-          events.any? { |event| handler_class.handles_message?(event) }
-        end
-
         def instantiate_event_handler(handler_class)
           handler_class.new
         end
 
+        # Raises a PublishEventError for the +event+ when the block fails, unless it failed with a
+        # ProjectorMigrationError or a PublishEventError.
         def with_publish_event_error(handler, event)
           yield
         rescue StandardError => e
@@ -115,9 +95,9 @@ module Sequent
         # unless it failed with a ProjectorMigrationError.
         def publish_event_error_handler(handler)
           ->(events, error) do
-            fail error if error.is_a?(ProjectorMigrationError)
+            fail error if error.is_a?(ProjectorMigrationError) || error.is_a?(PublishEventError)
 
-            fail PublishEventError.new(handler.class, events.first)
+            fail PublishEventError.new(EventHandlers.handler_class(handler), events.first)
           end
         end
 

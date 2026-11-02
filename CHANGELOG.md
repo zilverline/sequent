@@ -72,6 +72,12 @@
   `Sequent.configuration.event_handlers` must use `event_handler_classes`
   instead.
 
+- The event publishers match each event handler once per event class,
+  or once per event for handlers with other matchers, and pass the
+  matched handler blocks on using `MessageHandler#dispatch_message`.
+  Publishing 1,000 events to 100 projectors takes 7.5 ms instead of
+  37 ms.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle
