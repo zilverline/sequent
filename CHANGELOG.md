@@ -20,10 +20,11 @@
   Such a record class cannot have callbacks that run when writing
   records, or validations, since these do not run when replaying:
   creating a projector that manages it fails with a
-  `ProjectionRecord::WriteCallbacksError`. Set
-  `verify_projection_record_callbacks` to `false` to skip this check, for
-  instance when a new version of ActiveRecord adds callbacks that Sequent
-  does not recognize yet.
+  `ProjectionRecord::WriteCallbacksError`. Callbacks that must be kept
+  anyway, like those added by a gem or by a new version of ActiveRecord
+  that Sequent does not recognize yet, can be allowed using
+  `allow_write_callbacks`. A module that includes `ProjectionRecord` for
+  other record classes must extend `ActiveSupport::Concern`.
 
 - `Persistor#commit` and `Projector#commit` are renamed to `flush`.
   `commit` is a deprecated alias. Custom persistors must implement

@@ -82,10 +82,22 @@ module Sequent
     # Its records cannot have callbacks that run when writing records, or validations, since these only run when a
     # projector saves a record using the +ActiveRecordPersistor+, and not when replaying or when writing records
     # without instantiating them. Creating a projector that manages such a record class fails (see
-    # +ProjectionRecord.ensure_no_write_callbacks!+), unless +verify_projection_record_callbacks+ is disabled.
-    # Callbacks that run when reading records, like +after_find+ and +after_initialize+, can be used.
+    # +ProjectionRecord.ensure_no_write_callbacks!+). Callbacks that run when reading records, like +after_find+ and
+    # +after_initialize+, can be used. Callbacks that must be kept anyway, for instance those added by a gem, or
+    # those that ActiveRecord adds and Sequent does not recognize, can be allowed using +allow_write_callbacks+:
+    #
+    #   class InvoiceRecord < Sequent::ApplicationRecord
+    #     include Sequent::Core::ProjectionRecord
+    #
+    #     allow_write_callbacks :audit_changes, SomeGem::SomeValidator
+    #   end
+    #
+    # A module that includes +ProjectionRecord+ for the record classes that include it must extend
+    # +ActiveSupport::Concern+.
     #
     module ProjectionRecord
+      extend ActiveSupport::Concern
+
       class WriteCallbacksError < RuntimeError; end
 
       # The callback chains that run when writing or validating records.
@@ -108,17 +120,18 @@ module Sequent
           fail WriteCallbacksError,
                "#{record_class} is the record of a projection, so it cannot have callbacks that run when writing " \
                "records or validations, since these do not run when replaying: #{callbacks.join(', ')}. " \
-               'If these are callbacks of ActiveRecord itself, set ' \
-               'Sequent.configuration.verify_projection_record_callbacks to false until Sequent recognizes them.'
+               'Move their logic to the projector, or allow callbacks that must be kept using ' \
+               "#{record_class}.allow_write_callbacks."
         end
 
         ##
         # Describes the callbacks of +record_class+ that run when writing records, and its validations, except the
-        # ones ActiveRecord adds itself.
+        # ones ActiveRecord adds itself and the allowed ones.
         def write_callbacks(record_class)
           WRITE_CALLBACK_KINDS.flat_map do |kind|
             record_class.__callbacks[kind].filter_map do |callback|
               next if active_record_callback?(kind, callback.filter)
+              next if allowed_callback?(record_class, callback.filter)
 
               describe_callback(kind, callback)
             end
@@ -126,6 +139,13 @@ module Sequent
         end
 
         private
+
+        # A symbol allows the callbacks calling that method, and a class the validators of that class.
+        def allowed_callback?(record_class, filter)
+          record_class.allowed_write_callbacks.any? do |allowed|
+            allowed.is_a?(Module) ? filter.is_a?(allowed) : filter == allowed
+          end
+        end
 
         def active_record_callback?(kind, filter)
           return true if filter.is_a?(Symbol) && filter.match?(ASSOCIATION_CALLBACK)
@@ -165,9 +185,22 @@ module Sequent
         end
       end
 
-      def self.included(record_class)
-        super
+      included do
+        unless is_a?(Class)
+          fail ArgumentError, "#{self} includes Sequent::Core::ProjectionRecord, so it must extend ActiveSupport::Concern"
+        end
+
+        class_attribute :allowed_write_callbacks, instance_accessor: false, default: [].freeze
         ActiveRecord::Relation.prepend(RelationWrites) unless ActiveRecord::Relation < RelationWrites
+      end
+
+      class_methods do
+        ##
+        # Allows the callbacks calling the methods with the given names, and the validators of the given classes,
+        # although these do not run when replaying (see +ProjectionRecord+).
+        def allow_write_callbacks(*callbacks)
+          self.allowed_write_callbacks = (allowed_write_callbacks + callbacks).freeze
+        end
       end
 
       def readonly?

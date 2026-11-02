@@ -116,15 +116,13 @@ module Sequent
 
       ##
       # Fails when a managed projection record class has callbacks that run when writing records, or validations
-      # (see +ProjectionRecord+), unless +verify_projection_record_callbacks+ is disabled. This is checked once, when
-      # the first projector of this class is created, so after Sequent is configured.
+      # (see +ProjectionRecord+). This is checked once, when the first projector of this class is created, so all
+      # callbacks of the record classes are defined.
       def self.ensure_no_write_callbacks!
         return if @write_callbacks_verified
 
-        if Sequent.configuration.verify_projection_record_callbacks
-          managed_tables.each do |record_class|
-            ProjectionRecord.ensure_no_write_callbacks!(record_class) if record_class < ProjectionRecord
-          end
+        managed_tables.each do |record_class|
+          ProjectionRecord.ensure_no_write_callbacks!(record_class) if record_class < ProjectionRecord
         end
         @write_callbacks_verified = true
       end

@@ -83,8 +83,7 @@ module Sequent
                   :aggregate_invariant_violation_handler,
                   :projectors_replayer_after_prepare_hook,
                   :projectors_replayer_after_activate_hook,
-                  :projectors_replayer_total_lock_timeout,
-                  :verify_projection_record_callbacks
+                  :projectors_replayer_total_lock_timeout
 
     attr_reader :migrations_class,
                 :versions_table_name
@@ -147,7 +146,6 @@ module Sequent
       self.aggregate_invariant_violation_handler = DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER
 
       self.projectors_replayer_total_lock_timeout = 10.seconds
-      self.verify_projection_record_callbacks = true
     end
 
     def versions_table_name=(table_name)

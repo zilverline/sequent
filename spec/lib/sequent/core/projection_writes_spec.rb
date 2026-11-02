@@ -186,11 +186,44 @@ describe Sequent::Core::ProjectionWrites do
         .to raise_error(Sequent::Core::ProjectionRecord::WriteCallbacksError, /before_save normalize_name/)
     end
 
-    it 'does not check when verifying projection record callbacks is disabled' do
-      Sequent.configuration.verify_projection_record_callbacks = false
-      record_class = projection_record_class { before_save :normalize_name }
+    it 'accepts the allowed callbacks and validators' do
+      record_class = projection_record_class do
+        allow_write_callbacks :normalize_name, ActiveModel::Validations::PresenceValidator
+        before_save :normalize_name
+        validates :name, presence: true
+      end
 
       expect { projector_class(record_class).new }.not_to raise_error
+      only_allowed_name = write_callbacks do
+        allow_write_callbacks :normalize_name
+        before_save :other
+      end
+      expect(only_allowed_name).to eq ['before_save other']
+    end
+
+    it 'allows the callbacks allowed by a superclass or an including concern' do
+      superclass = projection_record_class { allow_write_callbacks :normalize_name }
+      subclass = Class.new(superclass) { before_save :normalize_name }
+      concern = Module.new do
+        extend ActiveSupport::Concern
+        include Sequent::Core::ProjectionRecord
+
+        included { allow_write_callbacks :normalize_name }
+      end
+      including_class = Class.new(Sequent::ApplicationRecord) do
+        self.table_name = 'guarded_projection_records'
+        include concern
+
+        before_save :normalize_name
+      end
+
+      expect(Sequent::Core::ProjectionRecord.write_callbacks(subclass)).to be_empty
+      expect(Sequent::Core::ProjectionRecord.write_callbacks(including_class)).to be_empty
+    end
+
+    it 'fails when a module that is not a concern includes it' do
+      expect { Module.new { include Sequent::Core::ProjectionRecord } }
+        .to raise_error(ArgumentError, /must extend ActiveSupport::Concern/)
     end
 
     it 'does not check record classes that are not projection records' do
