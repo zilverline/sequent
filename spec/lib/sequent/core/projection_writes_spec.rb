@@ -199,6 +199,25 @@ describe Sequent::Core::ProjectionWrites do
         before_save :other
       end
       expect(only_allowed_name).to eq ['before_save other']
+      only_matching_names = write_callbacks do
+        allow_write_callbacks(/\Anormalize_/)
+        before_save :normalize_name
+        before_save :other
+      end
+      expect(only_matching_names).to eq ['before_save other']
+    end
+
+    it 'allows the callbacks ActiveRecord adds itself by default, and cannot replace these' do
+      record_class = projection_record_class
+      default = Sequent::Core::ProjectionRecord.active_record_callbacks
+
+      expect(record_class.allowed_write_callbacks).to eq default
+      expect(default).to include Sequent::Core::ProjectionRecord::ASSOCIATION_CALLBACK
+      expect { record_class.allowed_write_callbacks = [] }.to raise_error(NoMethodError)
+
+      record_class.allow_write_callbacks :normalize_name
+
+      expect(record_class.allowed_write_callbacks).to eq [*default, :normalize_name]
     end
 
     it 'allows the callbacks allowed by a superclass or an including concern' do

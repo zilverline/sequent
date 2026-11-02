@@ -23,7 +23,9 @@
   `ProjectionRecord::WriteCallbacksError`. Callbacks that must be kept
   anyway, like those added by a gem or by a new version of ActiveRecord
   that Sequent does not recognize yet, can be allowed using
-  `allow_write_callbacks`. A module that includes `ProjectionRecord` for
+  `allow_write_callbacks`, by method name, regular expression or
+  validator class; the callbacks ActiveRecord adds itself are allowed
+  by default. A module that includes `ProjectionRecord` for
   other record classes must extend `ActiveSupport::Concern`.
 
 - `Persistor#commit` and `Projector#commit` are renamed to `flush`.
