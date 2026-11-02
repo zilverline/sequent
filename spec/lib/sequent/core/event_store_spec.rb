@@ -1050,6 +1050,16 @@ describe Sequent::Core::EventStore do
       expect(replay_counter.replay_count).to eq 0
     end
 
+    it 'fails when given both an event publisher and a block' do
+      expect do
+        event_store.replay_events_from_cursor(
+          get_events: get_events,
+          event_publisher: Sequent::Core::EventPublisher.new,
+          on_progress: proc {},
+        ) { |_events| nil }
+      end.to raise_error(ArgumentError, /either an event_publisher or a block/)
+    end
+
     it 'reports progress for each block' do
       progress = 0
       progress_reported_count = 0

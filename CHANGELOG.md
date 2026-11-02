@@ -5,9 +5,9 @@
   `flush`.
 
 - Replaying passes the replayed events directly to the projectors
-  instead of using an event publisher, so it no longer depends on
-  `disable_event_handlers`. `EventStore#replay_events_from_cursor`
-  takes a block that receives the events of each block.
+  instead of using an event publisher. `EventStore#replay_events_from_cursor`
+  takes a block that receives the events of each block, instead of an
+  `event_publisher`.
 
   Breaking for subclasses of the replayers: `with_sequent_config` is
   removed, and `replay_events` takes the projectors instead of the
