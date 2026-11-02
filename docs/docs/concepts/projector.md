@@ -229,6 +229,11 @@ Sequent::Core::ProjectionWrites.during_projection do
 end
 ```
 
+A replay rebuilds the Records from the Events, so these changes do not survive it: the Events must
+also be deleted, or skipped while replaying, otherwise the Records reappear. See [GDPR](gdpr.html)
+for ways to delete the data of a customer. To keep a change after a replay, record it in an Event that
+the Projector handles instead.
+
 Writing Records using SQL directly (like `ActiveRecord::Base.connection.execute`) is not detected.
 
 ## Known limitations
