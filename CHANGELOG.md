@@ -1,5 +1,11 @@
 # Changelog 9.x
 
+- `MessageRouter#match_message` returns a frozen empty set when no
+  handler matches the message, instead of allocating a new set. This
+  avoids an allocation for every message handler that does not handle
+  a message, like aggregates applying events and event handlers that
+  get every published event.
+
 - Message handlers (like projectors and workflows) support hooks that
   run before, after or around each invocation of a handler block, for
   example to add instrumentation. The hooks are only run when a handler
