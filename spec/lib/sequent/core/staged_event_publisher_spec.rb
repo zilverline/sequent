@@ -340,6 +340,26 @@ describe Sequent::Core::StagedEventPublisher do
       end
     end
 
+    class BufferedBulkTestProjector < Sequent::Core::Projector
+      self.skip_autoregister = true
+      self.phase = :bulk
+      manages_tables BulkTestRecord
+
+      on PhasedTestEvent do |event|
+        create_record(BulkTestRecord, aggregate_id: event.aggregate_id)
+      end
+    end
+
+    class ReadingBulkTestProjector < Sequent::Core::Projector
+      self.skip_autoregister = true
+      self.phase = :bulk
+      manages_tables BulkTestRecord
+
+      on PhasedTestEvent do |event|
+        get_record(BulkTestRecord, aggregate_id: event.aggregate_id)
+      end
+    end
+
     class BatchInlineTestProjector < Sequent::Core::Projector
       self.skip_autoregister = true
       manages_tables BulkTestRecord
@@ -431,6 +451,31 @@ describe Sequent::Core::StagedEventPublisher do
         expect(RecordCountingTestWorkflow.counts).to eq [2, 2, 4, 4]
       ensure
         ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      it 'combines the records a bulk projector creates for each event using its BufferedPersistor' do
+        Sequent.configuration.event_handlers << BufferedBulkTestProjector
+        inserts = []
+        subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+          inserts << payload[:sql] if payload[:sql].include?('INSERT INTO "bulk_test_records"')
+        end
+
+        Sequent.command_service.execute_commands StartTwoPhasedTestCases.new(aggregate_id: Sequent.new_uuid)
+
+        expect(inserts.size).to eq 1
+        expect(BulkTestRecord.count).to eq 2
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
+      it 'fails when a bulk projector reads records' do
+        Sequent.configuration.event_handlers << ReadingBulkTestProjector
+
+        expect do
+          Sequent.command_service.execute_commands StartTwoPhasedTestCases.new(aggregate_id: Sequent.new_uuid)
+        end.to raise_error(Sequent::Core::PublishEventError) { |error|
+          expect(error.cause).to be_a Sequent::Core::Persistors::BufferedPersistor::UnsupportedError
+        }
       end
 
       it 'calls the batch handlers of an inline projector with one event at a time' do

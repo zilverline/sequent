@@ -99,6 +99,11 @@
   supports `create_record`, `create_records`, `update_all_records` and
   `delete_all_records`.
 
+- `bulk` projectors use a `BufferedPersistor` by default
+  (`Projector#default_persistor`). Autoregistration fails when a
+  registered projector instance uses a `BufferedPersistor`, since
+  nothing flushes it.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle

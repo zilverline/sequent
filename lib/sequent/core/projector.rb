@@ -102,16 +102,23 @@ module Sequent
         attr_accessor :abstract_class, :skip_autoregister
       end
 
+      attr_reader :persistor
+
       def initialize(persistor = default_persistor)
         ensure_valid!
         @persistor = persistor
       end
 
       ##
-      # The persistor of a projector that is created without a persistor. Override this method to use
-      # another persistor.
+      # The persistor of a projector that is created without a persistor: a +BufferedPersistor+ for a
+      # projector in the +bulk+ phase, and an +ActiveRecordPersistor+ otherwise. Override this method to
+      # use another persistor.
       def default_persistor
-        Sequent::Core::Persistors::ActiveRecordPersistor.new
+        if phase == :bulk
+          Sequent::Core::Persistors::BufferedPersistor.new
+        else
+          Sequent::Core::Persistors::ActiveRecordPersistor.new
+        end
       end
 
       ##
@@ -122,10 +129,16 @@ module Sequent
       #   class MyProjector < Sequent::Projector
       #     self.phase = :bulk
       #
-      #     on_batch MyEvent do |events|
-      #       create_records(MyRecord, events.map { |event| {aggregate_id: event.aggregate_id} })
+      #     on MyEvent do |event|
+      #       create_record(MyRecord, aggregate_id: event.aggregate_id)
       #     end
       #   end
+      #
+      # A +bulk+ projector uses a +BufferedPersistor+ by default (see +default_persistor+), so the
+      # records created in the same table are inserted using a single statement and the updates of
+      # the same records are combined. It can then only write to its tables (using +create_record+
+      # without a block, +create_records+, +update_all_records+ and +delete_all_records+), since its
+      # changes are only written to the database after all events of the commit are handled.
       #
       # Do not use a deferred phase like +before_commit+ for a projector, since the command handlers
       # of the next commands use its projections.

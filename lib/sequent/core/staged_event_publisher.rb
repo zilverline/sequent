@@ -50,7 +50,7 @@ module Sequent
       # Creates a StagedEventPublisher with a stage per phase:
       #
       # - +bulk+: the projectors with the +bulk+ phase, which handle all events of each command at
-      #   once.
+      #   once, using a +BufferedPersistor+ by default.
       # - +inline+: the projectors and workflows with the +inline+ phase (the default), which handle
       #   the events of each command right away, one event at a time.
       # - +before_commit+: the workflows with the +before_commit+ phase, which handle the events of

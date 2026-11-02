@@ -40,7 +40,8 @@ module Sequent
         end
 
         ##
-        # Fails when an event handler is registered in a way that does not match its lifetime.
+        # Fails when an event handler is registered in a way that does not match its lifetime, or when a
+        # registered projector instance uses a +BufferedPersistor+, which only the event publisher flushes.
         def self.ensure_valid!(event_handlers)
           event_handlers.each do |event_handler|
             handler_class = handler_class(event_handler)
@@ -54,6 +55,10 @@ module Sequent
             elsif lifetime == :batch
               fail ArgumentError,
                    "#{handler_class} has the batch lifetime, so register the class instead of an instance"
+            elsif event_handler.is_a?(Projector) && event_handler.persistor.is_a?(Persistors::BufferedPersistor)
+              fail ArgumentError,
+                   "#{handler_class} uses a BufferedPersistor, which is only flushed for projectors with the " \
+                   'batch lifetime (self.lifetime = :batch)'
             end
           end
         end

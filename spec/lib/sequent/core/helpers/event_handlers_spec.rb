@@ -65,6 +65,12 @@ describe Sequent::Core::Helpers::EventHandlers do
       expect { described_class.ensure_valid!([bulk_projector.new]) }
         .to raise_error(ArgumentError, /has the batch lifetime, so register the class/)
     end
+
+    it 'fails for a registered projector instance with a BufferedPersistor' do
+      projector = inline_projector.new(Sequent::Core::Persistors::BufferedPersistor.new)
+
+      expect { described_class.ensure_valid!([projector]) }.to raise_error(ArgumentError, /uses a BufferedPersistor/)
+    end
   end
 
   describe 'autoregistration' do
