@@ -79,7 +79,78 @@ module Sequent
     #     include Sequent::Core::ProjectionRecord
     #   end
     #
+    # Its records cannot have callbacks that run when writing records, or validations, since these only run when a
+    # projector saves a record using the +ActiveRecordPersistor+, and not when replaying or when writing records
+    # without instantiating them. A projector that manages such a record class fails (see
+    # +ProjectionRecord.ensure_no_write_callbacks!+). Callbacks that run when reading records, like +after_find+ and
+    # +after_initialize+, can be used.
+    #
     module ProjectionRecord
+      class WriteCallbacksError < RuntimeError; end
+
+      # The callback chains that run when writing or validating records.
+      WRITE_CALLBACK_KINDS = %i[save create update destroy commit rollback touch validate validation].freeze
+
+      # The callbacks ActiveRecord adds to the records of associations.
+      ASSOCIATION_CALLBACK = /
+        \A(autosave_associated_records_for|validate_associated_records_for)_
+        |_collection_association\z
+        |\A_ensure_no_duplicate_errors\z
+      /x
+
+      class << self
+        ##
+        # Fails when +record_class+ has callbacks that run when writing records, or validations.
+        def ensure_no_write_callbacks!(record_class)
+          callbacks = write_callbacks(record_class)
+          return if callbacks.empty?
+
+          fail WriteCallbacksError,
+               "#{record_class} is the record of a projection, so it cannot have callbacks that run when writing " \
+               "records or validations, since these do not run when replaying: #{callbacks.join(', ')}"
+        end
+
+        ##
+        # Describes the callbacks of +record_class+ that run when writing records, and its validations, except the
+        # ones ActiveRecord adds itself.
+        def write_callbacks(record_class)
+          WRITE_CALLBACK_KINDS.flat_map do |kind|
+            record_class.__callbacks[kind].filter_map do |callback|
+              next if active_record_callback?(kind, callback.filter)
+
+              describe_callback(kind, callback)
+            end
+          end
+        end
+
+        private
+
+        def active_record_callback?(kind, filter)
+          return true if filter.is_a?(Symbol) && filter.match?(ASSOCIATION_CALLBACK)
+
+          active_record_filters.fetch(kind).include?(filter)
+        end
+
+        # The callbacks of a record class without callbacks of its own.
+        def active_record_filters
+          @active_record_filters ||= begin
+            record_class = Class.new(ActiveRecord::Base) { self.abstract_class = true }
+            WRITE_CALLBACK_KINDS.to_h { |kind| [kind, record_class.__callbacks[kind].to_set(&:filter)] }
+          end
+        end
+
+        def describe_callback(kind, callback)
+          filter = callback.filter
+          case filter
+          when ActiveModel::Validator
+            attributes = filter.respond_to?(:attributes) ? " #{filter.attributes.join(', ')}" : ''
+            "#{filter.class.name}#{attributes}"
+          when Symbol, String then "#{callback.kind}_#{kind} #{filter}"
+          else "#{callback.kind}_#{kind} (block)"
+          end
+        end
+      end
+
       # The relation methods that write records without instantiating them.
       module RelationWrites
         %i[

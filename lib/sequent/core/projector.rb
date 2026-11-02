@@ -12,6 +12,9 @@ module Sequent
         def manages_tables(*tables)
           fail 'must specify at least one table to manage' if tables.empty?
 
+          tables.each do |table|
+            ProjectionRecord.ensure_no_write_callbacks!(table) if table < ProjectionRecord
+          end
           self.managed_tables = tables.freeze
         end
 

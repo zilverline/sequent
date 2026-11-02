@@ -139,6 +139,57 @@ describe Sequent::Core::ProjectionWrites do
     end
   end
 
+  describe '.ensure_no_write_callbacks!' do
+    def projection_record_class(&block)
+      Class.new(Sequent::ApplicationRecord) do
+        self.table_name = 'guarded_projection_records'
+        include Sequent::Core::ProjectionRecord
+
+        class_eval(&block) if block
+      end
+    end
+
+    def write_callbacks(&block) = Sequent::Core::ProjectionRecord.write_callbacks(projection_record_class(&block))
+
+    it 'accepts a record class without callbacks, with associations and callbacks that run when reading' do
+      record_class = projection_record_class do
+        has_many :others, class_name: 'GuardedProjectionRecord', foreign_key: :aggregate_id, primary_key: :aggregate_id
+        has_one :other, class_name: 'GuardedProjectionRecord', foreign_key: :aggregate_id, primary_key: :aggregate_id
+        after_find { nil }
+        after_initialize { nil }
+      end
+
+      expect { Sequent::Core::ProjectionRecord.ensure_no_write_callbacks!(record_class) }.not_to raise_error
+    end
+
+    it 'describes the callbacks that run when writing and the validations' do
+      expect(write_callbacks { before_save :normalize_name }).to eq ['before_save normalize_name']
+      expect(write_callbacks { after_commit { nil } }).to eq ['after_commit (block)']
+      expect(write_callbacks { validates :name, presence: true })
+        .to eq ['ActiveRecord::Validations::PresenceValidator name']
+      expect(write_callbacks { belongs_to :parent, class_name: 'GuardedProjectionRecord', optional: false }).to eq [
+        'ActiveRecord::Validations::PresenceValidator parent',
+      ]
+    end
+
+    it 'fails a projector that manages a record class with such callbacks' do
+      record_class = projection_record_class { before_save :normalize_name }
+
+      expect do
+        Class.new(Sequent::Core::Projector) { manages_tables record_class }
+      end.to raise_error(Sequent::Core::ProjectionRecord::WriteCallbacksError, /before_save normalize_name/)
+    end
+
+    it 'does not check record classes that are not projection records' do
+      record_class = Class.new(Sequent::ApplicationRecord) do
+        self.table_name = 'unguarded_records'
+        before_save :normalize_name
+      end
+
+      expect { Class.new(Sequent::Core::Projector) { manages_tables record_class } }.not_to raise_error
+    end
+  end
+
   context 'with a projector' do
     let(:projector) { GuardedRecordProjector.new }
 
