@@ -30,6 +30,15 @@ module Sequent
       # Do not use the +bulk+ phase for a workflow, since it runs before the +inline+ projectors.
       class_attribute :phase, instance_writer: false, default: :inline
 
+      ##
+      # The lifetime of the instances of this workflow. With the +:singleton+ lifetime a single instance is
+      # registered, which handles all events. With the +:batch+ lifetime the class is registered, and the
+      # event publisher creates a new instance for every batch of events it handles, like a controller is
+      # created for every request, so the instance can keep state while handling the batch. Without a
+      # lifetime, workflows in the +bulk+ phase have the +:batch+ lifetime, since they handle all events of a
+      # command at once, and all others the +:singleton+ lifetime.
+      class_attribute :lifetime, instance_writer: false, default: nil
+
       def self.on(*args, **opts, &block)
         decorated_block = ->(event) do
           begin

@@ -196,12 +196,12 @@ module Sequent
       for_each_autoregisterable_descenant_of(Sequent::Projector) do |projector_class|
         Sequent.logger.debug("[Configuration] Autoregistering Projector #{projector_class}") if Sequent.logger.debug?
         projector_class.ensure_valid!
-        self.class.instance.event_handlers << projector_class
+        self.class.instance.event_handlers << Sequent::Core::Helpers::EventHandlers.registration(projector_class)
       end
 
       for_each_autoregisterable_descenant_of(Sequent::Workflow) do |workflow_class|
         Sequent.logger.debug("[Configuration] Autoregistering Workflow #{workflow_class}") if Sequent.logger.debug?
-        self.class.instance.event_handlers << workflow_class
+        self.class.instance.event_handlers << Sequent::Core::Helpers::EventHandlers.registration(workflow_class)
       end
 
       self.class.instance.aggregate_observers ||= []
@@ -221,6 +221,7 @@ module Sequent
       # Fails fast on an event handler with a phase that the event publisher has no stage for.
       publisher = self.class.instance.event_publisher
       publisher.ensure_valid_phases!(self.class.instance.event_handlers) if publisher.respond_to?(:ensure_valid_phases!)
+      Sequent::Core::Helpers::EventHandlers.ensure_valid!(self.class.instance.event_handlers)
 
       self.class.instance.event_handler_classes.tally.each do |(clazz, count)|
         if count > 1
