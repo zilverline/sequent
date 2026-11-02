@@ -20,7 +20,7 @@ module Sequent
     module ProjectionWrites
       class ForbiddenError < RuntimeError; end
 
-      STATE_KEY = :sequent_projection_writes
+      STATE_KEY = :"#{self}.state"
 
       class << self
         ##
