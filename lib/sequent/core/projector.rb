@@ -3,6 +3,7 @@
 require_relative 'helpers/message_handler'
 require_relative 'persistors/active_record_persistor'
 require_relative 'projectors'
+require_relative 'projection_writes'
 
 module Sequent
   module Core
@@ -117,7 +118,14 @@ module Sequent
         nil
       end
 
-      def_delegators :@persistor, :execute_sql, :flush
+      # Writing using the persistor is allowed for the records of projections (see +ProjectionWrites+).
+      def execute_sql(*args, **kwargs)
+        ProjectionWrites.during_projection { @persistor.execute_sql(*args, **kwargs) }
+      end
+
+      def flush
+        ProjectionWrites.during_projection { @persistor.flush }
+      end
 
       # @deprecated Use +flush+ instead.
       def commit
@@ -126,22 +134,22 @@ module Sequent
 
       def update_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.update_record(record_class, *rest, &block)
+        ProjectionWrites.during_projection { @persistor.update_record(record_class, *rest, &block) }
       end
 
       def create_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.create_record(record_class, *rest, &block)
+        ProjectionWrites.during_projection { @persistor.create_record(record_class, *rest, &block) }
       end
 
       def create_records(record_class, *rest)
         ensure_record_class_supported!(record_class)
-        @persistor.create_records(record_class, *rest)
+        ProjectionWrites.during_projection { @persistor.create_records(record_class, *rest) }
       end
 
       def create_or_update_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.create_or_update_record(record_class, *rest, &block)
+        ProjectionWrites.during_projection { @persistor.create_or_update_record(record_class, *rest, &block) }
       end
 
       def get_record!(record_class, *rest)
@@ -156,27 +164,27 @@ module Sequent
 
       def delete_all_records(record_class, *rest)
         ensure_record_class_supported!(record_class)
-        @persistor.delete_all_records(record_class, *rest)
+        ProjectionWrites.during_projection { @persistor.delete_all_records(record_class, *rest) }
       end
 
       def update_all_records(record_class, *rest)
         ensure_record_class_supported!(record_class)
-        @persistor.update_all_records(record_class, *rest)
+        ProjectionWrites.during_projection { @persistor.update_all_records(record_class, *rest) }
       end
 
       def do_with_records(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.do_with_records(record_class, *rest, &block)
+        ProjectionWrites.during_projection { @persistor.do_with_records(record_class, *rest, &block) }
       end
 
       def do_with_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
-        @persistor.do_with_record(record_class, *rest, &block)
+        ProjectionWrites.during_projection { @persistor.do_with_record(record_class, *rest, &block) }
       end
 
       def delete_record(record_class, *rest)
         ensure_record_class_supported!(record_class)
-        @persistor.delete_record(record_class, *rest)
+        ProjectionWrites.during_projection { @persistor.delete_record(record_class, *rest) }
       end
 
       def find_records(record_class, *rest)

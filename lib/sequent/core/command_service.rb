@@ -2,6 +2,7 @@
 
 require_relative 'transactions/no_transactions'
 require_relative 'current_event'
+require_relative 'projection_writes'
 
 module Sequent
   module Core
@@ -37,7 +38,8 @@ module Sequent
           end
         end
         commands.each { |command| command_queue.push(command) }
-        process_commands(validation_context)
+        # Only projectors can write the records of projections while commands are executed.
+        ProjectionWrites.forbid { process_commands(validation_context) }
       end
 
       private
