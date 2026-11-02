@@ -81,9 +81,9 @@ module Sequent
     #
     # Its records cannot have callbacks that run when writing records, or validations, since these only run when a
     # projector saves a record using the +ActiveRecordPersistor+, and not when replaying or when writing records
-    # without instantiating them. A projector that manages such a record class fails (see
-    # +ProjectionRecord.ensure_no_write_callbacks!+). Callbacks that run when reading records, like +after_find+ and
-    # +after_initialize+, can be used.
+    # without instantiating them. Creating a projector that manages such a record class fails (see
+    # +ProjectionRecord.ensure_no_write_callbacks!+), unless +verify_projection_record_callbacks+ is disabled.
+    # Callbacks that run when reading records, like +after_find+ and +after_initialize+, can be used.
     #
     module ProjectionRecord
       class WriteCallbacksError < RuntimeError; end
@@ -107,7 +107,9 @@ module Sequent
 
           fail WriteCallbacksError,
                "#{record_class} is the record of a projection, so it cannot have callbacks that run when writing " \
-               "records or validations, since these do not run when replaying: #{callbacks.join(', ')}"
+               "records or validations, since these do not run when replaying: #{callbacks.join(', ')}. " \
+               'If these are callbacks of ActiveRecord itself, set ' \
+               'Sequent.configuration.verify_projection_record_callbacks to false until Sequent recognizes them.'
         end
 
         ##

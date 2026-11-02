@@ -200,9 +200,12 @@ The Records of such a class can then only be written by Projectors:
 
 Such a Record class cannot have callbacks that run when writing Records (like `before_save` or
 `after_commit`) or validations, since these only run when a Projector saves a Record using the
-`ActiveRecordPersistor`, and not when replaying. A Projector that manages such a Record class fails
-with a `Sequent::Core::ProjectionRecord::WriteCallbacksError`. Callbacks that run when reading
-Records, like `after_find` and `after_initialize`, can be used.
+`ActiveRecordPersistor`, and not when replaying. Creating a Projector that manages such a Record class
+fails with a `Sequent::Core::ProjectionRecord::WriteCallbacksError`. Callbacks that run when reading
+Records, like `after_find` and `after_initialize`, can be used. Sequent does not count the callbacks
+ActiveRecord adds itself, for instance for associations; if a new version of ActiveRecord adds callbacks
+that Sequent does not recognize yet, set `config.verify_projection_record_callbacks = false` to skip
+this check.
 
 Projectors can always write the Records they manage, whichever persistor they use, also while
 the `CommandService` executes commands. Outside Projectors, writing is forbidden, unless it is allowed

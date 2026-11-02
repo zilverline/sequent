@@ -18,9 +18,12 @@
   projector must do so in `Sequent::Core::ProjectionWrites.during_projection`.
 
   Such a record class cannot have callbacks that run when writing
-  records, or validations, since these do not run when replaying: a
-  projector that manages it fails with a
-  `ProjectionRecord::WriteCallbacksError`.
+  records, or validations, since these do not run when replaying:
+  creating a projector that manages it fails with a
+  `ProjectionRecord::WriteCallbacksError`. Set
+  `verify_projection_record_callbacks` to `false` to skip this check, for
+  instance when a new version of ActiveRecord adds callbacks that Sequent
+  does not recognize yet.
 
 - `Persistor#commit` and `Projector#commit` are renamed to `flush`.
   `commit` is a deprecated alias. Custom persistors must implement

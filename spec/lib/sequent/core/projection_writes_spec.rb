@@ -172,12 +172,25 @@ describe Sequent::Core::ProjectionWrites do
       ]
     end
 
-    it 'fails a projector that manages a record class with such callbacks' do
+    def projector_class(record_class)
+      Class.new(Sequent::Core::Projector) do
+        self.skip_autoregister = true
+        manages_tables record_class
+      end
+    end
+
+    it 'fails creating a projector that manages a record class with such callbacks' do
       record_class = projection_record_class { before_save :normalize_name }
 
-      expect do
-        Class.new(Sequent::Core::Projector) { manages_tables record_class }
-      end.to raise_error(Sequent::Core::ProjectionRecord::WriteCallbacksError, /before_save normalize_name/)
+      expect { projector_class(record_class).new }
+        .to raise_error(Sequent::Core::ProjectionRecord::WriteCallbacksError, /before_save normalize_name/)
+    end
+
+    it 'does not check when verifying projection record callbacks is disabled' do
+      Sequent.configuration.verify_projection_record_callbacks = false
+      record_class = projection_record_class { before_save :normalize_name }
+
+      expect { projector_class(record_class).new }.not_to raise_error
     end
 
     it 'does not check record classes that are not projection records' do
@@ -186,7 +199,7 @@ describe Sequent::Core::ProjectionWrites do
         before_save :normalize_name
       end
 
-      expect { Class.new(Sequent::Core::Projector) { manages_tables record_class } }.not_to raise_error
+      expect { projector_class(record_class).new }.not_to raise_error
     end
   end
 
