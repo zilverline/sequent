@@ -112,7 +112,7 @@ module Sequent
           # noop
         end
 
-        def commit
+        def flush
           # noop
         end
 

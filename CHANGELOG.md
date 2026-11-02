@@ -1,5 +1,9 @@
 # Changelog 9.x
 
+- `Persistor#commit` and `Projector#commit` are renamed to `flush`.
+  `commit` is a deprecated alias. Custom persistors must implement
+  `flush`.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle

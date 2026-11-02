@@ -117,7 +117,12 @@ module Sequent
         nil
       end
 
-      def_delegators :@persistor, :execute_sql, :commit
+      def_delegators :@persistor, :execute_sql, :flush
+
+      # @deprecated Use +flush+ instead.
+      def commit
+        flush
+      end
 
       def update_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)

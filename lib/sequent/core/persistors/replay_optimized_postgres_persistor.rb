@@ -337,7 +337,7 @@ module Sequent
           # noop
         end
 
-        def commit
+        def flush
           @record_store.each do |record_class, records|
             next if records.empty?
 

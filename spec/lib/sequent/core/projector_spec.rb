@@ -202,10 +202,11 @@ describe Sequent::Core::Projector do
         expect(projector.last_record(MyProjectorTable, {name: 'foo'})).to eq record
       end
     end
-    context '#commit' do
+    context '#flush' do
       it 'forwards correctly to the persistor' do
-        expect(persistor).to receive(:commit)
+        expect(persistor).to receive(:flush).twice
 
+        projector.flush
         projector.commit
       end
     end
