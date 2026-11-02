@@ -4,6 +4,15 @@
   `commit` is a deprecated alias. Custom persistors must implement
   `flush`.
 
+- Replaying passes the replayed events directly to the projectors
+  instead of using an event publisher, so it no longer depends on
+  `disable_event_handlers`. `EventStore#replay_events_from_cursor`
+  takes a block that receives the events of each block.
+
+- Bug: activating a replay flushed another instance of the
+  `offline_replay_persistor_class` than the one the projectors used,
+  losing the changes of persistors that buffer them.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle

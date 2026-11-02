@@ -248,17 +248,12 @@ module Sequent
           event_type_ids = Internal::EventType.where(type: event_types).pluck(:id)
 
           Sequent::Support::Database.with_search_path(replay_schema_name, event_store_schema_name) do
-            with_sequent_config(
-              Sequent.configuration.offline_replay_persistor_class.new,
-              projector_classes,
-            ) do
-              replay_events(
-                -> {
-                  event_stream(nil..nil, event_type_ids, @state.continue_replay_at_xact_id, nil)
-                },
-                Sequent.configuration.offline_replay_persistor_class.new,
-              ) { |progress| }
-            end
+            replay_events(
+              -> {
+                event_stream(nil..nil, event_type_ids, @state.continue_replay_at_xact_id, nil)
+              },
+              replay_projectors(Sequent.configuration.offline_replay_persistor_class.new, projector_classes),
+            ) { |progress| }
           end
 
           log_and_exec_update("DROP SCHEMA IF EXISTS #{quoted_archive_schema_name} CASCADE")
