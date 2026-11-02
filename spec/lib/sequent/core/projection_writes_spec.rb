@@ -117,6 +117,19 @@ describe Sequent::Core::ProjectionWrites do
       expect(GuardedProjectionRecord.pluck(:name)).to eq ['a']
     end
 
+    it 'cannot delete records unless allowed' do
+      forbidden = Sequent::Core::ProjectionWrites::ForbiddenError
+      record = Sequent::Core::ProjectionWrites.allow { GuardedProjectionRecord.create!(name: 'a') }
+
+      expect { record.delete }.to raise_error(forbidden, /GuardedProjectionRecord/)
+      expect { GuardedProjectionRecord.delete(record.id) }.to raise_error(forbidden)
+      expect(GuardedProjectionRecord.count).to eq 1
+
+      Sequent::Core::ProjectionWrites.during_projection { record.delete }
+
+      expect(GuardedProjectionRecord.count).to eq 0
+    end
+
     it 'does not guard other records' do
       UnguardedRecord.create!(name: 'a')
       UnguardedRecord.insert_all!([{name: 'b'}])

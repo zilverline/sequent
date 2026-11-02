@@ -72,8 +72,8 @@ module Sequent
     #
     # Marks an ActiveRecord class as the record of a projection, which only projectors can write (see
     # +ProjectionWrites+). Saving, updating or destroying its records fails with an +ActiveRecord::ReadOnlyRecord+
-    # error, and writing its records without instantiating them (like +insert_all+, +update_all+ or +delete_all+)
-    # fails with a +ProjectionWrites::ForbiddenError+, unless writing them is allowed.
+    # error, and deleting them or writing them without instantiating them (like +insert_all+, +update_all+ or
+    # +delete_all+) fails with a +ProjectionWrites::ForbiddenError+, unless writing them is allowed.
     #
     #   class InvoiceRecord < Sequent::ApplicationRecord
     #     include Sequent::Core::ProjectionRecord
@@ -99,6 +99,12 @@ module Sequent
 
       def readonly?
         super || !ProjectionWrites.allowed?
+      end
+
+      # ActiveRecord deletes read-only records, so this checks itself whether writing is allowed.
+      def delete
+        ProjectionWrites.ensure_allowed!(self.class)
+        super
       end
     end
   end
