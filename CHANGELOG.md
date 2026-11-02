@@ -4,6 +4,24 @@
   `commit` is a deprecated alias. Custom persistors must implement
   `flush`.
 
+- Replaying passes the replayed events directly to the projectors
+  instead of using an event publisher. `EventStore#replay_events_from_cursor`
+  takes a block that receives the events of each block, instead of an
+  `event_publisher`.
+
+  Breaking for subclasses of the replayers: `with_sequent_config` is
+  removed, and `replay_events` takes the projectors instead of the
+  replay persistor. Create these using `replay_projectors`:
+
+  ```ruby
+  projectors = replay_projectors(replay_persistor, projector_classes)
+  replay_events(get_events, projectors, &on_progress)
+  ```
+
+- Bug: activating a replay flushed another instance of the
+  `offline_replay_persistor_class` than the one the projectors used,
+  losing the changes of persistors that buffer them.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle

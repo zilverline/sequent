@@ -177,19 +177,30 @@ module Sequent
       # Prefer this replay method if your db adapter supports cursors.
       #
       # @param get_events lambda that returns the events cursor
+      # @param event_publisher the event publisher to publish the events to, by default the configured event
+      #   publisher. Cannot be combined with a block.
       # @param on_progress lambda that gets called on substantial progress
+      # @yield the events of each block, instead of publishing them using an event publisher
       def replay_events_from_cursor(
         get_events:,
-        event_publisher: Sequent.configuration.event_publisher,
+        event_publisher: nil,
         block_size: 2000,
-        on_progress: PRINT_PROGRESS
+        on_progress: PRINT_PROGRESS,
+        &block
       )
+        fail ArgumentError, 'pass either an event_publisher or a block, not both' if event_publisher && block
+
+        event_publisher ||= Sequent.configuration.event_publisher unless block
         progress = 0
         cursor = get_events.call
         ids_replayed = []
         cursor.each_row_batch(block_size:, with_hold: true).each do |records|
           events = records.map(&method(:deserialize_event))
-          event_publisher.publish_events(events)
+          if block
+            block.call(events)
+          else
+            event_publisher.publish_events(events)
+          end
           records.each do |record|
             progress += 1
             ids_replayed << record['aggregate_id']

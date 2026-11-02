@@ -42,79 +42,78 @@ module Sequent
           event_type_ids:,
         )
 
-        with_sequent_config(replay_persistor, projector_classes) do
-          logger.info "Start replaying an estimated #{estimated_event_count} events in #{groups.size} groups"
+        projectors = replay_projectors(replay_persistor, projector_classes)
 
-          time("#{estimated_event_count} events in #{groups.size} groups replayed") do
-            disconnect!
+        logger.info "Start replaying an estimated #{estimated_event_count} events in #{groups.size} groups"
 
-            @connected = false
-            # using `map_with_index` because https://github.com/grosser/parallel/issues/175
-            result = Parallel.map_with_index(
-              groups,
-              in_processes: number_of_replay_processes,
-            ) do |group, index|
-              @connected ||= establish_connection
-              with_group.call(group, index) do
-                msg = <<~EOS.chomp
-                  Group #{group} (#{index + 1}/#{groups.size}) replayed
-                EOS
-                time(msg) do
-                  replay_events(
-                    -> {
-                      event_stream(group, event_type_ids, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
-                    },
-                    replay_persistor,
-                    &on_progress
-                  )
-                end
+        time("#{estimated_event_count} events in #{groups.size} groups replayed") do
+          disconnect!
+
+          @connected = false
+          # using `map_with_index` because https://github.com/grosser/parallel/issues/175
+          result = Parallel.map_with_index(
+            groups,
+            in_processes: number_of_replay_processes,
+          ) do |group, index|
+            @connected ||= establish_connection
+            with_group.call(group, index) do
+              msg = <<~EOS.chomp
+                Group #{group} (#{index + 1}/#{groups.size}) replayed
+              EOS
+              time(msg) do
+                replay_events(
+                  -> {
+                    event_stream(group, event_type_ids, minimum_xact_id_inclusive, maximum_xact_id_exclusive)
+                  },
+                  projectors,
+                  &on_progress
+                )
               end
-              nil
-            rescue StandardError => e
-              logger.error "Replaying failed for group: #{group}"
-              logger.error '+++++++++++++++ ERROR +++++++++++++++'
-              recursively_print(e)
-              raise Parallel::Kill # immediately kill all sub-processes
             end
-            establish_connection
-            fail if result.nil?
+            nil
+          rescue StandardError => e
+            logger.error "Replaying failed for group: #{group}"
+            logger.error '+++++++++++++++ ERROR +++++++++++++++'
+            recursively_print(e)
+            raise Parallel::Kill # immediately kill all sub-processes
           end
+          establish_connection
+          fail if result.nil?
         end
       end
 
-      def with_sequent_config(replay_persistor, projector_classes, &block)
-        old_config = Sequent.configuration
-
-        config = Sequent.configuration.dup
-
-        replay_projectors = projector_classes.map do |projector_class|
+      # The projectors to replay the events with, writing to the given +replay_persistor+ unless they
+      # declare their own replay persistor.
+      def replay_projectors(replay_persistor, projector_classes)
+        projector_classes.map do |projector_class|
           projector_class.new(projector_class.replay_persistor || replay_persistor)
         end
-        config.event_handlers = replay_projectors
-
-        Sequent::Configuration.restore(config)
-
-        block.call
-      ensure
-        Sequent::Configuration.restore(old_config)
       end
 
-      def replay_events(
-        get_events,
-        replay_persistor,
-        &on_progress
-      )
+      ##
+      # Replays the events to the +projectors+, one projector at a time since projectors do not depend
+      # on each other, and flushes them afterwards.
+      def replay_events(get_events, projectors, &on_progress)
         Sequent.configuration.event_store.replay_events_from_cursor(
           get_events:,
-          event_publisher: Sequent::Core::EventPublisher.new,
           block_size: 1000,
           on_progress:,
-        )
+        ) do |events|
+          projectors.each { |projector| replay_events_to(projector, events) }
+        end
 
-        replay_persistor.flush
+        projectors.each(&:flush)
+      end
 
-        # Also commit all specific declared replay persistors on projectors.
-        Sequent.configuration.event_handlers.select { |e| e.class.replay_persistor }.each(&:flush)
+      # Replays the +events+ to the +projector+, raising an error that tells which event failed.
+      def replay_events_to(projector, events)
+        events.each do |event|
+          projector.handle_message(event)
+        rescue Sequent::Core::ProjectorMigrationError
+          raise
+        rescue StandardError
+          raise Sequent::Core::EventPublisher::PublishEventError.new(projector.class, event)
+        end
       end
 
       def on_progress

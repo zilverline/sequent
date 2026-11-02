@@ -84,6 +84,41 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
+  # Buffers the records it creates until flushed, like a persistor that writes in bulk.
+  class BufferingReplayPersistor < Sequent::Core::Persistors::ActiveRecordPersistor
+    class << self
+      attr_accessor :instances
+    end
+
+    attr_reader :buffered, :flushed
+
+    def initialize
+      super
+      @buffered = []
+      @flushed = []
+      self.class.instances&.push(self)
+    end
+
+    def create_record(_record_class, values) = @buffered << values
+
+    def flush
+      @flushed.concat(@buffered)
+      @buffered.clear
+    end
+  end
+
+  class OwnReplayPersistorProjector < Sequent::Core::Projector
+    self.skip_autoregister = true
+    manages_no_tables
+
+    def self.replay_persistor = BufferingReplayPersistor.new
+
+    # Its persistor only buffers the records, so it can pass a record class it does not manage.
+    on ProjectorsReplayEvent1 do |event|
+      @persistor.create_record(SingleRecord, {aggregate_id: event.aggregate_id})
+    end
+  end
+
   let(:projector_classes) { [SingleRecordProjector] }
 
   subject { Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:) }
@@ -270,6 +305,51 @@ describe Sequent::Migrations::ProjectorsReplayer do
         expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
         expect(record_count('view_schema')).to eq(initial_event_count + 10)
         expect(record_count('archive_schema')).to eq(initial_event_count + 10)
+      end
+
+      context 'with a projector that has its own replay persistor' do
+        let(:projector_classes) { [SingleRecordProjector, OwnReplayPersistorProjector] }
+
+        before { BufferingReplayPersistor.instances = [] }
+        after { BufferingReplayPersistor.instances = nil }
+
+        it 'flushes the replay persistor of every projector when replaying incrementally' do
+          insert_events(10)
+
+          subject.activate!
+
+          expect(BufferingReplayPersistor.instances.size).to eq 1
+          expect(BufferingReplayPersistor.instances.first).to have_attributes(buffered: [])
+          expect(BufferingReplayPersistor.instances.first.flushed.size).to eq 10
+          expect(record_count('view_schema')).to eq(initial_event_count + 10)
+        end
+      end
+
+      it 'flushes the offline replay persistor used by the projectors when replaying incrementally' do
+        persistor_class = Class.new(Sequent::Core::Persistors::ActiveRecordPersistor) do
+          class << self
+            attr_accessor :used, :flushed
+          end
+
+          def create_record(...)
+            self.class.used << self
+            super
+          end
+
+          def flush
+            self.class.flushed << self
+            super
+          end
+        end
+        persistor_class.used = Set.new.compare_by_identity
+        persistor_class.flushed = Set.new.compare_by_identity
+        Sequent.configuration.offline_replay_persistor_class = persistor_class
+        insert_events(10)
+
+        subject.activate!
+
+        expect(persistor_class.used).not_to be_empty
+        expect(persistor_class.flushed).to be_superset(persistor_class.used)
       end
 
       it 'blocks projectors during activation so no events are missed or duplicated' do
