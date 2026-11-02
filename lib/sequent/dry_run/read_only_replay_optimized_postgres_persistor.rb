@@ -11,7 +11,7 @@ module Sequent
         @starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
 
-      def commit
+      def flush
         # Running in dryrun mode, not committing anything.
         ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         elapsed = ending - @starting
