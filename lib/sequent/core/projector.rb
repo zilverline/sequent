@@ -114,19 +114,6 @@ module Sequent
         super
       end
 
-      ##
-      # Fails when a managed projection record class has callbacks that run when writing records, or validations
-      # (see +ProjectionRecord+). This is checked once, when the first projector of this class is created, so all
-      # callbacks of the record classes are defined.
-      def self.ensure_no_write_callbacks!
-        return if @write_callbacks_verified
-
-        managed_tables.each do |record_class|
-          ProjectionRecord.ensure_no_write_callbacks!(record_class) if record_class < ProjectionRecord
-        end
-        @write_callbacks_verified = true
-      end
-
       def self.replay_persistor
         nil
       end
@@ -222,8 +209,6 @@ module Sequent
             A Projector must manage at least one table. Did you forget to add `managed_tables` to #{self.class}?
           EOS
         end
-
-        self.class.ensure_no_write_callbacks!
       end
     end
   end

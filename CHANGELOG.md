@@ -2,8 +2,10 @@
 
 - A record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
-  `Sequent::Core::ProjectionWrites`, and cannot have write callbacks or
-  validations, since these do not run when replaying. See
+  `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`
+  matcher of `Sequent::Test::ProjectionRecordHelpers` checks that such a
+  record class has no write callbacks or validations, which do not run
+  when replaying. See
   [read-only records](https://www.sequent.io/docs/concepts/projector.html#read-only-records).
 
 - `Persistor#commit` and `Projector#commit` are renamed to `flush`.

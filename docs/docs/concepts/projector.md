@@ -198,30 +198,33 @@ The Records of such a class can then only be written by Projectors:
   `upsert_all`, `update_all` and `delete_all`), fails with a
   `Sequent::Core::ProjectionWrites::ForbiddenError`.
 
-Such a Record class cannot have callbacks that run when writing Records (like `before_save` or
-`after_commit`) or validations, since these only run when a Projector saves a Record using the
-`ActiveRecordPersistor`, and not when replaying. Creating a Projector that manages such a Record class
-fails with a `Sequent::Core::ProjectionRecord::WriteCallbacksError`. Callbacks that run when reading
-Records, like `after_find` and `after_initialize`, can be used. The callbacks ActiveRecord adds itself,
-for instance for associations, are allowed by default.
-
-Prefer moving the logic of such callbacks to the Projector, where it runs whichever persistor is used.
-Callbacks that must be kept anyway, like callbacks added by a gem, or callbacks that a new version of
-ActiveRecord adds and Sequent does not recognize yet, can be allowed by their method name, a regular
-expression matching it, or the class of the validator:
+Avoid callbacks that run when writing Records (like `before_save` or `after_commit`) and validations
+in such a Record class. These only run when a Projector saves a Record using the
+`ActiveRecordPersistor`, and not when replaying, so their logic belongs in the Projector, where it
+runs whichever persistor is used. Callbacks that run when reading Records, like `after_find` and
+`after_initialize`, are fine. A spec can check this for all Record classes of Projections using the
+`have_no_write_callbacks` matcher of `Sequent::Test::ProjectionRecordHelpers`, which ignores the
+callbacks ActiveRecord adds itself, for instance for associations:
 
 ```ruby
-class UserRecord < Sequent::ApplicationRecord
-  include Sequent::Core::ProjectionRecord
+require 'sequent/test'
 
-  # Only runs when the ActiveRecordPersistor saves a record, not when replaying.
-  allow_write_callbacks :audit_changes, /\Aaudit_/, SomeGem::SomeValidator
+describe 'projection records' do
+  ActiveRecord::Base.descendants.select { |record_class| record_class < Sequent::Core::ProjectionRecord }
+    .each do |record_class|
+      it "#{record_class} has no write callbacks" do
+        expect(record_class).to have_no_write_callbacks
+      end
+    end
 end
 ```
 
-`allow_write_callbacks` adds to the allowed callbacks, which subclasses inherit. A module that includes `Sequent::Core::ProjectionRecord`
-for the Record classes that include it must extend `ActiveSupport::Concern`, and can allow callbacks for
-all of them in its `included` block.
+Callbacks that must be kept anyway, like callbacks added by a gem, can be allowed by their method
+name, a regular expression matching it, or the class of the validator:
+
+```ruby
+expect(UserRecord).to have_no_write_callbacks(allow: [:audit_changes, /\Aaudit_/, SomeGem::SomeValidator])
+```
 
 Projectors can always write the Records they manage, whichever persistor they use, also while
 the `CommandService` executes commands. Outside Projectors, writing is forbidden, unless it is allowed
