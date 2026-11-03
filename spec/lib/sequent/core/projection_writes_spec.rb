@@ -130,6 +130,15 @@ describe Sequent::Core::ProjectionWrites do
       expect(GuardedProjectionRecord.count).to eq 0
     end
 
+    it 'guards every relation method that writes records without instantiating them' do
+      write_methods = ActiveRecord::Relation.public_instance_methods
+        .grep(/\A(insert|upsert|update|delete|destroy|touch|increment|decrement)/)
+      # These write instantiated records, which are read-only, or call one of the guarded methods.
+      unguarded = %i[update update! destroy destroy_all destroy_by delete delete_by]
+
+      expect(write_methods - unguarded).to match_array Sequent::Core::ProjectionRecord::RelationWrites::METHODS
+    end
+
     it 'does not guard other records' do
       UnguardedRecord.create!(name: 'a')
       UnguardedRecord.insert_all!([{name: 'b'}])

@@ -82,9 +82,11 @@ module Sequent
     module ProjectionRecord
       # The relation methods that write records without instantiating them.
       module RelationWrites
-        %i[
+        METHODS = %i[
           insert insert! insert_all insert_all! upsert upsert_all update_all update_counters touch_all delete_all
-        ].each do |method_name|
+        ].freeze
+
+        METHODS.each do |method_name|
           define_method(method_name) do |*args, **kwargs, &block|
             ProjectionWrites.ensure_allowed!(klass) if klass < ProjectionRecord
             super(*args, **kwargs, &block)
