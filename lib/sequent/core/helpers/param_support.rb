@@ -82,7 +82,7 @@ module Sequent
           elsif val.is_a?(DateTime) || val.is_a?(Date)
             val.iso8601
           elsif val.is_a? Time
-            val.iso8601(Sequent.configuration.time_precision)
+            val.iso8601(ActiveSupport::JSON::Encoding.time_precision)
           else
             val
           end

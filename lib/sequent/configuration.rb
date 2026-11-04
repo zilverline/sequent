@@ -43,6 +43,7 @@ module Sequent
       fail Sequent::Core::AggregateInvariantViolationError.new(aggregate, exception, phase), cause: exception
     end
 
+    # @deprecated Use +ActiveSupport::JSON::Encoding.time_precision+.
     DEFAULT_TIME_PRECISION = ActiveSupport::JSON::Encoding.time_precision
 
     DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS = proc do |clazz|
@@ -77,7 +78,6 @@ module Sequent
                   :replay_group_target_size,
                   :event_store_schema_name,
                   :strict_check_attributes_on_apply_events,
-                  :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
                   :aggregate_invariant_violation_handler,
@@ -139,8 +139,6 @@ module Sequent
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
 
-      self.time_precision = DEFAULT_TIME_PRECISION
-
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
       self.aggregate_invariant_violation_handler = DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER
@@ -153,6 +151,21 @@ module Sequent
 
       @versions_table_name = table_name
       Sequent::Migrations::Versions.table_name = table_name
+    end
+
+    # @deprecated Use +ActiveSupport::JSON::Encoding.time_precision+, which determines the precision of the times in
+    #   the JSON of events and commands.
+    def time_precision
+      warn '[DEPRECATED] use `ActiveSupport::JSON::Encoding.time_precision`, which determines the precision of times ' \
+           'in JSON'
+      ActiveSupport::JSON::Encoding.time_precision
+    end
+
+    # @deprecated Set +ActiveSupport::JSON::Encoding.time_precision+ instead. This has no effect, since the precision
+    #   of the times in JSON is that of ActiveSupport.
+    def time_precision=(_precision)
+      warn '[DEPRECATED] `time_precision=` has no effect, set `ActiveSupport::JSON::Encoding.time_precision`, which ' \
+           'determines the precision of times in JSON'
     end
 
     def migrations_class_name = @migrations_class&.name

@@ -1,5 +1,13 @@
 # Changelog 9.x
 
+- `Sequent.configuration.time_precision` is deprecated. Reading it
+  returns `ActiveSupport::JSON::Encoding.time_precision`, which
+  determines the precision of the times in the JSON of events and
+  commands, and setting it has no effect: set ActiveSupport's precision
+  instead. It was a copy of ActiveSupport's precision taken when Sequent
+  was loaded, which only `ParamSupport` used, so it could differ from
+  the precision of the stored JSON.
+
 - A record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
   `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`

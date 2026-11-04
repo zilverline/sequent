@@ -5,6 +5,26 @@ require 'spec_helper'
 describe Sequent::Configuration do
   let(:instance) { described_class.instance }
 
+  describe '#time_precision' do
+    around do |example|
+      precision = ActiveSupport::JSON::Encoding.time_precision
+      example.run
+    ensure
+      ActiveSupport::JSON::Encoding.time_precision = precision
+    end
+
+    it 'is deprecated and reads the time precision of ActiveSupport' do
+      ActiveSupport::JSON::Encoding.time_precision = 6
+
+      expect { expect(instance.time_precision).to eq 6 }.to output(/DEPRECATED/).to_stderr
+    end
+
+    it 'is deprecated to set, which has no effect' do
+      expect { instance.time_precision = 6 }.to output(/DEPRECATED.*no effect/).to_stderr
+      expect(ActiveSupport::JSON::Encoding.time_precision).to eq 3
+    end
+  end
+
   context Sequent::Core::BaseCommandHandler do
     class SpecHandler < Sequent::Core::BaseCommandHandler
       # rubocop:disable-next Lint/UselessMethodDefinition

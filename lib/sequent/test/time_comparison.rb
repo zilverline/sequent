@@ -17,7 +17,7 @@ module Sequent
         # omit nsec in datetime comparisons
         def <=>(other)
           if other.is_a?(DateTimePatches::Normalize)
-            precision = Sequent.configuration.time_precision
+            precision = ActiveSupport::JSON::Encoding.time_precision
             return normalize.iso8601(precision) <=> other.normalize.iso8601(precision)
           end
           public_send(:'___<=>', other)
