@@ -43,8 +43,6 @@ module Sequent
       fail Sequent::Core::AggregateInvariantViolationError.new(aggregate, exception, phase), cause: exception
     end
 
-    DEFAULT_TIME_PRECISION = ActiveSupport::JSON::Encoding.time_precision
-
     DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS = proc do |clazz|
       Sequent::Core::AggregateRoots.snapshot_version_by_type(clazz)
     end
@@ -77,13 +75,14 @@ module Sequent
                   :replay_group_target_size,
                   :event_store_schema_name,
                   :strict_check_attributes_on_apply_events,
-                  :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
                   :aggregate_invariant_violation_handler,
                   :projectors_replayer_after_prepare_hook,
                   :projectors_replayer_after_activate_hook,
                   :projectors_replayer_total_lock_timeout
+
+    attr_writer :time_precision
 
     attr_reader :migrations_class,
                 :versions_table_name
@@ -139,13 +138,15 @@ module Sequent
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
 
-      self.time_precision = DEFAULT_TIME_PRECISION
-
       self.enable_autoregistration = false
       self.aggregate_snapshot_versions = DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS
       self.aggregate_invariant_violation_handler = DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER
 
       self.projectors_replayer_total_lock_timeout = 10.seconds
+    end
+
+    def time_precision
+      @time_precision || ActiveSupport::JSON::Encoding.time_precision
     end
 
     def versions_table_name=(table_name)
