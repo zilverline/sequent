@@ -1,5 +1,14 @@
 # Changelog 9.x
 
+- Bug: the `ActiveRecordPersistor` set `updated_at` to the current
+  time when a block given to `do_with_record`, `do_with_records` or
+  `create_or_update_record` changed an existing record without setting
+  `updated_at`, and when `update_record` changed a record whose
+  `updated_at` was already the time of the event. A replay with the
+  `ReplayOptimizedPostgresPersistor` kept the earlier `updated_at`. Block
+  based updates now only change `updated_at` when it is set, so it is
+  the same after a replay.
+
 - A record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
   `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`

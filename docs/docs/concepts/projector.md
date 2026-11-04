@@ -135,6 +135,11 @@ keys you requested. This is extra handy if the key names in the `attrs` are the 
 names in your table definition.
 {: .notice--success}
 
+A Record updated using a block (with `update_record`, `do_with_record`, `do_with_records` or
+`create_or_update_record`) only gets a new `updated_at` when it is set: `update_record` sets it to the
+time of the Event, and other blocks have to set it themselves. So the projected `updated_at` does not
+depend on when the Events are handled, and is the same after a replay.
+
 ## Deleting a record
 
 To delete a Record in Sequent, use the `delete_all_records` method. This method has 2 parameters:
