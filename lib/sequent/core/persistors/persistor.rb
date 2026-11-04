@@ -10,7 +10,9 @@ module Sequent
       # The persistors would otherwise use the current time, so the record would get another +created_at+ (and
       # +updated_at+) when the events are replayed. Use the +created_at+ of the event instead.
       def self.ensure_created_at!(record_class, created_at)
-        return unless created_at.nil? && record_class.column_names.include?('created_at')
+        return unless record_class.column_names.include?('created_at')
+        # A value that casts to nil, like an empty string, is no created_at either.
+        return unless record_class.type_for_attribute('created_at').cast(created_at).nil?
 
         fail MissingCreatedAtError,
              "#{record_class} is created without a created_at, use the created_at of the event so it is the same " \

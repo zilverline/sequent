@@ -309,6 +309,9 @@ describe 'Persistors storing values' do
           .to raise_error(missing)
         expect { persistor.create_or_update_record(PersistorValuesRecord, {name: 'd'}) { |_| } }
           .to raise_error(missing)
+        expect { persistor.create_record(PersistorValuesRecord, {name: 'e', created_at: ''}) }.to raise_error(missing)
+        expect { persistor.create_records(PersistorValuesRecord, [{name: 'f', created_at: ''}]) }
+          .to raise_error(missing)
       end
 
       it 'stores the created_at that a block sets, also as updated_at' do
