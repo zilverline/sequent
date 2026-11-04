@@ -23,7 +23,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   let(:created_at) { Time.utc(2026, 1, 1) }
 
   let(:indices) { {} }
-  let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(50, indices) }
+  let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(indices) }
   let(:record_class) { Sequent::Core::EventRecord }
   let(:mock_event) { MockEvent.new }
 
@@ -225,14 +225,14 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       context 'values as with_indifferent_access' do
         it 'commits a persistor' do
           persistor.create_record(ReplayOptimizedPostgresTest, values.with_indifferent_access)
-          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
+          expect { persistor.flush }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
 
       context 'values as normal hashes' do
         it 'commits a persistor' do
           persistor.create_record(ReplayOptimizedPostgresTest, values)
-          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(1)
+          expect { persistor.flush }.to change { ReplayOptimizedPostgresTest.count }.by(1)
         end
       end
 
@@ -245,7 +245,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
         it 'commits a persistor' do
           persistor.create_records(ReplayOptimizedPostgresTest, values)
-          expect { persistor.commit }.to change { ReplayOptimizedPostgresTest.count }.by(10_000)
+          expect { persistor.flush }.to change { ReplayOptimizedPostgresTest.count }.by(10_000)
         end
       end
 
@@ -264,14 +264,14 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ok', created_at:})
           persistor.create_record(ReplayOptimizedPostgresTest, {id: 10, name: 'fail', created_at:})
 
-          expect { persistor.commit }.to raise_error(PG::CheckViolation)
+          expect { persistor.flush }.to raise_error(PG::CheckViolation)
           expect(ReplayOptimizedPostgresTest.count).to eq 0
         end
 
         it 'leaves lazy transactions enabled when a COPY fails' do
           persistor.create_record(ReplayOptimizedPostgresTest, {name: 'fail', created_at:})
 
-          expect { persistor.commit }.to raise_error(PG::CheckViolation)
+          expect { persistor.flush }.to raise_error(PG::CheckViolation)
           expect(Sequent::ApplicationRecord.connection.transaction_manager.lazy_transactions_enabled?).to be true
         end
       end
@@ -282,7 +282,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
         it 'leaves them enabled' do
           persistor.create_record(ReplayOptimizedPostgresTest, values)
-          persistor.commit
+          persistor.flush
 
           expect(connection.transaction_manager.lazy_transactions_enabled?).to be true
         end
@@ -290,7 +290,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         it 'leaves them disabled when they were' do
           connection.disable_lazy_transactions!
           persistor.create_record(ReplayOptimizedPostgresTest, values)
-          persistor.commit
+          persistor.flush
 
           expect(connection.transaction_manager.lazy_transactions_enabled?).to be false
         ensure
@@ -303,7 +303,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           persistor.create_record(ReplayOptimizedPostgresTest, values)
           persistor.delete_all_records(ReplayOptimizedPostgresTest, name: 'bén')
 
-          expect { persistor.commit }.not_to(change { ReplayOptimizedPostgresTest.count })
+          expect { persistor.flush }.not_to(change { ReplayOptimizedPostgresTest.count })
         end
       end
     end
@@ -322,7 +322,6 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
     let(:persistor) do
       Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
-        50,
         {
           Sequent::Core::EventRecord => %i[id command_record_id sequence_number],
         },
@@ -515,7 +514,6 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
     let(:persistor) do
       Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(
-        50,
         {
           Sequent::Core::EventRecord => [%i[aggregate_id command_record_id], %i[aggregate_id sequence_number]],
         },
