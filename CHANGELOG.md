@@ -1,5 +1,11 @@
 # Changelog 9.x
 
+- A new `UnbufferedPersistor` writes every change right away, like the
+  `ActiveRecordPersistor`, but reads and writes records as structs,
+  like the `ReplayOptimizedPostgresPersistor`, without instantiating
+  models. The persistors are checked by the same specs, so they can
+  replace each other without changing the projected data.
+
 - Bug: the `ActiveRecordPersistor` set `updated_at` to the current
   time when a block given to `do_with_record`, `do_with_records` or
   `create_or_update_record` changed an existing record without setting
