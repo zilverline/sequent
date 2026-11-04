@@ -1,18 +1,27 @@
 # Changelog 9.x
 
-- A record class that includes `Sequent::Core::ProjectionRecord` can
-  only be written by projectors, unless writing is allowed using
-  `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`
-  matcher of `Sequent::Test::ProjectionRecordHelpers` checks that such a
-  record class has no write callbacks or validations, which do not run
-  when replaying. See
-  [read-only records](https://www.sequent.io/docs/concepts/projector.html#read-only-records).
+Every entry starts with a label, so an upgrade can start with what needs
+to change: `Requirement:` (a new minimum version or step), `Breaking:`
+(removed or renamed API, or something that now fails), `Behaviour:` (the
+same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
-- `Persistor#commit` and `Projector#commit` are renamed to `flush`.
+- Requirement: Sequent requires PostgreSQL 16.13 or later.
+
+- Requirement: ActiveRecord and ActiveModel 7.2.1 or later (was 7.1.3),
+  and the new runtime dependency `prism`. ActiveRecord 8.1 and Ruby 4
+  are supported.
+
+- Requirement: install and run the new event store migrations using
+  `rake sequent:install:migrations` and `rake sequent:db:migrate`. They
+  add the projector states, replay state, partition key changes,
+  versioned snapshots, registered types and aggregate locking, and new
+  versions of the SQL functions.
+
+- Breaking: `Persistor#commit` and `Projector#commit` are renamed to `flush`.
   `commit` is a deprecated alias. Custom persistors must implement
   `flush`.
 
-- Replaying passes the replayed events directly to the projectors
+- Breaking: replaying passes the replayed events directly to the projectors
   instead of using an event publisher. `EventStore#replay_events_from_cursor`
   takes a block that receives the events of each block, instead of an
   `event_publisher`.
@@ -26,92 +35,7 @@
   replay_events(get_events, projectors, &on_progress)
   ```
 
-- Bug: activating a replay flushed another instance of the
-  `offline_replay_persistor_class` than the one the projectors used,
-  losing the changes of persistors that buffer them.
-
-- `MessageRouter#match_message` returns a frozen empty set when no
-  handler matches the message, instead of allocating a new set. This
-  avoids an allocation for every message handler that does not handle
-  a message, like aggregates applying events and event handlers that
-  get every published event.
-
-- Message handlers (like projectors and workflows) support hooks that
-  run before, after or around each invocation of a handler block, for
-  example to add instrumentation. The hooks are only run when a handler
-  block is invoked, receive the messages it handles, and are inherited
-  by subclasses:
-
-  ```ruby
-  class ApplicationProjector < Sequent::Projector
-    self.abstract_class = true
-
-    around_handler :instrument
-
-    def instrument(messages)
-      Instrumenter.instrument("#{messages.first.class}.#{self.class}") { yield }
-    end
-  end
-  ```
-
-  An `around_handler` hook skips the handler block by not continuing.
-  Prefer these hooks over overriding `dispatch_message`.
-
-- Replaying projectors keeps the extended statistics objects
-  (`CREATE STATISTICS`) of the managed tables. They are copied to the
-  replay schema when preparing, so `ANALYZE` fills them before
-  activation, and moved along with their tables when activating.
-  Before, `pg_dump --table` left them out of the replay schema and
-  `ALTER TABLE ... SET SCHEMA` left them behind on the archived tables.
-  Preparing and activating fail when a statistics object on a managed
-  table lives outside the view schema; drop it and recreate it in the
-  view schema before preparing the replay, or after activating it.
-
-- Activating a replay fails when a publication lists a managed table
-  by name (`CREATE PUBLICATION ... FOR TABLE`). The publication would
-  keep the archived table and silently stop publishing the replayed
-  one. Remove the table from the publication before activating, and
-  resynchronize the subscribers afterwards.
-  Publications `FOR ALL TABLES` or `FOR TABLES IN SCHEMA` include the
-  replayed tables by themselves.
-
-- `load_events` looks up an aggregate's events partition key first and
-  then queries the events with that key as a parameter, so a custom
-  plan can prune the events partitions while planning. It is now
-  `STABLE`, which runs both queries against the same snapshot. It
-  returns the snapshot and the events after it from separate
-  statements, so the events come straight from the index in sequence
-  number order instead of being sorted together with the snapshot.
-  `load_event` loads by partition key the same way. The other read-only
-  functions (`load_latest_snapshot`, `aggregates_that_need_snapshots`,
-  `enrich_event_json` and `enrich_command_json`) are `STABLE` too, and
-  the two `enrich_*` functions are `PARALLEL SAFE`, so queries over the
-  `event_records` and `command_records` views can use parallel workers.
-  Applying partition key changes skips aggregates that another
-  transaction has locked instead of waiting for them.
-
-- Sequent requires PostgreSQL 16.13 or later.
-
-- The `AggregateRepository` calls `invariants!` on an aggregate
-  after loading it from the event store and before committing its
-  uncommitted events. `AggregateRoot#invariants!` does nothing; an
-  aggregate overrides it to check its state. An exception raised by
-  `invariants!` is passed, with the aggregate and `:load` or
-  `:commit`, to the configurable `aggregate_invariant_violation_handler`,
-  which by default raises an `AggregateInvariantViolationError` with
-  the aggregate type, id and phase and the original exception as its
-  cause. An `InvariantsAppliedEvents` is raised when `invariants!`
-  applies events.
-
-- Sequent now supports zero-downtime deployments (rolling
-  upgrades). To enable this feature you must use the
-  `ActiveProjectorsEventPublisher` to ensure events are only published
-  to active projectors with the correct projector version number. Rake
-  tasks are provided to prepare, replay, and activate projectors. See
-  https://sequent.io/docs/concepts/migrations.html for more
-  information.
-
-- Database connection management has been removed from Sequent and
+- Breaking: database connection management has been removed from Sequent and
   must be provided by the hosting application. This is done
   automatically by Rails and can be done using the
   `sinatra-activerecord` gem if you are using Sinatra.
@@ -130,16 +54,92 @@
   `database_schema_directory`, `primary_database_key`, and
   `primary_database_role` have been removed.
 
-- To prepare for rolling upgrades of Sequent based applications the
-  snapshot of an aggregate can now be versioned. This means that
-  whenever the snapshot format changes you should either delete all
-  snapshot on deployment of the new version (and ensure no old code is
-  running, which is a current requirement) or you should increment the
-  snapshot version using `enable_snapshots version: 2`. In this case the
-  old version of the code will continue to use snapshot version 1 (the
-  default version) while new code will only use snapshot version 2.
+- Breaking: creating an event, command or value object with attributes
+  it does not declare always fails with an `UnknownAttributeError`, and
+  the `strict_check_attributes_on_apply_events` setting is removed.
+  Deserializing still ignores unknown attributes, so stored events keep
+  loading.
 
-- Also in preperation of rolling upgrades the enabled projectors are
+- Breaking: the settings `enable_multiple_database_support` and
+  `can_use_multiple_databases?`, and the constants
+  `DEFAULT_DATABASE_CONFIG_DIRECTORY`, `DEFAULT_DATABASE_SCHEMA_DIRECTORY`
+  and `MIGRATIONS_CLASS_NAME` are removed, along with the database
+  settings listed under the removed database connection management.
+  The default `migrations_class` is `nil` instead of
+  `Sequent::Migrations::Projectors`. `Support::Database.establish_connection`
+  and `connect!` no longer read `database.yml`, and `ViewSchema.new` and
+  `DryRun::ViewSchema.new` no longer take `db_config:`.
+
+- Breaking: `Support::Database.with_search_path(*schemas)` quotes every
+  argument as a schema name, so pass the schemas as separate arguments
+  instead of one comma-separated string.
+
+- Breaking: removed APIs that were deprecated: `UuidHelper` (`new_uuid`
+  in commands and command handlers; use `Sequent.new_uuid`),
+  `Helpers::Mergable` (`merge!` on commands), the `parent`, `children` and
+  `origin` aliases of `EventRecord` and `CommandRecord`,
+  `EventStore#replay_events` and `CommandService#remove_event_handler`.
+
+- Breaking: a projector fails fast on mistakes it used to ignore:
+  `Projector.on` raises an `ArgumentError` for a matcher that is not a
+  class (like `has_attrs`), `manages_tables` without arguments raises
+  (use `manages_no_tables`), and the persistor methods raise
+  `Projector::NotManagedByThisProjector` for a record class that is not in
+  `managed_tables`.
+
+- Breaking: `SnapshotStore#mark_aggregate_for_snapshotting` requires a
+  `snapshot_version:`, and `select_aggregates_for_snapshotting` returns
+  `AggregateSnapshotNeeded` structs instead of aggregate ids.
+
+- Breaking: for custom event publishers, the private
+  `EventPublisher#process_event(event)` is
+  `process_event(event_handlers, event)`, and `process_events` is
+  `process_events_if_not_already_processing`. A
+  `ProjectorMigrationError` is raised as is instead of wrapped in a
+  `PublishEventError`. `ViewSchema#replay!` moved to
+  `Migrations::EventReplayer`, and its `projectors:` keyword is a required
+  `projector_classes:`.
+
+- Behaviour: `MessageRouter#match_message` returns a frozen empty set when no
+  handler matches the message, instead of allocating a new set. This
+  avoids an allocation for every message handler that does not handle
+  a message, like aggregates applying events and event handlers that
+  get every published event.
+
+- Behaviour: replaying projectors keeps the extended statistics objects
+  (`CREATE STATISTICS`) of the managed tables. They are copied to the
+  replay schema when preparing, so `ANALYZE` fills them before
+  activation, and moved along with their tables when activating.
+  Before, `pg_dump --table` left them out of the replay schema and
+  `ALTER TABLE ... SET SCHEMA` left them behind on the archived tables.
+  Preparing and activating fail when a statistics object on a managed
+  table lives outside the view schema; drop it and recreate it in the
+  view schema before preparing the replay, or after activating it.
+
+- Behaviour: activating a replay fails when a publication lists a managed table
+  by name (`CREATE PUBLICATION ... FOR TABLE`). The publication would
+  keep the archived table and silently stop publishing the replayed
+  one. Remove the table from the publication before activating, and
+  resynchronize the subscribers afterwards.
+  Publications `FOR ALL TABLES` or `FOR TABLES IN SCHEMA` include the
+  replayed tables by themselves.
+
+- Behaviour: `load_events` looks up an aggregate's events partition key first and
+  then queries the events with that key as a parameter, so a custom
+  plan can prune the events partitions while planning. It is now
+  `STABLE`, which runs both queries against the same snapshot. It
+  returns the snapshot and the events after it from separate
+  statements, so the events come straight from the index in sequence
+  number order instead of being sorted together with the snapshot.
+  `load_event` loads by partition key the same way. The other read-only
+  functions (`load_latest_snapshot`, `aggregates_that_need_snapshots`,
+  `enrich_event_json` and `enrich_command_json`) are `STABLE` too, and
+  the two `enrich_*` functions are `PARALLEL SAFE`, so queries over the
+  `event_records` and `command_records` views can use parallel workers.
+  Applying partition key changes skips aggregates that another
+  transaction has locked instead of waiting for them.
+
+- Behaviour: also in preperation of rolling upgrades the enabled projectors are
   now tracked in the `projector_states` table. Use the
   `ActiveProjectorsEventPublisher` as the `event_publisher` to enable
   this feature.
@@ -165,27 +165,13 @@
   online migrations, take old code offline, run offline migrations,
   start running the new code) will keep working as is.
 
-- `AggregateRepository#find_aggregates_by_unique_key_containing(scope,
-  partial_key, clazz = nil)` loads every aggregate whose unique key in
-  `scope` contains `partial_key`, using PostgreSQL's jsonb `@>`: a key
-  `{employee_id: 'e1', period: '2024-01'}` is found by `{employee_id:
-  'e1'}`. An optional block receives each matching key and decides
-  which aggregates are loaded, for conditions a containment check
-  cannot express. A GIN index on the scope and key makes the lookup
-  efficient; copy the migration at
-  `db/migrate/20260925120000_sequent_index_aggregate_unique_keys_by_scope_and_key.rb`
-  to create it. The index is built concurrently, so it does not block
-  writes. It needs the `btree_gin` extension for the scope column,
-  which the migration creates in the event store schema; `btree_gin` is
-  a trusted extension, so the database owner can create it.
-
-- `AggregateRepository#find_aggregate_by_unique_key` and
+- Behaviour: `AggregateRepository#find_aggregate_by_unique_key` and
   `#find_aggregates_by_unique_key_containing` also match the
   aggregates in the repository on their current unique keys. An
   aggregate that is added but not yet committed is now found, and one
   whose key changed since it was loaded is only found by its new key.
 
-- `ReplayOptimizedPostgresPersistor#commit` loads the records of each
+- Behaviour: `ReplayOptimizedPostgresPersistor#commit` loads the records of each
   table using `COPY`, also for small numbers of records that used to be
   inserted using one `INSERT` statement per record. Values that already
   have the Ruby class of their column type (integers, decimals, dates,
@@ -207,7 +193,7 @@
   check that the persistors store the same values, and document where
   they differ, like on views.
 
-- The `ActiveRecordPersistor` stores `created_at` as `updated_at` when
+- Behaviour: the `ActiveRecordPersistor` stores `created_at` as `updated_at` when
   creating a record with only `created_at`, like the
   `ReplayOptimizedPostgresPersistor` already did. Before, ActiveRecord
   set `updated_at` to the current time, so replaying a projector changed
@@ -217,11 +203,177 @@
   (if `record_timestamps` is enabled), like ActiveRecord does, instead of
   loading them as `NULL`.
 
-# Changelog 8.2.1
+- Behaviour: the `ActiveRecordTransactionProvider` no longer starts a
+  nested transaction (savepoint) by default, so an `ActiveRecord::Rollback`
+  in a command no longer only rolls back that command. Passing
+  `requires_new: true` to it warns; use an explicit
+  `ActiveRecord::Base.transaction(requires_new: true)` instead. Custom
+  transaction providers must implement `transaction`, which the
+  `CommandService` calls (`transactional` is a deprecated alias).
 
-- Bug: Fix resetting column information and table_name when using Single Table Inheritance.
-- Improvement: Fail fast when passing a non managed_table to the Persistor
-- Improvement: Log current event when replaying fails
+- Behaviour: `after_commit` callbacks run when the database transaction
+  is committed, using ActiveRecord's transaction callbacks, instead of
+  when the block of the transaction provider ends.
+
+- Behaviour: a change to the `events_partition_key` of an aggregate is
+  recorded in `partition_key_changes`, and its events only move to the
+  new partition when `rake sequent:aggregates:update_partition_keys`
+  runs, which should be scheduled.
+
+- Behaviour: storing events locks the aggregate row, and concurrent
+  writers to the same aggregate get an optimistic locking error instead
+  of a deadlock.
+
+- Behaviour: `snapshot_default_threshold` and `snapshot_version` are
+  class attributes, so subclasses of an aggregate with `enable_snapshots`
+  take snapshots too.
+
+- Behaviour: the handler blocks of message handlers are methods, so
+  `return` only leaves that block instead of skipping the other handlers
+  of the message, and a block with more required parameters than the
+  message raises an `ArgumentError`.
+
+- Behaviour: `set_autoset_ignore_attributes` applies to the class it is
+  called on and its subclasses, instead of to all classes.
+
+- Behaviour: `then_events` fails when the number of events differs,
+  compares the class of each event as well as its payload, and reports
+  which event does not match.
+
+- Behaviour: the `migrate:current_version`, `check_*` and
+  `abort_if_pending_migrations` rake tasks no longer create or migrate
+  the view schema or the versions table.
+
+- Behaviour: `AggregateRepository#contains_aggregate?` is also true for
+  aggregates that are added but not yet committed, and `stream_exists?`
+  and `events_exists?` require the stream to have events.
+
+- Deprecated: `migrations_class_name=` and `Sequent.migration_class`; use
+  `migrations_class=` and `Sequent.migrations_class`.
+
+- Deprecated: requiring `sequent/test/time_comparison` warns, since it
+  changes how times compare in the whole process.
+
+- Feature: a record class that includes `Sequent::Core::ProjectionRecord` can
+  only be written by projectors, unless writing is allowed using
+  `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`
+  matcher of `Sequent::Test::ProjectionRecordHelpers` checks that such a
+  record class has no write callbacks or validations, which do not run
+  when replaying. See
+  [read-only records](https://www.sequent.io/docs/concepts/projector.html#read-only-records).
+
+- Feature: message handlers (like projectors and workflows) support hooks that
+  run before, after or around each invocation of a handler block, for
+  example to add instrumentation. The hooks are only run when a handler
+  block is invoked, receive the messages it handles, and are inherited
+  by subclasses:
+
+  ```ruby
+  class ApplicationProjector < Sequent::Projector
+    self.abstract_class = true
+
+    around_handler :instrument
+
+    def instrument(messages)
+      Instrumenter.instrument("#{messages.first.class}.#{self.class}") { yield }
+    end
+  end
+  ```
+
+  An `around_handler` hook skips the handler block by not continuing.
+  Prefer these hooks over overriding `dispatch_message`.
+
+- Feature: the `AggregateRepository` calls `invariants!` on an aggregate
+  after loading it from the event store and before committing its
+  uncommitted events. `AggregateRoot#invariants!` does nothing; an
+  aggregate overrides it to check its state. An exception raised by
+  `invariants!` is passed, with the aggregate and `:load` or
+  `:commit`, to the configurable `aggregate_invariant_violation_handler`,
+  which by default raises an `AggregateInvariantViolationError` with
+  the aggregate type, id and phase and the original exception as its
+  cause. An `InvariantsAppliedEvents` is raised when `invariants!`
+  applies events.
+
+- Feature: Sequent now supports zero-downtime deployments (rolling
+  upgrades). To enable this feature you must use the
+  `ActiveProjectorsEventPublisher` to ensure events are only published
+  to active projectors with the correct projector version number. Rake
+  tasks are provided to prepare, replay, and activate projectors. See
+  https://sequent.io/docs/concepts/migrations.html for more
+  information.
+
+- Feature: to prepare for rolling upgrades of Sequent based applications the
+  snapshot of an aggregate can now be versioned. This means that
+  whenever the snapshot format changes you should either delete all
+  snapshot on deployment of the new version (and ensure no old code is
+  running, which is a current requirement) or you should increment the
+  snapshot version using `enable_snapshots version: 2`. In this case the
+  old version of the code will continue to use snapshot version 1 (the
+  default version) while new code will only use snapshot version 2.
+
+- Feature: `AggregateRepository#find_aggregates_by_unique_key_containing(scope,
+  partial_key, clazz = nil)` loads every aggregate whose unique key in
+  `scope` contains `partial_key`, using PostgreSQL's jsonb `@>`: a key
+  `{employee_id: 'e1', period: '2024-01'}` is found by `{employee_id:
+  'e1'}`. An optional block receives each matching key and decides
+  which aggregates are loaded, for conditions a containment check
+  cannot express. A GIN index on the scope and key makes the lookup
+  efficient; copy the migration at
+  `db/migrate/20260925120000_sequent_index_aggregate_unique_keys_by_scope_and_key.rb`
+  to create it. The index is built concurrently, so it does not block
+  writes. It needs the `btree_gin` extension for the scope column,
+  which the migration creates in the event store schema; `btree_gin` is
+  a trusted extension, so the database owner can create it.
+
+- Feature: `AggregateRepository#find_aggregate` and
+  `#find_aggregate_by_unique_key` load an aggregate, or return `nil` when
+  it does not exist.
+
+- Feature: aggregate observers (`Sequent::AggregateObserver`, the
+  `aggregate_observers` setting and the `when_event_observed` test helper)
+  handle events synchronously as an aggregate applies them.
+
+- Feature: `MessageHandler#handle_message!` raises an
+  `UnhandledMessageError` when no handler handles the message.
+
+- Feature: `execute_commands` takes a `validation_context:`, which is
+  passed on to the validations of the commands.
+
+- Feature: the transaction provider supports `before_commit` and
+  `after_rollback` callbacks.
+
+- Feature: `rake sequent:register:types` and
+  `register:snapshot_versions` register the event, command and aggregate
+  types and snapshot versions in the event store
+  (`EventStore#register_types!`).
+
+- Feature: replaying projectors in the background is configured using
+  `replay_schema_name`, `archive_schema_name`,
+  `projectors_replayer_after_prepare_hook`,
+  `projectors_replayer_after_activate_hook` and
+  `projectors_replayer_total_lock_timeout`, and projectors can manage
+  tables through views.
+
+- Bug: activating a replay flushed another instance of the
+  `offline_replay_persistor_class` than the one the projectors used,
+  losing the changes of persistors that buffer them.
+
+- Bug: storing events compared the lowest sequence number as text,
+  which gave false optimistic locking errors.
+
+- Bug: `valid_date?` returns `false` for values that are not strings,
+  instead of raising a `NoMethodError`.
+
+- Bug: `rake sequent:install:migrations` gave migrations invalid
+  timestamps when copying them crossed a minute.
+
+- Bug: the migration to Sequent 8 also works when the existing tables do
+  not use a `uuid` for the `aggregate_id` yet.
+
+- Bug: resetting the column information and table name of records
+  using single table inheritance during a view schema migration.
+
+- Bug: the event that fails is logged when replaying fails.
 
 # Changelog 8.2.0
 
