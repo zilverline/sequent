@@ -189,7 +189,7 @@ describe 'Persistors storing columns without a value' do
 
       # Like ActiveRecord with partial_inserts, since the default of the column is not known.
       it 'stores the database default for an explicit nil in a column with a constant default' do
-        persistor.create_record(record_class, name: 'a', status: nil)
+        persistor.create_record(record_class, created_at: time, name: 'a', status: nil)
         persistor.flush
 
         expect(stored('a', :status)).to eq 'new'
