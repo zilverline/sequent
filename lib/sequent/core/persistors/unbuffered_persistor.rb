@@ -56,11 +56,11 @@ module Sequent
           nil
         end
 
-        def create_or_update_record(record_class, values, created_at = Time.now, &block)
+        def create_or_update_record(record_class, values, created_at = nil, &block)
           record = get_record(record_class, values)
           return save(record_class, record) { yield record } if record
 
-          values = values.merge(created_at:) if record_class.column_names.include?('created_at')
+          values = values.merge(created_at:) if created_at && record_class.column_names.include?('created_at')
           create_record(record_class, values, &block)
         end
 
@@ -135,11 +135,14 @@ module Sequent
         end
 
         # Like ActiveRecord, the primary key and the other columns that the database computes are returned when
-        # inserting a record without a value for them.
+        # inserting a record without a value for them, like the insert decides which columns get their default.
         def returning_columns(record_class, record)
           computed_columns = RecordStructs.record_class(record_class).computed_columns
           columns = [*Array(record_class.primary_key).map(&:to_sym), *computed_columns]
-          columns.uniq.select { |column| record.respond_to?(column) && record[column].nil? }
+          columns.uniq.select do |column|
+            record.respond_to?(column) &&
+              Statements.without_value?(record_class.type_for_attribute(column.to_s), record[column])
+          end
         end
 
         def assign_returned_values(record_class, record, columns, result)
@@ -165,7 +168,8 @@ module Sequent
         end
 
         def changed_columns(record_class, before, record)
-          record.members.reject do |column|
+          # The columns are the keys, since a column named members would replace Struct#members.
+          before.keys.reject do |column|
             record_class.type_for_attribute(column.to_s).cast(record[column]) == before[column]
           end
         end

@@ -283,6 +283,14 @@ describe 'Persistors storing values' do
         ]
       end
 
+      it 'gives every record its own copy of a column default' do
+        persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:}) { |record| record.initials << 'x' }
+        persistor.create_record(PersistorValuesRecord, {name: 'b', created_at:})
+        persistor.flush
+
+        expect(PersistorValuesRecord.order(:name).pluck(:name, :initials)).to eq [['a', ['x']], ['b', []]]
+      end
+
       it 'stores created_at as updated_at' do
         persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:})
         persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}])
