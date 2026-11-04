@@ -79,8 +79,9 @@ module Sequent
         def self.create(record_class, values)
           columns = record_class(record_class)
           record = columns.struct.new(**values)
+          # Defaults like arrays are shared by all records, so each record gets its own copy to change.
           columns.defaults.each do |column, default|
-            record[column] = default unless values.include?(column)
+            record[column] = default.frozen? ? default : default.deep_dup unless values.include?(column)
           end
           record.updated_at = values[:created_at] if record.respond_to?(:updated_at=) && !values.include?(:updated_at)
           yield record if block_given?

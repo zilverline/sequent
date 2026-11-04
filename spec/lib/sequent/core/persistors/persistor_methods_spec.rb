@@ -24,6 +24,7 @@ describe 'Persistors reading and updating records' do
         sequence_number integer NOT NULL,
         name character varying,
         amount integer,
+        members integer,
         created_at timestamp without time zone NOT NULL,
         updated_at timestamp without time zone NOT NULL
       );
@@ -135,6 +136,17 @@ describe 'Persistors reading and updating records' do
       expect(stored(:updated_at)).to eq [created_at]
     end
 
+    it 'updates a record with a column named like a method of a struct' do
+      create('a')
+      persistor.do_with_record(record_class, aggregate_id:) do |record|
+        record.name = 'b'
+        record.members = 2
+      end
+      persistor.flush
+
+      expect(stored(:name, :members)).to eq [['b', 2]]
+    end
+
     it 'keeps updated_at when a block changes a record without setting updated_at' do
       create('a')
       persistor.do_with_record(record_class, aggregate_id:) { |record| record.name = 'b' }
@@ -155,10 +167,11 @@ describe 'Persistors reading and updating records' do
 
     it_behaves_like 'a persistor reading and updating records'
 
-    it 'sets the primary key of a created record' do
-      record = create('a')
+    it 'sets the primary key of a created record, also when it is given without a value' do
+      first = create('a')
+      second = persistor.create_record(record_class, id: '', aggregate_id:, sequence_number: 1, name: 'b', created_at:)
 
-      expect(record.id).to eq stored(:id).sole
+      expect([first.id, second.id]).to eq stored(:id)
     end
   end
 
