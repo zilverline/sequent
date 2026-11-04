@@ -50,7 +50,7 @@ describe 'Persistors storing columns without a value' do
   shared_examples 'a persistor storing columns without a value' do |except: []|
     unless except.include?(:explicit_nil)
       it 'stores NULL for an explicit nil in a column with a constant default' do
-        persistor.create_record(record_class, name: 'a', status: nil)
+        persistor.create_record(record_class, created_at: time, name: 'a', status: nil)
         persistor.flush
 
         expect(stored('a', :status)).to be_nil
@@ -58,10 +58,10 @@ describe 'Persistors storing columns without a value' do
     end
 
     it 'stores the database defaults of the columns without a value' do
-      persistor.create_record(record_class, name: 'a')
+      persistor.create_record(record_class, created_at: time, name: 'a')
       persistor.flush
 
-      expect(stored('a', :id, :serialid, :created_at, :token)).to all(be_present)
+      expect(stored('a', :id, :serialid, :token)).to all(be_present)
       expect(stored('a', :status)).to eq 'new'
     end
 
@@ -73,7 +73,7 @@ describe 'Persistors storing columns without a value' do
     end
 
     it 'stores the values set by the block' do
-      persistor.create_record(record_class, name: 'a') do |record|
+      persistor.create_record(record_class, created_at: time, name: 'a') do |record|
         record.serialid = 100
         record.status = 'x'
       end
@@ -83,7 +83,7 @@ describe 'Persistors storing columns without a value' do
     end
 
     it 'stores the database default for an empty string in a column with a computed default' do
-      persistor.create_record(record_class, name: 'a', serialid: '')
+      persistor.create_record(record_class, created_at: time, name: 'a', serialid: '')
       persistor.commit
 
       expect(stored('a', :serialid)).to be_present
@@ -91,7 +91,7 @@ describe 'Persistors storing columns without a value' do
 
     unless except.include?(:nil_to_nil_update)
       it 'stores NULL for a computed column without a value set to nil by do_with_record' do
-        persistor.create_record(record_class, name: 'a')
+        persistor.create_record(record_class, created_at: time, name: 'a')
         persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
         persistor.commit
 
@@ -100,15 +100,15 @@ describe 'Persistors storing columns without a value' do
     end
 
     it 'stores the database default for an explicit nil in a column with a computed default' do
-      persistor.create_record(record_class, name: 'a', token: nil)
+      persistor.create_record(record_class, created_at: time, name: 'a', token: nil)
       persistor.flush
 
       expect(stored('a', :token)).to be_present
     end
 
     it 'stores NULL for columns updated to nil' do
-      persistor.create_record(record_class, name: 'a', status: 'x', token: uuid)
-      persistor.create_record(record_class, name: 'b', status: 'x', token: uuid)
+      persistor.create_record(record_class, created_at: time, name: 'a', status: 'x', token: uuid)
+      persistor.create_record(record_class, created_at: time, name: 'b', status: 'x', token: uuid)
       persistor.update_all_records(record_class, {name: 'a'}, {status: nil, token: nil})
       persistor.do_with_record(record_class, {name: 'b'}) do |record|
         record.status = nil
@@ -145,7 +145,7 @@ describe 'Persistors storing columns without a value' do
 
       # ActiveRecord does not know the default of the column, so nil is not a change and the column is left out.
       it 'stores the database default for an explicit nil in a column with a constant default' do
-        persistor.create_record(record_class, name: 'a', status: nil)
+        persistor.create_record(record_class, created_at: time, name: 'a', status: nil)
         persistor.flush
 
         expect(stored('a', :status)).to eq 'new'
@@ -167,7 +167,8 @@ describe 'Persistors storing columns without a value' do
       end
 
       it 'fails for a NOT NULL column without a value' do
-        expect { persistor.create_record(record_class, name: 'a') }.to raise_error(ActiveRecord::NotNullViolation)
+        expect { persistor.create_record(record_class, created_at: time, name: 'a') }
+          .to raise_error(ActiveRecord::NotNullViolation)
       end
     end
   end
@@ -184,7 +185,7 @@ describe 'Persistors storing columns without a value' do
       # the database still computes it. ActiveRecord inserts the computed value when creating the record, and stores
       # NULL when the record is updated.
       it 'stores the database default for a computed column without a value set to nil by do_with_record' do
-        persistor.create_record(record_class, name: 'a')
+        persistor.create_record(record_class, created_at: time, name: 'a')
         persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
         persistor.commit
 
@@ -196,7 +197,7 @@ describe 'Persistors storing columns without a value' do
       let(:record_class) { PersistorDefaultsViewRecord }
 
       it 'fails, since COPY does not support views' do
-        persistor.create_record(record_class, name: 'a')
+        persistor.create_record(record_class, created_at: time, name: 'a')
 
         expect { persistor.flush }.to raise_error(PG::WrongObjectType, /cannot copy to view/)
       end
