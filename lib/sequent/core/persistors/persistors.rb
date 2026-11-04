@@ -3,4 +3,5 @@
 require_relative 'persistor'
 require_relative 'active_record_persistor'
 require_relative 'replay_optimized_postgres_persistor'
+require_relative 'buffered_persistor'
 require_relative 'unbuffered_persistor'

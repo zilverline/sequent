@@ -35,6 +35,18 @@ module Sequent
             @records = records
           end
 
+          def table_name = record_class.table_name
+
+          def merge(later)
+            return false unless later.is_a?(Insert) && later.record_class == record_class
+
+            records.concat(later.records)
+            true
+          end
+
+          # Inserts into the same table do not affect each other.
+          def independent_of?(earlier) = earlier.is_a?(Insert)
+
           ##
           # Inserts the records, and returns the +ActiveRecord::Result+ with the values of the +returning+ columns.
           # Columns without a value that the database can default are left out of the statement, so consecutive
@@ -73,12 +85,44 @@ module Sequent
         end
 
         class Update
-          attr_reader :record_class, :where_clause, :updates
+          attr_reader :record_class, :where_clause, :updates, :where_columns, :update_columns
 
           def initialize(record_class, where_clause, updates)
             @record_class = record_class
             @where_clause = where_clause
             @updates = updates
+
+            return unless Statements.conditions(record_class, where_clause) && sql_updates?
+
+            @where_clause = where_clause.stringify_keys
+            @updates = updates.stringify_keys
+            @where_columns = @where_clause.keys.to_set
+            @update_columns = @updates.keys.to_set
+            @combinable = !@where_columns.intersect?(@update_columns)
+          end
+
+          def table_name = record_class.table_name
+
+          # Whether this update can be combined with other updates, or moved before them. This is only possible when
+          # it is written as SQL with binds, and does not change a column of its own where clause. An update that is
+          # left to ActiveRecord can use anything, so it stays where it is.
+          def combinable? = @combinable || false
+
+          def merge(later)
+            return false unless combinable? && later.is_a?(Update) && later.combinable?
+            return false unless later.record_class == record_class && later.where_clause == where_clause
+
+            @updates = updates.merge(later.updates)
+            @update_columns = @updates.keys.to_set
+            true
+          end
+
+          def independent_of?(earlier)
+            return false unless combinable? && earlier.is_a?(Update) && earlier.combinable?
+
+            !update_columns.intersect?(earlier.update_columns) &&
+              !update_columns.intersect?(earlier.where_columns) &&
+              !earlier.update_columns.intersect?(where_columns)
           end
 
           def execute
@@ -116,6 +160,13 @@ module Sequent
             @record_class = record_class
             @where_clause = where_clause
           end
+
+          def table_name = record_class.table_name
+
+          def merge(_later) = false
+
+          # Deletes do not affect each other.
+          def independent_of?(earlier) = earlier.is_a?(Delete)
 
           def execute
             conditions = Statements.conditions(record_class, where_clause)
