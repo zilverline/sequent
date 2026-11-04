@@ -1,5 +1,23 @@
 # Changelog 9.x
 
+- Breaking: `sequent/test/time_comparison`, deprecated since February
+  2026, is removed. It changed how times compare in the whole process,
+  so specs could pass on times that differ in production. Creating an
+  event now truncates its times to the precision with which they are
+  stored, so they compare equal to the times of the loaded event.
+
+- Creating an event truncates its times to ActiveSupport's
+  `time_precision`, with which they are stored, and gives it a
+  `created_at` in the time zone of ActiveRecord, so it has the same
+  times when it is loaded or replayed. Set
+  `Sequent.configuration.event_serialization_error_handler` to get an
+  `EventSerializationError` for every event that changes otherwise when
+  it is stored, like a symbol that is loaded as a string, so the domain
+  code can be fixed to apply the values that an aggregate and the
+  projectors get when the events are loaded or replayed.
+  `EventSerializationError::RAISE` fails, for development and specs;
+  in production a handler can report the error instead.
+
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
   columns since Sequent 8. `serialize_json?` and

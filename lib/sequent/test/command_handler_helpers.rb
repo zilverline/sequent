@@ -55,6 +55,8 @@ module Sequent
     # end
     module CommandHandlerHelpers
       class FakeEventStore
+        include Sequent::Core::Helpers::EventSerialization
+
         def initialize
           @event_streams = {}
           @all_events = {}
@@ -95,6 +97,7 @@ module Sequent
         end
 
         def commit_events(_, streams_with_events)
+          verify_serialization!(streams_with_events.flat_map { |_, events| events })
           keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
             streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
           end
@@ -158,9 +161,7 @@ module Sequent
         end
 
         def deserialize_events(events)
-          events.map do |type, json|
-            Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
-          end
+          events.map { |type, json| deserialize_event_json(type, Sequent::Core::Oj.strict_load(json)) }
         end
       end
 

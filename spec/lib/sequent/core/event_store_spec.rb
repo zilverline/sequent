@@ -884,6 +884,125 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe 'serializing events' do
+    class SerializedEvent < Sequent::Core::Event
+      attrs name: String, count: Integer, at: Time, payload: Hash, tags: array(String)
+    end
+
+    let(:published_events) { [] }
+    let(:time) { Time.utc(2026, 1, 2, 3, 4, 5, 123_456.789r) }
+
+    before do
+      events = published_events
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |published| events.concat(published) }
+      end.new
+    end
+
+    def commit(event)
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [[Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:), [event]]],
+      )
+    end
+
+    def event(**attributes)
+      SerializedEvent.new({aggregate_id:, sequence_number: 1, created_at: time}.merge(attributes))
+    end
+
+    it 'publishes the events as they are applied' do
+      applied = event(name: :symbol)
+      commit(applied)
+
+      expect(published_events.sole).to equal applied
+    end
+
+    it 'gives an event the created_at with which it is loaded, when the domain code does not give one' do
+      applied = SerializedEvent.new(aggregate_id:, sequence_number: 1, name: 'name')
+      commit(applied)
+
+      _, loaded_events = event_store.load_events(aggregate_id)
+      expect(applied.created_at).to eq loaded_events.sole.created_at
+      expect(applied.created_at.utc_offset).to eq loaded_events.sole.created_at.utc_offset
+      expect(applied).to eq loaded_events.sole
+    end
+
+    context 'with an error handler that reports the events that change when they are stored' do
+      let(:errors) { [] }
+
+      before { Sequent.configuration.event_serialization_error_handler = errors.method(:push) }
+
+      it 'passes the error with the differences, and stores and publishes the event' do
+        applied = event(name: :symbol, count: 4)
+        commit(applied)
+
+        expect(errors.sole).to have_attributes(
+          event: applied,
+          differences: [Sequent::Core::EventSerializationError::Difference.new(:name, :symbol, 'symbol')],
+        )
+        expect(published_events.sole).to equal applied
+        expect(event_store.load_events(aggregate_id)[1].sole.name).to eq 'symbol'
+      end
+
+      it 'passes nothing for an event that does not change' do
+        commit(event(name: 'name', count: 4, at: time, payload: {'key' => 'value'}, tags: ['tag']))
+
+        expect(errors).to be_empty
+      end
+    end
+
+    context 'when raising the errors of the serialization of events' do
+      before { Sequent.configuration.event_serialization_error_handler = Sequent::Core::EventSerializationError::RAISE }
+
+      it 'fails when an event changes when it is stored' do
+        expect { commit(event(name: :symbol, count: '4', payload: {key: 'value'}, tags: [:tag])) }
+          .to raise_error(Sequent::Core::EventSerializationError) { |error|
+            expect(error.message).to include(
+              'name: :symbol is stored as "symbol"',
+              'count: "4" is stored as 4',
+              "payload: #{{key: 'value'}.inspect} is stored as #{{'key' => 'value'}.inspect}",
+              'tags: [:tag] is stored as ["tag"]',
+            )
+            expect(error.message).not_to include('created_at')
+          }
+      end
+
+      it 'fails when the aggregate_id is loaded as another UUID text' do
+        expect { commit(event(aggregate_id: aggregate_id.upcase, name: 'name')) }
+          .to raise_error(Sequent::Core::EventSerializationError, /aggregate_id: "#{aggregate_id.upcase}"/)
+      end
+
+      it 'fails when an event can not be deserialized once it is stored' do
+        stub_const('UnloadableEvent', Class.new(Sequent::Core::Event) { attrs anything: Object })
+
+        expect { commit(UnloadableEvent.new(aggregate_id:, sequence_number: 1, anything: 1)) }
+          .to raise_error(Sequent::Core::EventSerializationError, /UnloadableEvent can not be deserialized/)
+      end
+
+      it 'fails when a hash changes its class or a time in it becomes a string' do
+        expect { commit(event(payload: {'key' => 'value'}.with_indifferent_access)) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload/)
+        expect { commit(event(sequence_number: 2, payload: {'at' => time})) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload/)
+      end
+
+      it 'does not change the times of the event' do
+        at = Time.new(2026, 1, 2, 3, 4, 5, '+01:00').freeze
+        stored = event(name: 'name', count: 4, at:, payload: {}, tags: [])
+
+        commit(stored)
+
+        expect(stored.at).to be_frozen
+        expect(stored.at.utc_offset).to eq 3600
+      end
+
+      it 'accepts times that are only truncated to the time precision' do
+        expect { commit(event(name: 'name', count: 4, at: time, payload: {'key' => 'value'}, tags: ['tag'])) }
+          .not_to raise_error
+      end
+    end
+  end
+
   describe 'error handling for publishing events' do
     class TestRecord; end
     class RecordingHandler < Sequent::Core::Projector

@@ -2,7 +2,6 @@
 
 require 'spec_helper'
 require_relative '../../../fixtures/for_attribute_support'
-require 'sequent/test/time_comparison'
 
 describe Sequent::Core::Event do
   class TestEventEvent < Sequent::Core::Event

@@ -3,6 +3,7 @@
 require 'active_model'
 require_relative 'helpers/string_support'
 require_relative 'helpers/equal_support'
+require_relative 'helpers/time_truncation'
 require_relative 'helpers/attribute_support'
 require_relative 'helpers/copyable'
 
@@ -21,7 +22,15 @@ module Sequent
         fail 'Missing aggregate_id' unless @aggregate_id
         fail 'Missing sequence_number' unless @sequence_number
 
-        @created_at ||= Time.now
+        @created_at ||= self.class.current_time
+        # Times are stored with the precision of ActiveSupport, so the event gets the times with which it is loaded.
+        Helpers::TimeTruncation.truncate_attributes!(self)
+      end
+
+      ##
+      # The current time in the time zone in which the event store loads the +created_at+ of an event.
+      def self.current_time
+        ActiveRecord.default_timezone == :utc ? Time.now.getutc : Time.now.getlocal
       end
 
       def payload

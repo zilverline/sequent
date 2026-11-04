@@ -2,6 +2,7 @@
 
 require 'forwardable'
 require_relative 'event_record'
+require_relative 'helpers/event_serialization'
 require_relative 'helpers/pgsql_helpers'
 require_relative 'sequent_oj'
 require_relative 'snapshot_record'
@@ -32,6 +33,7 @@ module Sequent
 
     class EventStore
       include Helpers::PgsqlHelpers
+      include Helpers::EventSerialization
       include SnapshotStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
@@ -86,8 +88,10 @@ module Sequent
 
         Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
 
+        events = streams_with_events.flat_map { |_, stream_events| stream_events }
+        verify_serialization!(events)
         store_events(command, streams_with_events)
-        publish_events(streams_with_events.flat_map { |_, events| events })
+        publish_events(events)
       end
 
       ##
@@ -339,8 +343,8 @@ module Sequent
       end
 
       def deserialize_event(event_hash)
-        Class.const_get(event_hash.fetch('event_type'))
-          .deserialize_from_json(Sequent::Core::Oj.strict_load(event_hash.fetch('event_json')))
+        payload = Sequent::Core::Oj.strict_load(event_hash.fetch('event_json'))
+        deserialize_event_json(event_hash.fetch('event_type'), payload)
       rescue StandardError
         raise DeserializeEventError, event_hash
       end
