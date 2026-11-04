@@ -39,7 +39,7 @@ describe Sequent::Core::SerializesCommand do
       command.valid?
       record = RecordMock.new
       record.command = command
-      payload = Sequent::Core::Oj.strict_load(record.command_json)
+      payload = Sequent::Core::Json.strict_load(record.command_json)
       expect(payload).to have_key('aggregate_id')
       expect(payload).to have_key('value')
       expect(payload['value']).to_not have_key('errors')

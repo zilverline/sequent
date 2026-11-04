@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require_relative 'sequent_oj'
+require_relative 'json'
 require_relative '../application_record'
 
 module Sequent
@@ -46,7 +46,7 @@ module Sequent
 
     module SerializesEvent
       def event
-        payload = serialize_json? ? Sequent::Core::Oj.strict_load(event_json) : event_json
+        payload = serialize_json? ? Sequent::Core::Json.strict_load(event_json) : event_json
         Class.const_get(event_type).deserialize_from_json(payload)
       end
 
@@ -62,7 +62,7 @@ module Sequent
 
       module ClassMethods
         def serialize_to_json(event)
-          Sequent::Core::Oj.dump(event)
+          Sequent::Core::Json.dump(event)
         end
 
         def serialize_json?

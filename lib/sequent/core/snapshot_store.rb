@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'sequent_oj'
+require_relative 'json'
 require_relative 'helpers/pgsql_helpers'
 
 module Sequent
@@ -11,7 +11,7 @@ module Sequent
       include Helpers::PgsqlHelpers
 
       def store_snapshots(snapshots)
-        json = Sequent::Core::Oj.dump(
+        json = Sequent::Core::Json.dump(
           snapshots.map do |snapshot|
             {
               aggregate_id: snapshot.aggregate_id,

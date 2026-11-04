@@ -363,7 +363,7 @@ describe Sequent::Core::EventStore do
       ).first
 
       expect(row['data']).to eq("with ' unsafe SQL characters;\n")
-      json = Sequent::Core::Oj.strict_load(row['event_json'])
+      json = Sequent::Core::Json.strict_load(row['event_json'])
       expect(json['aggregate_id']).to eq(aggregate_id)
       expect(json['sequence_number']).to eq(1)
     end

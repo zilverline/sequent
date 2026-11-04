@@ -1,5 +1,23 @@
 # Changelog 9.x
 
+- Sequent uses Ruby's `json` gem instead of Oj to serialize and load
+  events, commands and snapshots. `Sequent::Core::Json` replaces
+  `Sequent::Core::Oj`, which is deprecated and uses `Sequent::Core::Json`.
+  Sequent no longer depends on Oj, and no longer sets
+  `Oj.default_options`. Applications using Oj directly must depend on
+  it and configure it themselves. Differences with the JSON Oj wrote
+  and loaded:
+
+  - Numbers in untyped values, such as in a `Hash` attribute, load as
+    `Float`, also when they have more digits than a `Float` keeps. Oj
+    loaded those as `BigDecimal`. `BigDecimal` attributes are written
+    as strings and load as before.
+  - `<`, `>`, `&`, U+2028 and U+2029 in strings are written as they
+    are instead of escaped. The values are the same once loaded.
+  - Times are written using `Sequent.configuration.time_precision`,
+    also when it differs from ActiveSupport's, and always in ISO 8601,
+    also when `ActiveSupport.use_standard_json_time_format` is disabled.
+
 - `Sequent.configuration.time_precision` uses the current value of
   `ActiveSupport::JSON::Encoding.time_precision` when it is not set,
   instead of the value ActiveSupport had when Sequent was loaded.
