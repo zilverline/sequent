@@ -73,9 +73,9 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   argument as a schema name, so pass the schemas as separate arguments
   instead of one comma-separated string.
 
-- Breaking: removed APIs that were deprecated: `migrations_class_name=`
-  and `Sequent.migration_class` (use `migrations_class=` and
-  `Sequent.migrations_class`), `UuidHelper` (`new_uuid`
+- Breaking: removed APIs that were deprecated: `migrations_class_name`,
+  `migrations_class_name=` and `Sequent.migration_class` (use
+  `migrations_class` and `Sequent.migrations_class`), `UuidHelper` (`new_uuid`
   in commands and command handlers; use `Sequent.new_uuid`),
   `Helpers::Mergable` (`merge!` on commands), the `parent`, `children` and
   `origin` aliases of `EventRecord` and `CommandRecord`,

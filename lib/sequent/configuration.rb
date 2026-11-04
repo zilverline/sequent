@@ -151,8 +151,6 @@ module Sequent
       Sequent::Migrations::Versions.table_name = table_name
     end
 
-    def migrations_class_name = @migrations_class&.name
-
     def migrations_class=(migrations_class)
       if migrations_class.present? && !(migrations_class < Sequent::Migrations::Projectors)
         fail ArgumentError, "#{migrations_class} must extend Sequent::Migrations::Projectors"
