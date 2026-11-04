@@ -1,14 +1,12 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require_relative 'sequent_oj'
 
 module Sequent
   module Core
     module SerializesCommand
       def command
-        args = serialize_json? ? Sequent::Core::Oj.strict_load(command_json) : command_json
-        Class.const_get(command_type).deserialize_from_json(args)
+        Class.const_get(command_type).deserialize_from_json(command_json)
       end
 
       def command=(command)
@@ -16,7 +14,7 @@ module Sequent
         self.aggregate_id = command.aggregate_id if command.respond_to? :aggregate_id
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
-        self.command_json = serialize_json? ? Sequent::Core::Oj.dump(command.attributes) : command.attributes
+        self.command_json = command.attributes
 
         # optional attributes (here for historic reasons)
         # this should be moved to a configurable CommandSerializer
@@ -28,13 +26,6 @@ module Sequent
       end
 
       private
-
-      def serialize_json?
-        return true unless self.class.respond_to? :columns_hash
-
-        json_column_type = self.class.columns_hash['command_json'].sql_type_metadata.type
-        %i[json jsonb].exclude? json_column_type
-      end
 
       def serialize_attribute?(command, attribute)
         [self, command].all? { |obj| obj.respond_to?(attribute) }

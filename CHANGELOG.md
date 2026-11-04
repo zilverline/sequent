@@ -1,5 +1,13 @@
 # Changelog 9.x
 
+- Breaking: the support for event, command and snapshot JSON in text
+  columns is removed, since the event store keeps these in jsonb
+  columns since Sequent 8. `serialize_json?` and
+  `EventRecord.serialize_to_json` are removed, `SerializesEvent` and
+  `SerializesCommand` store the JSON as a hash, and the event store
+  deserializes loaded events directly from their JSON instead of using
+  the `event_record_class`, which makes loading events about 40% faster.
+
 - A record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
   `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`
