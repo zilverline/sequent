@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require_relative 'sequent_oj'
 require_relative '../application_record'
 
 module Sequent
@@ -46,8 +45,7 @@ module Sequent
 
     module SerializesEvent
       def event
-        payload = serialize_json? ? Sequent::Core::Oj.strict_load(event_json) : event_json
-        Class.const_get(event_type).deserialize_from_json(payload)
+        Class.const_get(event_type).deserialize_from_json(event_json)
       end
 
       def event=(event)
@@ -55,30 +53,9 @@ module Sequent
         self.sequence_number = event.sequence_number
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = serialize_json? ? self.class.serialize_to_json(event) : event.attributes
+        self.event_json = event.as_json
 
         Sequent.configuration.event_record_hooks_class.after_serialization(self, event)
-      end
-
-      module ClassMethods
-        def serialize_to_json(event)
-          Sequent::Core::Oj.dump(event)
-        end
-
-        def serialize_json?
-          return true unless respond_to? :columns_hash
-
-          json_column_type = columns_hash['event_json'].sql_type_metadata.type
-          %i[json jsonb].exclude? json_column_type
-        end
-      end
-
-      def self.included(host_class)
-        host_class.extend(ClassMethods)
-      end
-
-      def serialize_json?
-        self.class.serialize_json?
       end
     end
 

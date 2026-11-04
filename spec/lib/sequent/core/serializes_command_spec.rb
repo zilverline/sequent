@@ -14,10 +14,6 @@ describe Sequent::Core::SerializesCommand do
                   :command_json,
                   :event_aggregate_id,
                   :event_sequence_number
-
-    def serialize_json?
-      true
-    end
   end
 
   class RecordCommand < Sequent::Core::Command
@@ -39,11 +35,20 @@ describe Sequent::Core::SerializesCommand do
       command.valid?
       record = RecordMock.new
       record.command = command
-      payload = Sequent::Core::Oj.strict_load(record.command_json)
+      payload = record.command_json
       expect(payload).to have_key('aggregate_id')
       expect(payload).to have_key('value')
       expect(payload['value']).to_not have_key('errors')
       expect(payload['value']).to have_key('value')
+    end
+
+    it 'loads the command that is stored' do
+      command = RecordCommand.new(aggregate_id: '1', created_at: Time.utc(2026, 1, 2, 3, 4, 5.123r))
+      record = RecordMock.new
+      record.command = command
+
+      expect(record.command.created_at).to eq command.created_at
+      expect(record.command.aggregate_id).to eq '1'
     end
 
     describe 'optional fields' do
@@ -62,10 +67,6 @@ describe Sequent::Core::SerializesCommand do
           @user_id = user_id
           @command_type = command_type
           @command_json = command_json
-        end
-
-        def serialize_json?
-          true
         end
       end
 

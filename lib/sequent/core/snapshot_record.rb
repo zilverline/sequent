@@ -34,11 +34,6 @@ module Sequent
       def event_json=(json)
         self.snapshot_json = json
       end
-
-      def serialize_json?
-        json_column_type = self.class.columns_hash['snapshot_json'].sql_type_metadata.type
-        %i[json jsonb].exclude? json_column_type
-      end
     end
   end
 end
