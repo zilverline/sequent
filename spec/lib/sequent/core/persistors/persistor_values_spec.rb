@@ -301,12 +301,24 @@ describe 'Persistors storing values' do
         expect(PersistorValuesRecord.pluck(:updated_at)).to eq [updated_at, updated_at]
       end
 
-      it 'stores the current time as the timestamps without created_at, like ActiveRecord' do
-        persistor.create_record(PersistorValuesRecord, {name: 'a'})
-        persistor.create_records(PersistorValuesRecord, [{name: 'b'}])
+      it 'fails to create a record without created_at, which would differ after a replay' do
+        missing = Sequent::Core::Persistors::MissingCreatedAtError
+
+        expect { persistor.create_record(PersistorValuesRecord, {name: 'a'}) }.to raise_error(missing, /created_at/)
+        expect { persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}, {name: 'c'}]) }
+          .to raise_error(missing)
+        expect { persistor.create_or_update_record(PersistorValuesRecord, {name: 'd'}) { |_| } }
+          .to raise_error(missing)
+      end
+
+      it 'stores the created_at that a block sets, also as updated_at' do
+        persistor.create_record(PersistorValuesRecord, {name: 'a'}) { |record| record.created_at = created_at }
+        persistor.create_or_update_record(PersistorValuesRecord, {name: 'b'}) do |record|
+          record.created_at = created_at
+        end
         persistor.flush
 
-        expect(PersistorValuesRecord.pluck(:created_at, :updated_at).flatten).to all(be_within(1.minute).of(Time.now))
+        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 2
       end
 
       it 'stores the records in the current transaction' do
@@ -325,16 +337,6 @@ describe 'Persistors storing values' do
     let(:persistor) { Sequent::Core::Persistors::ActiveRecordPersistor.new }
 
     it_behaves_like 'a persistor storing values', except: %i[normalized_without_value]
-
-    it 'stores records with and without created_at using create_records without record timestamps' do
-      PersistorValuesRecord.record_timestamps = false
-      created_at = Time.utc(2026, 1, 2)
-      persistor.create_records(PersistorValuesRecord, [{name: 'a', created_at: nil}, {name: 'b', created_at:}])
-
-      expect(PersistorValuesRecord.order(:name).pluck(:created_at)).to eq [nil, created_at]
-    ensure
-      PersistorValuesRecord.record_timestamps = true
-    end
 
     # ActiveRecord only normalizes the values assigned to a record.
     it 'stores NULL for a column normalized when nil without a value' do

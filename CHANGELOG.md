@@ -8,6 +8,15 @@
   deserializes loaded events directly from their JSON instead of using
   the `event_record_class`, which makes loading events about 40% faster.
 
+- Breaking: creating a record whose table has a `created_at` column
+  without a `created_at` fails with a
+  `Persistors::MissingCreatedAtError`, with all persistors. The
+  persistors used the current time, so the record got other timestamps
+  when the events were replayed. Pass the `created_at` of the event,
+  which is also used as `updated_at` unless that is given.
+  `create_or_update_record` no longer defaults its `created_at` to the
+  current time.
+
 - A record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
   `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`

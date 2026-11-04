@@ -228,6 +228,10 @@ module Sequent
           record.updated_at = values[:created_at] if record.respond_to?(:updated_at) && !values.include?(:updated_at)
 
           yield record if block_given?
+          if record.respond_to?(:created_at)
+            Persistors.ensure_created_at!(record_class, record.created_at)
+            record.updated_at ||= record.created_at if record.respond_to?(:updated_at)
+          end
           touch_timestamps(record_class, record)
 
           @record_store[record_class] << record
@@ -240,13 +244,13 @@ module Sequent
           array_of_value_hashes.each { |values| create_record(record_class, values) }
         end
 
-        def create_or_update_record(record_class, values, created_at = Time.now)
+        def create_or_update_record(record_class, values, created_at = nil, &block)
           record = get_record(record_class, values)
           if record
             track_updated_columns(record_class, record) { yield record } if block_given?
           else
-            record = create_record(record_class, values.merge(created_at: created_at))
-            yield record if block_given?
+            values = values.merge(created_at:) if created_at && record_class.column_names.include?('created_at')
+            record = create_record(record_class, values, &block)
           end
           @record_index[record_class].update(record)
           record

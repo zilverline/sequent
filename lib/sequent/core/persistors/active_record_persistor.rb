@@ -40,11 +40,14 @@ module Sequent
         def create_record(record_class, values)
           record = new_record(record_class, values)
           yield record if block_given?
-          record.save!
+          save_new_record(record_class, record)
           record
         end
 
         def create_records(record_class, array_of_value_hashes)
+          array_of_value_hashes.each do |values|
+            Persistors.ensure_created_at!(record_class, values[:created_at] || values['created_at'])
+          end
           # Only when all records get an updated_at, since insert_all! requires all records to have the same columns.
           if array_of_value_hashes.all? { |values| created_at_as_updated_at?(record_class, values) }
             array_of_value_hashes = array_of_value_hashes.map { |values| with_updated_at(values) }
@@ -52,14 +55,17 @@ module Sequent
           record_class.unscoped.insert_all!(array_of_value_hashes, returning: false)
         end
 
-        def create_or_update_record(record_class, values, created_at = Time.now)
+        def create_or_update_record(record_class, values, created_at = nil)
           record = get_record(record_class, values)
-          unless record
-            values = values.merge(created_at:) if record_class.column_names.include?('created_at')
+          if record
+            yield record
+            record.save!
+          else
+            values = values.merge(created_at:) if created_at && record_class.column_names.include?('created_at')
             record = new_record(record_class, values)
+            yield record
+            save_new_record(record_class, record)
           end
-          yield record
-          record.save!
           record
         end
 
@@ -117,6 +123,14 @@ module Sequent
         end
 
         private
+
+        # Uses +created_at+ as +updated_at+ when only +created_at+ is set, also by a block.
+        def save_new_record(record_class, record)
+          created_at = record.has_attribute?(:created_at) ? record.created_at : nil
+          Persistors.ensure_created_at!(record_class, created_at)
+          record.updated_at ||= created_at if record.has_attribute?(:updated_at)
+          record.save!
+        end
 
         def new_record(record_class, values)
           values = with_updated_at(values) if created_at_as_updated_at?(record_class, values)

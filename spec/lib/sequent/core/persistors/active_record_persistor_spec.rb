@@ -73,7 +73,7 @@ describe Sequent::Core::Persistors::ActiveRecordPersistor do
 
   context 'update_all_records' do
     it 'can updates records by batch' do
-      persistor.create_record(ActiveRecordPersistorTest, {name: 'kim', initials: %w[j j]})
+      persistor.create_record(ActiveRecordPersistorTest, {name: 'kim', initials: %w[j j], created_at: Time.now})
 
       persistor.update_all_records(ActiveRecordPersistorTest, {name: 'kim'}, {initials: %w[k k]})
 
