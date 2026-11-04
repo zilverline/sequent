@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'active_record'
-require_relative 'sequent_oj'
+require_relative 'json'
 require_relative '../application_record'
 
 module Sequent

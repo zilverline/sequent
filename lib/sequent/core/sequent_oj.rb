@@ -1,23 +1,28 @@
 # frozen_string_literal: true
 
-require 'oj'
+require_relative 'json'
 
 module Sequent
   module Core
-    # small wrapper class to centralize oj and its settings.
+    # @deprecated Use +Sequent::Core::Json+ instead.
     class Oj
-      ::Oj.default_options = {
-        bigdecimal_as_decimal: false,
-        mode: :rails,
-      }
-
       def self.strict_load(json)
-        ::Oj.strict_load(json, {})
+        warn_deprecated
+        Json.strict_load(json)
       end
 
       def self.dump(obj)
-        ::Oj.dump(obj)
+        warn_deprecated
+        Json.dump(obj)
       end
+
+      def self.warn_deprecated
+        return if @warned_deprecated
+
+        @warned_deprecated = true
+        warn '[DEPRECATED] Sequent::Core::Oj no longer uses Oj, use Sequent::Core::Json instead'
+      end
+      private_class_method :warn_deprecated
     end
   end
 end

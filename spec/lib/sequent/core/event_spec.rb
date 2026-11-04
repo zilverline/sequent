@@ -63,8 +63,8 @@ describe Sequent::Core::Event do
     event = TestEventEvent.new(
       aggregate_id: '123', organization_id: 'bar', sequence_number: 7, owner: person,
     )
-    json = Sequent::Core::Oj.dump(event)
-    other = TestEventEvent.deserialize_from_json(Sequent::Core::Oj.strict_load(json))
+    json = Sequent::Core::Json.dump(event)
+    other = TestEventEvent.deserialize_from_json(Sequent::Core::Json.strict_load(json))
     expect(other).to eq event
   end
 
@@ -73,7 +73,7 @@ describe Sequent::Core::Event do
     event = EventWithDate.new(
       aggregate_id: '123', organization_id: 'bar', sequence_number: 7, date_of_birth: today,
     )
-    other = EventWithDate.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
+    other = EventWithDate.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(other).to eq event
   end
 
@@ -82,26 +82,26 @@ describe Sequent::Core::Event do
       aggregate_id: '123', organization_id: 'bar', sequence_number: 7, name: FooType.new,
     )
     expect do
-      EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
+      EventWithUnknownAttributeType.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     end
       .to raise_exception(NoMethodError)
   end
 
   it 'converts symbols' do
     event = EventWithSymbol.new(aggregate_id: '123', sequence_number: 7, organization_id: 'bar', status: :foo)
-    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
+    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(event).to eq other
   end
 
   it 'converts floats' do
     event = EventWithFloat.new(aggregate_id: 'X', sequence_number: 1, latitude: 52.370146, longitude: 4.953977)
-    deserialized = EventWithFloat.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
+    deserialized = EventWithFloat.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(event).to eq(deserialized)
   end
 
   it 'deserializes nil symbols' do
     event = EventWithSymbol.new(aggregate_id: '123', organization_id: 'bar', sequence_number: 7)
-    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)))
+    other = EventWithSymbol.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(event).to eq other
   end
 
@@ -119,7 +119,7 @@ describe Sequent::Core::Event do
     it 'will allow dates when already stored' do
       event = {created_at: Date.new(2022, 1, 1), sequence_number: 1, aggregate_id: '1'}
       deserialized_event = Sequent::Core::Event.deserialize_from_json(
-        Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event)),
+        Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)),
       )
       expect(deserialized_event.created_at).to eq Time.parse('2022-01-01')
     end
