@@ -172,6 +172,30 @@ describe 'Persistors storing columns without a value' do
     end
   end
 
+  context Sequent::Core::Persistors::UnbufferedPersistor do
+    let(:persistor) { Sequent::Core::Persistors::UnbufferedPersistor.new }
+
+    context 'on a table' do
+      let(:record_class) { PersistorDefaultsRecord }
+
+      it_behaves_like 'a persistor storing columns without a value'
+    end
+
+    context 'on a view' do
+      let(:record_class) { PersistorDefaultsViewRecord }
+
+      it_behaves_like 'a persistor storing columns without a value', except: [:explicit_nil]
+
+      # Like ActiveRecord with partial_inserts, since the default of the column is not known.
+      it 'stores the database default for an explicit nil in a column with a constant default' do
+        persistor.create_record(record_class, name: 'a', status: nil)
+        persistor.flush
+
+        expect(stored('a', :status)).to eq 'new'
+      end
+    end
+  end
+
   context Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
 

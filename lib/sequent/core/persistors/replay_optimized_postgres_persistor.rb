@@ -2,6 +2,7 @@
 
 require 'active_record'
 require_relative 'persistor'
+require_relative 'record_structs'
 
 module Sequent
   module Core
@@ -67,42 +68,6 @@ module Sequent
 
         # We create a struct on the fly to represent an in-memory record.
         #
-        # Since the replay happens in memory we implement the ==, eql? and hash methods
-        # to point to the same object. A record is the same if and only if they point to
-        # the same object. These methods are necessary since we use Set instead of [].
-        #
-        # Also basing equality on object identity is more consistent with ActiveRecord,
-        # which is the implementation used during normal (non-optimized) replay.
-        module InMemoryStruct
-          def ==(other)
-            equal?(other)
-          end
-          def eql?(other)
-            equal?(other)
-          end
-          def hash
-            object_id.hash
-          end
-
-          # Marks a computed +column+ as updated to nil, so it is not left out of the COPY.
-          def updated!(column)
-            (@updated_columns ||= Set.new) << column
-          end
-
-          def updated?(column)
-            @updated_columns&.include?(column) || false
-          end
-        end
-
-        def struct_cache
-          @struct_cache ||= Hash.new do |hash, record_class|
-            struct_class = Struct.new(*record_class.column_names.map(&:to_sym)) do
-              include InMemoryStruct
-            end
-            hash[record_class] = struct_class
-          end
-        end
-
         class Index
           attr_reader :indexed_columns
 
@@ -195,15 +160,8 @@ module Sequent
             @record_index[record_class] = Index.new(columns & record_class.column_names.map(&:to_sym))
           end
 
-          @record_defaults = Hash.new do |h, record_class|
-            h[record_class] = record_class.column_defaults.symbolize_keys
-          end
-          @timestamp_columns = Hash.new do |h, record_class|
-            h[record_class] =
-              record_class.record_timestamps ? record_class.all_timestamp_attributes_in_model.map(&:to_sym) : []
-          end
           @computed_columns = Hash.new do |h, record_class|
-            h[record_class] = record_class.columns.select(&:auto_populated?).map { |column| column.name.to_sym }
+            h[record_class] = RecordStructs.record_class(record_class).computed_columns
           end
         end
 
@@ -220,15 +178,8 @@ module Sequent
           record.sequence_number = event.sequence_number if update_sequence_number
         end
 
-        def create_record(record_class, values)
-          record = struct_cache[record_class].new(**values)
-          @record_defaults[record_class].each do |column, default|
-            record[column] = default unless values.include? column
-          end
-          record.updated_at = values[:created_at] if record.respond_to?(:updated_at) && !values.include?(:updated_at)
-
-          yield record if block_given?
-          touch_timestamps(record_class, record)
+        def create_record(record_class, values, &block)
+          record = RecordStructs.create(record_class, values, &block)
 
           @record_store[record_class] << record
           @record_index[record_class].add(record)
@@ -353,14 +304,6 @@ module Sequent
         end
 
         private
-
-        # Sets the timestamps without a value to the current time, like ActiveRecord does when creating a record.
-        def touch_timestamps(record_class, record)
-          now = nil
-          @timestamp_columns[record_class].each do |column|
-            record[column] ||= (now ||= record_class.current_time_from_proper_timezone)
-          end
-        end
 
         # Marks the computed columns of the +record+ that the block updates to nil, so these are loaded as NULL. Like
         # ActiveRecord, a column set to the value it already had (like nil to nil) is not changed. Only computed
