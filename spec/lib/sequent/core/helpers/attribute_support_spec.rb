@@ -5,73 +5,33 @@ require_relative '../../../../fixtures/for_attribute_support'
 
 describe Sequent::Core::Helpers::AttributeSupport do
   context 'unknown attributes' do
-    before do
-      Sequent.configure do |c|
-        c.strict_check_attributes_on_apply_events = strict_check_attributes_on_apply_events
-      end
+    it 'fails fast' do
+      expect do
+        SomeEvent.new(
+          aggregate_id: Sequent.new_uuid,
+          sequence_number: 1,
+          message: 'hello',
+          something: 'this should raise',
+          something_else: 'and this',
+        )
+      end.to raise_error(
+        Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError,
+        'SomeEvent does not specify attrs: something, something_else',
+      )
     end
 
-    context 'with the feature flag enabled' do
-      let(:strict_check_attributes_on_apply_events) { true }
-
-      it 'fails fast' do
-        expect do
-          SomeEvent.new(
-            aggregate_id: Sequent.new_uuid,
-            sequence_number: 1,
-            message: 'hello',
-            something: 'this should raise',
-            something_else: 'and this',
-          )
-        end.to raise_error(
-          Sequent::Core::Helpers::AttributeSupport::UnknownAttributeError,
-          'SomeEvent does not specify attrs: something, something_else',
-        )
-      end
-
-      it 'still ignores unknown attributes upon deserialization to not break existing events' do
-        event = SomeEvent.deserialize_from_json(
-          {
-            aggregate_id: Sequent.new_uuid,
-            sequence_number: 1,
-            message: 'hello',
-            something: 'this should not raise',
-            something_else: 'this should not raise',
-          },
-        )
-        expect(event.attributes['aggregate_id']).to eq event.aggregate_id
-        expect(event.attributes['something']).to be_nil
-      end
-    end
-
-    context 'with the feature flag disabled' do
-      let(:strict_check_attributes_on_apply_events) { false }
-
-      it 'ignores the attributes' do
-        expect do
-          SomeEvent.new(
-            aggregate_id: Sequent.new_uuid,
-            sequence_number: 1,
-            message: 'hello',
-            something: 'this should not raise',
-            something_else: 'this should not raise',
-          )
-        end.to_not raise_error
-      end
-
-      it 'also ignores unknown attributes upon deserialization to not break existing events' do
-        event = SomeEvent.deserialize_from_json(
-          {
-            aggregate_id: Sequent.new_uuid,
-            sequence_number: 1,
-            message: 'hello',
-            something: 'this should not raise',
-            something_else: 'this should not raise',
-          },
-        )
-        expect(event.attributes['aggregate_id']).to eq event.aggregate_id
-        expect(event.attributes['something']).to be_nil
-      end
+    it 'still ignores unknown attributes upon deserialization to not break existing events' do
+      event = SomeEvent.deserialize_from_json(
+        {
+          aggregate_id: Sequent.new_uuid,
+          sequence_number: 1,
+          message: 'hello',
+          something: 'this should not raise',
+          something_else: 'this should not raise',
+        },
+      )
+      expect(event.attributes['aggregate_id']).to eq event.aggregate_id
+      expect(event.attributes['something']).to be_nil
     end
   end
 
