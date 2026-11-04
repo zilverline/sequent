@@ -1,5 +1,10 @@
 # Changelog 9.x
 
+- `Sequent.configuration.time_precision` uses the current value of
+  `ActiveSupport::JSON::Encoding.time_precision` when it is not set,
+  instead of the value ActiveSupport had when Sequent was loaded.
+  `Sequent::Configuration::DEFAULT_TIME_PRECISION` is removed.
+
 - A record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
   `Sequent::Core::ProjectionWrites`. The `have_no_write_callbacks`
