@@ -13,9 +13,6 @@ module Sequent
           yield ActiveRecord::Transaction::NULL_TRANSACTION
         end
 
-        # Deprecated alias
-        alias transactional transaction
-
         def before_commit = yield
         def after_commit = yield
         def after_rollback = nil

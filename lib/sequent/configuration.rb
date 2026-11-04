@@ -153,11 +153,6 @@ module Sequent
 
     def migrations_class_name = @migrations_class&.name
 
-    def migrations_class_name=(class_name)
-      warn '[DEPRECATED] use `migrations_class=` to set the migrations class directly'
-      self.migrations_class = class_name.nil? ? nil : Class.const_get(class_name)
-    end
-
     def migrations_class=(migrations_class)
       if migrations_class.present? && !(migrations_class < Sequent::Migrations::Projectors)
         fail ArgumentError, "#{migrations_class} must extend Sequent::Migrations::Projectors"

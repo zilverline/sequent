@@ -36,7 +36,7 @@ module Sequent
           @after_commit_blocks = []
         end
 
-        def transactional
+        def transaction
           yield
           @after_commit_blocks.each(&:call)
         end

@@ -19,9 +19,6 @@ module Sequent
           reset_stack_size if stack_size == 0
         end
 
-        # Deprecated
-        alias transactional transaction
-
         delegate :before_commit, :after_commit, :after_rollback, to: :@transaction_provider
 
         private

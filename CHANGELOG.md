@@ -18,8 +18,7 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   versions of the SQL functions.
 
 - Breaking: `Persistor#commit` and `Projector#commit` are renamed to `flush`.
-  `commit` is a deprecated alias. Custom persistors must implement
-  `flush`.
+  Custom persistors must implement `flush`.
 
 - Breaking: replaying passes the replayed events directly to the projectors
   instead of using an event publisher. `EventStore#replay_events_from_cursor`
@@ -74,7 +73,9 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   argument as a schema name, so pass the schemas as separate arguments
   instead of one comma-separated string.
 
-- Breaking: removed APIs that were deprecated: `UuidHelper` (`new_uuid`
+- Breaking: removed APIs that were deprecated: `migrations_class_name=`
+  and `Sequent.migration_class` (use `migrations_class=` and
+  `Sequent.migrations_class`), `UuidHelper` (`new_uuid`
   in commands and command handlers; use `Sequent.new_uuid`),
   `Helpers::Mergable` (`merge!` on commands), the `parent`, `children` and
   `origin` aliases of `EventRecord` and `CommandRecord`,
@@ -179,7 +180,8 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   `pg` gem instead of being serialized by ActiveRecord, which makes
   committing about four times as fast. All other values are still
   serialized by ActiveRecord, so the stored values do not change. The
-  `insert_with_csv_size` argument is no longer used and is deprecated.
+  `insert_with_csv_size` argument and attribute are removed, so the
+  indices are the first argument of `ReplayOptimizedPostgresPersistor.new`.
 
   A column without a value whose default the database computes (like a
   serial column, including `id`, or a default of `now()`) is left out of
@@ -205,11 +207,11 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
 - Behaviour: the `ActiveRecordTransactionProvider` no longer starts a
   nested transaction (savepoint) by default, so an `ActiveRecord::Rollback`
-  in a command no longer only rolls back that command. Passing
-  `requires_new: true` to it warns; use an explicit
+  in a command no longer only rolls back that command. It no longer
+  takes `requires_new:`; use an explicit
   `ActiveRecord::Base.transaction(requires_new: true)` instead. Custom
   transaction providers must implement `transaction`, which the
-  `CommandService` calls (`transactional` is a deprecated alias).
+  `CommandService` calls, instead of `transactional`, which is removed.
 
 - Behaviour: `after_commit` callbacks run when the database transaction
   is committed, using ActiveRecord's transaction callbacks, instead of
@@ -248,8 +250,6 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   aggregates that are added but not yet committed, and `stream_exists?`
   and `events_exists?` require the stream to have events.
 
-- Deprecated: `migrations_class_name=` and `Sequent.migration_class`; use
-  `migrations_class=` and `Sequent.migrations_class`.
 
 - Deprecated: requiring `sequent/test/time_comparison` warns, since it
   changes how times compare in the whole process.

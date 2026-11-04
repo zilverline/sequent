@@ -127,11 +127,6 @@ module Sequent
         ProjectionWrites.during_projection { @persistor.flush }
       end
 
-      # @deprecated Use +flush+ instead.
-      def commit
-        flush
-      end
-
       def update_record(record_class, *rest, &block)
         ensure_record_class_supported!(record_class)
         ProjectionWrites.during_projection { @persistor.update_record(record_class, *rest, &block) }

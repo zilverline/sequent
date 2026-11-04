@@ -55,11 +55,6 @@ module Sequent
     migrations_class.version
   end
 
-  def self.migration_class
-    warn '[DEPRECATED] Use `migrations_class` instead'
-    migrations_class
-  end
-
   def self.migrations_class
     configuration.migrations_class
   end
