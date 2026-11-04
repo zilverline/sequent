@@ -38,7 +38,8 @@ module Sequent
       # An event is applied and published with the values the domain code gave it, but an aggregate that is loaded
       # again and a replay read it as it is serialized to JSON and deserialized: symbols as strings, hashes with string
       # keys and attributes cast to their type. When +Sequent.configuration.event_serialization_error_handler+ is set,
-      # every event that changes when it is stored is passed to it as an +EventSerializationError+, so the domain code
+      # every event that an aggregate applies and that changes when it is stored is passed to it as an
+      # +EventSerializationError+, before the aggregate applies it, so the domain code
       # can be fixed to create the values it stores: +EventSerializationError::RAISE+ fails in development and specs,
       # and a handler that reports the error can be used in production. A +TimeWithZone+ is not reported, although it
       # is loaded as a +Time+ with the same offset, since it only differs in its zone.
@@ -47,33 +48,35 @@ module Sequent
         ##
         # Deserializes an event from its type and its parsed JSON.
         def deserialize_event_json(event_type, payload)
+          EventSerialization.deserialize_event_json(event_type, payload)
+        end
+
+        def self.deserialize_event_json(event_type, payload)
           Class.const_get(event_type).deserialize_from_json(payload)
         end
 
         ##
         # Returns +event+ as it is loaded once it is stored.
-        def stored_event(event)
+        def self.stored_event(event)
           deserialize_event_json(event.class.name, loaded_event_json(Oj.strict_load(Oj.dump(event))))
         end
 
         ##
         # Passes an +EventSerializationError+ to +Sequent.configuration.event_serialization_error_handler+, when it is
-        # set, for each of the +events+ that changes when it is stored.
-        def verify_serialization!(events)
+        # set and +event+ changes when it is stored.
+        def self.verify(event)
           handler = Sequent.configuration.event_serialization_error_handler
           return unless handler
 
-          events.each do |event|
-            error = EventSerialization.serialization_error(event) { stored_event(event) }
-            handler.call(error) if error
-          end
+          error = serialization_error(event)
+          handler.call(error) if error
         end
 
         ##
-        # Returns the +EventSerializationError+ for +event+ when the stored event the block returns has other
-        # attribute values, or when the block fails.
+        # Returns the +EventSerializationError+ for +event+ when it has other attribute values once it is stored, or
+        # when it can not be deserialized.
         def self.serialization_error(event)
-          stored = yield
+          stored = stored_event(event)
           differences = event.class.types.keys.filter_map do |name|
             value = event.public_send(name)
             stored_value = stored.public_send(name)
@@ -125,13 +128,9 @@ module Sequent
             value.class.types.keys.all? { |name| same?(value.public_send(name), stored.public_send(name)) }
         end
 
-        private_class_method :same?, :same_time?, :same_array?, :same_hash?, :same_attributes?
-
-        private
-
         # The event store keeps the aggregate_id, sequence_number and created_at of an event in columns, from which they
         # are loaded: the aggregate_id as a lowercase UUID, and the created_at in the time zone of ActiveRecord.
-        def loaded_event_json(event_json)
+        def self.loaded_event_json(event_json)
           created_at = event_json['created_at'] && Time.iso8601(event_json['created_at'])
           created_at = ActiveRecord.default_timezone == :utc ? created_at&.getutc : created_at&.getlocal
           event_json.merge(
@@ -139,6 +138,8 @@ module Sequent
             'created_at' => created_at&.iso8601(ActiveSupport::JSON::Encoding.time_precision),
           )
         end
+
+        private_class_method :same?, :same_time?, :same_array?, :same_hash?, :same_attributes?, :loaded_event_json
       end
     end
   end

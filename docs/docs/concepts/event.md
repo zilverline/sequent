@@ -76,7 +76,7 @@ anyway, you **must** also update all Events in your EventStore.
 values as they are deserialized: times truncated to the `time_precision`, symbols as strings, hashes with
 string keys and attributes cast to their type. Projectors and Workflows get the Events as they are applied.
 Set `Sequent.configuration.event_serialization_error_handler` to `Sequent::Core::EventSerializationError::RAISE`
-in development and in your specs to fail when an Event changes when it is stored, so the domain code applies the
-values it stores. In production, a handler can report the error instead, for example to your error tracker. A `TimeWithZone` is not reported, although it is
+in development and in your specs to fail when an AggregateRoot applies an Event that changes when it is stored, so
+the domain code applies the values it stores. In production, a handler can report the error instead, for example to your error tracker. A `TimeWithZone` is not reported, although it is
 loaded as a `Time` with the same offset.
 {: .notice--info}

@@ -88,10 +88,8 @@ module Sequent
 
         Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
 
-        events = streams_with_events.flat_map { |_, stream_events| stream_events }
-        verify_serialization!(events)
         store_events(command, streams_with_events)
-        publish_events(events)
+        publish_events(streams_with_events.flat_map { |_, events| events })
       end
 
       ##

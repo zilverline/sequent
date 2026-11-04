@@ -11,8 +11,9 @@
   `created_at` in the time zone of ActiveRecord, so it has the same
   times when it is loaded or replayed. Set
   `Sequent.configuration.event_serialization_error_handler` to get an
-  `EventSerializationError` for every event that changes otherwise when
-  it is stored, like a symbol that is loaded as a string, so the domain
+  `EventSerializationError` for every event that an aggregate applies
+  and that changes otherwise when it is stored, like a symbol that is
+  loaded as a string, before the aggregate applies it, so the domain
   code can be fixed to apply the values that an aggregate and the
   projectors get when the events are loaded or replayed.
   `EventSerializationError::RAISE` fails, for development and specs;

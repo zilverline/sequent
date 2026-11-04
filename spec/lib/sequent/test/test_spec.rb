@@ -34,40 +34,6 @@ describe 'Test Helpers' do
       expect(Sequent.command_service.class).to eq(Sequent::Core::CommandService)
     end
 
-    context Sequent::Test::CommandHandlerHelpers::FakeEventStore do
-      let(:event_store) { Sequent::Test::CommandHandlerHelpers::FakeEventStore.new }
-      let(:published_events) { [] }
-      let(:event) { Sequent::Fixtures::Event4.new(aggregate_id: '1', sequence_number: 1, name: :foo) }
-
-      before do
-        events = published_events
-        Sequent.configuration.event_publisher = Class.new do
-          define_method(:publish_events) { |published| events.concat(published) }
-        end.new
-      end
-
-      def commit(event)
-        event_store.commit_events(
-          Sequent::Core::BaseCommand.new,
-          [[Sequent::Core::EventStream.new(aggregate_type: 'Aggregate', aggregate_id: '1'), [event]]],
-        )
-      end
-
-      it 'fails when verifying the serialization of an event that changes when it is stored' do
-        Sequent.configuration.event_serialization_error_handler = Sequent::Core::EventSerializationError::RAISE
-
-        expect { commit(event) }.to raise_error(Sequent::Core::EventSerializationError, /name: :foo is stored as "foo"/)
-      end
-
-      it 'fails when verifying the serialization of an event with an aggregate_id that is loaded in lowercase' do
-        Sequent.configuration.event_serialization_error_handler = Sequent::Core::EventSerializationError::RAISE
-        uuid = Sequent.new_uuid.upcase
-
-        expect { commit(Sequent::Fixtures::Event4.new(aggregate_id: uuid, sequence_number: 1, name: 'foo')) }
-          .to raise_error(Sequent::Core::EventSerializationError, /aggregate_id: "#{uuid}"/)
-      end
-    end
-
     context 'then_events' do
       let(:actual_events) do
         [

@@ -97,7 +97,6 @@ module Sequent
         end
 
         def commit_events(_, streams_with_events)
-          verify_serialization!(streams_with_events.flat_map { |_, events| events })
           keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
             streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
           end
