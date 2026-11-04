@@ -4,7 +4,6 @@ require 'base64'
 require_relative 'helpers/message_handler'
 require_relative 'helpers/autoset_attributes'
 require_relative 'helpers/unique_keys'
-require_relative 'helpers/event_serialization'
 require_relative 'stream_record'
 require_relative 'aggregate_roots'
 
@@ -177,7 +176,6 @@ module Sequent
       #
       def apply(event, params = {})
         event = build_event(event, params) if event.is_a?(Class)
-        Helpers::EventSerialization.verify(event)
         apply_event(event)
         @uncommitted_events << event
         Sequent.configuration.aggregate_observers.each { |observer| observer.handle_message(event) }

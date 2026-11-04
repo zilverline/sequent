@@ -5,17 +5,14 @@ require_relative '../sequent_oj'
 module Sequent
   module Core
     #
-    # An event that changes when it is stored, or that can not be deserialized once it is stored. It is passed to the
-    # +event_serialization_error_handler+, which can raise it (see +RAISE+) or report it.
+    # An event that changes when it is stored, or that can not be deserialized once it is stored (see
+    # +EventSerializationObserver+).
     #
     class EventSerializationError < RuntimeError
       # An attribute of the event that has another value once the event is stored.
       Difference = Data.define(:attribute, :value, :stored_value) do
         def to_s = "#{attribute}: #{value.inspect} is stored as #{stored_value.inspect}"
       end
-
-      # Raises the error, for development and specs.
-      RAISE = ->(error) { fail error }
 
       attr_reader :event, :differences
 
@@ -37,12 +34,10 @@ module Sequent
       #
       # An event is applied and published with the values the domain code gave it, but an aggregate that is loaded
       # again and a replay read it as it is serialized to JSON and deserialized: symbols as strings, hashes with string
-      # keys and attributes cast to their type. When +Sequent.configuration.event_serialization_error_handler+ is set,
-      # every event that an aggregate applies and that changes when it is stored is passed to it as an
-      # +EventSerializationError+, before the aggregate applies it, so the domain code
-      # can be fixed to create the values it stores: +EventSerializationError::RAISE+ fails in development and specs,
-      # and a handler that reports the error can be used in production. A +TimeWithZone+ is not reported, although it
-      # is loaded as a +Time+ with the same offset, since it only differs in its zone.
+      # keys and attributes cast to their type. The +EventSerializationObserver+ uses +serialization_error+ to check
+      # the events that aggregates apply, so the domain code can be fixed to create the values it stores. A
+      # +TimeWithZone+ is not reported, although it is loaded as a +Time+ with the same offset, since it only differs in
+      # its zone.
       #
       module EventSerialization
         ##
@@ -59,17 +54,6 @@ module Sequent
         # Returns +event+ as it is loaded once it is stored.
         def self.stored_event(event)
           deserialize_event_json(event.class.name, loaded_event_json(Oj.strict_load(Oj.dump(event))))
-        end
-
-        ##
-        # Passes an +EventSerializationError+ to +Sequent.configuration.event_serialization_error_handler+, when it is
-        # set and +event+ changes when it is stored.
-        def self.verify(event)
-          handler = Sequent.configuration.event_serialization_error_handler
-          return unless handler
-
-          error = serialization_error(event)
-          handler.call(error) if error
         end
 
         ##

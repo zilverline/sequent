@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-describe Sequent::Core::Helpers::EventSerialization do
+describe Sequent::Core::EventSerializationObserver do
   class SerializationChanged < Sequent::Core::Event
     attrs name: String, count: Integer, at: Time, payload: Hash, tags: array(String)
   end
@@ -27,18 +27,17 @@ describe Sequent::Core::Helpers::EventSerialization do
   let(:aggregate) { SerializationAggregate.new(aggregate_id) }
   let(:time) { Time.utc(2026, 1, 2, 3, 4, 5, 123_456.789r) }
 
-  it 'does not deserialize events without an error handler' do
-    expect(described_class).not_to receive(:stored_event)
+  it 'is not autoregistered' do
+    Sequent.configuration.enable_autoregistration = true
+    Sequent.configuration.autoregister!
 
-    aggregate.change(name: :symbol)
-
-    expect(aggregate.uncommitted_events.sole.name).to eq :symbol
+    expect(Sequent.configuration.aggregate_observers.map(&:class)).not_to include described_class
   end
 
-  context 'with an error handler that reports the events that change when they are stored' do
+  context 'with a block that reports the events that change when they are stored' do
     let(:errors) { [] }
 
-    before { Sequent.configuration.event_serialization_error_handler = errors.method(:push) }
+    before { Sequent.configuration.aggregate_observers << described_class.new { |error| errors << error } }
 
     it 'passes the error with the differences, and applies the event' do
       aggregate.change(name: :symbol, count: 4)
@@ -57,10 +56,10 @@ describe Sequent::Core::Helpers::EventSerialization do
     end
   end
 
-  context 'when raising the errors' do
-    before { Sequent.configuration.event_serialization_error_handler = Sequent::Core::EventSerializationError::RAISE }
+  context 'without a block' do
+    before { Sequent.configuration.aggregate_observers << described_class.new }
 
-    it 'fails applying an event that changes when it is stored, before the aggregate applies it' do
+    it 'fails applying an event that changes when it is stored' do
       expect { aggregate.change(name: :symbol, count: '4', payload: {key: 'value'}, tags: [:tag]) }
         .to raise_error(Sequent::Core::EventSerializationError) { |error|
           expect(error.message).to include(
@@ -71,7 +70,6 @@ describe Sequent::Core::Helpers::EventSerialization do
           )
           expect(error.message).not_to include('created_at')
         }
-      expect(aggregate.uncommitted_events).to be_empty
     end
 
     it 'fails when the aggregate_id is loaded as another UUID text' do

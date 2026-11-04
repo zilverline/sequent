@@ -9,15 +9,15 @@
 - Creating an event truncates its times to ActiveSupport's
   `time_precision`, with which they are stored, and gives it a
   `created_at` in the time zone of ActiveRecord, so it has the same
-  times when it is loaded or replayed. Set
-  `Sequent.configuration.event_serialization_error_handler` to get an
+  times when it is loaded or replayed. Register the new
+  `EventSerializationObserver` as an aggregate observer to get an
   `EventSerializationError` for every event that an aggregate applies
   and that changes otherwise when it is stored, like a symbol that is
-  loaded as a string, before the aggregate applies it, so the domain
-  code can be fixed to apply the values that an aggregate and the
-  projectors get when the events are loaded or replayed.
-  `EventSerializationError::RAISE` fails, for development and specs;
-  in production a handler can report the error instead.
+  loaded as a string, so the domain code can be fixed to apply the
+  values that an aggregate and the projectors get when the events are
+  loaded or replayed. By default it raises the error, for development
+  and specs; given a block it passes the error to the block instead,
+  for instance to report it in production.
 
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
