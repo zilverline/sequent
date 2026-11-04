@@ -68,8 +68,8 @@ module Sequent
           next unless expected
 
           expect(
-            Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(actual.payload)),
-          ).to eq(Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(expected.payload)))
+            Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(actual.payload)),
+          ).to eq(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(expected.payload)))
         end
       end
 

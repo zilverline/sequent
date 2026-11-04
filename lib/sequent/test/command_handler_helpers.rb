@@ -154,12 +154,12 @@ module Sequent
         private
 
         def serialize_events(events)
-          events.map { |event| [event.class.name, Sequent::Core::Oj.dump(event)] }
+          events.map { |event| [event.class.name, Sequent::Core::Json.dump(event)] }
         end
 
         def deserialize_events(events)
           events.map do |type, json|
-            Class.const_get(type).deserialize_from_json(Sequent::Core::Oj.strict_load(json))
+            Class.const_get(type).deserialize_from_json(Sequent::Core::Json.strict_load(json))
           end
         end
       end
@@ -234,7 +234,7 @@ module Sequent
       end
 
       def self.load_dump(event)
-        Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(event))
+        Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event))
           .except(*event.payload_variables.map { |s| s[1..] })
       end
 

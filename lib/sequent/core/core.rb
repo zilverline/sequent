@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'json'
 require_relative 'sequent_oj'
 require_relative 'helpers/helpers'
 require_relative 'persistors/persistors'

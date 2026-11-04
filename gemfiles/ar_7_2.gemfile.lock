@@ -8,8 +8,8 @@ PATH
       csv (~> 3.3)
       gli (~> 2.22)
       i18n
+      json
       logger (~> 1.6)
-      oj (~> 3.3)
       parallel (~> 1.20)
       parser (>= 2.6.5, < 3.4)
       pg (~> 1.2)
@@ -59,10 +59,6 @@ GEM
     logger (1.6.1)
     method_source (1.1.0)
     minitest (5.25.1)
-    oj (3.16.6)
-      bigdecimal (>= 3.0)
-      ostruct (>= 0.2)
-    ostruct (0.6.0)
     parallel (1.26.3)
     parser (3.3.9.0)
       ast (~> 2.4.1)

@@ -3,7 +3,7 @@
 require 'forwardable'
 require_relative 'event_record'
 require_relative 'helpers/pgsql_helpers'
-require_relative 'sequent_oj'
+require_relative 'json'
 require_relative 'snapshot_record'
 require_relative 'snapshot_store'
 
@@ -340,7 +340,7 @@ module Sequent
 
       def deserialize_event(event_hash)
         Class.const_get(event_hash.fetch('event_type'))
-          .deserialize_from_json(Sequent::Core::Oj.strict_load(event_hash.fetch('event_json')))
+          .deserialize_from_json(Sequent::Core::Json.strict_load(event_hash.fetch('event_json')))
       rescue StandardError
         raise DeserializeEventError, event_hash
       end
@@ -358,7 +358,7 @@ module Sequent
 
         events = streams_with_events.map do |stream, uncommitted_events|
           [
-            Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(stream)),
+            Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(stream)),
             uncommitted_events.map do |event|
               {
                 created_at: convert_timestamp(event.created_at.to_time),
@@ -372,8 +372,8 @@ module Sequent
           connection,
           'store_events',
           [
-            Sequent::Core::Oj.dump(command_record),
-            Sequent::Core::Oj.dump(events),
+            Sequent::Core::Json.dump(command_record),
+            Sequent::Core::Json.dump(events),
           ],
         )
       rescue ActiveRecord::RecordNotUnique => e
