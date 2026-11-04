@@ -207,7 +207,7 @@ describe Sequent::Core::Projector do
         expect(persistor).to receive(:flush).twice
 
         projector.flush
-        projector.commit
+        projector.flush
       end
     end
     context '#execute_sql' do

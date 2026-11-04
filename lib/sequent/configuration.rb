@@ -35,8 +35,6 @@ module Sequent
 
     DEFAULT_EVENT_RECORD_HOOKS_CLASS = Sequent::Core::EventRecordHooks
 
-    DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS = false
-
     DEFAULT_ERROR_LOCALE_RESOLVER = -> { I18n.locale || :en }
 
     DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER = ->(aggregate, exception, phase) do
@@ -53,7 +51,6 @@ module Sequent
                   :event_store,
                   :command_service,
                   :event_record_class,
-                  :snapshot_record_class,
                   :stream_record_class,
                   :transaction_provider,
                   :event_publisher,
@@ -76,7 +73,6 @@ module Sequent
                   :number_of_replay_processes,
                   :replay_group_target_size,
                   :event_store_schema_name,
-                  :strict_check_attributes_on_apply_events,
                   :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
@@ -114,7 +110,6 @@ module Sequent
       self.event_store = Sequent::Core::EventStore.new
       self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
-      self.snapshot_record_class = Sequent::Core::SnapshotRecord
       self.stream_record_class = Sequent::Core::StreamRecord
       self.transaction_provider = Sequent::Core::Transactions::ActiveRecordTransactionProvider.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator
@@ -134,7 +129,6 @@ module Sequent
 
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
-      self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
@@ -153,13 +147,6 @@ module Sequent
 
       @versions_table_name = table_name
       Sequent::Migrations::Versions.table_name = table_name
-    end
-
-    def migrations_class_name = @migrations_class&.name
-
-    def migrations_class_name=(class_name)
-      warn '[DEPRECATED] use `migrations_class=` to set the migrations class directly'
-      self.migrations_class = class_name.nil? ? nil : Class.const_get(class_name)
     end
 
     def migrations_class=(migrations_class)

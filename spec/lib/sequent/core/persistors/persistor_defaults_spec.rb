@@ -84,7 +84,7 @@ describe 'Persistors storing columns without a value' do
 
     it 'stores the database default for an empty string in a column with a computed default' do
       persistor.create_record(record_class, name: 'a', serialid: '')
-      persistor.commit
+      persistor.flush
 
       expect(stored('a', :serialid)).to be_present
     end
@@ -93,7 +93,7 @@ describe 'Persistors storing columns without a value' do
       it 'stores NULL for a computed column without a value set to nil by do_with_record' do
         persistor.create_record(record_class, name: 'a')
         persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
-        persistor.commit
+        persistor.flush
 
         expect(stored('a', :token)).to be_nil
       end
@@ -186,7 +186,7 @@ describe 'Persistors storing columns without a value' do
       it 'stores the database default for a computed column without a value set to nil by do_with_record' do
         persistor.create_record(record_class, name: 'a')
         persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
-        persistor.commit
+        persistor.flush
 
         expect(stored('a', :token)).to be_present
       end

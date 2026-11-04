@@ -4,8 +4,6 @@ module Sequent
   module Core
     module Transactions
       class ActiveRecordTransactionProvider
-        attr_reader :requires_new
-
         ##
         # Configure if save points should be used to simulate nested transactions. This is only
         # useful in combination with the `ActiveRecord::Rollback` exception.
@@ -33,20 +31,9 @@ module Sequent
         # so our advice is to only use `ActiveRecord::Rollback` directly inside of an
         # `ActiveRecord::Base.transaction(requires_new: true) do ... end` block so it is clear what
         # the expected behavior is.
-        def initialize(requires_new: false)
-          @requires_new = requires_new
-          warn <<~EOS if @requires_new
-            [DEPRECATED] avoid using `requires_new: true` globally, use explicit `ActiveRecord::Base.transaction(requires_new: true)`
-            blocks with `ActiveRecord::Rollback` instead if nested transactions are needed.
-          EOS
-        end
-
-        def transaction(requires_new: @requires_new, &block)
+        def transaction(requires_new: false, &block)
           ActiveRecord::Base.transaction(requires_new:, &block)
         end
-
-        # Deprecated alias
-        alias transactional transaction
 
         def before_commit(&block)
           ActiveRecord::Base.connection.current_transaction.before_commit(&block)

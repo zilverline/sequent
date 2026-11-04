@@ -162,13 +162,8 @@ describe Sequent::Core::AggregateRoot do
     end
   end
 
-  context 'strict_check_attributes_on_apply_events' do
+  context 'with unknown attributes' do
     require_relative 'fixtures'
-    before do
-      Sequent.configure do |c|
-        c.strict_check_attributes_on_apply_events = true
-      end
-    end
 
     it 'fails when calling apply with unknown attributes' do
       subject = PersonAggregate.new('1')
