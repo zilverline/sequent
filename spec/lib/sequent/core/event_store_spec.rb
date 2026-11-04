@@ -884,6 +884,69 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe 'publishing the stored events' do
+    class SerializedEvent < Sequent::Core::Event
+      attrs name: String, count: Integer, at: Time, payload: Hash, tags: array(String)
+    end
+
+    let(:published_events) { [] }
+    let(:time) { Time.utc(2026, 1, 2, 3, 4, 5, 123_456.789r) }
+
+    before do
+      events = published_events
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |published| events.concat(published) }
+      end.new
+    end
+
+    def commit(event)
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [[Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:), [event]]],
+      )
+    end
+
+    def event(**attributes)
+      SerializedEvent.new(aggregate_id:, sequence_number: 1, created_at: time, **attributes)
+    end
+
+    it 'publishes the events with the values that are loaded from the event store, like a replay' do
+      commit(event(name: :symbol, count: '4', at: time, payload: {key: :value}))
+
+      _, loaded_events = event_store.load_events(aggregate_id)
+      expect(published_events).to eq loaded_events
+      expect(published_events.sole).to have_attributes(
+        name: 'symbol',
+        count: 4,
+        at: Time.utc(2026, 1, 2, 3, 4, 5, 123_000),
+        created_at: Time.utc(2026, 1, 2, 3, 4, 5, 123_000),
+        payload: {'key' => 'value'},
+      )
+    end
+
+    context 'when verifying the serialization of events' do
+      before { Sequent.configuration.verify_event_serialization = true }
+
+      it 'fails when an event changes when it is stored' do
+        expect { commit(event(name: :symbol, count: '4', payload: {key: 'value'}, tags: [:tag])) }
+          .to raise_error(Sequent::Core::EventSerializationError) { |error|
+            expect(error.message).to include(
+              'name: :symbol is stored as "symbol"',
+              'count: "4" is stored as 4',
+              'payload: {key: "value"} is stored as {"key" => "value"}',
+              'tags: [:tag] is stored as ["tag"]',
+            )
+            expect(error.message).not_to include('created_at')
+          }
+      end
+
+      it 'accepts times that are only truncated to the time precision' do
+        expect { commit(event(name: 'name', count: 4, at: time, payload: {'key' => 'value'}, tags: ['tag'])) }
+          .not_to raise_error
+      end
+    end
+  end
+
   describe 'error handling for publishing events' do
     class TestRecord; end
     class RecordingHandler < Sequent::Core::Projector
@@ -934,7 +997,7 @@ describe Sequent::Core::EventStore do
             ],
           ],
         )
-        expect(handler.recorded_events).to eq([my_event])
+        expect(handler.recorded_events).to eq([event_store.load_event(aggregate_id, 1)])
       end
 
       context 'Sequent.configuration.disable_event_handlers = true' do
@@ -990,7 +1053,7 @@ describe Sequent::Core::EventStore do
       end
 
       it 'specifies the event that failed' do
-        expect(publish_error.event).to eq(my_event)
+        expect(publish_error.event).to eq(Sequent::Core::EventSerialization.as_stored(my_event))
       end
     end
   end

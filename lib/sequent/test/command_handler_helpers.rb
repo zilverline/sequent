@@ -117,7 +117,11 @@ module Sequent
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
           end
-          publish_events(streams_with_events.flat_map { |_, events| events })
+          publish_events(
+            streams_with_events.flat_map do |_, events|
+              events.map { |event| Sequent::Core::EventSerialization.as_stored(event) }
+            end,
+          )
         end
 
         def publish_events(events)

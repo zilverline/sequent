@@ -1,5 +1,14 @@
 # Changelog 9.x
 
+- The event store publishes the events as they are loaded from it, so
+  projectors and workflows see the same values when the events are
+  stored and when they are replayed: times truncated to the
+  `time_precision`, symbols as strings and attributes cast to their
+  type. The aggregate keeps the values it applied. Set
+  `Sequent.configuration.verify_event_serialization`, for instance in
+  specs, to fail when an event changes when it is stored, other than by
+  truncating its times, so the domain code can be fixed.
+
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
   columns since Sequent 8. `serialize_json?` and

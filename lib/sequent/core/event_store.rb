@@ -2,6 +2,7 @@
 
 require 'forwardable'
 require_relative 'event_record'
+require_relative 'event_serialization'
 require_relative 'helpers/pgsql_helpers'
 require_relative 'sequent_oj'
 require_relative 'snapshot_record'
@@ -87,7 +88,9 @@ module Sequent
         Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
 
         store_events(command, streams_with_events)
-        publish_events(streams_with_events.flat_map { |_, events| events })
+        publish_events(
+          streams_with_events.flat_map { |_, events| events.map { |event| EventSerialization.as_stored(event) } },
+        )
       end
 
       ##
