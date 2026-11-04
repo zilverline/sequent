@@ -23,12 +23,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - ruby-version: '3.3'
-            gemfile: 'ar_7_2'
           - ruby-version: '3.4'
-            gemfile: 'ar_8_0'
-          - ruby-version: '4.0'
-            gemfile: 'ar_8_0'
+            gemfile: 'ar_8_1'
           - ruby-version: '4.0'
             gemfile: 'ar_8_1'
     env:
@@ -99,7 +95,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1.334.0
         with:
-          ruby-version: '3.3'
+          ruby-version: '4.0'
           bundler-cache: true
           working-directory: 'integration-specs/simple'
       - name: Run integration tests simple
@@ -133,7 +129,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1.334.0
         with:
-          ruby-version: '3.3'
+          ruby-version: '4.0'
           bundler-cache: true
           working-directory: 'integration-specs/rails-app'
       - name: Install PostgreSQL 16 client

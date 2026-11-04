@@ -51,7 +51,6 @@ module Sequent
                   :event_store,
                   :command_service,
                   :event_record_class,
-                  :snapshot_record_class,
                   :stream_record_class,
                   :transaction_provider,
                   :event_publisher,
@@ -111,7 +110,6 @@ module Sequent
       self.event_store = Sequent::Core::EventStore.new
       self.command_service = Sequent::Core::CommandService.new
       self.event_record_class = Sequent::Core::EventRecord
-      self.snapshot_record_class = Sequent::Core::SnapshotRecord
       self.stream_record_class = Sequent::Core::StreamRecord
       self.transaction_provider = Sequent::Core::Transactions::ActiveRecordTransactionProvider.new
       self.uuid_generator = Sequent::Core::RandomUuidGenerator

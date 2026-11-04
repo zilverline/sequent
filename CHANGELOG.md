@@ -7,9 +7,10 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
 - Requirement: Sequent requires PostgreSQL 16.13 or later.
 
-- Requirement: ActiveRecord and ActiveModel 7.2.1 or later (was 7.1.3),
-  and the new runtime dependency `prism`. ActiveRecord 8.1 and Ruby 4
-  are supported.
+- Requirement: Ruby 3.4 or later (was 3.2) and ActiveRecord and
+  ActiveModel 8.1 or later (was 7.1.3), since the older versions are no
+  longer supported, and the new runtime dependency `prism`. Ruby 4 is
+  supported.
 
 - Requirement: install and run the new event store migrations using
   `rake sequent:install:migrations` and `rake sequent:db:migrate`. They
@@ -59,8 +60,9 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   Deserializing still ignores unknown attributes, so stored events keep
   loading.
 
-- Breaking: the settings `enable_multiple_database_support` and
-  `can_use_multiple_databases?`, and the constants
+- Breaking: the settings `enable_multiple_database_support`,
+  `can_use_multiple_databases?` and `snapshot_record_class` (which had no
+  effect), and the constants
   `DEFAULT_DATABASE_CONFIG_DIRECTORY`, `DEFAULT_DATABASE_SCHEMA_DIRECTORY`
   and `MIGRATIONS_CLASS_NAME` are removed, along with the database
   settings listed under the removed database connection management.

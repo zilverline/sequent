@@ -59,7 +59,7 @@ $ ruby -v
 ruby 3.3.5 (2024-09-03 revision ef084cc8f4) [arm64-darwin23]
 ```
 
-Sequent requires Ruby version 3.2.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
+Sequent requires Ruby version 3.4.0 or later. If the version number returned is lower, you'll need to upgrade your Ruby version. For managing Ruby versions we recommend [rbenv](https://github.com/rbenv/rbenv).
 
 #### Postgres
 
