@@ -35,8 +35,6 @@ module Sequent
 
     DEFAULT_EVENT_RECORD_HOOKS_CLASS = Sequent::Core::EventRecordHooks
 
-    DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS = false
-
     DEFAULT_ERROR_LOCALE_RESOLVER = -> { I18n.locale || :en }
 
     DEFAULT_AGGREGATE_INVARIANT_VIOLATION_HANDLER = ->(aggregate, exception, phase) do
@@ -76,7 +74,6 @@ module Sequent
                   :number_of_replay_processes,
                   :replay_group_target_size,
                   :event_store_schema_name,
-                  :strict_check_attributes_on_apply_events,
                   :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
@@ -134,7 +131,6 @@ module Sequent
 
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
-      self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
 
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER
