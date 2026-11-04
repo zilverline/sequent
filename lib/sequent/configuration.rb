@@ -77,6 +77,7 @@ module Sequent
                   :replay_group_target_size,
                   :event_store_schema_name,
                   :strict_check_attributes_on_apply_events,
+                  :verify_event_serialization,
                   :time_precision,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
@@ -135,6 +136,7 @@ module Sequent
       self.offline_replay_persistor_class = DEFAULT_OFFLINE_REPLAY_PERSISTOR_CLASS
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
+      self.verify_event_serialization = false
 
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER

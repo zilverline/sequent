@@ -86,6 +86,8 @@ describe 'dry run' do
       expect(result.tree.keys).to eq [create_test_aggregate]
       expect(result.tree[create_test_aggregate]).to have(2).items
       expect(result.tree[create_test_aggregate][0].event).to be_a(Sequent::Fixtures::TestAggregateCreated)
+      # The events are recorded as they are stored, with times truncated to the time precision.
+      expect(result.tree[create_test_aggregate][0].event.created_at.usec % 1000).to eq 0
       expect(result.tree[create_test_aggregate][0].projectors).to eq([projector, projector_2])
       expect(result.tree[create_test_aggregate][0].workflows).to eq([workflow])
 
