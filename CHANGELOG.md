@@ -93,6 +93,12 @@
   end
   ```
 
+- A new `BufferedPersistor` buffers the changes of a projector until it
+  is flushed, inserting the records created in a table using a single
+  statement and combining the updates of the same records. It only
+  supports `create_record`, `create_records`, `update_all_records` and
+  `delete_all_records`.
+
 - `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle
