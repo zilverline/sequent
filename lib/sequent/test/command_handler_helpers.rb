@@ -160,14 +160,11 @@ module Sequent
         private
 
         def serialize_events(events)
-          events.map { |event| Sequent::Core::Oj.dump(serialize_event(event)) }
+          events.map { |event| [event.class.name, Sequent::Core::Oj.dump(event)] }
         end
 
         def deserialize_events(events)
-          events.map do |json|
-            serialized = Sequent::Core::Oj.strict_load(json)
-            deserialize_event_json(serialized['event_type'], serialized['event_json'])
-          end
+          events.map { |type, json| deserialize_event_json(type, Sequent::Core::Oj.strict_load(json)) }
         end
       end
 

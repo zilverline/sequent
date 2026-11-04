@@ -343,7 +343,8 @@ module Sequent
       end
 
       def deserialize_event(event_hash)
-        deserialize_event_json(event_hash.fetch('event_type'), event_hash.fetch('event_json'))
+        payload = Sequent::Core::Oj.strict_load(event_hash.fetch('event_json'))
+        deserialize_event_json(event_hash.fetch('event_type'), payload)
       rescue StandardError
         raise DeserializeEventError, event_hash
       end
@@ -363,7 +364,11 @@ module Sequent
           [
             Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(stream)),
             uncommitted_events.map do |event|
-              serialize_event(event).merge(created_at: convert_timestamp(event.created_at.to_time))
+              {
+                created_at: convert_timestamp(event.created_at.to_time),
+                event_type: event.class.name,
+                event_json: event,
+              }
             end,
           ]
         end

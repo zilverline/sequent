@@ -22,23 +22,15 @@ module Sequent
       #
       module EventSerialization
         ##
-        # The event type and the event to store as its JSON.
-        def serialize_event(event)
-          {event_type: event.class.name, event_json: event}
-        end
-
-        ##
-        # Deserializes an event from its type and JSON, given as a string or a hash.
-        def deserialize_event_json(event_type, event_json)
-          payload = event_json.is_a?(String) ? Oj.strict_load(event_json) : event_json
+        # Deserializes an event from its type and its parsed JSON.
+        def deserialize_event_json(event_type, payload)
           Class.const_get(event_type).deserialize_from_json(payload)
         end
 
         ##
         # Returns +event+ as it is loaded once it is stored.
         def stored_event(event)
-          serialized = Oj.strict_load(Oj.dump(serialize_event(event)))
-          stored = deserialize_event_json(serialized['event_type'], loaded_event_json(serialized['event_json']))
+          stored = deserialize_event_json(event.class.name, loaded_event_json(Oj.strict_load(Oj.dump(event))))
           EventSerialization.verify!(event, stored) if Sequent.configuration.verify_event_serialization
           stored
         end
