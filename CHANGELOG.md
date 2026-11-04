@@ -1,5 +1,14 @@
 # Changelog 9.x
 
+- A new `UnbufferedPersistor` writes every change right away, like the
+  `ActiveRecordPersistor`, but reads and writes records as structs,
+  like the `ReplayOptimizedPostgresPersistor`, without instantiating
+  models. The persistors are checked by the same specs, so they can
+  replace each other without changing the projected data. Known
+  difference: the `ReplayOptimizedPostgresPersistor` keeps `updated_at`
+  when a block changes a record, where the other persistors set it to
+  the current time.
+
 - `Persistor#commit` and `Projector#commit` are renamed to `flush`.
   `commit` is a deprecated alias. Custom persistors must implement
   `flush`.

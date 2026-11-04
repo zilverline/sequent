@@ -344,6 +344,12 @@ describe 'Persistors storing values' do
     end
   end
 
+  context Sequent::Core::Persistors::UnbufferedPersistor do
+    let(:persistor) { Sequent::Core::Persistors::UnbufferedPersistor.new }
+
+    it_behaves_like 'a persistor storing values'
+  end
+
   context Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
     let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new }
 
