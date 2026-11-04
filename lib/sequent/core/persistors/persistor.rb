@@ -102,11 +102,6 @@ module Sequent
         def flush
           fail 'Method not supported in this persistor'
         end
-
-        # @deprecated Use +flush+ instead.
-        def commit
-          flush
-        end
       end
     end
   end

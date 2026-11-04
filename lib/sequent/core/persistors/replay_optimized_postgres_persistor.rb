@@ -52,18 +52,12 @@ module Sequent
       # Example:
       #
       #   ReplayOptimizedPostgresPersistor.new(
-      #     50,
       #     {InvoiceRecord => [:aggregate_id, :recipient_id]}
       #   )
       class ReplayOptimizedPostgresPersistor
         include Persistor
 
-        # @deprecated no longer used
-        CHUNK_SIZE = 1024
-
         attr_reader :record_store
-        # @deprecated records are always loaded using COPY
-        attr_accessor :insert_with_csv_size
 
         # We create a struct on the fly to represent an in-memory record.
         #
@@ -177,14 +171,11 @@ module Sequent
           end
         end
 
-        # +insert_with_csv_size+ is ignored, records are always loaded using COPY
-        #
         # +indices+ Hash of indices to create in memory. Greatly speeds up the replaying.
         #   Key corresponds to the name of the 'Record'
         #   Values contains list of lists on which columns to index.
         #   E.g. [[:first_index_column], [:another_index, :with_two_columns]]
-        def initialize(insert_with_csv_size = 50, indices = {}, default_indexed_columns = [:aggregate_id])
-          @insert_with_csv_size = insert_with_csv_size
+        def initialize(indices = {}, default_indexed_columns = [:aggregate_id])
           @record_store = Hash.new { |h, k| h[k] = Set.new.compare_by_identity }
           @record_index = Hash.new do |h, k|
             h[k] = Index.new(default_indexed_columns.to_set & k.column_names.map(&:to_sym))
