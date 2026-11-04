@@ -151,6 +151,16 @@ describe Sequent::Core::ProjectionWrites do
   context 'with a projector' do
     let(:projector) { GuardedRecordProjector.new }
 
+    it 'passes the arguments and block of execute_sql to its persistor' do
+      persistor = Class.new(Sequent::Core::Persistors::ActiveRecordPersistor) do
+        def execute_sql(statement, prefix:) = yield("#{prefix} #{statement}")
+      end.new
+
+      result = GuardedRecordProjector.new(persistor).execute_sql('statement', prefix: 'run', &:upcase)
+
+      expect(result).to eq 'RUN STATEMENT'
+    end
+
     it 'writes the records of its projection' do
       projector.create_record(GuardedProjectionRecord, aggregate_id:, name: 'a')
       projector.update_all_records(GuardedProjectionRecord, {aggregate_id:}, {name: 'b'})

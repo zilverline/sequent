@@ -119,8 +119,8 @@ module Sequent
       end
 
       # Writing using the persistor is allowed for the records of projections (see +ProjectionWrites+).
-      def execute_sql(*args, **kwargs)
-        ProjectionWrites.during_projection { @persistor.execute_sql(*args, **kwargs) }
+      def execute_sql(*args, **kwargs, &block)
+        ProjectionWrites.during_projection { @persistor.execute_sql(*args, **kwargs, &block) }
       end
 
       def flush
