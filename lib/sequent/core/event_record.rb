@@ -53,7 +53,7 @@ module Sequent
         self.sequence_number = event.sequence_number
         self.event_type = event.class.name
         self.created_at = event.created_at
-        self.event_json = event.attributes
+        self.event_json = event.as_json
 
         Sequent.configuration.event_record_hooks_class.after_serialization(self, event)
       end

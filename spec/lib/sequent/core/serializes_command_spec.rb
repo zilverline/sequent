@@ -42,6 +42,15 @@ describe Sequent::Core::SerializesCommand do
       expect(payload['value']).to have_key('value')
     end
 
+    it 'loads the command that is stored' do
+      command = RecordCommand.new(aggregate_id: '1', created_at: Time.utc(2026, 1, 2, 3, 4, 5.123r))
+      record = RecordMock.new
+      record.command = command
+
+      expect(record.command.created_at).to eq command.created_at
+      expect(record.command.aggregate_id).to eq '1'
+    end
+
     describe 'optional fields' do
       class MyRecord
         include Sequent::Core::SerializesCommand

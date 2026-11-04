@@ -14,7 +14,7 @@ module Sequent
         self.aggregate_id = command.aggregate_id if command.respond_to? :aggregate_id
         self.user_id = command.user_id if command.respond_to? :user_id
         self.command_type = command.class.name
-        self.command_json = command.attributes
+        self.command_json = command.as_json
 
         # optional attributes (here for historic reasons)
         # this should be moved to a configurable CommandSerializer
