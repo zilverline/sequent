@@ -48,10 +48,12 @@ module Sequent
           @result = result
         end
 
+        # Publishes the events as the event store would, so the same event handlers handle them.
         def commit_events(command, streams_with_events)
-          Sequent.configuration.event_publisher.publish_events(streams_with_events.flat_map { |_, events| events })
-
-          new_events = streams_with_events.flat_map { |_, events| events }
+          new_events = streams_with_events.flat_map do |_, events|
+            events.map { |event| event_store.stored_event(event) }
+          end
+          Sequent.configuration.event_publisher.publish_events(new_events)
           @result.published_command_with_events(command, new_events)
         end
 

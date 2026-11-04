@@ -2,7 +2,7 @@
 
 require 'forwardable'
 require_relative 'event_record'
-require_relative 'event_serialization'
+require_relative 'helpers/event_serialization'
 require_relative 'helpers/pgsql_helpers'
 require_relative 'sequent_oj'
 require_relative 'snapshot_record'
@@ -33,6 +33,7 @@ module Sequent
 
     class EventStore
       include Helpers::PgsqlHelpers
+      include Helpers::EventSerialization
       include SnapshotStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
@@ -89,7 +90,7 @@ module Sequent
 
         store_events(command, streams_with_events)
         publish_events(
-          streams_with_events.flat_map { |_, events| events.map { |event| EventSerialization.as_stored(event) } },
+          streams_with_events.flat_map { |_, events| events.map { |event| stored_event(event) } },
         )
       end
 
@@ -342,8 +343,7 @@ module Sequent
       end
 
       def deserialize_event(event_hash)
-        Class.const_get(event_hash.fetch('event_type'))
-          .deserialize_from_json(Sequent::Core::Oj.strict_load(event_hash.fetch('event_json')))
+        deserialize_event_json(event_hash.fetch('event_type'), event_hash.fetch('event_json'))
       rescue StandardError
         raise DeserializeEventError, event_hash
       end
@@ -363,11 +363,7 @@ module Sequent
           [
             Sequent::Core::Oj.strict_load(Sequent::Core::Oj.dump(stream)),
             uncommitted_events.map do |event|
-              {
-                created_at: convert_timestamp(event.created_at.to_time),
-                event_type: event.class.name,
-                event_json: event,
-              }
+              serialize_event(event).merge(created_at: convert_timestamp(event.created_at.to_time))
             end,
           ]
         end
@@ -385,6 +381,16 @@ module Sequent
         else
           raise OptimisticLockingError
         end
+      end
+
+      # The events table keeps the aggregate_id, sequence_number and created_at in columns, from which they are loaded:
+      # the aggregate_id as a lowercase UUID, and the created_at in the time zone of the database session.
+      def loaded_event_json(event_json)
+        created_at = event_json['created_at'] && Time.iso8601(event_json['created_at'])
+        event_json.merge(
+          'aggregate_id' => event_json['aggregate_id']&.downcase,
+          'created_at' => created_at && convert_timestamp(created_at).iso8601(Sequent.configuration.time_precision),
+        )
       end
 
       def convert_timestamp(timestamp)

@@ -907,7 +907,7 @@ describe Sequent::Core::EventStore do
     end
 
     def event(**attributes)
-      SerializedEvent.new(aggregate_id:, sequence_number: 1, created_at: time, **attributes)
+      SerializedEvent.new({aggregate_id:, sequence_number: 1, created_at: time}.merge(attributes))
     end
 
     it 'publishes the events with the values that are loaded from the event store, like a replay' do
@@ -924,6 +924,17 @@ describe Sequent::Core::EventStore do
       )
     end
 
+    it 'publishes the aggregate_id and created_at as they are loaded from their columns' do
+      created_at = Time.new(2026, 1, 2, 0, 30, 0, '+01:00')
+      commit(event(aggregate_id: aggregate_id.upcase, created_at:, name: 'name'))
+
+      _, loaded_events = event_store.load_events(aggregate_id)
+      expect(published_events.sole.aggregate_id).to eq aggregate_id
+      expect(published_events.sole.created_at.utc_offset).to eq loaded_events.sole.created_at.utc_offset
+      expect(published_events.sole.created_at.to_date).to eq loaded_events.sole.created_at.to_date
+      expect(published_events).to eq loaded_events
+    end
+
     context 'when verifying the serialization of events' do
       before { Sequent.configuration.verify_event_serialization = true }
 
@@ -933,11 +944,28 @@ describe Sequent::Core::EventStore do
             expect(error.message).to include(
               'name: :symbol is stored as "symbol"',
               'count: "4" is stored as 4',
-              'payload: {key: "value"} is stored as {"key" => "value"}',
+              "payload: #{{key: 'value'}.inspect} is stored as #{{'key' => 'value'}.inspect}",
               'tags: [:tag] is stored as ["tag"]',
             )
             expect(error.message).not_to include('created_at')
           }
+      end
+
+      it 'fails when a hash changes its class or a time in it becomes a string' do
+        expect { commit(event(payload: {'key' => 'value'}.with_indifferent_access)) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload/)
+        expect { commit(event(sequence_number: 2, payload: {'at' => time})) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload/)
+      end
+
+      it 'does not change the times of the event' do
+        at = Time.new(2026, 1, 2, 3, 4, 5, '+01:00').freeze
+        stored = event(name: 'name', count: 4, at:, payload: {}, tags: [])
+
+        commit(stored)
+
+        expect(stored.at).to be_frozen
+        expect(stored.at.utc_offset).to eq 3600
       end
 
       it 'accepts times that are only truncated to the time precision' do
@@ -1053,7 +1081,7 @@ describe Sequent::Core::EventStore do
       end
 
       it 'specifies the event that failed' do
-        expect(publish_error.event).to eq(Sequent::Core::EventSerialization.as_stored(my_event))
+        expect(publish_error.event).to eq(event_store.stored_event(my_event))
       end
     end
   end
