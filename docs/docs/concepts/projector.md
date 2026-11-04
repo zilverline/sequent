@@ -13,7 +13,8 @@ in a Projection you need 3 things in `Sequent`:
 1. A Projector. Responsible for creating Projections. We are discussing Projectors in this chapter.
 2. A Record class. This is a `Sequent::ApplicationRecord` class, subclassing `ActiveRecord::Base`. In Sequent, Records can **only be updated/created/deleted
     inside Projectors**. The rest of the application needs to regard these objects as **read-only**.
-    This however is **not enforced** in Sequent.
+    Sequent enforces this for Record classes that include `Sequent::Core::ProjectionRecord`,
+    see [Read-only records](#read-only-records).
 3. An SQL file. The SQL contains the table definition in which the Record will be stored. Please check out the chapter
     on [Migrations](migrations.html) for an in-depth description on how migrations work in Sequent.
 
@@ -177,6 +178,91 @@ class UserProjector < Sequent::Projector
   end
 end
 ```
+
+## Read-only records
+
+Records written outside their Projector, for instance by a CommandHandler or a Workflow, are silently
+undone by the next replay, since a replay rebuilds a Projection from Events only. To prevent this,
+include `Sequent::Core::ProjectionRecord` in your Record classes:
+
+```ruby
+class UserRecord < Sequent::ApplicationRecord
+  include Sequent::Core::ProjectionRecord
+end
+```
+
+The Records of such a class can then only be written by Projectors:
+
+- Saving, updating or destroying a Record fails with an `ActiveRecord::ReadOnlyRecord` error.
+- Deleting a Record, or writing Records without instantiating them (like `insert_all`,
+  `upsert_all`, `update_all` and `delete_all`), fails with a
+  `Sequent::Core::ProjectionWrites::ForbiddenError`.
+
+Avoid callbacks that run when writing Records (like `before_save` or `after_commit`) and validations
+in such a Record class. These only run when a Projector saves a Record using the
+`ActiveRecordPersistor`, and not when replaying, so their logic belongs in the Projector, where it
+runs whichever persistor is used. Callbacks that run when reading Records, like `after_find` and
+`after_initialize`, are fine. A spec can check this for all Record classes of Projections using the
+`have_no_write_callbacks` matcher of `Sequent::Test::ProjectionRecordHelpers`, which ignores the
+callbacks ActiveRecord adds itself, for instance for associations:
+
+```ruby
+require 'sequent/test'
+
+describe 'projection records' do
+  ActiveRecord::Base.descendants.select { |record_class| record_class < Sequent::Core::ProjectionRecord }
+    .each do |record_class|
+      it "#{record_class} has no write callbacks" do
+        expect(record_class).to have_no_write_callbacks
+      end
+    end
+end
+```
+
+Callbacks that must be kept anyway, like callbacks added by a gem, can be allowed by their method
+name, a regular expression matching it, or the class of the validator:
+
+```ruby
+expect(UserRecord).to have_no_write_callbacks(allow: [:audit_changes, /\Aaudit_/, SomeGem::SomeValidator])
+```
+
+Projectors can always write the Records they manage, whichever persistor they use, also while
+the `CommandService` executes commands. Outside Projectors, writing is forbidden, unless it is allowed
+using `Sequent::Core::ProjectionWrites`. Record classes that do not include
+`Sequent::Core::ProjectionRecord` can be written as before.
+
+### Specs
+
+Specs usually set up a Projection by creating its Records directly. Allow this for every example
+in your `spec_helper.rb`:
+
+```ruby
+RSpec.configure do |config|
+  config.around { |example| Sequent::Core::ProjectionWrites.allow { example.run } }
+end
+```
+
+Writing is forbidden again while the specs execute commands, so a CommandHandler or Workflow that
+writes Records directly still fails, like it would in production.
+
+### Writing Records outside a Projector
+
+Sometimes Records must be written outside their Projector on purpose, for instance when deleting
+all data of a customer, including the Events, or in a one-off data fix. Do this in
+`Sequent::Core::ProjectionWrites.during_projection`, which also applies when using a persistor directly:
+
+```ruby
+Sequent::Core::ProjectionWrites.during_projection do
+  UserRecord.where(aggregate_id: user_id).delete_all
+end
+```
+
+A replay rebuilds the Records from the Events, so these changes do not survive it: the Events must
+also be deleted, or skipped while replaying, otherwise the Records reappear. See [GDPR](gdpr.html)
+for ways to delete the data of a customer. To keep a change after a replay, record it in an Event that
+the Projector handles instead.
+
+Writing Records using SQL directly (like `ActiveRecord::Base.connection.execute`) is not detected.
 
 ## Known limitations
 
