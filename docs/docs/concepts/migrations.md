@@ -116,6 +116,12 @@ data is lost!  {: .notice--danger}
 
 Once the replayed tables are active in the view schema your code can now use the new projections.
 
+A change to the view schema tables after preparing the replay, such as a migration that adds a
+column, is not in the replayed tables and would be lost when they replace the view schema tables.
+`optimize` and `golive` therefore compare the view schema tables with the `pg_dump` taken when the
+replay was prepared, and refuse to continue when they changed. Abort the replay and prepare it again
+in that case. Changing the replay schema tables after preparing is allowed.
+
 ## Handling errors
 
 If the replay process fails at any point you can use:

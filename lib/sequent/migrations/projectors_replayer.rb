@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'digest'
 require 'open3'
 require_relative 'event_replayer'
 require 'active_support/core_ext/integer/inflections'
@@ -62,7 +63,6 @@ module Sequent
       end
 
       def prepare_for_replay
-        pg_dump_path = locate_command('pg_dump')
         psql_path = locate_command('psql')
 
         with_locked_state do
@@ -74,16 +74,10 @@ module Sequent
         end
 
         # Start new transaction to ensure replay schema is visible when running pg_dump and psql.
-        with_locked_state do
+        ddl = with_locked_state do
           verify_state 'preparing for replay can only be performed when', 'created'
 
-          pg_dump_args = %w[--schema-only --quote-all-identifiers --strict-names] +
-                         managed_relations(view_schema_name).map do |relation_name|
-                           "--table-and-children=#{view_schema_name}.#{relation_name}"
-                         end
-
-          ddl, stderr, status = Open3.capture3(psql_env, pg_dump_path, *pg_dump_args)
-          fail "failed to dump view schema projector tables #{stderr}" unless status.success?
+          ddl = dump_view_schema_ddl
 
           psql_args = %w[--single-transaction --quiet --no-psqlrc --set=ON_ERROR_STOP=1 --file=-]
           Open3.popen2e(psql_env, psql_path.strip, *psql_args) do |stdin, stdout_and_stderr, wait_thread|
@@ -98,6 +92,8 @@ module Sequent
             status = wait_thread.value
             fail "failed to create replay schema tables: #{output}" unless status.success?
           end
+
+          ddl
         end
 
         # Start new transaction to ensure replay schema is visible after running pg_dump and psql.
@@ -110,6 +106,7 @@ module Sequent
 
           @state.index_definitions = query_index_definitions
           @state.table_cluster_indexes = query_table_cluster_indexes
+          @state.view_schema_ddl_digests = ddl_digests(ddl)
 
           drop_indexes_not_needed_for_replay
 
@@ -214,6 +211,7 @@ module Sequent
         with_locked_state do
           verify_state 'activation can only be performed when', 'replayed'
           verify_replaying_projector_versions
+          verify_view_schema_unchanged_since_prepare
         end
 
         vacuum_tables
@@ -237,7 +235,11 @@ module Sequent
 
           Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
 
-          lock_view_schema_tables_for_exclusive_access
+          # pg_dump cannot dump the tables once they are locked exclusively, so they are first locked against
+          # schema changes only.
+          lock_view_schema_tables('SHARE UPDATE EXCLUSIVE')
+          verify_view_schema_unchanged_since_prepare(lock_wait_timeout: total_lock_timeout_milliseconds)
+          lock_view_schema_tables('ACCESS EXCLUSIVE')
 
           # Checked after locking: adding a table to a publication or creating statistics on it waits for
           # these locks, so nothing can change in between.
@@ -316,7 +318,8 @@ module Sequent
         end
       end
 
-      def lock_view_schema_tables_for_exclusive_access(
+      def lock_view_schema_tables(
+        mode,
         total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout
       )
         relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
@@ -327,7 +330,7 @@ module Sequent
           Sequent.configuration.transaction_provider.transaction(requires_new: true) do
             Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
               Sequent::Support::Database.with_search_path(view_schema_name) do
-                log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN ACCESS EXCLUSIVE MODE")
+                log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN #{mode} MODE")
               end
             end
           end
@@ -335,6 +338,64 @@ module Sequent
           retry if stop_trying_at.future?
           raise
         end
+      end
+
+      def total_lock_timeout_milliseconds
+        Sequent.configuration.projectors_replayer_total_lock_timeout.in_milliseconds.to_i
+      end
+
+      def dump_view_schema_ddl(lock_wait_timeout: nil)
+        pg_dump_args = %w[--schema-only --quote-all-identifiers --strict-names] +
+                       managed_relations(view_schema_name).map do |relation_name|
+                         "--table-and-children=#{view_schema_name}.#{relation_name}"
+                       end
+        pg_dump_args << "--lock-wait-timeout=#{lock_wait_timeout}" if lock_wait_timeout
+
+        ddl, stderr, status = Open3.capture3(psql_env, locate_command('pg_dump'), *pg_dump_args)
+        fail "failed to dump view schema projector tables #{stderr}" unless status.success?
+
+        ddl
+      end
+
+      # A digest per object in the dump, keyed by its `-- Name: ...; Type: ...` header, so a mismatch names the
+      # objects that changed. Comments and psql meta-commands are left out, since pg_dump writes its version and a
+      # random `\restrict` key in them. pg_dump writes a `SET` just before the object it applies to.
+      def ddl_digests(ddl)
+        objects = Hash.new { |hash, key| hash[key] = [] }
+        current = nil
+        settings = []
+        ddl.each_line(chomp: true) do |line|
+          if (header = line.match(/\A-- Name: (?<name>.*); Type: (?<type>[^;]*); Schema: [^;]*; Owner: .*\z/))
+            current = objects["#{header[:type]} #{header[:name]}"]
+            current.concat(settings)
+            settings = []
+          elsif current.nil? || line.strip.empty? || line.start_with?('--', '\\')
+            next
+          elsif line.start_with?('SET ')
+            settings << line
+          else
+            current << line
+          end
+        end
+        objects.transform_values { |lines| Digest::SHA256.hexdigest(lines.join("\n")) }
+      end
+
+      def verify_view_schema_unchanged_since_prepare(lock_wait_timeout: nil)
+        prepared = @state.view_schema_ddl_digests
+        if prepared.nil?
+          logger.warn(
+            "replay was prepared without recording the structure of the #{view_schema_name} tables, " \
+            'not checking whether they changed since',
+          )
+          return
+        end
+
+        current = ddl_digests(dump_view_schema_ddl(lock_wait_timeout:))
+        changed = (prepared.keys | current.keys).reject { |key| prepared[key] == current[key] }.sort
+        return if changed.empty?
+
+        fail "the #{view_schema_name} tables changed since the replay was prepared (#{changed.join(', ')}) " \
+             'and activating would lose these changes: abort the replay and prepare it again'
       end
 
       def replace_replayed_tables_in_view_schema

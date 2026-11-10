@@ -1077,6 +1077,7 @@ CREATE TABLE sequent_schema.replay_states (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     index_definitions jsonb,
     table_cluster_indexes jsonb,
+    view_schema_ddl_digests jsonb,
     CONSTRAINT valid_replay_state CHECK ((state = ANY (ARRAY['created'::text, 'prepared'::text, 'replaying'::text, 'catching_up'::text, 'replayed'::text, 'optimized'::text, 'live'::text, 'failed'::text, 'aborted'::text])))
 );
 
@@ -1635,6 +1636,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261110120000'),
 ('20261019170000'),
 ('20260925120000'),
 ('20260610094300'),
