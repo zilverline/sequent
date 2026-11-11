@@ -138,6 +138,38 @@ and the raised error as its `cause`.
 are cleared, and the repository raises a `Sequent::Core::AggregateRepository::InvariantsAppliedEvents` when the
 AggregateRoot has uncommitted events after `invariants!`.
 
+## Hooks around applying events
+
+`invariants!` checks the state once per command. A condition that must hold before and after each
+event can be checked with `before_apply`, `after_apply` and `around_apply` hooks. They take a method
+name or a block, which receive the event, and optionally `only:` or `except:` with the same
+arguments as `on`: an event class matches that class only, `is_a(InvoiceEvent)` matches its
+subclasses too, and other message matchers like `has_attrs` work as well:
+
+```ruby
+class Invoice < Sequent::AggregateRoot
+  before_apply(except: InvoiceCreated) { |event| fail 'Invoice sent' if @sent }
+  around_apply :guard_closed_period, only: [InvoiceLineAdded, InvoiceDateChanged]
+
+  # An around hook method continues by yielding, an around hook block by calling the
+  # continuation it receives after the event.
+  def guard_closed_period(event)
+    fail_if_period_closed!(@invoice_date)
+    yield
+    fail_if_period_closed!(@invoice_date)
+  end
+end
+```
+
+The hooks only run when the AggregateRoot applies an event, not when it is loaded from the event
+store: a period closed later must not stop the events from before from being loaded. The before
+hooks run in the order in which they are declared, then the around hooks, the first declared one
+outermost, the event and the after hooks. Hooks are inherited by subclasses.
+
+When a hook raises, the event is not added to the uncommitted events. An after hook runs once the
+event has changed the state, so the AggregateRoot must not be used after it raises, as after any
+failed command. An around hook must continue: an event it does not apply raises.
+
 ## Deleting an AggregateRoot
 
 Deleting an AggregateRoot is basically the same as changing one. You define a method that calls an Event, and in the Event handler change the state:

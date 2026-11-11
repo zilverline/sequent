@@ -1,5 +1,12 @@
 # Changelog 9.x
 
+- `before_apply`, `after_apply` and `around_apply` hooks run code before,
+  after or around each event an aggregate root applies, for example to
+  check a condition that must hold before and after every change. They
+  do not run when the aggregate is loaded, and take `only:` or `except:`
+  with the same event classes and message matchers as `on`. See
+  [hooks around applying events](https://www.sequent.io/docs/concepts/aggregate-root.html#hooks-around-applying-events).
+
 - `ProjectorsReplayer` refuses to prepare for activation and to activate
   when the view schema tables of the replayed projectors changed since
   the replay was prepared, since activating replaces them with the

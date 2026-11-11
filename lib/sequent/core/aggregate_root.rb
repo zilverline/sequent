@@ -4,6 +4,7 @@ require 'base64'
 require_relative 'helpers/message_handler'
 require_relative 'helpers/autoset_attributes'
 require_relative 'helpers/unique_keys'
+require_relative 'helpers/apply_hooks'
 require_relative 'stream_record'
 require_relative 'aggregate_roots'
 
@@ -47,6 +48,7 @@ module Sequent
       include Helpers::MessageHandler
       include Helpers::AutosetAttributes
       include Helpers::UniqueKeys
+      include Helpers::ApplyHooks
       include SnapshotConfiguration
       extend ActiveSupport::DescendantsTracker
 
@@ -176,7 +178,7 @@ module Sequent
       #
       def apply(event, params = {})
         event = build_event(event, params) if event.is_a?(Class)
-        apply_event(event)
+        run_apply_hooks(event) { apply_event(event) }
         @uncommitted_events << event
         Sequent.configuration.aggregate_observers.each { |observer| observer.handle_message(event) }
       end
