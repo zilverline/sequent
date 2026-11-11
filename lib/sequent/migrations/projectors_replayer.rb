@@ -358,8 +358,10 @@ module Sequent
       end
 
       # A digest per object in the dump, keyed by its `-- Name: ...; Type: ...` header, so a mismatch names the
-      # objects that changed. Comments and psql meta-commands are left out, since pg_dump writes its version and a
-      # random `\restrict` key in them. pg_dump writes a `SET` just before the object it applies to.
+      # objects that changed. After the first header every line counts, since it may be part of a multiline string
+      # literal; only the `\restrict` and `\unrestrict` meta-commands with their random key are left out. Before it
+      # only the default tablespace and table access method count, not the session settings. pg_dump writes a `SET`
+      # just before the object it applies to, so it is added to the next object.
       def ddl_digests(ddl)
         objects = Hash.new { |hash, key| hash[key] = [] }
         current = nil
@@ -369,11 +371,11 @@ module Sequent
             current = objects["#{header[:type]} #{header[:name]}"]
             current.concat(settings)
             settings = []
-          elsif current.nil? || line.strip.empty? || line.start_with?('--', '\\')
+          elsif line.match?(/\A\\(un)?restrict\b/)
             next
-          elsif line.start_with?('SET ')
+          elsif line.match?(/\ASET default_(tablespace|table_access_method) /) || (current && line.start_with?('SET '))
             settings << line
-          else
+          elsif current
             current << line
           end
         end

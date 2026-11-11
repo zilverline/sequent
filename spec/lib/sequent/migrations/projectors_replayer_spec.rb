@@ -490,6 +490,98 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
+  context 'view schema digests' do
+    def dump(preamble: "SET statement_timeout = 0;\n", settings: "SET default_tablespace = '';\n", key: 'k', body: 'a')
+      <<~DDL
+        --
+        -- PostgreSQL database dump
+        --
+
+        \\restrict #{key}
+
+        #{preamble}#{settings}SET default_table_access_method = heap;
+
+        --
+        -- Name: first; Type: TABLE; Schema: view_schema; Owner: -
+        --
+
+        CREATE TABLE "view_schema"."first" (
+            "a" text DEFAULT 'x
+        #{body}
+        y'
+        );
+
+        --
+        -- Name: second; Type: TABLE; Schema: view_schema; Owner: -
+        --
+
+        CREATE TABLE "view_schema"."second" ("b" integer);
+
+        --
+        -- PostgreSQL database dump complete
+        --
+
+        \\unrestrict #{key}
+      DDL
+    end
+
+    def digests(**options)
+      subject.send(:ddl_digests, dump(**options))
+    end
+
+    it 'changes the digest of a table when only a blank line in a multiline literal changes' do
+      expect(digests(body: '')['TABLE first']).not_to eq(digests(body: 'a')['TABLE first'])
+      expect(digests(body: '')['TABLE first']).not_to eq(digests(body: "\n")['TABLE first'])
+    end
+
+    it 'changes the digest of a table when only a comment-like line in a multiline literal changes' do
+      expect(digests(body: '-- a')['TABLE first']).not_to eq(digests(body: '-- b')['TABLE first'])
+      expect(digests(body: '-- a')['TABLE first']).not_to eq(digests(body: '')['TABLE first'])
+    end
+
+    it 'changes the digest of the first table when the default tablespace or access method changes' do
+      base = digests
+      expect(digests(settings: "SET default_tablespace = 'other';\n")['TABLE first']).not_to eq(base['TABLE first'])
+      other_method = digests(settings: "SET default_tablespace = '';\nSET default_table_access_method = other;\n")
+      expect(other_method['TABLE first']).not_to eq(base['TABLE first'])
+      expect(digests(settings: "SET default_tablespace = 'other';\n")['TABLE second']).to eq(base['TABLE second'])
+    end
+
+    it 'ignores session settings before the first header and the restrict key' do
+      expect(digests(preamble: "SET statement_timeout = 5;\n")).to eq(digests)
+      expect(digests(key: 'other')).to eq(digests)
+    end
+  end
+
+  context 'multiline literal in a view schema table' do
+    let(:default_with) { ->(line) { "'first\n#{line}\nlast'" } }
+
+    before do
+      exec_update(
+        "ALTER TABLE view_schema.single_records_base_table ADD COLUMN note text DEFAULT #{default_with.call('')}",
+      )
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+    end
+
+    it 'refuses to activate when only a blank line in the literal changed' do
+      exec_update(
+        "ALTER TABLE view_schema.single_records_base_table ALTER COLUMN note SET DEFAULT #{default_with.call(' ')}",
+      )
+
+      expect { subject.activate! }.to raise_error(/changed since the replay was prepared/)
+    end
+
+    it 'refuses to activate when only a comment-like line in the literal changed' do
+      exec_update(
+        "ALTER TABLE view_schema.single_records_base_table ALTER COLUMN note SET DEFAULT #{default_with.call('-- x')}",
+      )
+
+      expect { subject.activate! }.to raise_error(/changed since the replay was prepared/)
+    end
+  end
+
   context 'extended statistics' do
     before do
       exec_update(<<~SQL)
