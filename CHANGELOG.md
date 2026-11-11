@@ -1,5 +1,13 @@
 # Changelog 9.x
 
+- `ProjectorsReplayer` refuses to prepare for activation and to activate
+  when the view schema tables of the replayed projectors changed since
+  the replay was prepared, since activating replaces them with the
+  replayed tables, which do not have the change. Prepare the replay
+  again instead. Changes to the replay schema tables are allowed. A
+  replay prepared before upgrading is not checked. Requires running the
+  Sequent migrations.
+
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
   columns since Sequent 8. `serialize_json?` and

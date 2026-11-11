@@ -415,6 +415,173 @@ describe Sequent::Migrations::ProjectorsReplayer do
     end
   end
 
+  context 'view schema changes after preparing' do
+    before do
+      insert_events(5)
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+    end
+
+    it 'activates when the view schema tables did not change' do
+      subject.prepare_for_activation!
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+    end
+
+    it 'activates when only the replay schema tables changed' do
+      exec_update('ALTER TABLE replay_schema.single_records_base_table ADD COLUMN replay_only text')
+      exec_update('CREATE INDEX replay_only_idx ON replay_schema.single_records_p1 (name)')
+
+      subject.prepare_for_activation!
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+      expect(column_names('view_schema', 'single_records_base_table')).to include('replay_only')
+    end
+
+    it 'refuses to prepare for activation when a view schema table changed' do
+      exec_update('ALTER TABLE view_schema.single_records_base_table ADD COLUMN added_later text')
+
+      expect { subject.prepare_for_activation! }.to raise_error(
+        'the view_schema tables changed since the replay was prepared (TABLE single_records_base_table, ' \
+        'TABLE single_records_p1, TABLE single_records_p2) and activating would lose these changes: ' \
+        'abort the replay and prepare it again',
+      )
+      expect(replay_state).to have_attributes(state: 'replayed')
+    end
+
+    it 'refuses to activate when a view schema table changed after preparing for activation' do
+      subject.prepare_for_activation!
+      exec_update('CREATE INDEX added_later_idx ON view_schema.single_records_p2 (name)')
+
+      expect { subject.activate! }.to raise_error(/changed since the replay was prepared \(INDEX added_later_idx\)/)
+      expect(replay_state).to have_attributes(state: 'optimized')
+      expect(table_names('replay_schema')).to include('single_records_base_table')
+      expect(record_count('view_schema')).to eq 5
+    end
+
+    it 'can prepare the replay again after refusing to activate' do
+      subject.prepare_for_activation!
+      exec_update('ALTER TABLE view_schema.single_records_base_table ADD COLUMN added_later text')
+      expect { subject.activate! }.to raise_error(/changed since the replay was prepared/)
+
+      subject.abort!
+      replayer = Sequent::Migrations::ProjectorsReplayer.create!(projector_classes:)
+      replayer.prepare_for_replay
+      replayer.perform_initial_replay
+      replayer.prepare_for_activation!
+      replayer.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+      expect(column_names('view_schema', 'single_records_base_table')).to include('added_later')
+    end
+
+    it 'does not check a replay prepared without recording the view schema tables' do
+      replay_state.update!(view_schema_ddl_digests: nil)
+      exec_update('ALTER TABLE view_schema.single_records_base_table ADD COLUMN added_later text')
+      allow(Sequent.logger).to receive(:warn)
+
+      subject.prepare_for_activation!
+      subject.activate!
+
+      expect(replay_state).to have_attributes(state: 'live')
+      expect(Sequent.logger).to have_received(:warn).with(/prepared without recording the structure/).twice
+    end
+  end
+
+  context 'view schema digests' do
+    def dump(preamble: "SET statement_timeout = 0;\n", settings: "SET default_tablespace = '';\n", key: 'k', body: 'a')
+      <<~DDL
+        --
+        -- PostgreSQL database dump
+        --
+
+        \\restrict #{key}
+
+        #{preamble}#{settings}SET default_table_access_method = heap;
+
+        --
+        -- Name: first; Type: TABLE; Schema: view_schema; Owner: -
+        --
+
+        CREATE TABLE "view_schema"."first" (
+            "a" text DEFAULT 'x
+        #{body}
+        y'
+        );
+
+        --
+        -- Name: second; Type: TABLE; Schema: view_schema; Owner: -
+        --
+
+        CREATE TABLE "view_schema"."second" ("b" integer);
+
+        --
+        -- PostgreSQL database dump complete
+        --
+
+        \\unrestrict #{key}
+      DDL
+    end
+
+    def digests(**options)
+      subject.send(:ddl_digests, dump(**options))
+    end
+
+    it 'changes the digest of a table when only a blank line in a multiline literal changes' do
+      expect(digests(body: '')['TABLE first']).not_to eq(digests(body: 'a')['TABLE first'])
+      expect(digests(body: '')['TABLE first']).not_to eq(digests(body: "\n")['TABLE first'])
+    end
+
+    it 'changes the digest of a table when only a comment-like line in a multiline literal changes' do
+      expect(digests(body: '-- a')['TABLE first']).not_to eq(digests(body: '-- b')['TABLE first'])
+      expect(digests(body: '-- a')['TABLE first']).not_to eq(digests(body: '')['TABLE first'])
+    end
+
+    it 'changes the digest of the first table when the default tablespace or access method changes' do
+      base = digests
+      expect(digests(settings: "SET default_tablespace = 'other';\n")['TABLE first']).not_to eq(base['TABLE first'])
+      other_method = digests(settings: "SET default_tablespace = '';\nSET default_table_access_method = other;\n")
+      expect(other_method['TABLE first']).not_to eq(base['TABLE first'])
+      expect(digests(settings: "SET default_tablespace = 'other';\n")['TABLE second']).to eq(base['TABLE second'])
+    end
+
+    it 'ignores session settings before the first header and the restrict key' do
+      expect(digests(preamble: "SET statement_timeout = 5;\n")).to eq(digests)
+      expect(digests(key: 'other')).to eq(digests)
+    end
+  end
+
+  context 'multiline literal in a view schema table' do
+    let(:default_with) { ->(line) { "'first\n#{line}\nlast'" } }
+
+    before do
+      exec_update(
+        "ALTER TABLE view_schema.single_records_base_table ADD COLUMN note text DEFAULT #{default_with.call('')}",
+      )
+      subject.prepare_for_replay
+      subject.perform_initial_replay
+      subject.prepare_for_activation!
+    end
+
+    it 'refuses to activate when only a blank line in the literal changed' do
+      exec_update(
+        "ALTER TABLE view_schema.single_records_base_table ALTER COLUMN note SET DEFAULT #{default_with.call(' ')}",
+      )
+
+      expect { subject.activate! }.to raise_error(/changed since the replay was prepared/)
+    end
+
+    it 'refuses to activate when only a comment-like line in the literal changed' do
+      exec_update(
+        "ALTER TABLE view_schema.single_records_base_table ALTER COLUMN note SET DEFAULT #{default_with.call('-- x')}",
+      )
+
+      expect { subject.activate! }.to raise_error(/changed since the replay was prepared/)
+    end
+  end
+
   context 'extended statistics' do
     before do
       exec_update(<<~SQL)
@@ -547,9 +714,11 @@ describe Sequent::Migrations::ProjectorsReplayer do
       subject.perform_initial_replay
       subject.prepare_for_activation!
 
-      allow(subject).to receive(:lock_view_schema_tables_for_exclusive_access).and_wrap_original do |original|
-        exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_p2')
-        original.call
+      allow(subject).to receive(:lock_view_schema_tables).and_wrap_original do |original, mode|
+        if mode == 'ACCESS EXCLUSIVE'
+          exec_update('CREATE PUBLICATION replayer_spec_publication FOR TABLE view_schema.single_records_p2')
+        end
+        original.call(mode)
       end
 
       expect { subject.activate! }.to raise_error(/single_records_p2 in replayer_spec_publication/)
@@ -600,6 +769,13 @@ describe Sequent::Migrations::ProjectorsReplayer do
       exec_update('SET LOCAL search_path TO replay_schema')
       yield
     end
+  end
+
+  def column_names(schema, table)
+    exec_query(
+      'SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
+      [schema, table],
+    ).rows.flatten
   end
 
   def table_names(schema)
