@@ -93,6 +93,42 @@ module ApplyHooksSpec
       @value = event.value
     end
   end
+
+  class ApplyingTwice < Sequent::AggregateRoot
+    attr_reader :count
+
+    around_apply(only: Changed) do |_event, continuation|
+      continuation.call
+      continuation.call
+    end
+
+    def change(value)
+      apply Changed, value:
+    end
+
+    on Changed do |_event|
+      @count = (@count || 0) + 1
+    end
+  end
+
+  class YieldingTwice < Sequent::AggregateRoot
+    attr_reader :count
+
+    around_apply :apply_twice
+
+    def change(value)
+      apply Changed, value:
+    end
+
+    def apply_twice(_event)
+      yield
+      yield
+    end
+
+    on Changed do |_event|
+      @count = (@count || 0) + 1
+    end
+  end
 end
 
 describe Sequent::Core::Helpers::ApplyHooks do
@@ -186,6 +222,36 @@ describe Sequent::Core::Helpers::ApplyHooks do
 
     expect { guarded.ignore }.to raise_error(/around_apply hook .* did not apply ApplyHooksSpec::Ignored/)
     expect(guarded.uncommitted_events).to be_empty
+  end
+
+  it 'fails before an around hook applies the event a second time' do
+    [ApplyHooksSpec::ApplyingTwice, ApplyHooksSpec::YieldingTwice].each do |aggregate_class|
+      aggregate = aggregate_class.new(id)
+
+      expect { aggregate.change(1) }
+        .to raise_error(/around_apply hook .* applied ApplyHooksSpec::Changed more than once/)
+      expect(aggregate.count).to eq 1
+      expect(aggregate.uncommitted_events).to be_empty
+    end
+  end
+
+  it 'runs the hooks added to a superclass after a subclass declared its own hooks' do
+    calls = []
+    parent = Class.new(Sequent::AggregateRoot) do
+      def initialize(id)
+        super
+        apply ApplyHooksSpec::Created
+      end
+    end
+    child = Class.new(parent) do
+      before_apply { |_event| calls << :child }
+    end
+    parent.before_apply { |_event| calls << :parent }
+
+    child.new(id)
+
+    expect(calls).to eq %i[parent child]
+    expect(Class.new(Sequent::AggregateRoot).apply_hooks).to be Sequent::Core::Helpers::ApplyHooks::NO_HOOKS
   end
 
   context 'declaring hooks' do

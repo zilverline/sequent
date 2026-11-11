@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require 'active_support'
-require 'active_support/core_ext/class/attribute'
-
 require_relative 'message_matchers/message_matchers'
 
 module Sequent
@@ -33,7 +30,8 @@ module Sequent
       # +on+: an event class matches that class exactly, use <tt>is_a(SomeEvent)</tt> to include its
       # subclasses. Other message matchers like +has_attrs+ work as well. When a hook raises, the event is
       # not added to the uncommitted events; an after hook runs once the event has changed the state. An
-      # around hook must continue: not applying the event fails. Hooks are inherited by subclasses.
+      # around hook must continue: not applying the event fails. Hooks are inherited by subclasses,
+      # also those added to a superclass after the subclass declared its own.
       #
       module ApplyHooks
         ApplyHook = Data.define(:kind, :callable, :only, :except) do
@@ -52,6 +50,19 @@ module Sequent
           end
         end
 
+        NO_HOOKS = [].freeze
+
+        @apply_hooks_version = 0
+
+        class << self
+          # Incremented whenever a hook is added, so the classes recombine their inherited hooks.
+          attr_reader :apply_hooks_version
+
+          def apply_hooks_changed!
+            @apply_hooks_version += 1
+          end
+        end
+
         module ClassMethods
           def before_apply(method_name = nil, only: nil, except: nil, &block)
             add_apply_hook(:before, method_name, block, only, except)
@@ -63,6 +74,17 @@ module Sequent
 
           def around_apply(method_name = nil, only: nil, except: nil, &block)
             add_apply_hook(:around, method_name, block, only, except)
+          end
+
+          # The hooks of this class, including the hooks inherited from its superclasses, also when these
+          # are added after this class added its own hooks.
+          def apply_hooks
+            version = ApplyHooks.apply_hooks_version
+            return @apply_hooks if @apply_hooks_version == version
+
+            @apply_hooks = combine_apply_hooks
+            @apply_hooks_version = version
+            @apply_hooks
           end
 
           private
@@ -80,17 +102,21 @@ module Sequent
               matchers.map { |matcher| MessageMatchers::ArgumentCoercer.coerce_argument(matcher) }.freeze
             end
 
-            self.apply_hooks = [*apply_hooks, ApplyHook.new(kind, method_name || block, only, except)].freeze
+            @own_apply_hooks = [*@own_apply_hooks, ApplyHook.new(kind, method_name || block, only, except)].freeze
+            ApplyHooks.apply_hooks_changed!
+          end
+
+          # The hooks of the superclass followed by the hooks of this class.
+          def combine_apply_hooks
+            inherited = superclass.respond_to?(:apply_hooks) ? superclass.apply_hooks : NO_HOOKS
+            return inherited if @own_apply_hooks.nil?
+
+            (inherited + @own_apply_hooks).freeze
           end
         end
 
         def self.included(host_class)
           host_class.extend(ClassMethods)
-
-          host_class.class_attribute :apply_hooks,
-                                     default: [].freeze,
-                                     instance_reader: false,
-                                     instance_writer: false
         end
 
         private
@@ -102,6 +128,8 @@ module Sequent
           applied = false
           hooks.each { |hook| hook.call(self, event) if hook.kind == :before }
           run_around_apply_hooks(hooks.select { |hook| hook.kind == :around }, event) do
+            fail "an around_apply hook of #{self} applied #{event.class} more than once" if applied
+
             apply.call
             applied = true
           end
