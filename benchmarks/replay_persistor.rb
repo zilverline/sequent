@@ -109,7 +109,7 @@ results = Array.new(RUNS) do
   replayed = clock.call
   allocations = GC.stat(:total_allocated_objects) - allocations
   gc_time = GC.stat(:time) - gc_time
-  persistor.commit
+  persistor.respond_to?(:flush) ? persistor.flush : persistor.commit
   committed = clock.call
 
   fail 'not all records committed' unless BenchmarkRecord.count == AGGREGATES
