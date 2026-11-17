@@ -5,6 +5,28 @@ require 'spec_helper'
 describe Sequent::Configuration do
   let(:instance) { described_class.instance }
 
+  describe '#time_precision' do
+    around do |example|
+      precision = ActiveSupport::JSON::Encoding.time_precision
+      example.run
+    ensure
+      ActiveSupport::JSON::Encoding.time_precision = precision
+    end
+
+    it 'uses the current time precision of ActiveSupport when not set' do
+      ActiveSupport::JSON::Encoding.time_precision = 6
+
+      expect(instance.time_precision).to eq 6
+    end
+
+    it 'uses the time precision that is set' do
+      instance.time_precision = 0
+      ActiveSupport::JSON::Encoding.time_precision = 6
+
+      expect(instance.time_precision).to eq 0
+    end
+  end
+
   context Sequent::Core::BaseCommandHandler do
     class SpecHandler < Sequent::Core::BaseCommandHandler
       # rubocop:disable-next Lint/UselessMethodDefinition
