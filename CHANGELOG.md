@@ -24,8 +24,8 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
 - Breaking: replaying passes the replayed events directly to the projectors
   instead of using an event publisher. `EventStore#replay_events_from_cursor`
-  takes a block that receives the events of each block, instead of an
-  `event_publisher`.
+  also takes a block that receives the events of each block, as an
+  alternative to an `event_publisher`.
 
   Breaking for subclasses of the replayers: `with_sequent_config` is
   removed, and `replay_events` takes the projectors instead of the
@@ -126,6 +126,16 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   instead of the value ActiveSupport had when Sequent was loaded.
   `Sequent::Configuration::DEFAULT_TIME_PRECISION` is removed.
 
+- Breaking: the `insert_with_csv_size` argument and attribute of the
+  `ReplayOptimizedPostgresPersistor` are removed, so the indices are the
+  first argument of `ReplayOptimizedPostgresPersistor.new`.
+
+- Breaking: the `transactional` method of the transaction providers is
+  removed; call `transaction` instead, which custom transaction providers
+  must implement. The `ActiveRecordTransactionProvider` no longer takes
+  `requires_new:`; use an explicit
+  `ActiveRecord::Base.transaction(requires_new: true)` instead.
+
 - Behaviour: `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle
@@ -204,9 +214,7 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   timestamps, booleans and strings) are encoded by the C encoders of the
   `pg` gem instead of being serialized by ActiveRecord, which makes
   committing about four times as fast. All other values are still
-  serialized by ActiveRecord, so the stored values do not change. The
-  `insert_with_csv_size` argument and attribute are removed, so the
-  indices are the first argument of `ReplayOptimizedPostgresPersistor.new`.
+  serialized by ActiveRecord, so the stored values do not change.
 
   A column without a value whose default the database computes (like a
   serial column, including `id`, or a default of `now()`) is left out of
@@ -232,11 +240,7 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
 - Behaviour: the `ActiveRecordTransactionProvider` no longer starts a
   nested transaction (savepoint) by default, so an `ActiveRecord::Rollback`
-  in a command no longer only rolls back that command. It no longer
-  takes `requires_new:`; use an explicit
-  `ActiveRecord::Base.transaction(requires_new: true)` instead. Custom
-  transaction providers must implement `transaction`, which the
-  `CommandService` calls, instead of `transactional`, which is removed.
+  in a command no longer only rolls back that command.
 
 - Behaviour: `after_commit` callbacks run when the database transaction
   is committed, using ActiveRecord's transaction callbacks, instead of
