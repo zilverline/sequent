@@ -64,6 +64,12 @@
   - Times are written using `Sequent.configuration.time_precision`,
     also when it differs from ActiveSupport's, and always in ISO 8601,
     also when `ActiveSupport.use_standard_json_time_format` is disabled.
+  - `Sequent::Core::Json.strict_load` fails with a `JSON::ParserError`
+    on an object with a duplicate key, where Oj kept the last value.
+    Stored events have none, since `jsonb` keeps one value per key, but
+    other JSON loaded with it, also through `Sequent::Core::Oj`, can.
+  - JSON nested more than 100 levels deep fails with a
+    `JSON::NestingError`, when writing as well as when loading.
 
 - `Sequent.configuration.time_precision` uses the current value of
   `ActiveSupport::JSON::Encoding.time_precision` when it is not set,
