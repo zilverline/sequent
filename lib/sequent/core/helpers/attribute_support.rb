@@ -182,12 +182,7 @@ EOS
         def as_json(opts = {})
           hash = HashWithIndifferentAccess.new
           self.class.types.each_key do |name|
-            value = instance_variable_get("@#{name}")
-            hash[name] = if value.respond_to?(:as_json)
-                           value.as_json(opts)
-                         else
-                           value
-                         end
+            hash[name] = value_as_json(instance_variable_get("@#{name}"), opts)
           end
           hash
         end
@@ -221,6 +216,26 @@ EOS
           unknowns = attrs.keys.map(&:to_s) - self.class.types.keys.map(&:to_s)
           if unknowns.any?
             fail UnknownAttributeError, "#{self.class.name} does not specify attrs: #{unknowns.join(', ')}"
+          end
+        end
+
+        private
+
+        def value_as_json(value, opts)
+          case value
+          when String, Integer, NilClass, TrueClass, FalseClass then value
+          when Array then value.map { |v| value_as_json(v, opts) }
+          when Hash then value.to_h { |k, v| [k.to_s, value_as_json(v, opts)] }
+          when DateTime then value.xmlschema(Sequent.configuration.time_precision)
+          else
+            # Not a `when Time`: ActiveSupport defines `Time.===` in Ruby, which makes it several times slower.
+            if value.is_a?(Time)
+              value.xmlschema(Sequent.configuration.time_precision)
+            elsif value.respond_to?(:as_json)
+              value.as_json(opts)
+            else
+              value
+            end
           end
         end
       end

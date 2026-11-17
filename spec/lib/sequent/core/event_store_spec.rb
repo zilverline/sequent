@@ -83,6 +83,19 @@ describe Sequent::Core::EventStore do
       snapshot
     end
 
+    it 'keeps the precision of the snapshot created_at' do
+      Sequent.configuration.time_precision = 6
+      precision = ActiveSupport::JSON::Encoding.time_precision
+      ActiveSupport::JSON::Encoding.time_precision = 3
+      snapshot.created_at = Time.utc(2026, 1, 2, 3, 4, 5.123456r)
+
+      event_store.store_snapshots([snapshot])
+
+      expect(Sequent::Core::SnapshotRecord.where(aggregate_id:).pick(:created_at)).to eq(snapshot.created_at)
+    ensure
+      ActiveSupport::JSON::Encoding.time_precision = precision
+    end
+
     it 'can mark aggregates for snapshotting when storing new events' do
       aggregate.event # Generate an event so the snapshot is outdated
 
@@ -363,7 +376,7 @@ describe Sequent::Core::EventStore do
       ).first
 
       expect(row['data']).to eq("with ' unsafe SQL characters;\n")
-      json = Sequent::Core::Oj.strict_load(row['event_json'])
+      json = Sequent::Core::Json.strict_load(row['event_json'])
       expect(json['aggregate_id']).to eq(aggregate_id)
       expect(json['sequence_number']).to eq(1)
     end
@@ -704,6 +717,34 @@ describe Sequent::Core::EventStore do
       expect(events).to be
 
       expect(event_store.load_event(aggregate_id, events.first.sequence_number)).to eq(events.first)
+    end
+
+    context 'with a time precision that differs from ActiveSupport' do
+      around do |example|
+        precision = ActiveSupport::JSON::Encoding.time_precision
+        example.run
+      ensure
+        ActiveSupport::JSON::Encoding.time_precision = precision
+      end
+
+      it 'keeps the precision of the event created_at' do
+        Sequent.configuration.time_precision = 6
+        ActiveSupport::JSON::Encoding.time_precision = 3
+        created_at = Time.utc(2026, 1, 2, 3, 4, 5.123456r)
+
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id: aggregate_id),
+          [
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: aggregate_id),
+              [MyEvent.new(aggregate_id: aggregate_id, sequence_number: 1, created_at: created_at)],
+            ],
+          ],
+        )
+
+        _, events = event_store.load_events(aggregate_id)
+        expect(events.first.created_at).to eq(created_at)
+      end
     end
 
     context 'changing the partition_key and loading concurrently' do

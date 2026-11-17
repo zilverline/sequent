@@ -47,6 +47,31 @@
   based updates now only change `updated_at` when it is set, so it is
   the same after a replay.
 
+- Sequent uses Ruby's `json` gem instead of Oj to serialize and load
+  events, commands and snapshots. `Sequent::Core::Json` replaces
+  `Sequent::Core::Oj`, which is deprecated and uses `Sequent::Core::Json`.
+  Sequent no longer depends on Oj, and no longer sets
+  `Oj.default_options`. Applications using Oj directly must depend on
+  it and configure it themselves: without `mode: :rails`, `Oj.dump`
+  writes a symbol key like `:foo` as `":foo"` instead of `"foo"`.
+  Differences with the JSON Oj wrote and loaded:
+
+  - Numbers in untyped values, such as in a `Hash` attribute, load as
+    `Float`, also when they have more digits than a `Float` keeps. Oj
+    loaded those as `BigDecimal`. `BigDecimal` attributes are written
+    as strings and load as before.
+  - `<`, `>`, `&`, U+2028 and U+2029 in strings are written as they
+    are instead of escaped. The values are the same once loaded.
+  - Times are written using `Sequent.configuration.time_precision`,
+    also when it differs from ActiveSupport's, and always in ISO 8601,
+    also when `ActiveSupport.use_standard_json_time_format` is disabled.
+  - `Sequent::Core::Json.strict_load` fails with a `JSON::ParserError`
+    on an object with a duplicate key, where Oj kept the last value.
+    Stored events have none, since `jsonb` keeps one value per key, but
+    other JSON loaded with it, also through `Sequent::Core::Oj`, can.
+  - JSON nested more than 100 levels deep fails with a
+    `JSON::NestingError`, when writing as well as when loading.
+
 - `Sequent.configuration.time_precision` uses the current value of
   `ActiveSupport::JSON::Encoding.time_precision` when it is not set,
   instead of the value ActiveSupport had when Sequent was loaded.
