@@ -269,7 +269,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         end
 
         it 'leaves lazy transactions enabled when a COPY fails' do
-          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'fail'})
+          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'fail', created_at:})
 
           expect { persistor.commit }.to raise_error(PG::CheckViolation)
           expect(Sequent::ApplicationRecord.connection.transaction_manager.lazy_transactions_enabled?).to be true
