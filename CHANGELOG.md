@@ -52,8 +52,9 @@
   `Sequent::Core::Oj`, which is deprecated and uses `Sequent::Core::Json`.
   Sequent no longer depends on Oj, and no longer sets
   `Oj.default_options`. Applications using Oj directly must depend on
-  it and configure it themselves. Differences with the JSON Oj wrote
-  and loaded:
+  it and configure it themselves: without `mode: :rails`, `Oj.dump`
+  writes a symbol key like `:foo` as `":foo"` instead of `"foo"`.
+  Differences with the JSON Oj wrote and loaded:
 
   - Numbers in untyped values, such as in a `Hash` attribute, load as
     `Float`, also when they have more digits than a `Float` keeps. Oj
