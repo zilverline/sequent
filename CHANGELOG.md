@@ -8,9 +8,10 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 - Requirement: Sequent requires PostgreSQL 16.13 or later.
 
 - Requirement: Ruby 3.4 or later (was 3.2) and ActiveRecord and
-  ActiveModel 8.1 or later (was 7.1.3), since the older versions are no
-  longer supported, and the new runtime dependency `prism`. Ruby 4 is
-  supported.
+  ActiveModel 8.1.3 or later (was 7.1.3), since the older versions are
+  no longer supported, and the new runtime dependency `prism`. Ruby 4 is
+  supported. Before 8.1.3, `insert_all!` fails on a view whose record
+  class sets a primary key.
 
 - Requirement: install and run the new event store migrations using
   `rake sequent:install:migrations` and `rake sequent:db:migrate`. They
