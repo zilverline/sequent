@@ -34,7 +34,7 @@ module Sequent
                                      record.respond_to?(:sequence_number=)
                                    end
           record.sequence_number = event.sequence_number if update_sequence_number
-          record.save!
+          record.save!(touch: false)
         end
 
         def create_record(record_class, values)
@@ -59,7 +59,7 @@ module Sequent
           record = get_record(record_class, values)
           if record
             yield record
-            record.save!
+            record.save!(touch: false)
           else
             values = values.merge(created_at:) if created_at && record_class.column_names.include?('created_at')
             record = new_record(record_class, values)
@@ -92,14 +92,14 @@ module Sequent
         def do_with_records(record_class, where_clause)
           record_class.unscoped.where(where_clause).each do |record|
             yield record
-            record.save!
+            record.save!(touch: false)
           end
         end
 
         def do_with_record(record_class, where_clause)
           record = record_class.unscoped.where(where_clause).first!
           yield record
-          record.save!
+          record.save!(touch: false)
         end
 
         def find_records(record_class, where_clause)
