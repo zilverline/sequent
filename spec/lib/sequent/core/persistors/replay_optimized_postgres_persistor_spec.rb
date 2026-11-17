@@ -267,6 +267,35 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
           expect { persistor.commit }.to raise_error(PG::CheckViolation)
           expect(ReplayOptimizedPostgresTest.count).to eq 0
         end
+
+        it 'leaves lazy transactions enabled when a COPY fails' do
+          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'fail'})
+
+          expect { persistor.commit }.to raise_error(PG::CheckViolation)
+          expect(Sequent::ApplicationRecord.connection.transaction_manager.lazy_transactions_enabled?).to be true
+        end
+      end
+
+      # Taking the raw connection for the COPY disables them for every later transaction on the connection.
+      context 'lazy transactions' do
+        let(:connection) { Sequent::ApplicationRecord.connection }
+
+        it 'leaves them enabled' do
+          persistor.create_record(ReplayOptimizedPostgresTest, values)
+          persistor.commit
+
+          expect(connection.transaction_manager.lazy_transactions_enabled?).to be true
+        end
+
+        it 'leaves them disabled when they were' do
+          connection.disable_lazy_transactions!
+          persistor.create_record(ReplayOptimizedPostgresTest, values)
+          persistor.commit
+
+          expect(connection.transaction_manager.lazy_transactions_enabled?).to be false
+        ensure
+          connection.enable_lazy_transactions!
+        end
       end
 
       context 'when all records are deleted again' do

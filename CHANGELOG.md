@@ -1,5 +1,11 @@
 # Changelog 9.x
 
+- The `ReplayOptimizedPostgresPersistor` no longer leaves lazy
+  transactions disabled on its connection. The COPY that loads the
+  replayed records takes the raw connection, which made ActiveRecord
+  send BEGIN and COMMIT for every later transaction on that
+  connection, also for one that runs no query.
+
 - `before_apply`, `after_apply` and `around_apply` hooks run code before,
   after or around each event an aggregate root applies, for example to
   check a condition that must hold before and after every change. They

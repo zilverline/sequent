@@ -422,6 +422,9 @@ module Sequent
 
         def copy(record_class, columns, records)
           record_class.with_connection do |conn|
+            # raw_connection disables lazy transactions for good, as it cannot know what is done with the connection.
+            # A COPY leaves it as it was, so the transactions that follow can be lazy again.
+            lazy_transactions = conn.transaction_manager.lazy_transactions_enabled?
             raw_connection = conn.raw_connection
             encoder = PG::TextEncoder::CopyRow.new(type_map: PG::TypeMapByColumn.new(columns.map(&:encoder)))
             quoted_column_names = columns.map { |column| conn.quote_column_name(column.name) }
@@ -442,6 +445,8 @@ module Sequent
                 )
               end
             end
+          ensure
+            conn.enable_lazy_transactions! if lazy_transactions
           end
         end
 
