@@ -70,7 +70,6 @@ jobs:
     runs-on: ubuntu-26.04
     permissions:
       contents: read
-      checks: write
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/ar_8_1.gemfile
     steps:
@@ -82,12 +81,7 @@ jobs:
           ruby-version: '4.0'
           bundler-cache: true
       - name: rubocop
-        uses: reviewdog/action-rubocop@b6d5e953a5fc0bf3ab65254e77730ea2174d6d6d # v2.22.0
-        with:
-          skip_install: true
-          use_bundler: true
-          github_token: ${{ secrets.github_token }}
-          reporter: github-pr-check
+        run: bundle exec rubocop --format github
 
   integration_simple:
     runs-on: ubuntu-26.04
