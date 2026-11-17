@@ -29,6 +29,41 @@ describe 'Test Helpers' do
     end
   end
 
+  context 'then_events', workflows: true do
+    let(:event_class) do
+      Class.new(Sequent::Event) do
+        attrs at: Time
+      end
+    end
+
+    around do |example|
+      precision = ActiveSupport::JSON::Encoding.time_precision
+      example.run
+    ensure
+      ActiveSupport::JSON::Encoding.time_precision = precision
+    end
+
+    before do
+      Sequent.configuration.time_precision = 6
+      ActiveSupport::JSON::Encoding.time_precision = 3
+      Sequent.configuration.event_store = double(
+        stored_events: [
+          event_class.new(aggregate_id: '1', sequence_number: 1, at: Time.utc(2026, 1, 2, 3, 4, 5.123456r)),
+        ],
+      )
+    end
+
+    it 'passes when the events are equal' do
+      then_events(event_class.new(aggregate_id: '2', sequence_number: 3, at: Time.utc(2026, 1, 2, 3, 4, 5.123456r)))
+    end
+
+    it 'fails when the events differ in the microseconds' do
+      expect do
+        then_events(event_class.new(aggregate_id: '1', sequence_number: 1, at: Time.utc(2026, 1, 2, 3, 4, 5.123999r)))
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+    end
+  end
+
   context Sequent::Test::CommandHandlerHelpers do
     it 'does not conflict with Sequent::Test::WorkflowHelpers' do
       expect(Sequent.command_service.class).to eq(Sequent::Core::CommandService)

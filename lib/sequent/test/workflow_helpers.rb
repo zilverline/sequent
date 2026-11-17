@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'command_handler_helpers'
+
 module Sequent
   module Test
     ##
@@ -68,8 +70,8 @@ module Sequent
           next unless expected
 
           expect(
-            Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(actual.payload)),
-          ).to eq(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(expected.payload)))
+            Sequent::Test::CommandHandlerHelpers.load_dump(actual),
+          ).to eq(Sequent::Test::CommandHandlerHelpers.load_dump(expected))
         end
       end
 

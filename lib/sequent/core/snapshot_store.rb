@@ -17,7 +17,7 @@ module Sequent
               aggregate_id: snapshot.aggregate_id,
               snapshot_version: snapshot.snapshot_version,
               sequence_number: snapshot.sequence_number,
-              created_at: snapshot.created_at,
+              created_at: snapshot.created_at.xmlschema(Sequent.configuration.time_precision),
               snapshot_type: snapshot.class.name,
               snapshot_json: snapshot,
             }

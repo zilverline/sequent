@@ -351,7 +351,7 @@ module Sequent
 
       def store_events(command, streams_with_events = [])
         command_record = {
-          created_at: convert_timestamp(command.created_at&.to_time || Time.now),
+          created_at: serialize_timestamp(command.created_at&.to_time || Time.now),
           command_type: command.class.name,
           command_json: command,
         }
@@ -361,7 +361,7 @@ module Sequent
             Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(stream)),
             uncommitted_events.map do |event|
               {
-                created_at: convert_timestamp(event.created_at.to_time),
+                created_at: serialize_timestamp(event.created_at.to_time),
                 event_type: event.class.name,
                 event_json: event,
               }
@@ -382,6 +382,10 @@ module Sequent
         else
           raise OptimisticLockingError
         end
+      end
+
+      def serialize_timestamp(timestamp)
+        convert_timestamp(timestamp).xmlschema(Sequent.configuration.time_precision)
       end
 
       def convert_timestamp(timestamp)
