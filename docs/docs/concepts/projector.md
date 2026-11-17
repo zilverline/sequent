@@ -66,17 +66,22 @@ the appropriate Event and creates a Record in the database.
 ```ruby
 class UserProjector < Sequent::Projector
   on UserCreated do |event|
-    create_record(UserRecord, {aggregate_id: event.aggregate_id})
+    create_record(UserRecord, {aggregate_id: event.aggregate_id, created_at: event.created_at})
   end
 end
 ```
+
+A Record whose table has a `created_at` column must be created with a `created_at`, usually the
+`created_at` of the Event, otherwise creating it fails with a `Sequent::Core::Persistors::MissingCreatedAtError`.
+Its `updated_at` is the same unless it is given. The persistors would otherwise use the current time, so the
+Record would get other timestamps when the Events are replayed. A block given to `create_record` can also set it.
 
 Internally a Projector uses a `Sequent::Core::Persistors::Persistor` to access the database.
 During normal operations this is the `ActiveRecordPersistor`. This means the above code
 is eventually translated to:
 
 ```ruby
-user_record = UserRecord.new(aggregate_id: event.aggregate_id)
+user_record = UserRecord.new(aggregate_id: event.aggregate_id, created_at: event.created_at)
 user_record.save!
 ```
 
@@ -100,9 +105,12 @@ as you would persist the parent record.
 ```ruby
 class UserProjector < Sequent::Projector
   on ParentCreated do |event|
-    create_record(ParentRecord, {aggregate_id: event.aggregate_id})
+    create_record(ParentRecord, {aggregate_id: event.aggregate_id, created_at: event.created_at})
     event.children.each do |child|
-      create_record(ChildRecord, {parent_record_id: event.aggregate_id, child_id: child.child_id})
+      create_record(
+        ChildRecord,
+        {parent_record_id: event.aggregate_id, child_id: child.child_id, created_at: event.created_at},
+      )
     end
   end
 end

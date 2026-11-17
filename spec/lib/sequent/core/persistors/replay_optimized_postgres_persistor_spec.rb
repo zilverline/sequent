@@ -20,6 +20,8 @@ def measure_elapsed_time(&block)
 end
 
 describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
+  let(:created_at) { Time.utc(2026, 1, 1) }
+
   let(:indices) { {} }
   let(:persistor) { Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.new(50, indices) }
   let(:record_class) { Sequent::Core::EventRecord }
@@ -71,7 +73,10 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   end
 
   it 'can save multiple objects at once' do
-    persistor.create_records(Sequent::Core::EventRecord, [{aggregate_id: 1}, {aggregate_id: 2}])
+    persistor.create_records(
+      Sequent::Core::EventRecord,
+      [{aggregate_id: 1, created_at:}, {aggregate_id: 2, created_at:}],
+    )
     object = persistor.get_record!(record_class, {aggregate_id: 1})
     expect(object.aggregate_id).to eq 1
     object = persistor.get_record!(record_class, {aggregate_id: 2})
@@ -83,7 +88,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
   context 'with an object' do
     before :each do
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, created_at:})
     end
 
     context '#get_record!' do
@@ -144,8 +149,8 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
 
   context 'value normalization' do
     before :each do
-      persistor.create_record(record_class, {aggregate_id: 1, event_type: :SymbolEvent})
-      persistor.create_record(record_class, {aggregate_id: 2, event_type: 'StringEvent'})
+      persistor.create_record(record_class, {aggregate_id: 1, event_type: :SymbolEvent, created_at:})
+      persistor.create_record(record_class, {aggregate_id: 2, event_type: 'StringEvent', created_at:})
     end
 
     context 'when using an index' do
@@ -256,8 +261,8 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
         after { ReplayOptimizedPostgresTest.reset_column_information }
 
         it 'loads none of the records when one fails' do
-          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ok'})
-          persistor.create_record(ReplayOptimizedPostgresTest, {id: 10, name: 'fail'})
+          persistor.create_record(ReplayOptimizedPostgresTest, {name: 'ok', created_at:})
+          persistor.create_record(ReplayOptimizedPostgresTest, {id: 10, name: 'fail', created_at:})
 
           expect { persistor.commit }.to raise_error(PG::CheckViolation)
           expect(ReplayOptimizedPostgresTest.count).to eq 0
@@ -278,9 +283,12 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
   context 'with some records' do
     let(:aggregate_id) { Sequent.new_uuid }
     before :each do
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, command_record_id: 2})
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, sequence_number: 2})
-      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: aggregate_id, command_record_id: 2})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, command_record_id: 2, created_at:})
+      persistor.create_record(Sequent::Core::EventRecord, {aggregate_id: 1, sequence_number: 2, created_at:})
+      persistor.create_record(
+        Sequent::Core::EventRecord,
+        {aggregate_id: aggregate_id, command_record_id: 2, created_at:},
+      )
     end
 
     let(:persistor) do
@@ -450,8 +458,18 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       end
 
       it 'should not match records even when hash collision occurs' do
-        one = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(1), sequence_number: 1)
-        two = persistor.create_record(Sequent::Core::EventRecord, aggregate_id: BadHash.new(2), sequence_number: 1)
+        one = persistor.create_record(
+          Sequent::Core::EventRecord,
+          aggregate_id: BadHash.new(1),
+          sequence_number: 1,
+          created_at:,
+        )
+        two = persistor.create_record(
+          Sequent::Core::EventRecord,
+          aggregate_id: BadHash.new(2),
+          sequence_number: 1,
+          created_at:,
+        )
 
         expect(persistor.find_records(Sequent::Core::EventRecord, {aggregate_id: one.aggregate_id}))
           .to match_array [one]
@@ -480,7 +498,7 @@ describe Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor do
       aggregate_ids.each_with_index do |aggregate_id, i|
         persistor.create_record(
           Sequent::Core::EventRecord,
-          {aggregate_id: aggregate_id, command_record_id: i * 7},
+          {aggregate_id: aggregate_id, command_record_id: i * 7, created_at:},
         )
       end
     end
