@@ -244,8 +244,10 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
 - Behaviour: a change to the `events_partition_key` of an aggregate is
   recorded in `partition_key_changes`, and its events only move to the
-  new partition when `rake sequent:aggregates:update_partition_keys`
-  runs, which should be scheduled.
+  new partition when `rake sequent:aggregates:update_partition_keys[limit]`
+  runs, which should be scheduled. Each run applies at most `limit`
+  changes, so choose a limit that suits the number of events of your
+  aggregates.
 
 - Behaviour: storing events locks the aggregate row, and concurrent
   writers to the same aggregate get an optimistic locking error instead
