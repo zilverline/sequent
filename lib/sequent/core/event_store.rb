@@ -88,8 +88,15 @@ module Sequent
 
         Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
 
-        store_events(command, streams_with_events)
-        publish_events(streams_with_events.flat_map { |_, events| events.map { |event| stored_event(event) } })
+        streams_with_event_jsons = streams_with_events.map do |stream, events|
+          [stream, events.map { |event| [event, Sequent::Core::Json.dump(event)] }]
+        end
+        store_events(command, streams_with_event_jsons)
+        publish_events(
+          streams_with_event_jsons.flat_map do |_, events_with_json|
+            events_with_json.map { |event, json| stored_event(event, json:) }
+          end,
+        )
       end
 
       ##
@@ -351,7 +358,7 @@ module Sequent
         Sequent.configuration.event_publisher.publish_events(events)
       end
 
-      def store_events(command, streams_with_events = [])
+      def store_events(command, streams_with_event_jsons)
         Sequent::Configuration.ensure_supported_time_precision!(Sequent.configuration.time_precision)
         command_record = {
           created_at: serialize_timestamp(command.created_at&.to_time || Time.now),
@@ -359,14 +366,14 @@ module Sequent
           command_json: command,
         }
 
-        events = streams_with_events.map do |stream, uncommitted_events|
+        events = streams_with_event_jsons.map do |stream, uncommitted_events|
           [
             Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(stream)),
-            uncommitted_events.map do |event|
+            uncommitted_events.map do |event, event_json|
               {
                 created_at: serialize_timestamp(event.created_at.to_time),
                 event_type: event.class.name,
-                event_json: event,
+                event_json: Sequent::Core::Json::Fragment.new(event_json),
               }
             end,
           ]

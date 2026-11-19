@@ -1137,6 +1137,21 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe '#commit_events serialization' do
+    it 'dumps each event once to store and publish it' do
+      event = MyEvent.new(aggregate_id:, sequence_number: 1, data: 'data')
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:)
+
+      expect(Sequent::Core::Json).to receive(:dump).with(event).once.and_call_original
+      allow(Sequent::Core::Json).to receive(:dump).with(satisfy { |obj| !obj.equal?(event) }).and_call_original
+
+      event_store.commit_events(Sequent::Core::Command.new(aggregate_id:), [[stream, [event]]])
+
+      _, events = event_store.load_events(aggregate_id)
+      expect(events.map(&:data)).to eq(['data'])
+    end
+  end
+
   describe '#replay_events_from_cursor' do
     let(:events) do
       5.times.map { |n| Sequent::Core::Event.new(aggregate_id:, sequence_number: n + 1) }

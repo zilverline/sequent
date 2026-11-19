@@ -118,7 +118,7 @@ module Sequent
             @all_events[event_stream.aggregate_id] ||= []
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
-            events.map { |event| stored_event(event) }
+            events.zip(serialized).map { |event, (_, json)| stored_event(event, json:) }
           end
           publish_events(stored)
         end

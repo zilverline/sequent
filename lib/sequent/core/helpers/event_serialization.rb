@@ -23,9 +23,9 @@ module Sequent
         end
 
         ##
-        # Returns +event+ as it is loaded once it is stored.
-        def stored_event(event)
-          deserialize_event_json(event.class.name, loaded_event_json(Json.strict_load(Json.dump(event))))
+        # Returns +event+ as it is loaded once it is stored. +json+ is the JSON of +event+, when it is dumped already.
+        def stored_event(event, json: Json.dump(event))
+          deserialize_event_json(event.class.name, loaded_event_json(Json.strict_load(json)))
         end
 
         private

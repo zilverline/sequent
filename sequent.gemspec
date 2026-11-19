@@ -33,7 +33,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'csv', '~> 3.3'
   s.add_dependency 'gli', '~> 2.22'
   s.add_dependency 'i18n'
-  s.add_dependency 'json'
+  s.add_dependency 'json', '>= 2.10'
   s.add_dependency 'logger', '~> 1.6'
   s.add_dependency 'parallel', '~> 1.20'
   s.add_dependency 'parser', '>= 2.6.5', '< 3.4'

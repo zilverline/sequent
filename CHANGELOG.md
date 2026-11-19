@@ -33,6 +33,7 @@
   `time_precision`, symbols as strings and attributes cast to their
   type. Event handlers can therefore receive other values than before.
   The aggregate keeps the values it applied.
+  Requires json 2.10 or later.
 
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
