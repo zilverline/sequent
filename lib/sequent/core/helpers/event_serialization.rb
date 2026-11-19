@@ -101,10 +101,8 @@ module Sequent
           nested || ["#{path}: #{value.inspect} is stored as #{stored.inspect}"]
         end
 
-        # A value object with an equality of its own, like a quantity stored in a normalized form, is the same when it
-        # says so. The equality of +EqualSupport+ calls the readers and ignores the class of a hash, so it is not used.
         def self.attributes_differences(value, stored, path)
-          return [] if value.class.instance_method(:==).owner != EqualSupport && value == stored
+          return [] if value == stored
 
           attribute_differences(value, stored, path)
         end
