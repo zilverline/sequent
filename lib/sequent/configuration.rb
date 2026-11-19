@@ -45,6 +45,8 @@ module Sequent
       fail Sequent::Core::AggregateInvariantViolationError.new(aggregate, exception, phase), cause: exception
     end
 
+    DEFAULT_EVENT_SERIALIZATION_ERROR_HANDLER = ->(error) { fail error }
+
     DEFAULT_AGGREGATE_SNAPSHOT_VERSIONS = proc do |clazz|
       Sequent::Core::AggregateRoots.snapshot_version_by_type(clazz)
     end
@@ -78,6 +80,7 @@ module Sequent
                   :event_store_schema_name,
                   :strict_check_attributes_on_apply_events,
                   :verify_event_serialization,
+                  :event_serialization_error_handler,
                   :enable_autoregistration,
                   :aggregate_snapshot_versions,
                   :aggregate_invariant_violation_handler,
@@ -136,6 +139,7 @@ module Sequent
       self.online_replay_persistor_class = DEFAULT_ONLINE_REPLAY_PERSISTOR_CLASS
       self.strict_check_attributes_on_apply_events = DEFAULT_STRICT_CHECK_ATTRIBUTES_ON_APPLY_EVENTS
       self.verify_event_serialization = false
+      self.event_serialization_error_handler = DEFAULT_EVENT_SERIALIZATION_ERROR_HANDLER
 
       self.logger = Logger.new(STDOUT).tap { |l| l.level = Logger::INFO }
       self.error_locale_resolver = DEFAULT_ERROR_LOCALE_RESOLVER

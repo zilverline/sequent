@@ -1109,6 +1109,20 @@ describe Sequent::Core::EventStore do
           }
       end
 
+      it 'passes the error to the event serialization error handler instead of failing' do
+        errors = []
+        Sequent.configuration.event_serialization_error_handler = ->(error) { errors << error }
+        applied = event(name: :symbol, count: 4, payload: {}, tags: [])
+
+        expect { commit(applied) }.not_to raise_error
+
+        expect(errors.size).to eq 1
+        expect(errors.first).to be_a(Sequent::Core::EventSerializationError)
+        expect(errors.first.event).to equal applied
+        expect(errors.first.differences).to eq ['name: :symbol is stored as "symbol"']
+        expect(published_events.sole.name).to eq 'symbol'
+      end
+
       it 'fails when a hash changes its class or a time in it becomes a string' do
         expect { commit(event(payload: {'key' => 'value'}.with_indifferent_access)) }
           .to raise_error(Sequent::Core::EventSerializationError, /payload/)

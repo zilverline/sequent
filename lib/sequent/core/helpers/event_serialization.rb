@@ -28,9 +28,10 @@ module Sequent
       # projectors and workflows see the same values when the events are stored and when they are replayed.
       #
       # The aggregate that applied an event keeps the values it applied. When
-      # +Sequent.configuration.verify_event_serialization+ is set, for instance in specs, storing an event raises an
-      # EventSerializationError when the event changes other than by truncating its times, so the domain code can be
-      # fixed to create the values it stores.
+      # +Sequent.configuration.verify_event_serialization+ is set, for instance in specs, storing an event calls
+      # +Sequent.configuration.event_serialization_error_handler+ with an EventSerializationError when the event
+      # changes other than by truncating its times, so the domain code can be fixed to create the values it stores. The
+      # default handler raises the error, which fails the command. Another handler can report it instead.
       #
       module EventSerialization
         ##
@@ -46,7 +47,7 @@ module Sequent
           stored = deserialize_event_json(event.class.name, loaded_event_json(Json.strict_load(json)))
           if Sequent.configuration.verify_event_serialization
             error = EventSerialization.serialization_error(event, stored)
-            fail error if error
+            Sequent.configuration.event_serialization_error_handler.call(error) if error
           end
           stored
         end

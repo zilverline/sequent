@@ -77,4 +77,6 @@ times truncated to the `time_precision`, symbols as strings and attributes cast 
 and Workflows therefore also get the Events as they are stored when the Events are published, while the
 AggregateRoot keeps the values it applied. Set `Sequent.configuration.verify_event_serialization` in your
 specs to fail when an Event changes when it is stored, other than by truncating its times.
+In production you can report the error without failing the command:
+`config.event_serialization_error_handler = ->(error) { ErrorReporter.report(error) }`.
 {: .notice--info}
