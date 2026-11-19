@@ -25,10 +25,22 @@ module Sequent
         ##
         # Returns +event+ as it is loaded once it is stored. +json+ is the JSON of +event+, when it is dumped already.
         def stored_event(event, json: Json.dump(event))
+          ensure_stored_types!(event)
           deserialize_event_json(event.class.name, loaded_event_json(Json.strict_load(json)))
         end
 
         private
+
+        def ensure_stored_types!(event)
+          unless event.sequence_number.is_a?(Integer) && event.sequence_number.positive?
+            fail_stored_type(event, :sequence_number, 'a positive Integer')
+          end
+          fail_stored_type(event, :created_at, 'a Time') unless event.created_at.is_a?(Time)
+        end
+
+        def fail_stored_type(event, name, expected)
+          fail ArgumentError, "#{name} of #{event.class} must be #{expected}, not #{event.public_send(name).inspect}"
+        end
 
         # The JSON of an event as it is loaded, for event stores that change it when storing it.
         def loaded_event_json(event_json) = event_json

@@ -965,22 +965,61 @@ describe Sequent::Core::EventStore do
       )
     end
 
-    it 'publishes the aggregate_id and created_at as they are loaded from their columns' do
+    it 'publishes the created_at as it is loaded from its column' do
       created_at = Time.new(2026, 1, 2, 0, 30, 0, '+01:00')
-      commit(event(aggregate_id: aggregate_id.upcase, created_at:, name: 'name'))
+      commit(event(created_at:, name: 'name'))
 
       _, loaded_events = event_store.load_events(aggregate_id)
-      expect(published_events.sole.aggregate_id).to eq aggregate_id
       expect(published_events.sole.created_at.utc_offset).to eq loaded_events.sole.created_at.utc_offset
       expect(published_events.sole.created_at.to_date).to eq loaded_events.sole.created_at.to_date
       expect(published_events).to eq loaded_events
     end
 
-    it 'publishes an event with a created_at that is only a date' do
-      commit(event(created_at: Date.new(2022, 1, 1), name: 'name'))
+    [Date.new(2022, 1, 1), '2022-01-01T00:00:00Z', DateTime.new(2022, 1, 1)].each do |created_at|
+      it "fails on a created_at that is a #{created_at.class}, and stores nothing" do
+        expect { commit(event(created_at:, name: 'name')) }
+          .to raise_error(ArgumentError, /created_at of SerializedEvent must be a Time/)
+        expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+        expect(published_events).to be_empty
+      end
+    end
 
-      _, loaded_events = event_store.load_events(aggregate_id)
-      expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
+    {
+      'in uppercase' => :upcase.to_proc,
+      'in braces' => ->(id) { "{#{id}}" },
+      'without hyphens' => ->(id) { id.delete('-') },
+      'not a UUID' => ->(_) { 'not-a-uuid' },
+    }.each do |description, spelling|
+      it "fails on an aggregate_id #{description}, and stores nothing" do
+        expect { commit(event(aggregate_id: spelling.call(aggregate_id), name: 'name')) }
+          .to raise_error(ArgumentError, /aggregate_id of SerializedEvent must be a lowercase UUID/)
+        expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+        expect(published_events).to be_empty
+      end
+    end
+
+    ['1', 1.0, 0, -1].each do |sequence_number|
+      it "fails on a sequence_number that is #{sequence_number.inspect}, and stores nothing" do
+        expect { commit(event(sequence_number:, name: 'name')) }
+          .to raise_error(ArgumentError, /sequence_number of SerializedEvent must be a positive Integer/)
+        expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+        expect(published_events).to be_empty
+      end
+    end
+
+    it 'fails on a created_at that is not a Time when storing events without publishing them' do
+      expect do
+        event_store.send(
+          :store_events,
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:),
+              [event(created_at: Date.new(2022, 1, 1), name: 'name')],
+            ],
+          ],
+        )
+      end.to raise_error(ArgumentError, /must be a Time/)
     end
 
     context 'with a time precision of Sequent that differs from the one of ActiveSupport' do

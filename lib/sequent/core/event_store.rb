@@ -378,8 +378,9 @@ module Sequent
           [
             Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(stream)),
             uncommitted_events.map do |event, event_json|
+              ensure_stored_types!(event)
               {
-                created_at: serialize_timestamp(event.created_at.to_time),
+                created_at: serialize_timestamp(event.created_at),
                 event_type: event.class.name,
                 event_json: Sequent::Core::Json::Fragment.new(event_json),
               }
@@ -402,19 +403,26 @@ module Sequent
         end
       end
 
+      LOWERCASE_UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+      private_constant :LOWERCASE_UUID
+
+      # The events table keeps the aggregate_id in a uuid column, which accepts other spellings of a UUID and loads
+      # them in this one.
+      def ensure_stored_types!(event)
+        super
+        return if event.aggregate_id.is_a?(String) && event.aggregate_id.match?(LOWERCASE_UUID)
+
+        fail_stored_type(event, :aggregate_id, 'a lowercase UUID')
+      end
+
       def serialize_timestamp(timestamp)
         convert_timestamp(timestamp).xmlschema(Sequent.configuration.time_precision)
       end
 
-      # The events table keeps the aggregate_id, sequence_number and created_at in columns, from which they are loaded:
-      # the aggregate_id as a lowercase UUID, and the created_at as written by the JSON encoder, in the time zone of
-      # the database session.
+      # The events table keeps the created_at in a column, from which it is loaded as written by the JSON encoder, in
+      # the time zone of the database session.
       def loaded_event_json(event_json)
-        created_at = Time.deserialize_from_json(event_json['created_at'])
-        event_json.merge(
-          'aggregate_id' => event_json['aggregate_id']&.downcase,
-          'created_at' => created_at && convert_timestamp(created_at).iso8601(9),
-        )
+        event_json.merge('created_at' => convert_timestamp(Time.iso8601(event_json['created_at'])).iso8601(9))
       end
 
       def convert_timestamp(timestamp)

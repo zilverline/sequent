@@ -32,7 +32,13 @@
   are stored and when they are replayed: times truncated to the
   `time_precision`, symbols as strings and attributes cast to their
   type. Event handlers can therefore receive other values than before.
-  The aggregate keeps the values it applied.
+  The aggregate keeps the values it applied. Storing an event whose
+  `created_at` is not a `Time` or `ActiveSupport::TimeWithZone`, such as
+  a `String`, `Date` or `DateTime`, or whose `sequence_number` is not a
+  positive `Integer`, fails instead of converting it. The event store also fails
+  on an `aggregate_id` that is not a lowercase UUID, such as one in
+  uppercase, which it used to store as its lowercase form. The test
+  event store still accepts any `aggregate_id`.
   Requires json 2.10 or later.
 
 - Breaking: the support for event, command and snapshot JSON in text
