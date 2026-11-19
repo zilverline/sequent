@@ -69,6 +69,32 @@ describe 'Test Helpers' do
       expect(Sequent.command_service.class).to eq(Sequent::Core::CommandService)
     end
 
+    context Sequent::Test::CommandHandlerHelpers::FakeEventStore do
+      let(:event_store) { Sequent::Test::CommandHandlerHelpers::FakeEventStore.new }
+      let(:published_events) { [] }
+      let(:event) { Sequent::Fixtures::Event4.new(aggregate_id: '1', sequence_number: 1, name: :foo) }
+
+      before do
+        events = published_events
+        Sequent.configuration.event_publisher = Class.new do
+          define_method(:publish_events) { |published| events.concat(published) }
+        end.new
+      end
+
+      def commit(event)
+        event_store.commit_events(
+          Sequent::Core::BaseCommand.new,
+          [[Sequent::Core::EventStream.new(aggregate_type: 'Aggregate', aggregate_id: '1'), [event]]],
+        )
+      end
+
+      it 'publishes the events as they are stored, like the event store' do
+        commit(event)
+
+        expect(published_events.sole.name).to eq 'foo'
+      end
+    end
+
     context 'then_events' do
       let(:actual_events) do
         [

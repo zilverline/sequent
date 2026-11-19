@@ -21,6 +21,13 @@
   replay prepared before upgrading is not checked. Requires running the
   Sequent migrations.
 
+- Breaking: the event store publishes the events as they are loaded from
+  it, so projectors and workflows see the same values when the events
+  are stored and when they are replayed: times truncated to the
+  `time_precision`, symbols as strings and attributes cast to their
+  type. Event handlers can therefore receive other values than before.
+  The aggregate keeps the values it applied.
+
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
   columns since Sequent 8. `serialize_json?` and
