@@ -16,14 +16,15 @@ module Sequent
         # Compares two values without converting either: they must be of the same class (a +Time+ and an
         # +ActiveSupport::TimeWithZone+ count as one), so 1 is not 1.0 and a +HashWithIndifferentAccess+ is not a
         # +Hash+. Times must be the same instant at full precision. Hashes and arrays are compared recursively; the
-        # order of the keys of a hash does not matter.
+        # order of the keys of a hash does not matter, but its default value and default proc do.
         def self.strictly_equal?(value, other)
           if time?(value) && time?(other)
             value.to_r == other.to_r
           elsif !value.instance_of?(other.class)
             false
           elsif value.is_a?(Hash)
-            value.size == other.size && value.all? { |key, v| other.key?(key) && strictly_equal?(v, other[key]) }
+            value.default == other.default && value.default_proc == other.default_proc &&
+              value.size == other.size && value.all? { |key, v| other.key?(key) && strictly_equal?(v, other[key]) }
           elsif value.is_a?(Array)
             value.size == other.size && value.zip(other).all? { |v, o| strictly_equal?(v, o) }
           else

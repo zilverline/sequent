@@ -86,6 +86,18 @@ describe Sequent::Core::Helpers::EqualSupport do
       expect(value(data: {a: 1, b: 2}).hash).to eq value(data: {b: 2, a: 1}).hash
     end
 
+    it 'compares the default value and the default proc' do
+      expect(value(data: Hash.new(0))).not_to eq value(data: {})
+      expect(value(data: {})).not_to eq value(data: Hash.new(0))
+      expect(value(data: Hash.new(0))).not_to eq value(data: Hash.new(1))
+      expect(value(data: Hash.new(0))).to eq value(data: Hash.new(0))
+
+      default_proc = proc { 1 }
+      expect(value(data: Hash.new(&default_proc))).to eq value(data: Hash.new(&default_proc))
+      expect(value(data: Hash.new(&default_proc))).not_to eq value(data: {})
+      expect(value(data: Hash.new(&default_proc))).not_to eq value(data: Hash.new { 1 })
+    end
+
     it 'compares the values strictly' do
       expect(value(data: {a: {b: 1}})).not_to eq value(data: {a: {b: 1.0}})
       expect(value(data: {a: 1})).not_to eq value(data: {a: 1, b: 2})
@@ -94,6 +106,10 @@ describe Sequent::Core::Helpers::EqualSupport do
   end
 
   describe 'arrays' do
+    it 'is not equal to an array of a subclass' do
+      expect(value(list: [1])).not_to eq value(list: Class.new(Array).new([1]))
+    end
+
     it 'compares the elements strictly' do
       expect(value(list: [1, [2]])).to eq value(list: [1, [2]])
       expect(value(list: [1, [2]])).not_to eq value(list: [1, [2.0]])
