@@ -27,6 +27,25 @@ describe 'Test Helpers' do
     it 'uses the FakeCommandService in specs tagged with workflows' do
       expect(Sequent.command_service.class).to eq(Sequent::Test::WorkflowHelpers::FakeCommandService)
     end
+
+    context 'when_event' do
+      class AfterCommitCommand < Sequent::Command; end
+
+      class AfterCommitWorkflow < Sequent::Workflow
+        on Sequent::Fixtures::Event1 do |event|
+          after_commit { execute_commands AfterCommitCommand.new(aggregate_id: event.aggregate_id) }
+        end
+      end
+
+      let(:workflow) { AfterCommitWorkflow.new }
+
+      it 'runs the after_commit blocks of each event once' do
+        when_event Sequent::Fixtures::Event1.new(aggregate_id: '1', sequence_number: 1)
+        when_event Sequent::Fixtures::Event1.new(aggregate_id: '2', sequence_number: 1)
+
+        expect(fake_command_service.recorded_commands.map(&:aggregate_id)).to eq %w[1 2]
+      end
+    end
   end
 
   context 'then_events', workflows: true do

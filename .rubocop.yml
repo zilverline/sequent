@@ -10,7 +10,7 @@
 # See https://github.com/rubocop-hq/rubocop/blob/master/manual/configuration.md
 
 AllCops:
-  TargetRubyVersion: 3.2
+  TargetRubyVersion: 3.4
   SuggestExtensions:
     rubocop-rake: false
     rubocop-rspec: false
