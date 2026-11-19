@@ -103,6 +103,24 @@ describe 'Test Helpers' do
         expect(event_store.position_mark).to eq 0
         expect(published_events).to be_empty
       end
+
+      it 'fails when verifying the serialization of an event that changes when it is stored' do
+        Sequent.configuration.verify_event_serialization = true
+
+        expect { commit(event) }.to raise_error(Sequent::Core::EventSerializationError, /name: :foo is stored as "foo"/)
+      end
+
+      it 'keeps its state when verifying the serialization fails' do
+        Sequent.configuration.verify_event_serialization = true
+
+        expect { commit(event) }.to raise_error(Sequent::Core::EventSerializationError)
+
+        expect(event_store.stream_exists?('1')).to be false
+        expect(event_store.position_mark).to eq 0
+        expect(published_events).to be_empty
+        commit(Sequent::Fixtures::Event4.new(aggregate_id: '1', sequence_number: 1, name: 'foo'))
+        expect(published_events.sole.name).to eq 'foo'
+      end
     end
 
     context 'then_events' do
