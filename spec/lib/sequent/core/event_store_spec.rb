@@ -1001,6 +1001,29 @@ describe Sequent::Core::EventStore do
         expect(published_events.sole.created_at.nsec).to eq 123_456_000
       end
     end
+
+    context 'with a time precision of ActiveSupport beyond microseconds' do
+      around do |example|
+        time_precision = ActiveSupport::JSON::Encoding.time_precision
+        ActiveSupport::JSON::Encoding.time_precision = 9
+        example.run
+      ensure
+        ActiveSupport::JSON::Encoding.time_precision = time_precision
+      end
+
+      it 'does not store the events' do
+        expect { commit(event(name: 'name')) }.to raise_error(ArgumentError, /microsecond/)
+        expect(published_events).to be_empty
+      end
+
+      it 'stores the events with the time precision of Sequent' do
+        Sequent.configuration.time_precision = 6
+        commit(event(name: 'name'))
+
+        _, loaded_events = event_store.load_events(aggregate_id)
+        expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
+      end
+    end
   end
 
   describe 'error handling for publishing events' do

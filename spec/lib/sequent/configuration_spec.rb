@@ -25,6 +25,13 @@ describe Sequent::Configuration do
 
       expect(instance.time_precision).to eq 0
     end
+
+    it 'does not support a time precision beyond microseconds' do
+      instance.time_precision = 6
+
+      expect { instance.time_precision = 7 }.to raise_error(ArgumentError, /microsecond/)
+      expect(instance.time_precision).to eq 6
+    end
   end
 
   context Sequent::Core::BaseCommandHandler do

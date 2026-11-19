@@ -1,5 +1,11 @@
 # Changelog 9.x
 
+- Breaking: a time precision beyond microseconds is not supported, since
+  PostgreSQL keeps times to the microsecond. Setting
+  `Sequent.configuration.time_precision` above 6 fails, and so does
+  storing events while it is above 6, also when it is taken from
+  `ActiveSupport::JSON::Encoding`.
+
 - The `ReplayOptimizedPostgresPersistor` no longer leaves lazy
   transactions disabled on its connection. The COPY that loads the
   replayed records takes the raw connection, which made ActiveRecord

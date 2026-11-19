@@ -352,6 +352,7 @@ module Sequent
       end
 
       def store_events(command, streams_with_events = [])
+        Sequent::Configuration.ensure_supported_time_precision!(Sequent.configuration.time_precision)
         command_record = {
           created_at: serialize_timestamp(command.created_at&.to_time || Time.now),
           command_type: command.class.name,

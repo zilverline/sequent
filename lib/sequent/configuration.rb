@@ -27,6 +27,8 @@ module Sequent
 
     DEFAULT_MIGRATIONS_CLASS = nil
 
+    MAX_TIME_PRECISION = 6
+
     DEFAULT_NUMBER_OF_REPLAY_PROCESSES = 4
     DEFAULT_REPLAY_GROUP_TARGET_SIZE = 250_000
 
@@ -81,8 +83,6 @@ module Sequent
                   :projectors_replayer_after_prepare_hook,
                   :projectors_replayer_after_activate_hook,
                   :projectors_replayer_total_lock_timeout
-
-    attr_writer :time_precision
 
     attr_reader :migrations_class,
                 :versions_table_name
@@ -147,6 +147,19 @@ module Sequent
 
     def time_precision
       @time_precision || ActiveSupport::JSON::Encoding.time_precision
+    end
+
+    def time_precision=(precision)
+      self.class.ensure_supported_time_precision!(precision) if precision
+      @time_precision = precision
+    end
+
+    def self.ensure_supported_time_precision!(precision)
+      return if precision <= MAX_TIME_PRECISION
+
+      fail ArgumentError,
+           "A time precision of #{precision} is not supported, since PostgreSQL keeps times to the microsecond " \
+           "(#{MAX_TIME_PRECISION})"
     end
 
     def versions_table_name=(table_name)
