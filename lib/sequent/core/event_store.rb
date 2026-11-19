@@ -2,6 +2,7 @@
 
 require 'forwardable'
 require_relative 'event_record'
+require_relative 'helpers/event_serialization'
 require_relative 'helpers/pgsql_helpers'
 require_relative 'json'
 require_relative 'snapshot_record'
@@ -32,6 +33,7 @@ module Sequent
 
     class EventStore
       include Helpers::PgsqlHelpers
+      include Helpers::EventSerialization
       include SnapshotStore
       include ActiveRecord::ConnectionAdapters::Quoting
       extend Forwardable
@@ -86,8 +88,14 @@ module Sequent
 
         Sequent.logger.debug("[EventStore] Committing events for command #{command.class}")
 
-        store_events(command, streams_with_events)
-        publish_events(streams_with_events.flat_map { |_, events| events })
+        streams_with_event_jsons = streams_with_events.map do |stream, events|
+          [stream, events.map { |event| [event, Sequent::Core::Json.dump(event)] }]
+        end
+        stored_events = streams_with_event_jsons.flat_map do |_, events_with_json|
+          events_with_json.map { |event, json| stored_event(event, json:) }
+        end
+        store_event_jsons(command, streams_with_event_jsons)
+        publish_events(stored_events)
       end
 
       ##
@@ -339,8 +347,8 @@ module Sequent
       end
 
       def deserialize_event(event_hash)
-        Class.const_get(event_hash.fetch('event_type'))
-          .deserialize_from_json(Sequent::Core::Json.strict_load(event_hash.fetch('event_json')))
+        payload = Sequent::Core::Json.strict_load(event_hash.fetch('event_json'))
+        deserialize_event_json(event_hash.fetch('event_type'), payload)
       rescue StandardError
         raise DeserializeEventError, event_hash
       end
@@ -349,21 +357,33 @@ module Sequent
         Sequent.configuration.event_publisher.publish_events(events)
       end
 
-      def store_events(command, streams_with_events = [])
+      def store_events(command, streams_with_events)
+        store_event_jsons(
+          command,
+          streams_with_events.map do |stream, events|
+            [stream, events.map { |event| [event, Sequent::Core::Json.dump(event)] }]
+          end,
+        )
+      end
+
+      def store_event_jsons(command, streams_with_event_jsons)
+        Sequent::Configuration.ensure_supported_time_precision!(Sequent.configuration.time_precision)
         command_record = {
           created_at: serialize_timestamp(command.created_at&.to_time || Time.now),
           command_type: command.class.name,
           command_json: command,
         }
 
-        events = streams_with_events.map do |stream, uncommitted_events|
+        events = streams_with_event_jsons.map do |stream, uncommitted_events|
           [
             Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(stream)),
-            uncommitted_events.map do |event|
+            uncommitted_events.map do |event, event_json|
+              ensure_stored_types!(event)
+              Helpers::EventSerialization.ensure_stream_aggregate_id!(stream, event)
               {
-                created_at: serialize_timestamp(event.created_at.to_time),
+                created_at: serialize_timestamp(event.created_at),
                 event_type: event.class.name,
-                event_json: event,
+                event_json: Sequent::Core::Json::Fragment.new(event_json),
               }
             end,
           ]
@@ -384,8 +404,26 @@ module Sequent
         end
       end
 
+      LOWERCASE_UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+      private_constant :LOWERCASE_UUID
+
+      # The events table keeps the aggregate_id in a uuid column, which accepts other spellings of a UUID and loads
+      # them in this one.
+      def ensure_stored_types!(event)
+        super
+        return if event.aggregate_id.is_a?(String) && event.aggregate_id.match?(LOWERCASE_UUID)
+
+        fail_stored_type(event, :aggregate_id, 'a lowercase UUID')
+      end
+
       def serialize_timestamp(timestamp)
         convert_timestamp(timestamp).xmlschema(Sequent.configuration.time_precision)
+      end
+
+      # The events table keeps the created_at in a column, from which it is loaded as written by the JSON encoder, in
+      # the time zone of the database session.
+      def loaded_event_json(event_json)
+        event_json.merge('created_at' => convert_timestamp(Time.iso8601(event_json['created_at'])).iso8601(9))
       end
 
       def convert_timestamp(timestamp)

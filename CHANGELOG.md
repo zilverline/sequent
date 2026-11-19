@@ -1,5 +1,19 @@
 # Changelog 9.x
 
+- A `CHECK` constraint on the `events` table refuses a
+  `sequence_number` below 1. The migration adds it `NOT VALID`, so it
+  does not check the events already stored and takes its lock only
+  briefly. Validate it when convenient with
+  `ALTER TABLE sequent_schema.events VALIDATE CONSTRAINT
+  events_sequence_number_check`, which reads every event. Requires
+  running the Sequent migrations.
+
+- Breaking: a time precision beyond microseconds is not supported, since
+  PostgreSQL keeps times to the microsecond. Setting
+  `Sequent.configuration.time_precision` above 6 fails, and so does
+  storing events while it is above 6, also when it is taken from
+  `ActiveSupport::JSON::Encoding`.
+
 - The `ReplayOptimizedPostgresPersistor` no longer leaves lazy
   transactions disabled on its connection. The COPY that loads the
   replayed records takes the raw connection, which made ActiveRecord
@@ -20,6 +34,22 @@
   again instead. Changes to the replay schema tables are allowed. A
   replay prepared before upgrading is not checked. Requires running the
   Sequent migrations.
+
+- Breaking: the event store publishes the events as they are loaded from
+  it, so projectors and workflows see the same values when the events
+  are stored and when they are replayed: times truncated to the
+  `time_precision`, symbols as strings and attributes cast to their
+  type. Event handlers can therefore receive other values than before.
+  The aggregate keeps the values it applied. Storing an event whose
+  `created_at` is not a `Time` or `ActiveSupport::TimeWithZone`, such as
+  a `String`, `Date` or `DateTime`, or whose `sequence_number` is not a
+  positive `Integer`, fails instead of converting it. The event store also fails
+  on an `aggregate_id` that is not a lowercase UUID, such as one in
+  uppercase, which it used to store as its lowercase form. The test
+  event store still accepts any `aggregate_id`. An event whose
+  `aggregate_id` differs from that of its stream is refused, by the test
+  event store and the dry run as well.
+  Requires json 2.10 or later.
 
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb

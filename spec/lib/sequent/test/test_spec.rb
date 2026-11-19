@@ -69,6 +69,42 @@ describe 'Test Helpers' do
       expect(Sequent.command_service.class).to eq(Sequent::Core::CommandService)
     end
 
+    context Sequent::Test::CommandHandlerHelpers::FakeEventStore do
+      let(:event_store) { Sequent::Test::CommandHandlerHelpers::FakeEventStore.new }
+      let(:published_events) { [] }
+      let(:event) { Sequent::Fixtures::Event4.new(aggregate_id: '1', sequence_number: 1, name: :foo) }
+
+      before do
+        events = published_events
+        Sequent.configuration.event_publisher = Class.new do
+          define_method(:publish_events) { |published| events.concat(published) }
+        end.new
+      end
+
+      def commit(event)
+        event_store.commit_events(
+          Sequent::Core::BaseCommand.new,
+          [[Sequent::Core::EventStream.new(aggregate_type: 'Aggregate', aggregate_id: '1'), [event]]],
+        )
+      end
+
+      it 'publishes the events as they are stored, like the event store' do
+        commit(event)
+
+        expect(published_events.sole.name).to eq 'foo'
+      end
+
+      it 'fails on an event with another aggregate_id than its stream, and stores nothing' do
+        stream = Sequent::Core::EventStream.new(aggregate_type: 'Aggregate', aggregate_id: '2')
+
+        expect { event_store.commit_events(Sequent::Core::BaseCommand.new, [[stream, [event]]]) }
+          .to raise_error(ArgumentError, /aggregate_id of Sequent::Fixtures::Event4 is "1", not "2" of its stream/)
+        expect(event_store.stream_exists?('2')).to be false
+        expect(event_store.position_mark).to eq 0
+        expect(published_events).to be_empty
+      end
+    end
+
     context 'then_events' do
       let(:actual_events) do
         [

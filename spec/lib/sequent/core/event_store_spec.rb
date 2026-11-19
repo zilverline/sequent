@@ -435,6 +435,7 @@ describe Sequent::Core::EventStore do
     end
 
     it 'fails if the first event does not have sequence number 1' do
+      new_id = Sequent.new_uuid
       expect do
         event_store.commit_events(
           Sequent::Core::Command.new(aggregate_id:),
@@ -442,11 +443,11 @@ describe Sequent::Core::EventStore do
             [
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
-                aggregate_id: Sequent.new_uuid,
+                aggregate_id: new_id,
               ),
               [
                 MyEvent.new(
-                  aggregate_id:,
+                  aggregate_id: new_id,
                   sequence_number: 2,
                   created_at: Time.parse('2024-02-29T02:10:12Z'),
                   data: "another event\n",
@@ -459,12 +460,13 @@ describe Sequent::Core::EventStore do
     end
 
     it 'fails if the next event has a sequence number gap with the last event' do
+      new_id = Sequent.new_uuid
       stream = Sequent::Core::EventStream.new(
         aggregate_type: 'MyAggregate',
-        aggregate_id: Sequent.new_uuid,
+        aggregate_id: new_id,
       )
       event = MyEvent.new(
-        aggregate_id:,
+        aggregate_id: new_id,
         sequence_number: 1,
         created_at: Time.parse('2024-02-29T02:10:12Z'),
         data: "another event\n",
@@ -488,11 +490,12 @@ describe Sequent::Core::EventStore do
     end
 
     it 'https://github.com/zilverline/sequent/issues/514 is fixed' do
+      new_id = Sequent.new_uuid
       stream = Sequent::Core::EventStream.new(
         aggregate_type: 'MyAggregate',
-        aggregate_id: Sequent.new_uuid,
+        aggregate_id: new_id,
       )
-      events = (1..8).map { |i| MyEvent.new(aggregate_id:, sequence_number: i) }
+      events = (1..8).map { |i| MyEvent.new(aggregate_id: new_id, sequence_number: i) }
 
       event_store.commit_events(
         Sequent::Core::Command.new(aggregate_id:),
@@ -508,8 +511,8 @@ describe Sequent::Core::EventStore do
             [
               stream,
               [
-                MyEvent.new(aggregate_id:, sequence_number: 9),
-                MyEvent.new(aggregate_id:, sequence_number: 10),
+                MyEvent.new(aggregate_id: new_id, sequence_number: 9),
+                MyEvent.new(aggregate_id: new_id, sequence_number: 10),
               ],
             ],
           ],
@@ -925,6 +928,172 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe 'publishing the stored events' do
+    class SerializedEvent < Sequent::Core::Event
+      attrs name: String, count: Integer, at: Time, payload: Hash, tags: array(String)
+    end
+
+    let(:published_events) { [] }
+    let(:time) { Time.utc(2026, 1, 2, 3, 4, 5, 123_456.789r) }
+
+    before do
+      events = published_events
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |published| events.concat(published) }
+      end.new
+    end
+
+    def commit(event)
+      event_store.commit_events(
+        Sequent::Core::Command.new(aggregate_id:),
+        [[Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:), [event]]],
+      )
+    end
+
+    def event(**attributes)
+      SerializedEvent.new({aggregate_id:, sequence_number: 1, created_at: time}.merge(attributes))
+    end
+
+    it 'publishes the events with the values that are loaded from the event store, like a replay' do
+      commit(event(name: :symbol, count: '4', at: time, payload: {key: :value}))
+
+      _, loaded_events = event_store.load_events(aggregate_id)
+      expect(published_events).to eq loaded_events
+      expect(published_events.sole).to have_attributes(
+        name: 'symbol',
+        count: 4,
+        at: Time.utc(2026, 1, 2, 3, 4, 5, 123_000),
+        created_at: Time.utc(2026, 1, 2, 3, 4, 5, 123_000),
+        payload: {'key' => 'value'},
+      )
+    end
+
+    it 'publishes the created_at as it is loaded from its column' do
+      created_at = Time.new(2026, 1, 2, 0, 30, 0, '+01:00')
+      commit(event(created_at:, name: 'name'))
+
+      _, loaded_events = event_store.load_events(aggregate_id)
+      expect(published_events.sole.created_at.utc_offset).to eq loaded_events.sole.created_at.utc_offset
+      expect(published_events.sole.created_at.to_date).to eq loaded_events.sole.created_at.to_date
+      expect(published_events).to eq loaded_events
+    end
+
+    [Date.new(2022, 1, 1), '2022-01-01T00:00:00Z', DateTime.new(2022, 1, 1)].each do |created_at|
+      it "fails on a created_at that is a #{created_at.class}, and stores nothing" do
+        expect { commit(event(created_at:, name: 'name')) }
+          .to raise_error(ArgumentError, /created_at of SerializedEvent must be a Time/)
+        expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+        expect(published_events).to be_empty
+      end
+    end
+
+    {
+      'in uppercase' => :upcase.to_proc,
+      'in braces' => ->(id) { "{#{id}}" },
+      'without hyphens' => ->(id) { id.delete('-') },
+      'not a UUID' => ->(_) { 'not-a-uuid' },
+    }.each do |description, spelling|
+      it "fails on an aggregate_id #{description}, and stores nothing" do
+        expect { commit(event(aggregate_id: spelling.call(aggregate_id), name: 'name')) }
+          .to raise_error(ArgumentError, /aggregate_id of SerializedEvent must be a lowercase UUID/)
+        expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+        expect(published_events).to be_empty
+      end
+    end
+
+    ['1', 1.0, 0, -1].each do |sequence_number|
+      it "fails on a sequence_number that is #{sequence_number.inspect}, and stores nothing" do
+        expect { commit(event(sequence_number:, name: 'name')) }
+          .to raise_error(ArgumentError, /sequence_number of SerializedEvent must be a positive Integer/)
+        expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+        expect(published_events).to be_empty
+      end
+    end
+
+    it 'fails on an event with another aggregate_id than its stream, and stores nothing' do
+      other_id = Sequent.new_uuid
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: other_id)
+
+      expect do
+        event_store.commit_events(Sequent::Core::Command.new(aggregate_id:), [[stream, [event(name: 'name')]]])
+      end.to raise_error(ArgumentError, /aggregate_id of SerializedEvent is "#{aggregate_id}", not "#{other_id}"/)
+      expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+      expect(event_store.stream_exists?(other_id)).to be_falsey
+      expect(published_events).to be_empty
+    end
+
+    it 'fails on an event with another aggregate_id than its stream when storing events without publishing them' do
+      other_id = Sequent.new_uuid
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: other_id)
+
+      expect do
+        event_store.send(
+          :store_events,
+          Sequent::Core::Command.new(aggregate_id:),
+          [[stream, [event(name: 'name')]]],
+        )
+      end.to raise_error(ArgumentError, /not "#{other_id}" of its stream/)
+      expect(event_store.stream_exists?(other_id)).to be_falsey
+    end
+
+    it 'fails on a created_at that is not a Time when storing events without publishing them' do
+      expect do
+        event_store.send(
+          :store_events,
+          Sequent::Core::Command.new(aggregate_id:),
+          [
+            [
+              Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:),
+              [event(created_at: Date.new(2022, 1, 1), name: 'name')],
+            ],
+          ],
+        )
+      end.to raise_error(ArgumentError, /must be a Time/)
+    end
+
+    context 'with a time precision of Sequent that differs from the one of ActiveSupport' do
+      around do |example|
+        time_precision = ActiveSupport::JSON::Encoding.time_precision
+        ActiveSupport::JSON::Encoding.time_precision = 3
+        example.run
+      ensure
+        ActiveSupport::JSON::Encoding.time_precision = time_precision
+      end
+
+      it 'publishes the created_at with the time precision of Sequent' do
+        Sequent.configuration.time_precision = 6
+        commit(event(created_at: Time.utc(2026, 1, 2, 3, 4, 5.123456r), name: 'name'))
+
+        _, loaded_events = event_store.load_events(aggregate_id)
+        expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
+        expect(published_events.sole.created_at.nsec).to eq 123_456_000
+      end
+    end
+
+    context 'with a time precision of ActiveSupport beyond microseconds' do
+      around do |example|
+        time_precision = ActiveSupport::JSON::Encoding.time_precision
+        ActiveSupport::JSON::Encoding.time_precision = 9
+        example.run
+      ensure
+        ActiveSupport::JSON::Encoding.time_precision = time_precision
+      end
+
+      it 'does not store the events' do
+        expect { commit(event(name: 'name')) }.to raise_error(ArgumentError, /microsecond/)
+        expect(published_events).to be_empty
+      end
+
+      it 'stores the events with the time precision of Sequent' do
+        Sequent.configuration.time_precision = 6
+        commit(event(name: 'name'))
+
+        _, loaded_events = event_store.load_events(aggregate_id)
+        expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
+      end
+    end
+  end
+
   describe 'error handling for publishing events' do
     class TestRecord; end
     class RecordingHandler < Sequent::Core::Projector
@@ -975,7 +1144,7 @@ describe Sequent::Core::EventStore do
             ],
           ],
         )
-        expect(handler.recorded_events).to eq([my_event])
+        expect(handler.recorded_events).to eq([event_store.load_event(aggregate_id, 1)])
       end
 
       context 'Sequent.configuration.disable_event_handlers = true' do
@@ -1031,8 +1200,65 @@ describe Sequent::Core::EventStore do
       end
 
       it 'specifies the event that failed' do
-        expect(publish_error.event).to eq(my_event)
+        expect(publish_error.event).to eq(event_store.stored_event(my_event))
       end
+    end
+  end
+
+  describe '#commit_events serialization' do
+    it 'dumps each event once to store and publish it' do
+      event = MyEvent.new(aggregate_id:, sequence_number: 1, data: 'data')
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:)
+
+      expect(Sequent::Core::Json).to receive(:dump).with(event).once.and_call_original
+      allow(Sequent::Core::Json).to receive(:dump).with(satisfy { |obj| !obj.equal?(event) }).and_call_original
+
+      event_store.commit_events(Sequent::Core::Command.new(aggregate_id:), [[stream, [event]]])
+
+      _, events = event_store.load_events(aggregate_id)
+      expect(events.map(&:data)).to eq(['data'])
+    end
+  end
+
+  describe '#commit_events when an event cannot be built from its JSON' do
+    class UnloadableEvent < Sequent::Core::Event
+      def self.deserialize_from_json(_) = fail('cannot load')
+    end
+
+    it 'stores nothing and publishes nothing' do
+      published = []
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |events| published.concat(events) }
+      end.new
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:)
+      events = [
+        MyEvent.new(aggregate_id:, sequence_number: 1, data: 'data'),
+        UnloadableEvent.new(aggregate_id:, sequence_number: 2),
+      ]
+
+      expect do
+        event_store.commit_events(Sequent::Core::Command.new(aggregate_id:), [[stream, events]])
+      end.to raise_error('cannot load')
+
+      expect(event_store.stream_exists?(aggregate_id)).to be false
+      expect(published).to be_empty
+    end
+  end
+
+  describe '#store_events' do
+    it 'stores the given events without publishing them' do
+      published = []
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |events| published.concat(events) }
+      end.new
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:)
+      event = MyEvent.new(aggregate_id:, sequence_number: 1, data: 'data')
+
+      event_store.send(:store_events, Sequent::Core::Command.new(aggregate_id:), [[stream, [event]]])
+
+      _, loaded = event_store.load_events(aggregate_id)
+      expect(loaded.map(&:data)).to eq ['data']
+      expect(published).to be_empty
     end
   end
 

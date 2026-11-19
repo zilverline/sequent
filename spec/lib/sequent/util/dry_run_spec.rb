@@ -86,6 +86,8 @@ describe 'dry run' do
       expect(result.tree.keys).to eq [create_test_aggregate]
       expect(result.tree[create_test_aggregate]).to have(2).items
       expect(result.tree[create_test_aggregate][0].event).to be_a(Sequent::Fixtures::TestAggregateCreated)
+      # The events are recorded as they are stored, with times truncated to the time precision.
+      expect(result.tree[create_test_aggregate][0].event.created_at.usec % 1000).to eq 0
       expect(result.tree[create_test_aggregate][0].projectors).to eq([projector, projector_2])
       expect(result.tree[create_test_aggregate][0].workflows).to eq([workflow])
 
@@ -112,6 +114,19 @@ describe 'dry run' do
         expect(result.tree[ping_command][0].projectors).to eq([projector])
         expect(result.tree[ping_command][0].workflows).to be_empty
       end
+    end
+  end
+
+  describe Sequent::Util::DryRun::EventStoreProxy do
+    it 'fails on an event with another aggregate_id than its stream, and records nothing' do
+      result = Sequent::Util::DryRun::Result.new
+      proxy = described_class.new(result, Sequent.configuration.event_store)
+      event = Sequent::Fixtures::TestAggregatePinged.new(aggregate_id: Sequent.new_uuid, sequence_number: 1)
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'TestAggregateRoot', aggregate_id: Sequent.new_uuid)
+
+      expect { proxy.commit_events(Sequent::Core::BaseCommand.new, [[stream, [event]]]) }
+        .to raise_error(ArgumentError, /not "#{stream.aggregate_id}" of its stream/)
+      expect(result.tree).to be_empty
     end
   end
 end

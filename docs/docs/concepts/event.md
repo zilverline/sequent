@@ -71,3 +71,9 @@ update all [EventRecords](event_store.html#event_records) for this Event's type.
 attributes in Events will break deserializing. If you want to change an attribute's name
 anyway, you **must** also update all Events in your EventStore.
 {: .notice--warning}
+
+**Storing Events**: Events are stored as JSON, so a replay sees the values as they are deserialized:
+times truncated to the `time_precision`, symbols as strings and attributes cast to their type. Projectors
+and Workflows therefore also get the Events as they are stored when the Events are published, while the
+AggregateRoot keeps the values it applied.
+{: .notice--info}

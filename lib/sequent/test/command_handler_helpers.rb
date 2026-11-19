@@ -55,6 +55,8 @@ module Sequent
     # end
     module CommandHandlerHelpers
       class FakeEventStore
+        include Sequent::Core::Helpers::EventSerialization
+
         def initialize
           @event_streams = {}
           @all_events = {}
@@ -95,6 +97,14 @@ module Sequent
         end
 
         def commit_events(_, streams_with_events)
+          streams_with_events.each do |stream, events|
+            events.each { |event| Sequent::Core::Helpers::EventSerialization.ensure_stream_aggregate_id!(stream, event) }
+          end
+          serialized_streams = streams_with_events.map { |_, events| serialize_events(events) }
+          stored = streams_with_events.zip(serialized_streams).flat_map do |(_, events), serialized|
+            events.zip(serialized).map { |event, (_, json)| stored_event(event, json:) }
+          end
+
           keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
             streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
           end
@@ -110,14 +120,13 @@ module Sequent
             end
           end
 
-          streams_with_events.each do |event_stream, events|
-            serialized = serialize_events(events)
+          streams_with_events.zip(serialized_streams).each do |(event_stream, _), serialized|
             @event_streams[event_stream.aggregate_id] = event_stream
             @all_events[event_stream.aggregate_id] ||= []
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
           end
-          publish_events(streams_with_events.flat_map { |_, events| events })
+          publish_events(stored)
         end
 
         def publish_events(events)
@@ -158,9 +167,7 @@ module Sequent
         end
 
         def deserialize_events(events)
-          events.map do |type, json|
-            Class.const_get(type).deserialize_from_json(Sequent::Core::Json.strict_load(json))
-          end
+          events.map { |type, json| deserialize_event_json(type, Sequent::Core::Json.strict_load(json)) }
         end
       end
 
