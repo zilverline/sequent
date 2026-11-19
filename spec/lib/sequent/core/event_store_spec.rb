@@ -1135,6 +1135,22 @@ describe Sequent::Core::EventStore do
           .to raise_error(Sequent::Core::EventSerializationError, /lines\[0\]\.amount: "4" is stored as 4/)
       end
 
+      it 'accepts a value object that is stored in another form when its own equality says it is the same' do
+        amount_class = Class.new(Sequent::Core::ValueObject) do
+          attrs amount: String
+
+          def as_json(*) = {'amount' => BigDecimal(amount).to_s}
+
+          def ==(other) = other.instance_of?(self.class) && BigDecimal(amount) == BigDecimal(other.amount)
+        end
+        stub_const('SerializedAmount', amount_class)
+        stub_const('EventWithAmount', Class.new(Sequent::Core::Event) { attrs amount: SerializedAmount })
+
+        amount = amount_class.new(amount: '1.50')
+
+        expect { commit(EventWithAmount.new(aggregate_id:, sequence_number: 1, amount:)) }.not_to raise_error
+      end
+
       it 'compares the values the event keeps, not the values its readers return' do
         event_class = Class.new(Sequent::Core::Event) do
           attrs ids: array(String)

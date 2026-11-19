@@ -92,12 +92,20 @@ module Sequent
             when Hash then hash_differences(value, stored, path)
             else
               if value.class.respond_to?(:types)
-                attribute_differences(value, stored, path) if stored.instance_of?(value.class)
+                attributes_differences(value, stored, path) if stored.instance_of?(value.class)
               elsif value.instance_of?(stored.class) && value == stored
                 []
               end
             end
           nested || ["#{path}: #{value.inspect} is stored as #{stored.inspect}"]
+        end
+
+        # A value object with an equality of its own, like a quantity stored in a normalized form, is the same when it
+        # says so. The equality of +EqualSupport+ calls the readers and ignores the class of a hash, so it is not used.
+        def self.attributes_differences(value, stored, path)
+          return [] if value.class.instance_method(:==).owner != EqualSupport && value == stored
+
+          attribute_differences(value, stored, path)
         end
 
         def self.same_time?(value, stored)
@@ -119,7 +127,7 @@ module Sequent
           value.flat_map { |key, v| differences(v, stored[key], "#{path}[#{key.inspect}]") }
         end
 
-        private_class_method :attribute_differences, :differences
+        private_class_method :attribute_differences, :attributes_differences, :differences
         private_class_method :same_time?, :array_differences, :hash_differences
 
         private
