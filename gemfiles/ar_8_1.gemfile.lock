@@ -22,13 +22,13 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (8.1.2)
-      activesupport (= 8.1.2)
-    activerecord (8.1.2)
-      activemodel (= 8.1.2)
-      activesupport (= 8.1.2)
+    activemodel (8.1.3)
+      activesupport (= 8.1.3)
+    activerecord (8.1.3)
+      activemodel (= 8.1.3)
+      activesupport (= 8.1.3)
       timeout (>= 0.4.0)
-    activesupport (8.1.2)
+    activesupport (8.1.3)
       base64
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.3.1)
@@ -150,8 +150,8 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  activemodel (= 8.1.2)
-  activerecord (= 8.1.2)
+  activemodel (= 8.1.3)
+  activerecord (= 8.1.3)
   prop_check (~> 1.0)
   pry (~> 0.13)
   rake (~> 13)
