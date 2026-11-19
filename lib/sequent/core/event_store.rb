@@ -391,12 +391,13 @@ module Sequent
       end
 
       # The events table keeps the aggregate_id, sequence_number and created_at in columns, from which they are loaded:
-      # the aggregate_id as a lowercase UUID, and the created_at in the time zone of the database session.
+      # the aggregate_id as a lowercase UUID, and the created_at as written by the JSON encoder, in the time zone of
+      # the database session.
       def loaded_event_json(event_json)
-        created_at = event_json['created_at'] && Time.iso8601(event_json['created_at'])
+        created_at = Time.deserialize_from_json(event_json['created_at'])
         event_json.merge(
           'aggregate_id' => event_json['aggregate_id']&.downcase,
-          'created_at' => created_at && convert_timestamp(created_at).iso8601(Sequent.configuration.time_precision),
+          'created_at' => created_at && convert_timestamp(created_at).iso8601(9),
         )
       end
 

@@ -975,6 +975,32 @@ describe Sequent::Core::EventStore do
       expect(published_events.sole.created_at.to_date).to eq loaded_events.sole.created_at.to_date
       expect(published_events).to eq loaded_events
     end
+
+    it 'publishes an event with a created_at that is only a date' do
+      commit(event(created_at: Date.new(2022, 1, 1), name: 'name'))
+
+      _, loaded_events = event_store.load_events(aggregate_id)
+      expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
+    end
+
+    context 'with a time precision of Sequent that differs from the one of ActiveSupport' do
+      around do |example|
+        time_precision = ActiveSupport::JSON::Encoding.time_precision
+        ActiveSupport::JSON::Encoding.time_precision = 3
+        example.run
+      ensure
+        ActiveSupport::JSON::Encoding.time_precision = time_precision
+      end
+
+      it 'publishes the created_at with the time precision of Sequent' do
+        Sequent.configuration.time_precision = 6
+        commit(event(created_at: Time.utc(2026, 1, 2, 3, 4, 5.123456r), name: 'name'))
+
+        _, loaded_events = event_store.load_events(aggregate_id)
+        expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
+        expect(published_events.sole.created_at.nsec).to eq 123_456_000
+      end
+    end
   end
 
   describe 'error handling for publishing events' do
