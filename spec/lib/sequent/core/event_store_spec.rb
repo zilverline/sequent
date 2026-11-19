@@ -1152,6 +1152,48 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  describe '#commit_events when an event cannot be built from its JSON' do
+    class UnloadableEvent < Sequent::Core::Event
+      def self.deserialize_from_json(_) = fail('cannot load')
+    end
+
+    it 'stores nothing and publishes nothing' do
+      published = []
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |events| published.concat(events) }
+      end.new
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:)
+      events = [
+        MyEvent.new(aggregate_id:, sequence_number: 1, data: 'data'),
+        UnloadableEvent.new(aggregate_id:, sequence_number: 2),
+      ]
+
+      expect do
+        event_store.commit_events(Sequent::Core::Command.new(aggregate_id:), [[stream, events]])
+      end.to raise_error('cannot load')
+
+      expect(event_store.stream_exists?(aggregate_id)).to be false
+      expect(published).to be_empty
+    end
+  end
+
+  describe '#store_events' do
+    it 'stores the given events without publishing them' do
+      published = []
+      Sequent.configuration.event_publisher = Class.new do
+        define_method(:publish_events) { |events| published.concat(events) }
+      end.new
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id:)
+      event = MyEvent.new(aggregate_id:, sequence_number: 1, data: 'data')
+
+      event_store.send(:store_events, Sequent::Core::Command.new(aggregate_id:), [[stream, [event]]])
+
+      _, loaded = event_store.load_events(aggregate_id)
+      expect(loaded.map(&:data)).to eq ['data']
+      expect(published).to be_empty
+    end
+  end
+
   describe '#replay_events_from_cursor' do
     let(:events) do
       5.times.map { |n| Sequent::Core::Event.new(aggregate_id:, sequence_number: n + 1) }

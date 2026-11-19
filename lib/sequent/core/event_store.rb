@@ -91,12 +91,11 @@ module Sequent
         streams_with_event_jsons = streams_with_events.map do |stream, events|
           [stream, events.map { |event| [event, Sequent::Core::Json.dump(event)] }]
         end
-        store_events(command, streams_with_event_jsons)
-        publish_events(
-          streams_with_event_jsons.flat_map do |_, events_with_json|
-            events_with_json.map { |event, json| stored_event(event, json:) }
-          end,
-        )
+        stored_events = streams_with_event_jsons.flat_map do |_, events_with_json|
+          events_with_json.map { |event, json| stored_event(event, json:) }
+        end
+        store_event_jsons(command, streams_with_event_jsons)
+        publish_events(stored_events)
       end
 
       ##
@@ -358,7 +357,16 @@ module Sequent
         Sequent.configuration.event_publisher.publish_events(events)
       end
 
-      def store_events(command, streams_with_event_jsons)
+      def store_events(command, streams_with_events)
+        store_event_jsons(
+          command,
+          streams_with_events.map do |stream, events|
+            [stream, events.map { |event| [event, Sequent::Core::Json.dump(event)] }]
+          end,
+        )
+      end
+
+      def store_event_jsons(command, streams_with_event_jsons)
         Sequent::Configuration.ensure_supported_time_precision!(Sequent.configuration.time_precision)
         command_record = {
           created_at: serialize_timestamp(command.created_at&.to_time || Time.now),

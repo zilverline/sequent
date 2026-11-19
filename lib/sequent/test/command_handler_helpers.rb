@@ -97,6 +97,11 @@ module Sequent
         end
 
         def commit_events(_, streams_with_events)
+          serialized_streams = streams_with_events.map { |_, events| serialize_events(events) }
+          stored = streams_with_events.zip(serialized_streams).flat_map do |(_, events), serialized|
+            events.zip(serialized).map { |event, (_, json)| stored_event(event, json:) }
+          end
+
           keys = @unique_keys.dup.delete_if do |_key, aggregate_id|
             streams_with_events.any? { |stream, _| aggregate_id == stream.aggregate_id }
           end
@@ -112,13 +117,11 @@ module Sequent
             end
           end
 
-          stored = streams_with_events.flat_map do |event_stream, events|
-            serialized = serialize_events(events)
+          streams_with_events.zip(serialized_streams).each do |(event_stream, _), serialized|
             @event_streams[event_stream.aggregate_id] = event_stream
             @all_events[event_stream.aggregate_id] ||= []
             @all_events[event_stream.aggregate_id] += serialized
             @stored_events += serialized
-            events.zip(serialized).map { |event, (_, json)| stored_event(event, json:) }
           end
           publish_events(stored)
         end
