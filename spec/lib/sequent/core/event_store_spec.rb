@@ -1092,6 +1092,65 @@ describe Sequent::Core::EventStore do
         expect(published_events.sole.created_at).to eq loaded_events.sole.created_at
       end
     end
+
+    context 'when verifying the serialization of events' do
+      before { Sequent.configuration.verify_event_serialization = true }
+
+      it 'fails when an event changes when it is stored' do
+        expect { commit(event(name: :symbol, count: '4', payload: {key: 'value'}, tags: [:tag])) }
+          .to raise_error(Sequent::Core::EventSerializationError) { |error|
+            expect(error.message).to include(
+              'name: :symbol is stored as "symbol"',
+              'count: "4" is stored as 4',
+              "payload: #{{key: 'value'}.inspect} is stored as #{{'key' => 'value'}.inspect}",
+              'tags[0]: :tag is stored as "tag"',
+            )
+            expect(error.message).not_to include('created_at')
+          }
+      end
+
+      it 'fails when a hash changes its class or a time in it becomes a string' do
+        expect { commit(event(payload: {'key' => 'value'}.with_indifferent_access)) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload/)
+        expect { commit(event(sequence_number: 2, payload: {'at' => time})) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload/)
+      end
+
+      it 'does not change the times of the event' do
+        at = Time.new(2026, 1, 2, 3, 4, 5, '+01:00').freeze
+        stored = event(name: 'name', count: 4, at:, payload: {}, tags: [])
+
+        commit(stored)
+
+        expect(stored.at).to be_frozen
+        expect(stored.at.utc_offset).to eq 3600
+      end
+
+      it 'reports the path to a difference in a nested value' do
+        line_class = Class.new(Sequent::Core::ValueObject) { attrs amount: Integer }
+        stub_const('SerializedLine', line_class)
+        stub_const('EventWithLines', Class.new(Sequent::Core::Event) { attrs lines: array(SerializedLine) })
+
+        expect { commit(EventWithLines.new(aggregate_id:, sequence_number: 1, lines: [line_class.new(amount: '4')])) }
+          .to raise_error(Sequent::Core::EventSerializationError, /lines\[0\]\.amount: "4" is stored as 4/)
+      end
+
+      it 'compares the values the event keeps, not the values its readers return' do
+        event_class = Class.new(Sequent::Core::Event) do
+          attrs ids: array(String)
+
+          def ids = @ids.map(&:upcase)
+        end
+        stub_const('EventWithReader', event_class)
+
+        expect { commit(EventWithReader.new(aggregate_id:, sequence_number: 1)) }.not_to raise_error
+      end
+
+      it 'accepts times that are only truncated to the time precision' do
+        expect { commit(event(name: 'name', count: 4, at: time, payload: {'key' => 'value'}, tags: ['tag'])) }
+          .not_to raise_error
+      end
+    end
   end
 
   describe 'error handling for publishing events' do

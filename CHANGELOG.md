@@ -51,6 +51,10 @@
   event store and the dry run as well.
   Requires json 2.10 or later.
 
+- Set `Sequent.configuration.verify_event_serialization`, for instance in
+  specs, to fail when an event changes when it is stored, other than by
+  truncating its times, so the domain code can be fixed.
+
 - Breaking: the support for event, command and snapshot JSON in text
   columns is removed, since the event store keeps these in jsonb
   columns since Sequent 8. `serialize_json?` and

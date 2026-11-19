@@ -75,5 +75,6 @@ anyway, you **must** also update all Events in your EventStore.
 **Storing Events**: Events are stored as JSON, so a replay sees the values as they are deserialized:
 times truncated to the `time_precision`, symbols as strings and attributes cast to their type. Projectors
 and Workflows therefore also get the Events as they are stored when the Events are published, while the
-AggregateRoot keeps the values it applied.
+AggregateRoot keeps the values it applied. Set `Sequent.configuration.verify_event_serialization` in your
+specs to fail when an Event changes when it is stored, other than by truncating its times.
 {: .notice--info}
