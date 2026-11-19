@@ -111,6 +111,7 @@ module Sequent
 
         def self.same_time?(value, stored)
           return false unless TIME_CLASSES.any? { |time_class| stored.is_a?(time_class) }
+          return false unless value.is_a?(DateTime) == stored.is_a?(DateTime)
 
           precision = Sequent.configuration.time_precision
           value.to_time.getutc.iso8601(precision) == stored.to_time.getutc.iso8601(precision)

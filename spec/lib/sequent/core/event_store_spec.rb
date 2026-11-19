@@ -1176,6 +1176,17 @@ describe Sequent::Core::EventStore do
         expect { commit(EventWithReader.new(aggregate_id:, sequence_number: 1)) }.not_to raise_error
       end
 
+      it 'fails when a DateTime is stored as a Time, since they behave differently' do
+        expect { commit(event(name: 'name', count: 4, at: time.to_datetime, payload: {}, tags: [])) }
+          .to raise_error(Sequent::Core::EventSerializationError, /at: .* is stored as /)
+      end
+
+      it 'accepts an ActiveSupport::TimeWithZone for a Time, since a Time is stored as one' do
+        at = time.in_time_zone('Amsterdam')
+
+        expect { commit(event(name: 'name', count: 4, at:, payload: {}, tags: [])) }.not_to raise_error
+      end
+
       it 'accepts times that are only truncated to the time precision' do
         expect { commit(event(name: 'name', count: 4, at: time, payload: {'key' => 'value'}, tags: ['tag'])) }
           .not_to raise_error
