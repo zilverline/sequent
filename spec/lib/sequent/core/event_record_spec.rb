@@ -21,7 +21,7 @@ describe Sequent::Core::EventRecord do
     context 'event=' do
       it 'assigns attributes from an event' do
         sequence_number = 1
-        created_at = DateTime.new(2019, 1, 1)
+        created_at = Time.utc(2019, 1, 1)
 
         event = ExampleEvent.new(
           aggregate_id: aggregate_id,

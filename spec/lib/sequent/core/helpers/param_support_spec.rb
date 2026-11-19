@@ -43,7 +43,7 @@ describe Sequent::Core::Helpers::ParamSupport do
     end
 
     it 'handles datetime' do
-      obj = ParamWithDateTime.new(value: DateTime.now)
+      obj = ParamWithDateTime.new(value: DateTime.new(2026, 1, 2, 3, 4, 5))
       expect(ParamWithDateTime.from_params(obj.as_params)).to eq(obj)
     end
   end

@@ -2,7 +2,6 @@
 
 require 'spec_helper'
 require_relative '../../../fixtures/for_attribute_support'
-require 'sequent/test/time_comparison'
 
 describe Sequent::Core::Event do
   class TestEventEvent < Sequent::Core::Event
@@ -27,6 +26,8 @@ describe Sequent::Core::Event do
     attrs latitude: Float, longitude: Float
   end
 
+  let(:created_at) { Time.utc(2026, 1, 2, 3, 4, 5) }
+
   it 'does not include aggregate_id and sequence_number in payload' do
     expect(
       TestEventEvent.new(
@@ -45,7 +46,7 @@ describe Sequent::Core::Event do
   end
 
   it 'events are equal when deserialized from same attributes' do
-    event1 = TestEventEvent.new(aggregate_id: 'foo', organization_id: 'bar', sequence_number: 1)
+    event1 = TestEventEvent.new(aggregate_id: 'foo', organization_id: 'bar', sequence_number: 1, created_at: created_at)
     created_at = event1.created_at.iso8601(Sequent.configuration.time_precision)
 
     event2 = TestEventEvent.deserialize_from_json(
@@ -61,7 +62,7 @@ describe Sequent::Core::Event do
     person = Person.new({name: 'foo'})
     person.valid?
     event = TestEventEvent.new(
-      aggregate_id: '123', organization_id: 'bar', sequence_number: 7, owner: person,
+      aggregate_id: '123', organization_id: 'bar', sequence_number: 7, owner: person, created_at: created_at,
     )
     json = Sequent::Core::Json.dump(event)
     other = TestEventEvent.deserialize_from_json(Sequent::Core::Json.strict_load(json))
@@ -71,7 +72,7 @@ describe Sequent::Core::Event do
   it 'is be able to converted from and to json with a date' do
     today = Date.today
     event = EventWithDate.new(
-      aggregate_id: '123', organization_id: 'bar', sequence_number: 7, date_of_birth: today,
+      aggregate_id: '123', organization_id: 'bar', sequence_number: 7, date_of_birth: today, created_at: created_at,
     )
     other = EventWithDate.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(other).to eq event
@@ -88,19 +89,31 @@ describe Sequent::Core::Event do
   end
 
   it 'converts symbols' do
-    event = EventWithSymbol.new(aggregate_id: '123', sequence_number: 7, organization_id: 'bar', status: :foo)
+    event = EventWithSymbol.new(
+      aggregate_id: '123',
+      sequence_number: 7,
+      organization_id: 'bar',
+      status: :foo,
+      created_at: created_at,
+    )
     other = EventWithSymbol.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(event).to eq other
   end
 
   it 'converts floats' do
-    event = EventWithFloat.new(aggregate_id: 'X', sequence_number: 1, latitude: 52.370146, longitude: 4.953977)
+    event = EventWithFloat.new(
+      aggregate_id: 'X',
+      sequence_number: 1,
+      latitude: 52.370146,
+      longitude: 4.953977,
+      created_at: created_at,
+    )
     deserialized = EventWithFloat.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(event).to eq(deserialized)
   end
 
   it 'deserializes nil symbols' do
-    event = EventWithSymbol.new(aggregate_id: '123', organization_id: 'bar', sequence_number: 7)
+    event = EventWithSymbol.new(aggregate_id: '123', organization_id: 'bar', sequence_number: 7, created_at: created_at)
     other = EventWithSymbol.deserialize_from_json(Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(event)))
     expect(event).to eq other
   end
