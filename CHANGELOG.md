@@ -136,6 +136,72 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   `requires_new:`; use an explicit
   `ActiveRecord::Base.transaction(requires_new: true)` instead.
 
+- Breaking: `sequent/test/time_comparison` is removed. It patched the
+  comparison of `Time`, `DateTime` and `ActiveSupport::TimeWithZone` to
+  ignore the digits beyond the `time_precision`, and was deprecated.
+  Specs that compare an event with its stored copy should create its
+  times at the precision the event store keeps.
+
+- Breaking: `==`, `eql?` and `hash` of value objects, events and
+  commands are strict. Two objects are equal when they are of the same
+  class and their attributes, taken from the instance variables and not
+  through the readers, are strictly equal: 1 is not 1.0, a
+  `HashWithIndifferentAccess` is not a `Hash`, a symbol key is not a
+  string key, a hash with a default is not one without, and a
+  `DateTime` is only equal to a `DateTime`. A `Time` and an
+  `ActiveSupport::TimeWithZone` are equal when they are the same instant
+  at full precision, and so are two `DateTime`s, where the comparison
+  used to stop at the second. This affects `Set`, hash keys, `uniq` and
+  comparisons in specs. Create values of the declared type, and define
+  `==` on a value object that needs another equality.
+
+- Breaking: a time precision beyond microseconds is not supported, since
+  PostgreSQL keeps times to the microsecond. Setting
+  `Sequent.configuration.time_precision` above 6 fails, and so does
+  storing events while it is above 6, also when it is taken from
+  `ActiveSupport::JSON::Encoding`.
+
+- Breaking: the event store publishes the events as they are loaded from
+  it, so projectors and workflows see the same values when the events
+  are stored and when they are replayed: times truncated to the
+  `time_precision`, symbols as strings and attributes cast to their
+  type. Event handlers can therefore receive other values than before.
+  The aggregate keeps the values it applied. Storing an event whose
+  `created_at` is not a `Time` or `ActiveSupport::TimeWithZone`, such as
+  a `String`, `Date` or `DateTime`, or whose `sequence_number` is not a
+  positive `Integer`, fails instead of converting it. The event store also fails
+  on an `aggregate_id` that is not a lowercase UUID, such as one in
+  uppercase, which it used to store as its lowercase form. The test
+  event store still accepts any `aggregate_id`. An event whose
+  `aggregate_id` differs from that of its stream is refused, by the test
+  event store and the dry run as well.
+  Requires json 2.10 or later.
+
+- Breaking: Sequent uses Ruby's `json` gem instead of Oj to serialize
+  and load events, commands and snapshots. `Sequent::Core::Json`
+  replaces `Sequent::Core::Oj`, which is deprecated and uses
+  `Sequent::Core::Json`. Sequent no longer depends on Oj, and no longer
+  sets `Oj.default_options`. Applications using Oj directly must depend
+  on it and configure it themselves: without `mode: :rails`, `Oj.dump`
+  writes a symbol key like `:foo` as `":foo"` instead of `"foo"`.
+  Differences with the JSON Oj wrote and loaded:
+
+  - Numbers in untyped values, such as in a `Hash` attribute, load as
+    `Float`, also when they have more digits than a `Float` keeps. Oj
+    loaded those as `BigDecimal`. `BigDecimal` attributes are written
+    as strings and load as before.
+  - `<`, `>`, `&`, U+2028 and U+2029 in strings are written as they
+    are instead of escaped. The values are the same once loaded.
+  - Times are written using `Sequent.configuration.time_precision`,
+    also when it differs from ActiveSupport's, and always in ISO 8601,
+    also when `ActiveSupport.use_standard_json_time_format` is disabled.
+  - `Sequent::Core::Json.strict_load` fails with a `JSON::ParserError`
+    on an object with a duplicate key, where Oj kept the last value.
+    Stored events have none, since `jsonb` keeps one value per key, but
+    other JSON loaded with it, also through `Sequent::Core::Oj`, can.
+  - JSON nested more than 100 levels deep fails with a
+    `JSON::NestingError`, when writing as well as when loading.
+
 - Behaviour: `MessageRouter#match_message` returns a frozen empty set when no
   handler matches the message, instead of allocating a new set. This
   avoids an allocation for every message handler that does not handle
@@ -289,8 +355,13 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   replay prepared before upgrading is not checked. Requires running the
   Sequent migrations.
 
-- Deprecated: requiring `sequent/test/time_comparison` warns, since it
-  changes how times compare in the whole process.
+- Behaviour: a `CHECK` constraint on the `events` table refuses a
+  `sequence_number` below 1. The migration adds it `NOT VALID`, so it
+  does not check the events already stored and takes its lock only
+  briefly. Validate it when convenient with `ALTER TABLE
+  sequent_schema.events VALIDATE CONSTRAINT
+  events_sequence_number_check`, which reads every event. Requires
+  running the Sequent migrations.
 
 - Feature: a record class that includes `Sequent::Core::ProjectionRecord` can
   only be written by projectors, unless writing is allowed using
@@ -398,6 +469,13 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   do not run when the aggregate is loaded, and take `only:` or `except:`
   with the same event classes and message matchers as `on`. See
   [hooks around applying events](https://www.sequent.io/docs/concepts/aggregate-root.html#hooks-around-applying-events).
+
+- Feature: set `Sequent.configuration.verify_event_serialization`, for
+  instance in specs, to fail when an event changes when it is stored,
+  other than by truncating its times, so the domain code can be fixed.
+  Set `Sequent.configuration.event_serialization_error_handler` to
+  report the error instead, for instance in production, without failing
+  the command.
 
 - Bug: activating a replay flushed another instance of the
   `offline_replay_persistor_class` than the one the projectors used,
