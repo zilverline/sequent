@@ -8,30 +8,49 @@ module Sequent
       # Sequent::Core::ValueObject, Sequent::Core::Event or Sequent::Core::BaseCommand you will
       # get this functionality for free.
       #
+      # Two objects are equal when they are of the same class and the values of their attributes are strictly equal.
+      # The values are compared as they are kept, not through the readers. See +EqualSupport.strictly_equal?+.
+      #
       module EqualSupport
-        def ==(other)
-          return false if other.nil?
-          return false if self.class != other.class
-
-          self.class.types.each_key do |name|
-            self_value = send(name)
-            other_value = other.send(name)
-            if self_value.class == DateTime && other_value.class == DateTime
-              # we don't care about milliseconds. If you know a better way of checking for equality please improve.
-              return false unless self_value.iso8601 == other_value.iso8601
-            else
-              return false unless self_value == other_value
-            end
+        ##
+        # Compares two values without converting either: they must be of the same class (a +Time+ and an
+        # +ActiveSupport::TimeWithZone+ count as one), so 1 is not 1.0 and a +HashWithIndifferentAccess+ is not a
+        # +Hash+. Times must be the same instant at full precision. Hashes and arrays are compared recursively; the
+        # order of the keys of a hash does not matter, but its default value and default proc do.
+        def self.strictly_equal?(value, other)
+          if time?(value) && time?(other)
+            value.to_r == other.to_r
+          elsif !value.instance_of?(other.class)
+            false
+          elsif value.is_a?(Hash)
+            value.default == other.default && value.default_proc == other.default_proc &&
+              value.size == other.size && value.all? { |key, v| other.key?(key) && strictly_equal?(v, other[key]) }
+          elsif value.is_a?(Array)
+            value.size == other.size && value.zip(other).all? { |v, o| strictly_equal?(v, o) }
+          else
+            value == other
           end
-          true
+        end
+
+        def self.time?(value)
+          value.instance_of?(Time) || value.instance_of?(ActiveSupport::TimeWithZone)
+        end
+
+        private_class_method :time?
+
+        def ==(other)
+          return false unless other.instance_of?(self.class)
+
+          self.class.types.each_key.all? do |name|
+            EqualSupport.strictly_equal?(
+              instance_variable_get(:"@#{name}"),
+              other.instance_variable_get(:"@#{name}"),
+            )
+          end
         end
 
         def hash
-          hash = 17
-          self.class.types.each_key do |name|
-            hash = (hash * 31) + send(name).hash
-          end
-          hash
+          [self.class, *self.class.types.each_key.map { |name| instance_variable_get(:"@#{name}") }].hash
         end
 
         def eql?(other)

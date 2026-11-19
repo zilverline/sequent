@@ -1,5 +1,24 @@
 # Changelog 9.x
 
+- Breaking: `sequent/test/time_comparison` is removed. It patched the
+  comparison of `Time`, `DateTime` and `ActiveSupport::TimeWithZone` to
+  ignore the digits beyond the `time_precision`, and was deprecated.
+  Specs that compare an event with its stored copy should create its
+  times at the precision the event store keeps.
+
+- Breaking: `==`, `eql?` and `hash` of value objects, events and
+  commands are strict. Two objects are equal when they are of the same
+  class and their attributes, taken from the instance variables and not
+  through the readers, are strictly equal: 1 is not 1.0, a
+  `HashWithIndifferentAccess` is not a `Hash`, a symbol key is not a
+  string key, a hash with a default is not one without, and a
+  `DateTime` is only equal to a `DateTime`. A `Time` and an
+  `ActiveSupport::TimeWithZone` are equal when they are the same instant
+  at full precision, and so are two `DateTime`s, where the comparison
+  used to stop at the second. This affects `Set`, hash keys, `uniq` and
+  comparisons in specs. Create values of the declared type, and define
+  `==` on a value object that needs another equality.
+
 - A `CHECK` constraint on the `events` table refuses a
   `sequence_number` below 1. The migration adds it `NOT VALID`, so it
   does not check the events already stored and takes its lock only
