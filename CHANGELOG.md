@@ -1,5 +1,11 @@
 # Changelog 9.x
 
+- Breaking: `sequent/test/time_comparison` is removed. It patched the
+  comparison of `Time`, `DateTime` and `ActiveSupport::TimeWithZone` to
+  ignore the digits beyond the `time_precision`, and was deprecated.
+  Specs that compare an event with its stored copy should create its
+  times at the precision the event store keeps.
+
 - Breaking: `==`, `eql?` and `hash` of value objects, events and
   commands are strict. Two objects are equal when they are of the same
   class and their attributes, taken from the instance variables and not

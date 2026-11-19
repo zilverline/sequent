@@ -43,7 +43,7 @@ describe Sequent::Core::SerializesCommand do
     end
 
     it 'loads the command that is stored' do
-      command = RecordCommand.new(aggregate_id: '1', created_at: Time.utc(2026, 1, 2, 3, 4, 5.123r))
+      command = Timecop.freeze(Time.utc(2026, 1, 2, 3, 4, 5.123r)) { RecordCommand.new(aggregate_id: '1') }
       record = RecordMock.new
       record.command = command
 
