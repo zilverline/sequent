@@ -118,13 +118,14 @@ module Sequent
         end
 
         def self.array_differences(value, stored, path)
-          return unless stored.is_a?(Array) && value.size == stored.size
+          return unless value.instance_of?(stored.class) && value.size == stored.size
 
           value.zip(stored).each_with_index.flat_map { |(v, s), index| differences(v, s, "#{path}[#{index}]") }
         end
 
         def self.hash_differences(value, stored, path)
           return unless value.instance_of?(stored.class) && value.keys == stored.keys
+          return unless value.default == stored.default && value.default_proc == stored.default_proc
 
           value.flat_map { |key, v| differences(v, stored[key], "#{path}[#{key.inspect}]") }
         end

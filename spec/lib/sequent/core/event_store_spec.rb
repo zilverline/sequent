@@ -1143,6 +1143,20 @@ describe Sequent::Core::EventStore do
           .to raise_error(Sequent::Core::EventSerializationError, /payload/)
       end
 
+      it 'fails when an Array subclass is stored as an Array' do
+        list = Class.new(Array).new([1, 2])
+
+        expect { commit(event(name: 'name', count: 4, payload: {'list' => list}, tags: [])) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload\["list"\]: \[1, 2\] is stored as \[1, 2\]/)
+      end
+
+      it 'fails when a hash loses its default value or default proc when it is stored' do
+        expect { commit(event(name: 'name', count: 4, payload: Hash.new(0), tags: [])) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload: \{\} is stored as \{\}/)
+        expect { commit(event(sequence_number: 2, name: 'name', count: 4, payload: Hash.new { 1 }, tags: [])) }
+          .to raise_error(Sequent::Core::EventSerializationError, /payload: \{\} is stored as \{\}/)
+      end
+
       it 'does not change the times of the event' do
         at = Time.new(2026, 1, 2, 3, 4, 5, '+01:00').freeze
         stored = event(name: 'name', count: 4, at:, payload: {}, tags: [])
