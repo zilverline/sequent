@@ -1329,6 +1329,14 @@ ALTER TABLE ONLY sequent_schema.events_default
 
 
 --
+-- Name: events events_sequence_number_check; Type: CHECK CONSTRAINT; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE sequent_schema.events
+    ADD CONSTRAINT events_sequence_number_check CHECK ((sequence_number > 0)) NOT VALID;
+
+
+--
 -- Name: partition_key_changes partition_key_changes_pkey; Type: CONSTRAINT; Schema: sequent_schema; Owner: -
 --
 
@@ -1636,6 +1644,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261119120000'),
 ('20261110120000'),
 ('20261019170000'),
 ('20260925120000'),

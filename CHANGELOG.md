@@ -1,5 +1,13 @@
 # Changelog 9.x
 
+- A `CHECK` constraint on the `events` table refuses a
+  `sequence_number` below 1. The migration adds it `NOT VALID`, so it
+  does not check the events already stored and takes its lock only
+  briefly. Validate it when convenient with
+  `ALTER TABLE sequent_schema.events VALIDATE CONSTRAINT
+  events_sequence_number_check`, which reads every event. Requires
+  running the Sequent migrations.
+
 - Breaking: a time precision beyond microseconds is not supported, since
   PostgreSQL keeps times to the microsecond. Setting
   `Sequent.configuration.time_precision` above 6 fails, and so does
