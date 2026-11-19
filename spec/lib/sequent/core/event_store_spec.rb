@@ -1109,6 +1109,19 @@ describe Sequent::Core::EventStore do
           }
       end
 
+      it 'stores nothing when an event changes when it is stored, so the sequence number can be used again' do
+        expect { commit(event(name: :symbol)) }.to raise_error(Sequent::Core::EventSerializationError)
+
+        expect(event_store.stream_exists?(aggregate_id)).to be false
+        expect(published_events).to be_empty
+
+        commit(event(name: 'symbol'))
+
+        _, loaded_events = event_store.load_events(aggregate_id)
+        expect(loaded_events.map(&:name)).to eq ['symbol']
+        expect(published_events.map(&:name)).to eq ['symbol']
+      end
+
       it 'passes the error to the event serialization error handler instead of failing' do
         errors = []
         Sequent.configuration.event_serialization_error_handler = ->(error) { errors << error }
