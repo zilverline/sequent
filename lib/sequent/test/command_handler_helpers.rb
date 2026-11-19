@@ -97,6 +97,9 @@ module Sequent
         end
 
         def commit_events(_, streams_with_events)
+          streams_with_events.each do |stream, events|
+            events.each { |event| Sequent::Core::Helpers::EventSerialization.ensure_stream_aggregate_id!(stream, event) }
+          end
           serialized_streams = streams_with_events.map { |_, events| serialize_events(events) }
           stored = streams_with_events.zip(serialized_streams).flat_map do |(_, events), serialized|
             events.zip(serialized).map { |event, (_, json)| stored_event(event, json:) }

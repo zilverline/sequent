@@ -435,6 +435,7 @@ describe Sequent::Core::EventStore do
     end
 
     it 'fails if the first event does not have sequence number 1' do
+      new_id = Sequent.new_uuid
       expect do
         event_store.commit_events(
           Sequent::Core::Command.new(aggregate_id:),
@@ -442,11 +443,11 @@ describe Sequent::Core::EventStore do
             [
               Sequent::Core::EventStream.new(
                 aggregate_type: 'MyAggregate',
-                aggregate_id: Sequent.new_uuid,
+                aggregate_id: new_id,
               ),
               [
                 MyEvent.new(
-                  aggregate_id:,
+                  aggregate_id: new_id,
                   sequence_number: 2,
                   created_at: Time.parse('2024-02-29T02:10:12Z'),
                   data: "another event\n",
@@ -459,12 +460,13 @@ describe Sequent::Core::EventStore do
     end
 
     it 'fails if the next event has a sequence number gap with the last event' do
+      new_id = Sequent.new_uuid
       stream = Sequent::Core::EventStream.new(
         aggregate_type: 'MyAggregate',
-        aggregate_id: Sequent.new_uuid,
+        aggregate_id: new_id,
       )
       event = MyEvent.new(
-        aggregate_id:,
+        aggregate_id: new_id,
         sequence_number: 1,
         created_at: Time.parse('2024-02-29T02:10:12Z'),
         data: "another event\n",
@@ -488,11 +490,12 @@ describe Sequent::Core::EventStore do
     end
 
     it 'https://github.com/zilverline/sequent/issues/514 is fixed' do
+      new_id = Sequent.new_uuid
       stream = Sequent::Core::EventStream.new(
         aggregate_type: 'MyAggregate',
-        aggregate_id: Sequent.new_uuid,
+        aggregate_id: new_id,
       )
-      events = (1..8).map { |i| MyEvent.new(aggregate_id:, sequence_number: i) }
+      events = (1..8).map { |i| MyEvent.new(aggregate_id: new_id, sequence_number: i) }
 
       event_store.commit_events(
         Sequent::Core::Command.new(aggregate_id:),
@@ -508,8 +511,8 @@ describe Sequent::Core::EventStore do
             [
               stream,
               [
-                MyEvent.new(aggregate_id:, sequence_number: 9),
-                MyEvent.new(aggregate_id:, sequence_number: 10),
+                MyEvent.new(aggregate_id: new_id, sequence_number: 9),
+                MyEvent.new(aggregate_id: new_id, sequence_number: 10),
               ],
             ],
           ],
@@ -1005,6 +1008,32 @@ describe Sequent::Core::EventStore do
         expect(event_store.stream_exists?(aggregate_id)).to be_falsey
         expect(published_events).to be_empty
       end
+    end
+
+    it 'fails on an event with another aggregate_id than its stream, and stores nothing' do
+      other_id = Sequent.new_uuid
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: other_id)
+
+      expect do
+        event_store.commit_events(Sequent::Core::Command.new(aggregate_id:), [[stream, [event(name: 'name')]]])
+      end.to raise_error(ArgumentError, /aggregate_id of SerializedEvent is "#{aggregate_id}", not "#{other_id}"/)
+      expect(event_store.stream_exists?(aggregate_id)).to be_falsey
+      expect(event_store.stream_exists?(other_id)).to be_falsey
+      expect(published_events).to be_empty
+    end
+
+    it 'fails on an event with another aggregate_id than its stream when storing events without publishing them' do
+      other_id = Sequent.new_uuid
+      stream = Sequent::Core::EventStream.new(aggregate_type: 'MyAggregate', aggregate_id: other_id)
+
+      expect do
+        event_store.send(
+          :store_events,
+          Sequent::Core::Command.new(aggregate_id:),
+          [[stream, [event(name: 'name')]]],
+        )
+      end.to raise_error(ArgumentError, /not "#{other_id}" of its stream/)
+      expect(event_store.stream_exists?(other_id)).to be_falsey
     end
 
     it 'fails on a created_at that is not a Time when storing events without publishing them' do

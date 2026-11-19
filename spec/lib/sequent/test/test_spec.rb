@@ -93,6 +93,16 @@ describe 'Test Helpers' do
 
         expect(published_events.sole.name).to eq 'foo'
       end
+
+      it 'fails on an event with another aggregate_id than its stream, and stores nothing' do
+        stream = Sequent::Core::EventStream.new(aggregate_type: 'Aggregate', aggregate_id: '2')
+
+        expect { event_store.commit_events(Sequent::Core::BaseCommand.new, [[stream, [event]]]) }
+          .to raise_error(ArgumentError, /aggregate_id of Sequent::Fixtures::Event4 is "1", not "2" of its stream/)
+        expect(event_store.stream_exists?('2')).to be false
+        expect(event_store.position_mark).to eq 0
+        expect(published_events).to be_empty
+      end
     end
 
     context 'then_events' do

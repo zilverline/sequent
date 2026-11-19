@@ -379,6 +379,7 @@ module Sequent
             Sequent::Core::Json.strict_load(Sequent::Core::Json.dump(stream)),
             uncommitted_events.map do |event, event_json|
               ensure_stored_types!(event)
+              Helpers::EventSerialization.ensure_stream_aggregate_id!(stream, event)
               {
                 created_at: serialize_timestamp(event.created_at),
                 event_type: event.class.name,

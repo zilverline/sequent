@@ -46,7 +46,9 @@
   positive `Integer`, fails instead of converting it. The event store also fails
   on an `aggregate_id` that is not a lowercase UUID, such as one in
   uppercase, which it used to store as its lowercase form. The test
-  event store still accepts any `aggregate_id`.
+  event store still accepts any `aggregate_id`. An event whose
+  `aggregate_id` differs from that of its stream is refused, by the test
+  event store and the dry run as well.
   Requires json 2.10 or later.
 
 - Breaking: the support for event, command and snapshot JSON in text

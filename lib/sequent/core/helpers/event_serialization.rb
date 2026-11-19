@@ -29,6 +29,17 @@ module Sequent
           deserialize_event_json(event.class.name, loaded_event_json(Json.strict_load(json)))
         end
 
+        ##
+        # Fails when +event+ has another aggregate_id than the +stream+ it is stored in, since it would be stored under
+        # the id of the stream but published with its own.
+        def self.ensure_stream_aggregate_id!(stream, event)
+          return if event.aggregate_id == stream.aggregate_id
+
+          fail ArgumentError,
+               "aggregate_id of #{event.class} is #{event.aggregate_id.inspect}, " \
+               "not #{stream.aggregate_id.inspect} of its stream"
+        end
+
         private
 
         def ensure_stored_types!(event)
