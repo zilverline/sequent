@@ -14,9 +14,14 @@
 # - pg_encoded:     like pg_prepared, but encoding the values with the column encoders of the
 #                   ReplayOptimizedPostgresPersistor's COPY, serializing only the values those cannot take as is.
 #
+# - buffered:       BufferedPersistor, which refuses reads while changes are pending, so it runs the write-only workload
+#                   below and flushes at the end of every transaction. active_record_writes and unbuffered_writes run
+#                   that workload with the other persistors, to compare with it.
+#
 # The workload is projector-shaped: per aggregate a record is created, updated using update_all_records a number of
 # times, updated using update_record (read, change and write), read back, and every tenth record is deleted. The
-# statements of 100 aggregates run in one transaction.
+# statements of 100 aggregates run in one transaction. The write-only workload leaves out update_record and the read
+# back, and every record is created without a description, which an update_all_records sets instead.
 #
 # Usage: ruby benchmarks/unbuffered_persistor.rb [number of aggregates] [variant...]
 #
@@ -30,6 +35,7 @@ lib = File.expand_path(File.join(__dir__, '..', 'lib'))
 require File.join(lib, 'sequent/core/persistors/active_record_persistor')
 require File.join(lib, 'sequent/core/persistors/record_structs')
 require File.join(lib, 'sequent/core/persistors/unbuffered_persistor')
+require File.join(lib, 'sequent/core/persistors/buffered_persistor')
 require File.join(lib, 'sequent/core/persistors/replay_optimized_postgres_persistor')
 Sequent.const_set(:ApplicationRecord, ActiveRecord::Base) unless defined?(Sequent::ApplicationRecord)
 
@@ -315,6 +321,9 @@ end
 PERSISTORS = {
   active_record: -> { Sequent::Core::Persistors::ActiveRecordPersistor.new },
   unbuffered: -> { Sequent::Core::Persistors::UnbufferedPersistor.new },
+  active_record_writes: -> { Sequent::Core::Persistors::ActiveRecordPersistor.new },
+  unbuffered_writes: -> { Sequent::Core::Persistors::UnbufferedPersistor.new },
+  buffered: -> { Sequent::Core::Persistors::BufferedPersistor.new },
   sql_literals: -> { StructPersistor.new(SqlLiteralStatements.new) },
   sql_binds: -> { StructPersistor.new(SqlBindStatements.new(prepare: false)) },
   sql_prepared: -> { StructPersistor.new(SqlBindStatements.new(prepare: true)) },
@@ -322,8 +331,9 @@ PERSISTORS = {
   pg_prepared: -> { StructPersistor.new(PgStatements.new(prepare: true)) },
   pg_encoded: -> { StructPersistor.new(PgEncodedStatements.new) },
 }.freeze
+WRITE_ONLY = %i[active_record_writes unbuffered_writes buffered].freeze
 
-def project(persistor, aggregate_ids, created_at)
+def project(persistor, aggregate_ids, created_at, write_only: false)
   aggregate_ids.each_slice(AGGREGATES_PER_TRANSACTION) do |slice|
     ActiveRecord::Base.transaction do
       slice.each_with_index do |aggregate_id, index|
@@ -348,21 +358,27 @@ def project(persistor, aggregate_ids, created_at)
             {name: "name #{i}", amount: BigDecimal(i), active: i.even?, sequence_number: i + 2},
           )
         end
-        event = Event.new(aggregate_id, UPDATES_PER_AGGREGATE + 2, created_at)
-        persistor.update_record(BenchmarkRecord, event) { |record| record.description = 'updated' }
-        persistor.get_record!(BenchmarkRecord, aggregate_id:)
+        if write_only
+          persistor.update_all_records(BenchmarkRecord, {aggregate_id:}, {description: 'updated'})
+        else
+          event = Event.new(aggregate_id, UPDATES_PER_AGGREGATE + 2, created_at)
+          persistor.update_record(BenchmarkRecord, event) { |record| record.description = 'updated' }
+          persistor.get_record!(BenchmarkRecord, aggregate_id:)
+        end
         persistor.delete_all_records(BenchmarkRecord, aggregate_id:) if (index % 10).zero?
       end
+      persistor.flush
     end
   end
 end
 
 def verify!(variant)
+  last_sequence_number = WRITE_ONLY.include?(variant) ? UPDATES_PER_AGGREGATE + 1 : UPDATES_PER_AGGREGATE + 2
   expected_count = AGGREGATES - (0...AGGREGATES).count { |i| (i % AGGREGATES_PER_TRANSACTION % 10).zero? }
   rows = BenchmarkRecord.pluck(:sequence_number, :name, :description, :amount, :active, :tags, :payload).uniq
   expected = [
     [
-      UPDATES_PER_AGGREGATE + 2,
+      last_sequence_number,
       "name #{UPDATES_PER_AGGREGATE - 1}",
       'updated',
       BigDecimal(UPDATES_PER_AGGREGATE - 1),
@@ -380,16 +396,18 @@ clock = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
 aggregate_ids = Array.new(AGGREGATES) { SecureRandom.uuid }
 created_at = Time.now
 operations = (AGGREGATES * (UPDATES_PER_AGGREGATE + 3)) + (AGGREGATES / 10)
+write_only_operations = (AGGREGATES * (UPDATES_PER_AGGREGATE + 2)) + (AGGREGATES / 10)
 
-puts "#{AGGREGATES} aggregates, #{operations} operations, best of #{RUNS} runs"
+puts "#{AGGREGATES} aggregates, #{operations} operations (#{write_only_operations} write-only), best of #{RUNS} runs"
 (VARIANTS || PERSISTORS.keys).each do |variant|
+  count = WRITE_ONLY.include?(variant) ? write_only_operations : operations
   results = Array.new(RUNS) do
     BenchmarkRecord.connection.execute('TRUNCATE benchmark_records')
     persistor = PERSISTORS.fetch(variant).call
     GC.start
     allocations = GC.stat(:total_allocated_objects)
     started = clock.call
-    project(persistor, aggregate_ids, created_at)
+    project(persistor, aggregate_ids, created_at, write_only: WRITE_ONLY.include?(variant))
     elapsed = clock.call - started
     allocations = GC.stat(:total_allocated_objects) - allocations
     verify!(variant)
@@ -398,10 +416,10 @@ puts "#{AGGREGATES} aggregates, #{operations} operations, best of #{RUNS} runs"
   elapsed = results.map { |result| result[:elapsed] }.min
   allocations = results.map { |result| result[:allocations] }.min
   puts format(
-    '%-14s %7.0f ms  %6.1f µs/operation  %6.1f allocations/operation',
+    '%-20s %7.0f ms  %6.1f µs/operation  %6.1f allocations/operation',
     variant,
     elapsed * 1000,
-    elapsed / operations * 1e6,
-    allocations.to_f / operations,
+    elapsed / count * 1e6,
+    allocations.to_f / count,
   )
 end
