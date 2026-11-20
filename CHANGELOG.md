@@ -485,9 +485,9 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
 
 - Feature: a new `BufferedPersistor` buffers the changes of a projector until
   it is flushed, inserting the records created in a table using a single
-  statement and combining the updates of the same records. It only
-  supports `create_record`, `create_records`, `update_all_records` and
-  `delete_all_records`.
+  statement and combining the updates of the same records. Reads are
+  supported: a read of a table with pending changes flushes the buffer
+  first, so the read sees them.
 
 - Bug: activating a replay flushed another instance of the
   `offline_replay_persistor_class` than the one the projectors used,

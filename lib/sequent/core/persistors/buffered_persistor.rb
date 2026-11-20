@@ -2,6 +2,7 @@
 
 require 'active_record'
 require_relative 'persistor'
+require_relative 'record_reading'
 require_relative 'record_structs'
 require_relative 'statements'
 
@@ -15,9 +16,12 @@ module Sequent
       # Projectors that update a record with an event per changed attribute execute a statement per event with the
       # +ActiveRecordPersistor+. With this persistor the updates of a record are combined into a single statement.
       #
-      # Only the methods that write to the database without reading from it are supported: +create_record+,
-      # +create_records+, +update_all_records+ and +delete_all_records+. All other methods fail, since the records they
-      # read may have pending changes.
+      # Reading is supported, like with the +UnbufferedPersistor+. A read of a table with pending changes first flushes
+      # the whole buffer, in order, so the read sees the changes (and the database computes the columns of created
+      # records); a read of a table without pending changes reads from the database directly. The changes that
+      # +update_record+, +do_with_record+, +do_with_records+ and +create_or_update_record+ make to a record that was
+      # read are buffered as an update by primary key, which can be combined with later updates as described below.
+      # +execute_sql+ flushes the buffer before it executes the statement.
       #
       # Like the +ReplayOptimizedPostgresPersistor+, the created records are structs with all columns of the record
       # class, using the column defaults of the record class for the columns without a value, and +created_at+ as
@@ -46,11 +50,15 @@ module Sequent
       #
       class BufferedPersistor
         include Persistor
+        include RecordReading
 
-        class UnsupportedError < StandardError; end
+        ##
+        # The number of times the buffer was flushed because a table with pending changes was read.
+        attr_reader :read_flushes
 
         def initialize
           @buffer = []
+          @read_flushes = 0
         end
 
         def create_record(record_class, values, &block)
@@ -74,21 +82,14 @@ module Sequent
           nil
         end
 
-        %i[
-          update_record
-          create_or_update_record
-          get_record!
-          get_record
-          do_with_records
-          do_with_record
-          delete_record
-          find_records
-          last_record
-          execute_sql
-        ].each do |method|
-          define_method(method) do |*, **|
-            fail UnsupportedError, "#{method} is not supported, as the buffered changes are not visible to it"
-          end
+        def delete_record(record_class, record)
+          add(Statements::Delete.new(record_class, primary_key_values(record_class, record.to_h)))
+          nil
+        end
+
+        def execute_sql(statement)
+          flush_for_read
+          Sequent::ApplicationRecord.connection.execute(statement)
         end
 
         def prepare
@@ -117,6 +118,22 @@ module Sequent
         private
 
         attr_reader :buffer
+
+        def select_records(record_class, where_clause, **)
+          flush_for_read if buffer.any? { |statement| statement.table_name == record_class.table_name }
+          Statements::Select.new(record_class, where_clause, **).execute
+        end
+
+        def write_update(statement)
+          add(statement)
+        end
+
+        def flush_for_read
+          return if buffer.empty?
+
+          @read_flushes += 1
+          flush
+        end
 
         def add(operation)
           buffer << operation unless merge_with_earlier(operation)

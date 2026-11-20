@@ -14,9 +14,10 @@
 # - pg_encoded:     like pg_prepared, but encoding the values with the column encoders of the
 #                   ReplayOptimizedPostgresPersistor's COPY, serializing only the values those cannot take as is.
 #
-# - buffered:       BufferedPersistor, which refuses reads while changes are pending, so it runs the write-only workload
-#                   below and flushes at the end of every transaction. active_record_writes and unbuffered_writes run
-#                   that workload with the other persistors, to compare with it.
+# - buffered:       BufferedPersistor, flushing at the end of every transaction and whenever a table with pending
+#                   changes is read. The number of flushes caused by reads is reported.
+# - buffered_writes: BufferedPersistor running the write-only workload below, which never reads. active_record_writes
+#                   and unbuffered_writes run that workload with the other persistors, to compare with it.
 #
 # The workload is projector-shaped: per aggregate a record is created, updated using update_all_records a number of
 # times, updated using update_record (read, change and write), read back, and every tenth record is deleted. The
@@ -324,6 +325,7 @@ PERSISTORS = {
   active_record_writes: -> { Sequent::Core::Persistors::ActiveRecordPersistor.new },
   unbuffered_writes: -> { Sequent::Core::Persistors::UnbufferedPersistor.new },
   buffered: -> { Sequent::Core::Persistors::BufferedPersistor.new },
+  buffered_writes: -> { Sequent::Core::Persistors::BufferedPersistor.new },
   sql_literals: -> { StructPersistor.new(SqlLiteralStatements.new) },
   sql_binds: -> { StructPersistor.new(SqlBindStatements.new(prepare: false)) },
   sql_prepared: -> { StructPersistor.new(SqlBindStatements.new(prepare: true)) },
@@ -331,7 +333,7 @@ PERSISTORS = {
   pg_prepared: -> { StructPersistor.new(PgStatements.new(prepare: true)) },
   pg_encoded: -> { StructPersistor.new(PgEncodedStatements.new) },
 }.freeze
-WRITE_ONLY = %i[active_record_writes unbuffered_writes buffered].freeze
+WRITE_ONLY = %i[active_record_writes unbuffered_writes buffered_writes].freeze
 
 def project(persistor, aggregate_ids, created_at, write_only: false)
   aggregate_ids.each_slice(AGGREGATES_PER_TRANSACTION) do |slice|
@@ -411,15 +413,18 @@ puts "#{AGGREGATES} aggregates, #{operations} operations (#{write_only_operation
     elapsed = clock.call - started
     allocations = GC.stat(:total_allocated_objects) - allocations
     verify!(variant)
-    {elapsed:, allocations:}
+    {elapsed:, allocations:, read_flushes: persistor.try(:read_flushes)}
   end
   elapsed = results.map { |result| result[:elapsed] }.min
   allocations = results.map { |result| result[:allocations] }.min
-  puts format(
+  line = format(
     '%-20s %7.0f ms  %6.1f µs/operation  %6.1f allocations/operation',
     variant,
     elapsed * 1000,
     elapsed / count * 1e6,
     allocations.to_f / count,
   )
+  read_flushes = results.first[:read_flushes]
+  line += format('  %.2f read flushes/aggregate', read_flushes.to_f / AGGREGATES) if read_flushes
+  puts line
 end

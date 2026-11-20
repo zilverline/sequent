@@ -309,18 +309,105 @@ describe Sequent::Core::Persistors::BufferedPersistor do
     end
   end
 
-  describe 'unsupported methods' do
-    it 'fails on methods that read records' do
-      expect { persistor.get_record(record_class, aggregate_id: 'a') }
-        .to raise_error(described_class::UnsupportedError, /get_record is not supported/)
-      expect { persistor.find_records(record_class, aggregate_id: 'a') }
-        .to raise_error(described_class::UnsupportedError)
-      expect { persistor.update_record(record_class, nil) { |_| } }
-        .to raise_error(described_class::UnsupportedError)
+  describe 'reading' do
+    let(:event) { Struct.new(:aggregate_id, :sequence_number, :created_at).new('a', 7, created_at) }
+
+    it 'reads a table without pending changes without flushing' do
+      persistor.create_record(other_record_class, created_at:, aggregate_id: 'o')
+
+      expect(statements { expect(persistor.get_record(record_class, aggregate_id: 'a')).to be_nil }.size).to eq 1
+      expect(persistor.pending_statements).to eq 1
+      expect(persistor.read_flushes).to eq 0
     end
 
-    it 'fails on execute_sql' do
-      expect { persistor.execute_sql('SELECT 1') }.to raise_error(described_class::UnsupportedError)
+    it 'flushes the whole buffer in order before reading a table with pending changes' do
+      persistor.create_record(other_record_class, created_at:, aggregate_id: 'o')
+      persistor.create_record(record_class, created_at:, aggregate_id: 'a', name: 'x')
+      persistor.update_all_records(other_record_class, {aggregate_id: 'o'}, {name: 'y'})
+
+      record = persistor.get_record!(record_class, aggregate_id: 'a')
+
+      expect(record.name).to eq 'x'
+      expect(record.id).to be_present
+      expect(persistor.pending_statements).to eq 0
+      expect(persistor.read_flushes).to eq 1
+      expect(rows(other_record_class)).to eq [['o', nil, 'y', nil]]
+    end
+
+    it 'reads with find_records and last_record after flushing' do
+      persistor.create_records(record_class, [{created_at:, aggregate_id: 'a'}, {created_at:, aggregate_id: 'a'}])
+
+      expect(persistor.find_records(record_class, aggregate_id: 'a').size).to eq 2
+      first = persistor.get_record(record_class, aggregate_id: 'a')
+      expect(persistor.last_record(record_class, aggregate_id: 'a').id).to be > first.id
+      expect(persistor.read_flushes).to eq 1
+    end
+
+    it 'fails like the other persistors when get_record! finds nothing' do
+      expect { persistor.get_record!(record_class, aggregate_id: 'a') }.to raise_error(ActiveRecord::RecordNotFound)
+    end
+
+    it 'fails when update_record finds nothing' do
+      expect { persistor.update_record(record_class, event) { |_| } }.to raise_error(/not found/)
+    end
+
+    it 'buffers the update of update_record by primary key, for the changed columns' do
+      persistor.create_record(record_class, created_at:, aggregate_id: 'a', sequence_number: 1)
+
+      persistor.update_record(record_class, event) { |record| record.name = 'x' }
+
+      expect(persistor.pending_statements).to eq 1
+      expect(rows).to eq [['a', 1, nil, nil]]
+
+      persistor.flush
+
+      expect(rows).to eq [['a', 7, 'x', nil]]
+    end
+
+    it 'combines the update of update_record with a later update of the same record' do
+      persistor.create_record(record_class, created_at:, aggregate_id: 'a', sequence_number: 1)
+      record = persistor.update_record(record_class, event) { |r| r.name = 'x' }
+      persistor.update_all_records(record_class, {id: record.id}, {amount: 5})
+
+      expect(persistor.pending_statements).to eq 1
+      expect(statements { persistor.flush }.size).to eq 1
+      expect(rows).to eq [['a', 7, 'x', 5]]
+    end
+
+    it 'does not buffer anything when update_record changes nothing' do
+      persistor.create_record(record_class, created_at:, aggregate_id: 'a', sequence_number: 7)
+
+      persistor.update_record(record_class, event)
+
+      expect(persistor.pending_statements).to eq 0
+    end
+
+    it 'supports do_with_record, do_with_records and create_or_update_record' do
+      persistor.create_records(record_class, [{created_at:, aggregate_id: 'a'}, {created_at:, aggregate_id: 'b'}])
+      persistor.do_with_record(record_class, aggregate_id: 'a') { |record| record.name = 'x' }
+      persistor.do_with_records(record_class, {}) { |record| record.amount = 1 }
+      persistor.create_or_update_record(record_class, {aggregate_id: 'c'}, created_at) { |_| }
+      persistor.create_or_update_record(record_class, {aggregate_id: 'b'}) { |record| record.status = 'old' }
+      persistor.flush
+
+      expect(rows).to eq [['a', nil, 'x', 1], ['b', nil, nil, 1], ['c', nil, nil, nil]]
+      expect(record_class.where(aggregate_id: 'b').pick(:status)).to eq 'old'
+    end
+
+    it 'deletes a record read earlier by primary key' do
+      persistor.create_record(record_class, created_at:, aggregate_id: 'a')
+      persistor.create_record(record_class, created_at:, aggregate_id: 'b')
+      persistor.delete_record(record_class, persistor.get_record!(record_class, aggregate_id: 'a'))
+      persistor.flush
+
+      expect(rows).to eq [['b', nil, nil, nil]]
+    end
+
+    it 'flushes before execute_sql' do
+      persistor.create_record(record_class, created_at:, aggregate_id: 'a')
+      persistor.execute_sql('UPDATE buffered_persistor_tests SET name = \'sql\'')
+
+      expect(rows).to eq [['a', nil, 'sql', nil]]
     end
   end
 

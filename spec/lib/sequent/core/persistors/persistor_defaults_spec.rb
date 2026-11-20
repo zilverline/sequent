@@ -89,7 +89,7 @@ describe 'Persistors storing columns without a value' do
       expect(stored('a', :serialid)).to be_present
     end
 
-    unless except.include?(:nil_to_nil_update) || except.include?(:do_with_record)
+    unless except.include?(:nil_to_nil_update)
       it 'stores NULL for a computed column without a value set to nil by do_with_record' do
         persistor.create_record(record_class, created_at: time, name: 'a')
         persistor.do_with_record(record_class, {name: 'a'}) { |record| record.token = nil }
@@ -114,17 +114,15 @@ describe 'Persistors storing columns without a value' do
       expect(stored('a', :status, :token)).to eq [nil, nil]
     end
 
-    unless except.include?(:do_with_record)
-      it 'stores NULL for columns set to nil by do_with_record' do
-        persistor.create_record(record_class, created_at: time, name: 'a', status: 'x', token: uuid)
-        persistor.do_with_record(record_class, {name: 'a'}) do |record|
-          record.status = nil
-          record.token = nil
-        end
-        persistor.flush
-
-        expect(stored('a', :status, :token)).to eq [nil, nil]
+    it 'stores NULL for columns set to nil by do_with_record' do
+      persistor.create_record(record_class, created_at: time, name: 'a', status: 'x', token: uuid)
+      persistor.do_with_record(record_class, {name: 'a'}) do |record|
+        record.status = nil
+        record.token = nil
       end
+      persistor.flush
+
+      expect(stored('a', :status, :token)).to eq [nil, nil]
     end
   end
 
@@ -180,20 +178,19 @@ describe 'Persistors storing columns without a value' do
     end
   end
 
-  # The BufferedPersistor does not support do_with_record, since it does not read records.
   context Sequent::Core::Persistors::BufferedPersistor do
     let(:persistor) { Sequent::Core::Persistors::BufferedPersistor.new }
 
     context 'on a table' do
       let(:record_class) { PersistorDefaultsRecord }
 
-      it_behaves_like 'a persistor storing columns without a value', except: [:do_with_record]
+      it_behaves_like 'a persistor storing columns without a value'
     end
 
     context 'on a view' do
       let(:record_class) { PersistorDefaultsViewRecord }
 
-      it_behaves_like 'a persistor storing columns without a value', except: %i[explicit_nil do_with_record]
+      it_behaves_like 'a persistor storing columns without a value', except: [:explicit_nil]
 
       # Like ActiveRecord with partial_inserts, since the default of the column is not known.
       it 'stores the database default for an explicit nil in a column with a constant default' do
