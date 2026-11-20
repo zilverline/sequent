@@ -112,6 +112,55 @@ describe 'Persistors storing values' do
         ]
       end
 
+      it 'stores the same values with create_records as with create_record' do
+        rows = [
+          {
+            number: 3,
+            amount: BigDecimal('1.255'),
+            day: Date.new(2026, 1, 2),
+            at: Time.utc(2026, 1, 2, 3, 4, 5, 123_456),
+            flag: true,
+            label: "tab\t, backslash \\, newline \n, quote \" and {braces}",
+            identifier: uuid,
+            data: {'k' => [1, 'a']},
+            status: 'sent',
+          },
+          {
+            number: '4',
+            amount: 2.5,
+            day: '2026-01-03',
+            at: Time.new(2026, 1, 2, 4, 4, 5, '+01:00'),
+            flag: 'false',
+            label: :symbol,
+            identifier: Sequent.new_uuid.upcase,
+            data: [1, {'a' => nil}],
+            status: 1,
+          },
+          {
+            number: 5,
+            amount: 0,
+            day: Date.new(2026, 1, 4),
+            at: Time.utc(2026, 1, 4),
+            flag: false,
+            label: '',
+            identifier: Sequent.new_uuid,
+            data: 'text',
+            status: 'draft',
+          },
+        ]
+        order = columns - [:tags]
+
+        persistor.create_records(record_class, rows)
+        persistor.flush
+        many = record_class.order(:id).pluck(*order)
+        record_class.delete_all
+        rows.each { |values| persistor.create_record(record_class, values) }
+        persistor.flush
+
+        expect(many.size).to eq 3
+        expect(many).to eq record_class.order(:id).pluck(*order)
+      end
+
       it 'stores times in other time zones in UTC' do
         expect(stored(at: Time.new(2026, 1, 2, 4, 4, 5, '+01:00')).fetch(3)).to eq Time.utc(2026, 1, 2, 3, 4, 5)
         record_class.delete_all

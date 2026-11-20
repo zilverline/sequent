@@ -61,7 +61,11 @@ module Sequent
             result = nil
             rows.chunk_while { |row, next_row| row.keys == next_row.keys }.each do |group|
               columns = group.first.keys
-              each_slice(group, columns) { |slice| result = insert(columns, slice, returning) }
+              if group.size > 1 && Statements.unnestable?(record_class, columns)
+                result = insert_unnest(columns, group, returning)
+              else
+                each_slice(group, columns) { |slice| result = insert_values(columns, slice, returning) }
+              end
             end
             result
           end
@@ -74,13 +78,30 @@ module Sequent
             rows.each_slice(MAX_BIND_PARAMETERS / columns.size, &)
           end
 
-          def insert(columns, rows, returning)
+          def insert_values(columns, rows, returning)
             returning = returning ? Array(returning) : []
             sql = Statements.cached(:insert, record_class, columns, rows.size, returning) do
               Statements.insert_sql(record_class, columns, rows.size, returning)
             end
             binds = rows.flat_map { |row| columns.map { |column| Statements.bind(record_class, column, row[column]) } }
             Statements.execute(record_class, sql, binds, 'Insert', prepare: rows.size == 1)
+          end
+
+          def insert_unnest(columns, rows, returning)
+            returning = returning ? Array(returning) : []
+            sql = Statements.cached(:insert_unnest, record_class, columns, returning) do
+              Statements.unnest_sql(record_class, columns, returning)
+            end
+            binds = columns.map do |column|
+              Statements.unnest_bind(
+                record_class,
+                column,
+                rows.map do |row|
+                  row[column]
+                end,
+              )
+            end
+            Statements.execute(record_class, sql, binds, 'Insert')
           end
         end
 
@@ -317,6 +338,39 @@ module Sequent
           end
           sql += " RETURNING #{returning.map { |column| quote(record_class, column) }.join(', ')}" if returning.any?
           sql
+        end
+
+        # Whether rows with these columns can be inserted with +unnest+, which flattens multi-dimensional arrays, so
+        # not when a column is an array itself.
+        def self.unnestable?(record_class, columns)
+          columns.none? do |column|
+            record_class.type_for_attribute(column.to_s).is_a?(ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array)
+          end
+        end
+
+        def self.unnest_sql(record_class, columns, returning)
+          arrays = columns.each_with_index.map do |column, index|
+            "$#{index + 1}::#{record_class.columns_hash.fetch(column.to_s).sql_type}[]"
+          end
+          sql = "INSERT INTO #{record_class.quoted_table_name} (#{columns.map do |name|
+            quote(record_class, name)
+          end.join(', ')}) " \
+                "SELECT * FROM unnest(#{arrays.join(', ')})"
+          sql += " RETURNING #{returning.map { |column| quote(record_class, column) }.join(', ')}" if returning.any?
+          sql
+        end
+
+        # The bind with the +values+ of a column, one for every row. A JSON value that is an array would be read as
+        # a dimension of the bind, so JSON values are serialized first and bound as text, which the cast in the SQL
+        # reads as JSON.
+        def self.unnest_bind(record_class, column, values)
+          name = column.to_s
+          type = record_class.type_for_attribute(name)
+          return array_bind(record_class, name, values) unless %i[json jsonb].include?(type.type)
+
+          texts = ActiveModel::Type::String.new
+          array_type = ActiveRecord::ConnectionAdapters::PostgreSQL::OID::Array.new(texts)
+          ActiveRecord::Relation::QueryAttribute.new(name, values.map { |value| type.serialize(value) }, array_type)
         end
 
         def self.quote(record_class, column)
