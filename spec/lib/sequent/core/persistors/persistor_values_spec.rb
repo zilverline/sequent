@@ -431,8 +431,7 @@ describe 'Persistors storing values' do
   context Sequent::Core::Persistors::BufferedPersistor do
     let(:persistor) { Sequent::Core::Persistors::BufferedPersistor.new }
 
-    # The BufferedPersistor does not support create_or_update_record, since it does not read records.
-    it_behaves_like 'a persistor storing values', except: [:create_or_update_record]
+    it_behaves_like 'a persistor storing values'
   end
 
   context Sequent::Core::Persistors::UnbufferedPersistor do
