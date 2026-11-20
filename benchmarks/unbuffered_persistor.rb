@@ -11,6 +11,8 @@
 # - sql_prepared:   structs, own SQL with binds, prepared by ActiveRecord.
 # - pg_params:      structs, own SQL with binds, executed by the pg gem without preparing it.
 # - pg_prepared:    structs, own SQL with binds, prepared by the pg gem.
+# - pg_encoded:     like pg_prepared, but encoding the values with the column encoders of the
+#                   ReplayOptimizedPostgresPersistor's COPY, serializing only the values those cannot take as is.
 #
 # The workload is projector-shaped: per aggregate a record is created, updated using update_all_records a number of
 # times, updated using update_record (read, change and write), read back, and every tenth record is deleted. The
@@ -28,6 +30,7 @@ lib = File.expand_path(File.join(__dir__, '..', 'lib'))
 require File.join(lib, 'sequent/core/persistors/active_record_persistor')
 require File.join(lib, 'sequent/core/persistors/record_structs')
 require File.join(lib, 'sequent/core/persistors/unbuffered_persistor')
+require File.join(lib, 'sequent/core/persistors/replay_optimized_postgres_persistor')
 Sequent.const_set(:ApplicationRecord, ActiveRecord::Base) unless defined?(Sequent::ApplicationRecord)
 
 AGGREGATES = Integer(ARGV[0] || 5_000)
@@ -251,22 +254,61 @@ class PgStatements < SqlStatements
     serialized(record_class, values).map { |value| connection.type_cast(value) }
   end
 
-  def run(sql, params)
+  def run(sql, params, type_map = nil)
     raw = connection.raw_connection
-    return raw.exec_params(sql, params) unless @prepare
+    return raw.exec_params(sql, params, 0, type_map) unless @prepare
 
     name = @prepared[sql] ||= "benchmark_#{object_id}_#{@prepared.size}".tap { |statement| raw.prepare(statement, sql) }
-    raw.exec_prepared(name, params)
+    raw.exec_prepared(name, params, 0, type_map)
   end
 
   def execute(sql, record_class, values, returning: false)
-    result = run(sql, params(record_class, values))
+    result = run(sql, *encoded(record_class, values))
     returning ? result.getvalue(0, 0) : result.cmd_tuples
   end
 
   def select(sql, record_class, values)
-    result = run(sql, params(record_class, values))
+    result = run(sql, *encoded(record_class, values))
     result.ntuples.zero? ? nil : result.values.first
+  end
+
+  def encoded(record_class, values) = [params(record_class, values)]
+end
+
+# Prepares the statements with the pg gem, and encodes the values with the column encoders of the
+# ReplayOptimizedPostgresPersistor's COPY: values an encoder can take as is are passed unchanged, all others are
+# serialized by ActiveRecord first, like the COPY does.
+class PgEncodedStatements < PgStatements
+  REPLAY_PERSISTOR = Sequent::Core::Persistors::ReplayOptimizedPostgresPersistor.allocate
+
+  def initialize
+    super(prepare: true)
+    @columns = {}
+    @type_maps = {}
+  end
+
+  private
+
+  def encoded(record_class, values)
+    columns = values.keys.map { |column| encoder_column(record_class, column_name(column)) }
+    type_map = @type_maps[[record_class, values.keys]] ||= PG::TypeMapByColumn.new(columns.map { |c| c[:encoder] })
+    params = values.each_value.with_index.map do |value, index|
+      column = columns[index]
+      if column[:native] && (value.nil? || column[:native].call(value))
+        value
+      else
+        connection.type_cast(column[:type].serialize(value))
+      end
+    end
+    [params, type_map]
+  end
+
+  def encoder_column(record_class, name)
+    @columns[[record_class, name]] ||= begin
+      type = record_class.type_for_attribute(name)
+      encoder, native = REPLAY_PERSISTOR.send(:copy_encoder, type)
+      {type:, encoder:, native:}
+    end
   end
 end
 
@@ -278,6 +320,7 @@ PERSISTORS = {
   sql_prepared: -> { StructPersistor.new(SqlBindStatements.new(prepare: true)) },
   pg_params: -> { StructPersistor.new(PgStatements.new(prepare: false)) },
   pg_prepared: -> { StructPersistor.new(PgStatements.new(prepare: true)) },
+  pg_encoded: -> { StructPersistor.new(PgEncodedStatements.new) },
 }.freeze
 
 def project(persistor, aggregate_ids, created_at)
