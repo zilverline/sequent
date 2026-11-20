@@ -477,6 +477,12 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   report the error instead, for instance in production, without failing
   the command.
 
+- Feature: a new `UnbufferedPersistor` writes every change right away, like the
+  `ActiveRecordPersistor`, but reads and writes records as structs,
+  like the `ReplayOptimizedPostgresPersistor`, without instantiating
+  models. The persistors are checked by the same specs, so they can
+  replace each other without changing the projected data.
+
 - Bug: activating a replay flushed another instance of the
   `offline_replay_persistor_class` than the one the projectors used,
   losing the changes of persistors that buffer them.
