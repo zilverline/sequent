@@ -47,23 +47,25 @@ module Sequent
             SELECT s.aggregate_id,
                    MAX(snapshot_sequence_number_high_water_mark) AS snapshot_sequence_number_high_water_mark,
                    MAX(snapshot_outdated_at) AS snapshot_outdated_at,
+                   MIN(aggregate_type_id) AS aggregate_type_id,
                    array_agg(snapshot_version) AS existing_snapshot_versions
               FROM aggregates_that_need_snapshots s
              GROUP BY 1
           )
           INSERT INTO aggregates_that_need_snapshots (
                         aggregate_id,
+                        aggregate_type_id,
                         snapshot_sequence_number_high_water_mark,
                         snapshot_outdated_at,
                         snapshot_version
                       )
           SELECT s.aggregate_id,
+                 s.aggregate_type_id,
                  s.snapshot_sequence_number_high_water_mark,
                  COALESCE(s.snapshot_outdated_at, NOW()),
                  ($1::jsonb->(t.type))::integer
             FROM existing_versions s
-            JOIN aggregates a ON s.aggregate_id = a.aggregate_id
-            JOIN aggregate_types t ON a.aggregate_type_id = t.id
+            JOIN aggregate_types t ON s.aggregate_type_id = t.id
            WHERE ($1::jsonb->(t.type))::integer <> ALL (s.existing_snapshot_versions);
         SQL
       end
@@ -71,11 +73,10 @@ module Sequent
       def delete_unknown_snapshot_versions
         connection.exec_update(<<~EOS, 'delete_unknown_snapshot_versions', [snapshot_version_by_type.to_json])
           DELETE FROM aggregates_that_need_snapshots s
-           WHERE snapshot_version <> COALESCE(
-                   (SELECT ($1::jsonb)->(type.type)
-                      FROM aggregates
-                      JOIN aggregate_types type ON aggregate_type_id = type.id
-                     WHERE s.aggregate_id = aggregates.aggregate_id)::integer,
+           USING aggregate_types type
+           WHERE s.aggregate_type_id = type.id
+             AND s.snapshot_version <> COALESCE(
+                   ($1::jsonb->>(type.type))::integer,
                    1
                  );
         EOS
@@ -99,8 +100,13 @@ module Sequent
       # +snapshot_threshold+.
       def mark_aggregate_for_snapshotting(aggregate_id, snapshot_version:, snapshot_outdated_at: Time.now)
         sql = <<~EOS
-          INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_outdated_at)
-          VALUES ($1, $2, $3)
+          INSERT INTO aggregates_that_need_snapshots AS row (
+                        aggregate_id,
+                        aggregate_type_id,
+                        snapshot_version,
+                        snapshot_outdated_at
+                      )
+          VALUES ($1, (SELECT aggregate_type_id FROM aggregates WHERE aggregate_id = $1), $2, $3)
               ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
              SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at),
                  snapshot_scheduled_at = NULL
