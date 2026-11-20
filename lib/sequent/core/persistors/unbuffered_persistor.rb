@@ -10,10 +10,11 @@ module Sequent
     module Persistors
       #
       # Persistor that writes every change to the database right away, like the +ActiveRecordPersistor+, but keeps
-      # records as structs created by +RecordStructs+, like the +ReplayOptimizedPostgresPersistor+, and writes them
-      # using +Statements+. It therefore creates records the same way: using the column defaults of the record class
-      # for the columns without a value, +created_at+ as +updated_at+, and the database default for a nil in a column
-      # without a known default.
+      # records as structs created by +RecordStructs+, like the +ReplayOptimizedPostgresPersistor+, and writes and
+      # reads them using +Statements+, which generates the SQL and has ActiveRecord prepare it, with the values as
+      # binds, so they stay out of the SQL text. It creates records the same way as the
+      # +ReplayOptimizedPostgresPersistor+: using the column defaults of the record class for the columns without a
+      # value, +created_at+ as +updated_at+, and the database default for a nil in a column without a known default.
       #
       # Records are read as structs with all columns, without instantiating models, so no validations or callbacks
       # are executed. Like ActiveRecord:
@@ -80,7 +81,7 @@ module Sequent
         end
 
         def find_records(record_class, where_clause)
-          select_records(record_class, record_class.unscoped.where(where_clause))
+          Statements::Select.new(record_class, where_clause).execute
         end
 
         def delete_all_records(record_class, where_clause)
@@ -121,17 +122,7 @@ module Sequent
         private
 
         def first_record(record_class, where_clause, direction)
-          relation = record_class.unscoped.where(where_clause)
-          primary_key = record_class.primary_key
-          relation = relation.order(Array(primary_key).to_h { |column| [column, direction] }) if primary_key
-          select_records(record_class, relation.limit(1)).first
-        end
-
-        def select_records(record_class, relation)
-          columns = RecordStructs.record_class(record_class)
-          relation.pluck(*columns.column_names).map do |values|
-            columns.struct.new(*(columns.column_names.size == 1 ? [values] : values))
-          end
+          Statements::Select.new(record_class, where_clause, direction:, limit: 1).execute.first
         end
 
         # Like ActiveRecord, the primary key and the other columns that the database computes are returned when
