@@ -45,12 +45,12 @@ module Sequent
         connection.exec_update(<<~SQL, 'register_snapshot_versions', [snapshot_version_by_type.to_json])
           WITH existing_versions AS (
             SELECT s.aggregate_id,
+                   s.aggregate_type_id,
                    MAX(snapshot_sequence_number_high_water_mark) AS snapshot_sequence_number_high_water_mark,
                    MAX(snapshot_outdated_at) AS snapshot_outdated_at,
-                   MIN(aggregate_type_id) AS aggregate_type_id,
                    array_agg(snapshot_version) AS existing_snapshot_versions
               FROM aggregates_that_need_snapshots s
-             GROUP BY 1
+             GROUP BY 1, 2
           )
           INSERT INTO aggregates_that_need_snapshots (
                         aggregate_id,
