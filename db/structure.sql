@@ -1608,7 +1608,7 @@ ALTER TABLE ONLY sequent_schema.aggregates_that_need_snapshots
 --
 
 ALTER TABLE ONLY sequent_schema.aggregates_that_need_snapshots
-    ADD CONSTRAINT aggregates_that_need_snapshots_aggregate_type_id_fkey FOREIGN KEY (aggregate_type_id) REFERENCES sequent_schema.aggregate_types(id);
+    ADD CONSTRAINT aggregates_that_need_snapshots_aggregate_type_id_fkey FOREIGN KEY (aggregate_type_id) REFERENCES sequent_schema.aggregate_types(id) ON UPDATE CASCADE;
 
 
 --

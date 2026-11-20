@@ -13,7 +13,7 @@ class SequentSnapshotAggregateType < ActiveRecord::Migration[7.2]
            WHERE a.aggregate_id = s.aggregate_id;
           ALTER TABLE aggregates_that_need_snapshots
             ALTER COLUMN aggregate_type_id SET NOT NULL,
-            ADD FOREIGN KEY (aggregate_type_id) REFERENCES aggregate_types (id);
+            ADD FOREIGN KEY (aggregate_type_id) REFERENCES aggregate_types (id) ON UPDATE CASCADE;
         SQL
       end
 
