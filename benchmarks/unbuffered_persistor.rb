@@ -5,7 +5,7 @@
 # generate and execute the statements:
 #
 # - active_record:  ActiveRecordPersistor, instantiating models and saving them.
-# - unbuffered:     UnbufferedPersistor, structs written with insert_all!/update_all/delete_all and read with pluck.
+# - unbuffered:     UnbufferedPersistor, structs with its own SQL with binds, prepared by ActiveRecord.
 # - sql_literals:   structs, own SQL with quoted values.
 # - sql_binds:      structs, own SQL with binds, executed by ActiveRecord without preparing it.
 # - sql_prepared:   structs, own SQL with binds, prepared by ActiveRecord.
