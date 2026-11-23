@@ -18,6 +18,8 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  after { MyAggregate.enable_snapshots(version: 42, default_threshold: 1) }
+
   let(:event_store) { Sequent.configuration.event_store }
   let(:aggregate_id) { Sequent.new_uuid }
 
