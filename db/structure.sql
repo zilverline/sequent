@@ -53,10 +53,9 @@ CREATE FUNCTION sequent_schema.aggregates_that_need_snapshots(_last_aggregate_id
     SET search_path TO 'sequent_schema'
     AS $$
 BEGIN
-  RETURN QUERY SELECT a.aggregate_id
+  RETURN QUERY SELECT s.aggregate_id
     FROM aggregates_that_need_snapshots s
-    JOIN aggregates a ON s.aggregate_id = a.aggregate_id
-    JOIN aggregate_types type ON a.aggregate_type_id = type.id
+    JOIN aggregate_types type ON s.aggregate_type_id = type.id
    WHERE s.snapshot_outdated_at IS NOT NULL
      AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(type.type))::integer, 1)
      AND (_last_aggregate_id IS NULL OR s.aggregate_id > _last_aggregate_id)
@@ -462,8 +461,7 @@ BEGIN
   RETURN QUERY WITH scheduled AS MATERIALIZED (
     SELECT s.*, t.type AS aggregate_type
       FROM aggregates_that_need_snapshots AS s
-      JOIN aggregates a ON s.aggregate_id = a.aggregate_id
-      JOIN aggregate_types t ON a.aggregate_type_id = t.id
+      JOIN aggregate_types t ON s.aggregate_type_id = t.id
      WHERE s.snapshot_outdated_at IS NOT NULL
        AND s.snapshot_version = COALESCE((_snapshot_version_by_type->>(t.type))::integer, 1)
      ORDER BY s.snapshot_outdated_at ASC, s.snapshot_sequence_number_high_water_mark DESC, s.aggregate_id ASC
@@ -497,6 +495,7 @@ DECLARE
   _aggregate jsonb;
   _events jsonb;
   _aggregate_id aggregates.aggregate_id%TYPE;
+  _aggregate_type_id aggregates.aggregate_type_id%TYPE;
   _events_partition_key aggregates.events_partition_key%TYPE;
   _current_partition_key aggregates.events_partition_key%TYPE;
   _snapshot_outdated_at aggregates_that_need_snapshots.snapshot_outdated_at%TYPE;
@@ -504,12 +503,13 @@ BEGIN
   FOR _aggregate, _events IN SELECT row->0, row->1 FROM jsonb_array_elements(_aggregates_with_events) AS row ORDER BY row->0->>'aggregate_id' LOOP
     _aggregate_id = _aggregate->>'aggregate_id';
 
+    _aggregate_type_id = (SELECT id FROM aggregate_types WHERE type = _aggregate->>'aggregate_type');
     _events_partition_key = COALESCE(_aggregate->>'events_partition_key', '');
     INSERT INTO aggregates (aggregate_id, created_at, aggregate_type_id, events_partition_key)
     VALUES (
       _aggregate_id,
       (_events->0->>'created_at')::timestamptz,
-      (SELECT id FROM aggregate_types WHERE type = _aggregate->>'aggregate_type'),
+      _aggregate_type_id,
       _events_partition_key
     ) ON CONFLICT (aggregate_id) DO NOTHING;
 
@@ -527,8 +527,8 @@ BEGIN
 
     _snapshot_outdated_at = _aggregate->>'snapshot_outdated_at';
     IF _snapshot_outdated_at IS NOT NULL THEN
-      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_outdated_at)
-      VALUES (_aggregate_id, COALESCE((_aggregate->>'snapshot_version')::integer, 1), _snapshot_outdated_at)
+      INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, aggregate_type_id, snapshot_version, snapshot_outdated_at)
+      VALUES (_aggregate_id, _aggregate_type_id, COALESCE((_aggregate->>'snapshot_version')::integer, 1), _snapshot_outdated_at)
           ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
          SET snapshot_outdated_at = LEAST(row.snapshot_outdated_at, EXCLUDED.snapshot_outdated_at)
        WHERE row.snapshot_outdated_at IS DISTINCT FROM EXCLUDED.snapshot_outdated_at;
@@ -658,8 +658,13 @@ BEGIN
     _sequence_number = _snapshot->'sequence_number';
     _snapshot_version = _snapshot->'snapshot_version';
 
-    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, snapshot_version, snapshot_sequence_number_high_water_mark)
-    VALUES (_aggregate_id, _snapshot_version, _sequence_number)
+    INSERT INTO aggregates_that_need_snapshots AS row (aggregate_id, aggregate_type_id, snapshot_version, snapshot_sequence_number_high_water_mark)
+    VALUES (
+      _aggregate_id,
+      (SELECT aggregate_type_id FROM aggregates WHERE aggregate_id = _aggregate_id),
+      _snapshot_version,
+      _sequence_number
+    )
         ON CONFLICT (aggregate_id, snapshot_version) DO UPDATE
        SET snapshot_sequence_number_high_water_mark =
              GREATEST(row.snapshot_sequence_number_high_water_mark, EXCLUDED.snapshot_sequence_number_high_water_mark),
@@ -874,7 +879,8 @@ CREATE TABLE sequent_schema.aggregates_that_need_snapshots (
     snapshot_sequence_number_high_water_mark integer,
     snapshot_outdated_at timestamp with time zone,
     snapshot_scheduled_at timestamp with time zone,
-    snapshot_version integer NOT NULL
+    snapshot_version integer NOT NULL,
+    aggregate_type_id smallint NOT NULL
 );
 
 
@@ -1598,6 +1604,14 @@ ALTER TABLE ONLY sequent_schema.aggregates_that_need_snapshots
 
 
 --
+-- Name: aggregates_that_need_snapshots aggregates_that_need_snapshots_aggregate_type_id_fkey; Type: FK CONSTRAINT; Schema: sequent_schema; Owner: -
+--
+
+ALTER TABLE ONLY sequent_schema.aggregates_that_need_snapshots
+    ADD CONSTRAINT aggregates_that_need_snapshots_aggregate_type_id_fkey FOREIGN KEY (aggregate_type_id) REFERENCES sequent_schema.aggregate_types(id) ON UPDATE CASCADE;
+
+
+--
 -- Name: commands commands_command_type_id_fkey; Type: FK CONSTRAINT; Schema: sequent_schema; Owner: -
 --
 
@@ -1644,6 +1658,7 @@ ALTER TABLE ONLY sequent_schema.snapshot_records
 SET search_path TO public,view_schema,sequent_schema;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261120120000'),
 ('20261119120000'),
 ('20261110120000'),
 ('20261019170000'),

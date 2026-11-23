@@ -18,6 +18,8 @@ describe Sequent::Core::EventStore do
     end
   end
 
+  after { MyAggregate.enable_snapshots(version: 42, default_threshold: 1) }
+
   let(:event_store) { Sequent.configuration.event_store }
   let(:aggregate_id) { Sequent.new_uuid }
 
@@ -218,6 +220,93 @@ describe Sequent::Core::EventStore do
       expect(event_store.select_aggregates_for_snapshotting(limit: 1)).to include(
         Sequent::Core::AggregateSnapshotNeeded.new(aggregate_id, MyAggregate.name, 42),
       )
+    end
+
+    context 'aggregate type of aggregates that need snapshots' do
+      let(:other_aggregate_id) { Sequent.new_uuid }
+
+      def type_id(aggregate_type)
+        ActiveRecord::Base.connection.select_value(
+          'SELECT id FROM aggregate_types WHERE type = $1',
+          'type_id',
+          [aggregate_type],
+        )
+      end
+
+      def stored_type_ids
+        ActiveRecord::Base.connection.select_rows(
+          'SELECT aggregate_id, snapshot_version, aggregate_type_id FROM aggregates_that_need_snapshots',
+        ).to_h { |id, version, type_id| [[id, version], type_id] }
+      end
+
+      def commit_other_aggregate
+        event_store.commit_events(
+          Sequent::Core::Command.new(aggregate_id: other_aggregate_id),
+          [
+            [
+              Sequent::Core::EventStream.new(
+                aggregate_type: 'MyOtherAggregate',
+                aggregate_id: other_aggregate_id,
+                snapshot_outdated_at: Time.now,
+                snapshot_version: 1,
+              ),
+              [MyEvent.new(aggregate_id: other_aggregate_id, sequence_number: 1, data: 'other')],
+            ],
+          ],
+        )
+      end
+
+      it 'is stored when storing events of an aggregate that needs a snapshot' do
+        commit_other_aggregate
+
+        expect(type_id('MyOtherAggregate')).not_to eq(type_id('MyAggregate'))
+        expect(stored_type_ids).to eq({[other_aggregate_id, 1] => type_id('MyOtherAggregate')})
+      end
+
+      it 'is stored when storing a snapshot' do
+        event_store.store_snapshots([snapshot])
+
+        expect(stored_type_ids).to eq({[aggregate_id, 42] => type_id('MyAggregate')})
+      end
+
+      it 'is stored when marking an aggregate for snapshotting' do
+        commit_other_aggregate
+        event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: 7)
+
+        expect(stored_type_ids).to eq(
+          {
+            [other_aggregate_id, 1] => type_id('MyOtherAggregate'),
+            [aggregate_id, 7] => type_id('MyAggregate'),
+          },
+        )
+      end
+
+      it 'is copied when registering a new snapshot version' do
+        commit_other_aggregate
+        event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: 7)
+
+        MyAggregate.enable_snapshots version: 8
+        event_store.register_snapshot_versions!
+
+        expect(stored_type_ids).to eq(
+          {
+            [other_aggregate_id, 1] => type_id('MyOtherAggregate'),
+            [aggregate_id, 7] => type_id('MyAggregate'),
+            [aggregate_id, 8] => type_id('MyAggregate'),
+          },
+        )
+      end
+
+      it 'is used to delete the snapshot versions that are not registered' do
+        commit_other_aggregate
+        event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: 7)
+        event_store.mark_aggregate_for_snapshotting(aggregate_id, snapshot_version: 42)
+
+        MyAggregate.enable_snapshots version: 42
+        event_store.delete_unknown_snapshot_versions
+
+        expect(stored_type_ids.keys).to contain_exactly([other_aggregate_id, 1], [aggregate_id, 42])
+      end
     end
 
     context 'versioned snapshots' do
