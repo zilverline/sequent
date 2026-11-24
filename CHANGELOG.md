@@ -19,6 +19,22 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   versioned snapshots, registered types and aggregate locking, and new
   versions of the SQL functions.
 
+- Requirement: `aggregates_that_need_snapshots` stores the
+  `aggregate_type_id` of its aggregate, so `register_snapshot_versions!`
+  and `delete_unknown_snapshot_versions` no longer read the `aggregates`
+  table, which is large in a big event store. Requires running the
+  Sequent migrations.
+
+  The migration fills the new column with one lookup in `aggregates`
+  per row of `aggregates_that_need_snapshots`, in a single transaction
+  that holds an exclusive lock on `aggregates_that_need_snapshots`
+  until it commits. Until then, storing events that mark an aggregate
+  for snapshotting, storing snapshots and the snapshotter all wait. On
+  a big event store, run it during downtime, or split it: add the
+  column nullable together with the new `store_aggregates` and
+  `store_snapshots`, fill it in batches, then make it `NOT NULL`, add
+  the foreign key and install the remaining functions.
+
 - Breaking: `Persistor#commit` and `Projector#commit` are renamed to `flush`.
   Custom persistors must implement `flush`.
 
