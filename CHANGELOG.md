@@ -560,6 +560,12 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   models. The persistors are checked by the same specs, so they can
   replace each other without changing the projected data.
 
+- Feature: a new `BufferedPersistor` buffers the changes of a projector until
+  it is flushed, inserting the records created in a table using a single
+  statement and combining the updates of the same records. Reads are
+  supported: a read of a table with pending changes flushes the buffer
+  first, so the read sees them.
+
 - Bug: the `FakeTransactionProvider` of
   `Sequent::Test::WorkflowHelpers` never cleared its `after_commit`
   blocks, so a second `when_event` ran the blocks of the first again.

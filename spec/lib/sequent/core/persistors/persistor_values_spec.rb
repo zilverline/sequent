@@ -112,6 +112,55 @@ describe 'Persistors storing values' do
         ]
       end
 
+      it 'stores the same values with create_records as with create_record' do
+        rows = [
+          {
+            number: 3,
+            amount: BigDecimal('1.255'),
+            day: Date.new(2026, 1, 2),
+            at: Time.utc(2026, 1, 2, 3, 4, 5, 123_456),
+            flag: true,
+            label: "tab\t, backslash \\, newline \n, quote \" and {braces}",
+            identifier: uuid,
+            data: {'k' => [1, 'a']},
+            status: 'sent',
+          },
+          {
+            number: '4',
+            amount: 2.5,
+            day: '2026-01-03',
+            at: Time.new(2026, 1, 2, 4, 4, 5, '+01:00'),
+            flag: 'false',
+            label: :symbol,
+            identifier: Sequent.new_uuid.upcase,
+            data: [1, {'a' => nil}],
+            status: 1,
+          },
+          {
+            number: 5,
+            amount: 0,
+            day: Date.new(2026, 1, 4),
+            at: Time.utc(2026, 1, 4),
+            flag: false,
+            label: '',
+            identifier: Sequent.new_uuid,
+            data: 'text',
+            status: 'draft',
+          },
+        ]
+        order = columns - [:tags]
+
+        persistor.create_records(record_class, rows)
+        persistor.flush
+        many = record_class.order(:id).pluck(*order)
+        record_class.delete_all
+        rows.each { |values| persistor.create_record(record_class, values) }
+        persistor.flush
+
+        expect(many.size).to eq 3
+        expect(many).to eq record_class.order(:id).pluck(*order)
+      end
+
       it 'stores times in other time zones in UTC' do
         expect(stored(at: Time.new(2026, 1, 2, 4, 4, 5, '+01:00')).fetch(3)).to eq Time.utc(2026, 1, 2, 3, 4, 5)
         record_class.delete_all
@@ -294,10 +343,18 @@ describe 'Persistors storing values' do
       it 'stores created_at as updated_at' do
         persistor.create_record(PersistorValuesRecord, {name: 'a', created_at:})
         persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}])
-        persistor.create_or_update_record(PersistorValuesRecord, {name: 'c'}, created_at) { |_| }
         persistor.flush
 
-        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 3
+        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 2
+      end
+
+      unless except.include?(:create_or_update_record)
+        it 'stores created_at as updated_at when create_or_update_record creates a record' do
+          persistor.create_or_update_record(PersistorValuesRecord, {name: 'a'}, created_at) { |_| }
+          persistor.flush
+
+          expect(PersistorValuesRecord.pluck(:created_at, :updated_at)).to eq [[created_at, created_at]]
+        end
       end
 
       it 'stores a given updated_at' do
@@ -315,21 +372,35 @@ describe 'Persistors storing values' do
         expect { persistor.create_record(PersistorValuesRecord, {name: 'a'}) }.to raise_error(missing, /created_at/)
         expect { persistor.create_records(PersistorValuesRecord, [{name: 'b', created_at:}, {name: 'c'}]) }
           .to raise_error(missing)
-        expect { persistor.create_or_update_record(PersistorValuesRecord, {name: 'd'}) { |_| } }
-          .to raise_error(missing)
         expect { persistor.create_record(PersistorValuesRecord, {name: 'e', created_at: ''}) }.to raise_error(missing)
         expect { persistor.create_records(PersistorValuesRecord, [{name: 'f', created_at: ''}]) }
           .to raise_error(missing)
       end
 
+      unless except.include?(:create_or_update_record)
+        it 'fails to create a record with create_or_update_record without created_at' do
+          expect do
+            persistor.create_or_update_record(PersistorValuesRecord, {name: 'd'}) { |_| }
+          end.to raise_error(Sequent::Core::Persistors::MissingCreatedAtError)
+        end
+      end
+
       it 'stores the created_at that a block sets, also as updated_at' do
         persistor.create_record(PersistorValuesRecord, {name: 'a'}) { |record| record.created_at = created_at }
-        persistor.create_or_update_record(PersistorValuesRecord, {name: 'b'}) do |record|
-          record.created_at = created_at
-        end
         persistor.flush
 
-        expect(PersistorValuesRecord.order(:name).pluck(:created_at, :updated_at)).to eq [[created_at, created_at]] * 2
+        expect(PersistorValuesRecord.pluck(:created_at, :updated_at)).to eq [[created_at, created_at]]
+      end
+
+      unless except.include?(:create_or_update_record)
+        it 'stores the created_at that a block of create_or_update_record sets, also as updated_at' do
+          persistor.create_or_update_record(PersistorValuesRecord, {name: 'b'}) do |record|
+            record.created_at = created_at
+          end
+          persistor.flush
+
+          expect(PersistorValuesRecord.pluck(:created_at, :updated_at)).to eq [[created_at, created_at]]
+        end
       end
 
       it 'stores the records in the current transaction' do
@@ -355,6 +426,12 @@ describe 'Persistors storing values' do
 
       expect(PersistorNormalizedTypesRecord.pluck(:label)).to eq [nil]
     end
+  end
+
+  context Sequent::Core::Persistors::BufferedPersistor do
+    let(:persistor) { Sequent::Core::Persistors::BufferedPersistor.new }
+
+    it_behaves_like 'a persistor storing values'
   end
 
   context Sequent::Core::Persistors::UnbufferedPersistor do

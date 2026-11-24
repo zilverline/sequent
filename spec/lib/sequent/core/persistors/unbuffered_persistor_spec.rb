@@ -4,6 +4,8 @@ require 'spec_helper'
 
 class UnbufferedPersistorRecord < Sequent::ApplicationRecord; end
 
+class UnbufferedPersistorArrayRecord < Sequent::ApplicationRecord; end
+
 describe Sequent::Core::Persistors::UnbufferedPersistor do
   let(:record_class) { UnbufferedPersistorRecord }
   let(:persistor) { described_class.new }
@@ -85,6 +87,79 @@ describe Sequent::Core::Persistors::UnbufferedPersistor do
       expect(record_class.order(:id).pluck(:name, :amount, :updated_at)).to eq(
         [['a', nil, created_at], ['b', 2, created_at], ['c', nil, created_at + 1]],
       )
+    end
+  end
+
+  describe 'inserting several records' do
+    def insert_payloads(&) = queries(&).select { |payload| payload[:name].end_with?('Insert') }
+
+    it 'prepares one statement for any number of records, with a bind for every column' do
+      payloads = insert_payloads do
+        persistor.create_records(record_class, Array.new(2) { |i| {name: "a#{i}", amount: i, created_at:} })
+        persistor.create_records(record_class, Array.new(5) { |i| {name: "b#{i}", amount: i, created_at:} })
+      end
+
+      expect(payloads.size).to eq 2
+      expect(payloads.map { |payload| payload[:sql] }.uniq).to eq(
+        [
+          'INSERT INTO "unbuffered_persistor_records" ("name", "amount", "created_at", "updated_at") ' \
+          'SELECT * FROM unnest($1::character varying[], $2::integer[], $3::timestamp without time zone[], ' \
+          '$4::timestamp without time zone[])',
+        ],
+      )
+      expect(payloads.map { |payload| payload[:statement_name] }.uniq.size).to eq 1
+      expect(payloads.map { |payload| payload[:statement_name] }).to all(be_present)
+      expect(payloads.map { |payload| payload[:binds].size }).to eq [4, 4]
+      expect(record_class.count).to eq 7
+    end
+
+    it 'returns the columns in the order of the records' do
+      records = Array.new(5) do |i|
+        Sequent::Core::Persistors::RecordStructs.create(record_class, {name: "n#{i}", created_at:})
+      end
+
+      result = Sequent::Core::Persistors::Statements::Insert.new(record_class, *records)
+        .execute(returning: %i[id name])
+
+      expect(result.rows.map(&:last)).to eq %w[n0 n1 n2 n3 n4]
+      expect(result.rows.map(&:first)).to eq result.rows.map(&:first).sort
+    end
+
+    context 'with an array column' do
+      let(:array_class) { UnbufferedPersistorArrayRecord }
+
+      before do
+        exec_sql(<<~SQL)
+          DROP TABLE IF EXISTS unbuffered_persistor_array_records;
+          CREATE TABLE unbuffered_persistor_array_records (
+            id bigserial PRIMARY KEY,
+            name character varying,
+            tags character varying[],
+            created_at timestamp without time zone NOT NULL,
+            updated_at timestamp without time zone NOT NULL
+          );
+        SQL
+        array_class.reset_column_information
+      end
+
+      it 'inserts the records with a multi-row VALUES statement that is not prepared' do
+        payloads = insert_payloads do
+          persistor.create_records(
+            array_class,
+            [
+              {name: 'a', tags: %w[x y], created_at:},
+              {name: 'b', tags: [], created_at:},
+              {name: 'c', tags: %w[z], created_at:},
+            ],
+          )
+        end
+
+        expect(payloads.size).to eq 1
+        expect(payloads.first[:sql]).to include('VALUES')
+        expect(payloads.first[:sql]).not_to include('unnest')
+        expect(payloads.first[:statement_name]).to be_blank
+        expect(array_class.order(:id).pluck(:name, :tags)).to eq [['a', %w[x y]], ['b', []], ['c', %w[z]]]
+      end
     end
   end
 
