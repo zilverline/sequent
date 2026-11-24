@@ -554,6 +554,12 @@ same API behaves differently), `Deprecated:`, `Feature:` and `Bug:`.
   report the error instead, for instance in production, without failing
   the command.
 
+- Feature: a new `UnbufferedPersistor` writes every change right away, like the
+  `ActiveRecordPersistor`, but reads and writes records as structs,
+  like the `ReplayOptimizedPostgresPersistor`, without instantiating
+  models. The persistors are checked by the same specs, so they can
+  replace each other without changing the projected data.
+
 - Bug: the `FakeTransactionProvider` of
   `Sequent::Test::WorkflowHelpers` never cleared its `after_commit`
   blocks, so a second `when_event` ran the blocks of the first again.
