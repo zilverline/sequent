@@ -1,5 +1,14 @@
 # Changelog 9.x
 
+- Starting a replay or catching up waits for a running change of aggregate
+  partition keys to commit, and keeps new ones out until the replay has
+  switched state. `update_aggregate_partition_keys` locks the replay states in
+  `ROW EXCLUSIVE` mode, which the state change itself also takes, so a change
+  that checked just before the switch could still move events while the
+  replay read them, replaying them twice or missing them. An application that
+  moves partition keys itself should take the same lock and check
+  `ReplayState.replaying` in the same transaction.
+
 - Preparing a replay for activation vacuums the replayed tables after
   clustering them or running `VACUUM FULL`. Both write a table anew with an
   empty visibility map, which `ANALYZE` does not fill, so index-only scans on
