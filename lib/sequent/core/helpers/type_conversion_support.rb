@@ -9,7 +9,7 @@ module Sequent
 
     module Helpers
       # Will parse all values to the correct types.
-      # The raw values are typically posted from the web and are therefor mostly strings.
+      # The raw values are typically posted from the web and are therefore mostly strings.
       # To parse a raw value your class must have a parse_from_string method that returns the parsed values.
       # See sequent/core/ext for currently supported classes.
       module TypeConversionSupport

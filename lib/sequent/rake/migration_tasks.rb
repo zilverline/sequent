@@ -131,7 +131,7 @@ module Sequent
 
               if @env == 'production' && args[:production] != 'yes_drop_production'
                 fail <<~EOS
-                  Wont drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[yes_drop_production]
+                  Will not drop db in production unless you whitelist the environment as follows: rake sequent:db:drop[yes_drop_production]
                 EOS
               end
 
