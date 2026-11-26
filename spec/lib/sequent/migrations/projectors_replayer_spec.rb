@@ -210,6 +210,7 @@ describe Sequent::Migrations::ProjectorsReplayer do
           dbname: config[:database],
           user: config[:username],
           password: config[:password],
+          gssencmode: config[:gssencmode],
         }.compact,
       )
       mover.exec("SET search_path TO #{config[:schema_search_path]}")
@@ -218,17 +219,33 @@ describe Sequent::Migrations::ProjectorsReplayer do
       mover.exec("LOCK TABLE #{Sequent::Migrations::ReplayState.quoted_table_name} IN ROW EXCLUSIVE MODE")
 
       replay = Thread.new { ActiveRecord::Base.connection_pool.with_connection { subject.perform_initial_replay } }
-      sleep 1
+      # Without the fix the replay does not wait: it forks its workers, which close the inherited mover connection.
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 30
+      blocked = false
+      until blocked || !replay.alive? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        sleep 0.05
+        begin
+          # The mover's transaction would otherwise keep seeing the sessions of its first query.
+          mover.exec('SELECT pg_stat_clear_snapshot()')
+          blocked = mover.exec_params(
+            'SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
+            [mover.backend_pid],
+          ).ntuples.positive?
+        rescue PG::ConnectionBad
+          break
+        end
+      end
 
-      expect(replay).to be_alive
+      expect(blocked).to be(true)
       expect(Sequent::Migrations::ReplayState.find(subject.state.id).state).to eq('prepared')
 
       mover.exec('COMMIT')
-      replay.join(60)
-
+      expect(replay.join(60)).to be(replay)
       expect(Sequent::Migrations::ReplayState.find(subject.state.id).state).to eq('replayed')
     ensure
+      # Release the lock and let the replay finish before the teardown drops its tables.
       mover&.close
+      replay&.join(60) || replay&.kill
     end
 
     it 'should ensure the replay tables are empty for the initial replay' do
