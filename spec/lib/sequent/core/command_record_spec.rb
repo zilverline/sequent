@@ -10,7 +10,7 @@ describe Sequent::Core::CommandRecord do
   let(:command) { TestCommand.new(aggregate_id: Sequent.new_uuid, field: 'value') }
 
   before do
-    # ActiveRecord is doing some timestamp trunctation (microseconds
+    # ActiveRecord is doing some timestamp truncation (microseconds
     # to milliseconds) so set the timestamp without microseconds
     # here. The JSON timestamp format will not persist these
     # microseconds anyway.

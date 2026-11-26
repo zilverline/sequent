@@ -52,8 +52,8 @@ module Sequent
         end
 
         # Returns the unique keys for the current instance based on
-        # the `unique_key` defintions. You can also override it if you
-        # need more compicated logic.
+        # the `unique_key` definitions. You can also override it if you
+        # need more complicated logic.
         #
         # Example return value:
         #

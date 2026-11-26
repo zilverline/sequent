@@ -664,7 +664,7 @@ describe Sequent::Migrations::ViewSchema do
         end
 
         context 'only alter_tables' do
-          it 'only adds the colum to the table' do
+          it 'only adds the column to the table' do
             expect(AccountRecord).to_not have_column('foobar')
 
             Sequent.configuration.migration_sql_files_directory = 'spec/fixtures/db/2'

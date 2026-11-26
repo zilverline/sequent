@@ -70,7 +70,7 @@ $ pg_config --version
 PostgreSQL 16.13
 ```
 
-Sequent requires PostgreSQL version 16.13 or later, but we recommend you install the lastest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org).
+Sequent requires PostgreSQL version 16.13 or later, but we recommend you install the latest version. For installation instructions refer to your OS or see [postgresql.org](https://www.postgresql.org).
 
 #### Sequent
 

@@ -18,7 +18,7 @@ module Sequent
       #     attrs trainee: Person
       #   end
       #
-      # This will register :trainee with the AssociationValidator and is equivilant to
+      # This will register :trainee with the AssociationValidator and is equivalent to
       #
       #   validates_with Sequent::Core::AssociationValidator, associations: [:trainee]
       #

@@ -20,7 +20,7 @@ end
 The `Sequent::CommandHandler` exposes two convenience methods:
 
 1.  `repository`, a shorthand for Sequent.configuration.aggregate_repository
-2.  `do_with_aggregate`, basically a shorthand for `respository.load_aggregate`
+2.  `do_with_aggregate`, basically a shorthand for `repository.load_aggregate`
 
 A CommandHandler can respond to multiple commands:
 

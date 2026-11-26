@@ -6,7 +6,7 @@ require_relative 'read_only_replay_optimized_postgres_persistor'
 module Sequent
   module DryRun
     # Subclass of Migrations::ViewSchema to dry run a migration.
-    # This migration does not insert anything into the database, mainly usefull
+    # This migration does not insert anything into the database, mainly useful
     # for performance testing migrations.
     class ViewSchema < Migrations::ViewSchema
       def migrate_dryrun(regex:)

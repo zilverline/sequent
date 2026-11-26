@@ -715,7 +715,7 @@ describe Sequent::Core::AggregateRepository do
         end
       end
 
-      it 'enforces key uniquness when adding a new aggregate' do
+      it 'enforces key uniqueness when adding a new aggregate' do
         Sequent.aggregate_repository.add_aggregate(user_1)
         Sequent.aggregate_repository.commit(DummyCommand.new)
 

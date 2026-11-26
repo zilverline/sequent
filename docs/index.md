@@ -22,7 +22,7 @@ New to Sequent? The [getting started guide](/docs/getting-started.html) is the p
 
 In this guide we will use the Sequent concepts and create and code a first domain model
 of our blog application. Go checkout the [modelling the domain guide](/docs/modelling-the-domain.html)
-for step by step tutorial to create an app from scatch.
+for step by step tutorial to create an app from scratch.
 
 ### 3. Building a web-application
 

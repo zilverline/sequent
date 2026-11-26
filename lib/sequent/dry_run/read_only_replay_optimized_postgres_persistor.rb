@@ -4,7 +4,7 @@ require_relative '../core/persistors/replay_optimized_postgres_persistor'
 module Sequent
   module DryRun
     # Subclass of ReplayOptimizedPostgresPersistor
-    # This persistor does not persist anything. Mainly usefull for
+    # This persistor does not persist anything. Mainly useful for
     # performance testing migrations.
     class ReadOnlyReplayOptimizedPostgresPersistor < Core::Persistors::ReplayOptimizedPostgresPersistor
       def prepare

@@ -321,7 +321,7 @@ Ensure it's being required in `blog.rb`:
 require_relative 'app/projectors/author_projector'
 ```
 
-### Run the databse migration
+### Run the database migration
 
 To migrate the database, run:
 

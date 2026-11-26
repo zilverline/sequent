@@ -23,7 +23,7 @@ module Sequent
     ##
     # Reset the given +processing_key+ for the current Thread.
     #
-    # Usefull to make a block protected by +skip_if_already_processing+ reentrant.
+    # Useful to make a block protected by +skip_if_already_processing+ reentrant.
     def self.done_processing(processing_key)
       Thread.current[processing_key] = nil
     end
