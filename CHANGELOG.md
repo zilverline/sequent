@@ -1,5 +1,11 @@
 # Changelog 9.x
 
+- Preparing a replay for activation vacuums the replayed tables after
+  clustering them or running `VACUUM FULL`. Both write a table anew with an
+  empty visibility map, which `ANALYZE` does not fill, so index-only scans on
+  the activated tables read the heap and the first aggressive vacuum read
+  every page.
+
 - A replay group reads only the events in its own range of
   `(partition_key, aggregate_id)` again. Its event stream lost the separate
   bound on `partition_key`, so PostgreSQL could not use the range as an
