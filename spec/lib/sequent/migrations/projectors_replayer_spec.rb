@@ -200,6 +200,54 @@ describe Sequent::Migrations::ProjectorsReplayer do
         .to raise_error(/initial replay can only be performed when current state is prepared/)
     end
 
+    it 'waits for a running partition key change before replaying, so it cannot move events under the replay' do
+      # Outside the pool, since the replay disconnects every pooled connection.
+      config = ActiveRecord::Base.connection_db_config.configuration_hash
+      mover = PG.connect(
+        **{
+          host: config[:host],
+          port: config[:port],
+          dbname: config[:database],
+          user: config[:username],
+          password: config[:password],
+          gssencmode: config[:gssencmode],
+        }.compact,
+      )
+      mover.exec("SET search_path TO #{config[:schema_search_path]}")
+      # A partition key change holds this lock until it commits, then checks for a running replay.
+      mover.exec('BEGIN')
+      mover.exec("LOCK TABLE #{Sequent::Migrations::ReplayState.quoted_table_name} IN ROW EXCLUSIVE MODE")
+
+      replay = Thread.new { ActiveRecord::Base.connection_pool.with_connection { subject.perform_initial_replay } }
+      # Without the fix the replay does not wait: it forks its workers, which close the inherited mover connection.
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 30
+      blocked = false
+      until blocked || !replay.alive? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+        sleep 0.05
+        begin
+          # The mover's transaction would otherwise keep seeing the sessions of its first query.
+          mover.exec('SELECT pg_stat_clear_snapshot()')
+          blocked = mover.exec_params(
+            'SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
+            [mover.backend_pid],
+          ).ntuples.positive?
+        rescue PG::ConnectionBad
+          break
+        end
+      end
+
+      expect(blocked).to be(true)
+      expect(Sequent::Migrations::ReplayState.find(subject.state.id).state).to eq('prepared')
+
+      mover.exec('COMMIT')
+      expect(replay.join(60)).to be(replay)
+      expect(Sequent::Migrations::ReplayState.find(subject.state.id).state).to eq('replayed')
+    ensure
+      # Release the lock and let the replay finish before the teardown drops its tables.
+      mover&.close
+      replay&.join(60) || replay&.kill
+    end
+
     it 'should ensure the replay tables are empty for the initial replay' do
       in_replay_schema do
         SingleRecord.create!(aggregate_id: Sequent.new_uuid, name: 'name')

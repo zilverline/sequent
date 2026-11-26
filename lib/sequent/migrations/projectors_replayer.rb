@@ -135,6 +135,7 @@ module Sequent
           end
           fail "managed tables #{non_empty_tables.join(', ')} are not empty" unless non_empty_tables.empty?
 
+          lock_out_partition_key_changes
           @state.state = 'replaying'
           @state.save!
 
@@ -176,6 +177,7 @@ module Sequent
 
           saved_state = @state.state
 
+          lock_out_partition_key_changes
           @state.state = 'catching_up'
           @state.save!
 
@@ -509,6 +511,13 @@ module Sequent
       def connection = ActiveRecord::Base.connection
 
       def with_locked_state(...) = @state.with_lock('FOR NO KEY UPDATE', ...)
+
+      # A partition key change holds ROW EXCLUSIVE on the replay states until it commits and only proceeds when no
+      # replay is running. This mode conflicts with it, so the state change waits for a running change and a new one
+      # waits for the state change, and then sees the replay.
+      def lock_out_partition_key_changes
+        exec_update("LOCK TABLE #{ReplayState.quoted_table_name} IN SHARE ROW EXCLUSIVE MODE")
+      end
 
       # Adapted from https://github.com/rails/rails/blob/main/activerecord/lib/active_record/tasks/postgresql_database_tasks.rb#L80
       def psql_env
