@@ -130,10 +130,12 @@ module Sequent
           .where(
             event_type_id: event_type_ids,
           )
+        # The separate bound on partition_key is what PostgreSQL can use as an index condition and to prune
+        # partitions; the OR form after it keeps its row estimates right.
         if group.begin
           event_stream = event_stream.where(
-            'events.partition_key > :partition_key OR ' \
-            '(events.partition_key = :partition_key AND events.aggregate_id >= :aggregate_id)',
+            'events.partition_key >= :partition_key AND (events.partition_key > :partition_key OR ' \
+            '(events.partition_key = :partition_key AND events.aggregate_id >= :aggregate_id))',
             partition_key: group.begin.partition_key,
             aggregate_id: group.begin.aggregate_id,
           )
@@ -141,8 +143,8 @@ module Sequent
         if group.end
           op = group.exclude_end? ? '<' : '<='
           event_stream = event_stream.where(
-            'events.partition_key < :partition_key OR ' \
-            "(events.partition_key = :partition_key AND events.aggregate_id #{op} :aggregate_id)",
+            'events.partition_key <= :partition_key AND (events.partition_key < :partition_key OR ' \
+            "(events.partition_key = :partition_key AND events.aggregate_id #{op} :aggregate_id))",
             partition_key: group.end.partition_key,
             aggregate_id: group.end.aggregate_id,
           )
