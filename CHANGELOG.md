@@ -1,5 +1,10 @@
 # Changelog 9.x
 
+- A replay group reads only the events in its own range of
+  `(partition_key, aggregate_id)` again. Its event stream lost the separate
+  bound on `partition_key`, so PostgreSQL could not use the range as an
+  index condition and every group read all matching events of its partition.
+
 - `aggregates_that_need_snapshots` stores the `aggregate_type_id` of its
   aggregate, so `register_snapshot_versions!` and
   `delete_unknown_snapshot_versions` no longer read the `aggregates`
