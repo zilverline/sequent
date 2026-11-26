@@ -603,6 +603,13 @@ module Sequent
             'vacuum table',
           )
         end
+        # CLUSTER and VACUUM FULL write the table anew with an empty visibility map; only VACUUM sets its bits.
+        (clustered_tables + non_clustered_tables).each do |table_name|
+          log_and_exec_update(
+            "VACUUM #{quoted_replay_schema_name}.#{quote_table_name(table_name)}",
+            'fill visibility map',
+          )
+        end
       end
 
       def analyze_tables

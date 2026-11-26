@@ -297,6 +297,19 @@ describe Sequent::Migrations::ProjectorsReplayer do
         end
       end
 
+      it 'marks every page of the replayed tables all-visible, so index-only scans need not read the heap' do
+        tables = exec_query(<<~SQL, [Sequent.configuration.replay_schema_name]).to_a
+          SELECT c.relname, c.relpages, c.relallvisible
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname = $1 AND c.relkind = 'r' AND c.relpages > 0
+        SQL
+
+        expect(tables).to be_present
+        expect(tables.to_h { |table| [table['relname'], table['relallvisible']] })
+          .to eq(tables.to_h { |table| [table['relname'], table['relpages']] })
+      end
+
       it 'incrementally replays the events within the transaction' do
         insert_events(10)
 
