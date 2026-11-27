@@ -235,13 +235,11 @@ module Sequent
           verify_state 'going live can only be performed when', 'optimized'
           verify_replaying_projector_versions
 
-          Sequent::Core::Projectors.register_activating_projectors!(projector_classes)
-
           # pg_dump cannot dump the tables once they are locked exclusively, so they are first locked against
           # schema changes only.
           lock_view_schema_tables('SHARE UPDATE EXCLUSIVE')
           verify_view_schema_unchanged_since_prepare(lock_wait_timeout: total_lock_timeout_milliseconds)
-          lock_view_schema_tables('ACCESS EXCLUSIVE')
+          lock_out_projectors
 
           # Checked after locking: adding a table to a publication or creating statistics on it waits for
           # these locks, so nothing can change in between.
@@ -327,15 +325,31 @@ module Sequent
         relations = managed_relations(view_schema_name).map(&method(:quote_table_name))
         return if relations.empty?
 
-        stop_trying_at = total_lock_timeout.from_now
-        begin
-          Sequent.configuration.transaction_provider.transaction(requires_new: true) do
-            Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
-              Sequent::Support::Database.with_search_path(view_schema_name) do
-                log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN #{mode} MODE")
-              end
+        retry_lock_wait_timeout(total_lock_timeout) do
+          Sequent::Support::Database.with_lock_timeout([0.1.seconds, total_lock_timeout].min.to_d * 1000) do
+            Sequent::Support::Database.with_search_path(view_schema_name) do
+              log_and_exec_update("LOCK TABLE #{relations.join(', ')} IN #{mode} MODE")
             end
           end
+        end
+      end
+
+      # Marks the projectors as activating and locks their tables exclusively. A transaction that publishes events
+      # reads the view schema tables, then the projector states, and then writes the view schema tables. So it can
+      # hold a lock on either one while it waits for the other, and waiting for it with the other locked is a
+      # deadlock. A lock that is not granted in time therefore releases both before trying again.
+      def lock_out_projectors(total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout)
+        timeout = [0.1.seconds, total_lock_timeout].min
+        retry_lock_wait_timeout(total_lock_timeout) do
+          Sequent::Core::Projectors.register_activating_projectors!(projector_classes, total_lock_timeout: timeout)
+          lock_view_schema_tables('ACCESS EXCLUSIVE', total_lock_timeout: timeout)
+        end
+      end
+
+      def retry_lock_wait_timeout(total_lock_timeout, &)
+        stop_trying_at = total_lock_timeout.from_now
+        begin
+          Sequent.configuration.transaction_provider.transaction(requires_new: true, &)
         rescue ActiveRecord::LockWaitTimeout
           retry if stop_trying_at.future?
           raise

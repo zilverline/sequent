@@ -64,11 +64,14 @@ module Sequent
           update_projector_state(rows)
         end
 
-        def register_activating_projectors!(projector_classes)
+        def register_activating_projectors!(
+          projector_classes,
+          total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout
+        )
           rows = projector_classes.map do |c|
             {name: c.name, activating_version: c.version, replaying_version: nil}
           end
-          update_projector_state(rows)
+          update_projector_state(rows, total_lock_timeout:)
         end
 
         def register_active_projectors!(projector_classes)
