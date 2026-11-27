@@ -1,5 +1,13 @@
 # Changelog 9.x
 
+- Activating a replay no longer aborts running commands with a deadlock. It
+  locked the projector states and then waited for an exclusive lock on the
+  view schema tables, while a command that had read one of those tables
+  waited for the projector states to publish its events. Activation now
+  checks the view schema first and then takes both locks together; when one
+  is not granted in time it releases both before trying again, for at most
+  `projectors_replayer_total_lock_timeout`.
+
 - Starting a replay or catching up waits for a running change of aggregate
   partition keys to commit, and keeps new ones out until the replay has
   switched state. `update_aggregate_partition_keys` locks the replay states in

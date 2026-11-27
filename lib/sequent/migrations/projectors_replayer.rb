@@ -339,9 +339,10 @@ module Sequent
       # hold a lock on either one while it waits for the other, and waiting for it with the other locked is a
       # deadlock. A lock that is not granted in time therefore releases both before trying again.
       def lock_out_projectors(total_lock_timeout: Sequent.configuration.projectors_replayer_total_lock_timeout)
+        timeout = [0.1.seconds, total_lock_timeout].min
         retry_lock_wait_timeout(total_lock_timeout) do
-          Sequent::Core::Projectors.register_activating_projectors!(projector_classes, total_lock_timeout: 0.1.seconds)
-          lock_view_schema_tables('ACCESS EXCLUSIVE', total_lock_timeout: 0.1.seconds)
+          Sequent::Core::Projectors.register_activating_projectors!(projector_classes, total_lock_timeout: timeout)
+          lock_view_schema_tables('ACCESS EXCLUSIVE', total_lock_timeout: timeout)
         end
       end
 

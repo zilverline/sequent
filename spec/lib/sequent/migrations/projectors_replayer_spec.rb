@@ -437,47 +437,76 @@ describe Sequent::Migrations::ProjectorsReplayer do
         expect(record_count('view_schema')).to eq(initial_event_count + 2000)
       end
 
-      it 'lets a transaction that already read a view schema table commit its events' do
-        config = ActiveRecord::Base.connection_db_config.configuration_hash
-        command = PG.connect(
-          {
-            host: config[:host],
-            port: config[:port],
-            dbname: config[:database],
-            user: config[:username],
-            password: config[:password],
-            gssencmode: config[:gssencmode],
-          }.compact,
-        )
-        command.exec("SET search_path TO #{config[:schema_search_path]}")
-        # A command reads the view schema while it is handled, and the projector states when it commits its events.
-        command.exec('BEGIN')
-        command.exec('SELECT count(*) FROM view_schema.single_records')
-
-        activation = Thread.new { ActiveRecord::Base.connection_pool.with_connection { subject.activate! } }
-        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 30
-        blocked = false
-        until blocked || !activation.alive? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
-          sleep 0.01
-          # The command's transaction would otherwise keep seeing the sessions of its first query.
-          command.exec('SELECT pg_stat_clear_snapshot()')
-          blocked = command.exec_params(
-            'SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
-            [command.backend_pid],
-          ).ntuples.positive?
+      context 'with a transaction of a running command' do
+        let(:command) do
+          config = ActiveRecord::Base.connection_db_config.configuration_hash
+          PG.connect(
+            {
+              host: config[:host],
+              port: config[:port],
+              dbname: config[:database],
+              user: config[:username],
+              password: config[:password],
+              gssencmode: config[:gssencmode],
+            }.compact,
+          ).tap { |connection| connection.exec("SET search_path TO #{config[:schema_search_path]}") }
         end
-        expect(blocked).to be(true)
+        let(:activation) { Thread.new { ActiveRecord::Base.connection_pool.with_connection { subject.activate! } } }
 
-        expect { command.exec("SELECT count(*) FROM #{Sequent::Core::ProjectorState.quoted_table_name}") }
-          .not_to raise_error
+        after do
+          # Release the locks and let the activation finish before the teardown drops its tables.
+          command.close
+          activation.join(60) || activation.kill
+        end
 
-        command.exec('COMMIT')
-        expect(activation.join(60)).to be(activation)
-        expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
-      ensure
-        # Release the locks and let the activation finish before the teardown drops its tables.
-        command&.close
-        activation&.join(60) || activation&.kill
+        def wait_until_activation_waits_for_command
+          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 30
+          blocked = false
+          until blocked || !activation.alive? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+            sleep 0.01
+            # The command's transaction would otherwise keep seeing the sessions of its first query.
+            command.exec('SELECT pg_stat_clear_snapshot()')
+            blocked = command.exec_params(
+              'SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
+              [command.backend_pid],
+            ).ntuples.positive?
+          end
+          expect(blocked).to be(true)
+        end
+
+        # A command reads the view schema while it is handled, and the projector states when it publishes its events.
+        it 'lets a transaction that read a view schema table read the projector states' do
+          command.exec('BEGIN')
+          command.exec('SELECT count(*) FROM view_schema.single_records')
+          activation
+          wait_until_activation_waits_for_command
+
+          expect { command.exec("SELECT count(*) FROM #{Sequent::Core::ProjectorState.quoted_table_name}") }
+            .not_to raise_error
+
+          command.exec('COMMIT')
+          expect(activation.join(60)).to be(activation)
+          expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
+        end
+
+        # After reading the projector states the projectors of a command write the view schema.
+        it 'lets a transaction that read the projector states write a view schema table' do
+          command.exec('BEGIN')
+          command.exec("SELECT count(*) FROM #{Sequent::Core::ProjectorState.quoted_table_name}")
+          activation
+          wait_until_activation_waits_for_command
+
+          expect do
+            command.exec_params(
+              'INSERT INTO view_schema.single_records_base_table (aggregate_id, name) VALUES ($1, $2)',
+              [Sequent.new_uuid, 'name'],
+            )
+          end.not_to raise_error
+
+          command.exec('COMMIT')
+          expect(activation.join(60)).to be(activation)
+          expect(Sequent::Migrations::ReplayState.last).to have_attributes(state: 'live')
+        end
       end
 
       it 'renames the old table and replaces it with the new table' do
